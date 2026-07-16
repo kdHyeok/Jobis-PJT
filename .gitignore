@@ -1,0 +1,14 @@
+# build
+build/
+.gradle/
+
+# node
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# local override (개인 설정)
+**/application-local.yml

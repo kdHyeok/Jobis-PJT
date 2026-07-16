@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잡이스 — 분석 대화 (실시간)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- ============ 사이드바 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
+      <span class="nm">잡<span>이스</span></span>
+    </div>
+    <button class="new-btn" onclick="location.href='new.html'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      새 분석 시작
+    </button>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <input placeholder="분석 검색">
+    </div>
+    <div class="side-scroll">
+      <a class="side-nav" onclick="location.href='storage.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        커리어 저장소
+      </a>
+      <a class="side-nav" onclick="location.href='roadmaps.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+        로드맵 저장소
+      </a>
+      <div class="side-label">최근 분석</div>
+      <div id="recentList"><div class="side-empty">불러오는 중…</div></div>
+      <div class="side-card">
+        <h4>이번 분석 자료</h4>
+        <div id="evFiles"><div class="file-row" style="color:var(--faint)"><span class="nm">불러오는 중…</span></div></div>
+      </div>
+      <div class="side-card">
+        <h4>분석 단계</h4>
+        <ul class="mini-stages" id="miniStages">
+          <li class="active">공고 · 자료 대조</li>
+          <li>추가 질문</li>
+          <li>준비 로드맵 생성</li>
+        </ul>
+      </div>
+    </div>
+    <div class="userchip">
+      <div class="av" id="sideAv">?</div>
+      <div><div class="u-name" id="sideName">사용자</div><div class="u-mail" id="sideMail"></div></div>
+      <button class="more" id="logoutBtn" title="로그아웃" style="background:none;border:0;font-size:16px;color:var(--faint)">⎋</button>
+    </div>
+  </aside>
+
+  <!-- ============ 메인(채팅) ============ -->
+  <main class="main">
+    <div class="topbar">
+      <div class="model-pill"><span class="g" id="connDot"></span> 잡이스 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
+      <div>
+        <div class="title" id="topTitle">분석 세션</div>
+        <div class="sub" id="topSub">실시간 분석 세션</div>
+      </div>
+      <div class="sp"></div>
+      <button class="dark-btn" onclick="location.href='new.html'">＋ 새 분석</button>
+    </div>
+
+    <div class="chat-scroll" id="scroll">
+      <div class="chat-inner" id="thread"></div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer-inner">
+        <div class="assist-note" id="assistNote">💡 질문이 오면 선택지를 누르거나 직접 답할 수 있어요</div>
+        <div class="composer">
+          <div class="field" id="field" contenteditable="true" data-ph="답변을 입력하세요…"></div>
+          <div class="toolrow">
+            <button class="tbtn icon" title="첨부">📎</button>
+            <button class="tbtn">🔗 포트폴리오 링크</button>
+            <button class="send" id="send" title="전송" aria-label="전송" disabled>➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 우측 인사이트 패널 ============ -->
+  <aside class="insight">
+    <div class="insight-head">
+      <div class="t">📊 인사이트 <span class="badge wait" id="insBadge">분석 중</span></div>
+      <div class="s">답변에 따라 실시간 갱신됩니다</div>
+    </div>
+    <div class="insight-scroll" id="insightScroll">
+      <div class="ipanel">
+        <div class="ih">현재 스펙 요약</div>
+        <div class="spec-row"><span class="k">경력 수준</span><span class="v">신입 · 프로젝트 3건</span></div>
+        <div class="spec-row"><span class="k">강점</span><span class="v">Java · 성능 개선</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:9px">주요 스택</div>
+        <div class="stacks"><span class="stk">Java</span><span class="stk">Spring Boot</span><span class="stk">JPA</span><span class="stk">MySQL</span></div>
+      </div>
+      <div class="ipanel">
+        <div class="ih">공고 준비도 <span class="n mut" id="fitDelta">분석 중</span></div>
+        <div class="fit-big"><div class="num" id="fitNum">—<small>/100</small></div><div class="lbl" id="fitLbl">분석이 끝나면 표시됩니다</div></div>
+      </div>
+      <div class="empty-panel" id="planEmpty">
+        <div class="e-ic">🗺️</div>
+        <div class="e-t">준비 로드맵 생성 대기</div>
+        <div class="e-s">분석이 끝나면<br>맞춤 로드맵이 완성됩니다</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<nav class="flow-nav">
+  <span class="lbl" id="flowLbl">실시간 분석 · 대기</span>
+  <a href="index.html">← 랜딩</a>
+</nav>
+
+<script>
+(function () {
+  if (!JB.requireAuth()) return;
+
+  var WS_URL = 'ws://' + location.host + '/ws';
+  var thread = document.getElementById('thread');
+  var scroll = document.getElementById('scroll');
+  var field = document.getElementById('field');
+  var send = document.getElementById('send');
+
+  // URL의 분석 id (새 분석 화면에서 이미 세션을 열고 넘어옴)
+  var analysisId = new URLSearchParams(location.search).get('id');
+  if (!analysisId) { location.href = 'new.html'; return; }
+  var openRoute = new URLSearchParams(location.search).get('route');   // 로드맵 저장소에서 특정 경로 상태로 열기
+
+  var USER = JB.user() || {};
+  var UNAME = USER.name || '사용자';
+  var UINIT = UNAME.slice(0, 1);
+
+  var client = null;
+  var currentQuestion = null;     // 답 대기 중인 질문
+  var progressEl = null;          // 갱신되는 진행 상태 말풍선
+  var jobLabel = '';              // 공고명(리포트 헤더에 사용)
+  var parentLabel = null;         // 대체 공고 재분석이면 원래 공고명 (서버 상태조회에서 채움 → 영구)
+  var selectedRoute = null;       // 경로 비교에서 고른 주 경로 id (서버 상태조회에서 채움 → 복원 시 표시)
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // AI가 보낸 값을 그대로 HTML/속성에 넣지 않도록 숫자는 숫자로 강제(신뢰 불가 채널 방어).
+  function num(v){ var n = Number(v); return isFinite(n) ? n : 0; }
+  // 속성 컨텍스트용: 따옴표까지 이스케이프(신뢰 불가 채널 값이 data-*/class 속성에 들어갈 때).
+  function escA(s){ return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // ---------- 로그인 사용자 반영 ----------
+  document.getElementById('sideAv').textContent = UINIT;
+  document.getElementById('sideName').textContent = UNAME;
+  document.getElementById('sideMail').textContent = USER.email || '';
+  document.getElementById('logoutBtn').addEventListener('click', function(){ JB.logout(); location.href = 'login.html'; });
+
+  // ---------- 사이드바: 이번 분석 자료(새 분석 화면에서 넘어온 선택) ----------
+  var KIND_FI = { PROJECT:'PJ', GITHUB:'GH', PORTFOLIO:'PF', STACK:'ST', EDU:'ED', CERT:'CT' };
+  var KIND_CLS = { PROJECT:'cv', GITHUB:'gh', PORTFOLIO:'pf', STACK:'jd', EDU:'jd', CERT:'pf' };
+  (function fillEvidenceFiles(){
+    var box = document.getElementById('evFiles');
+    var meta = null;
+    try { meta = JSON.parse(sessionStorage.getItem('jobis.analysisMeta') || 'null'); } catch(e){}
+    var evs = (meta && meta.id === analysisId && Array.isArray(meta.evidences)) ? meta.evidences : null;
+    if (!evs || !evs.length){
+      box.innerHTML = '<div class="file-row" style="color:var(--faint)"><span class="nm">선택한 자료로 분석 중</span></div>';
+      return;
+    }
+    box.innerHTML = evs.map(function(e){
+      var fi = KIND_FI[e.kind] || 'DOC';
+      var cls = KIND_CLS[e.kind] || 'jd';
+      return '<div class="file-row"><span class="fi '+cls+'">'+esc(fi)+'</span><span class="nm">'+esc(e.label)+'</span><span class="ck">✓</span></div>';
+    }).join('');
+  })();
+
+  // ---------- 사이드바 최근 분석 목록 ----------
+  JB.loadSessions(document.getElementById('recentList'), analysisId);
+
+  // ---------- 공고 정보 + 라이브/복원 분기 ----------
+  // 완료된 분석이면 결과(로드맵)부터 복원, 아니면 실시간으로 시작.
+  JB.api('/api/analyses/' + encodeURIComponent(analysisId)).then(function(st){
+    var jp = st.jobPosting || {};
+    var title = (jp.company || '') + (jp.role ? ' · ' + jp.role : '');
+    if (title.trim()){
+      jobLabel = title;
+      document.getElementById('topTitle').textContent = title;
+      document.title = '잡이스 — ' + (jp.company || '분석');
+    }
+    parentLabel = st.parentLabel || null;   // 대체 재분석이면 원래 공고명 (서버가 보관)
+    selectedRoute = st.selectedRoute || null;   // 고른 주 경로 id (서버가 보관 → 복원 시 표시)
+    if (st.status === 'COMPLETED') {
+      fillJobReq(jp.career, jp.stack);   // 저장된 공고 요구 기술
+      restore();                          // 지난 분석: 결과(로드맵)부터
+    } else {
+      boot();                             // 진행 중/새 분석: 실시간
+    }
+  }).catch(function(){
+    // 상태 조회 실패(삭제됐거나 권한 없음) — 실시간 세션을 새로 열지 말고 명확히 알린다.
+    systemNote('이 분석을 열 수 없어요. 삭제됐거나 접근 권한이 없어요.');
+    var ct = document.getElementById('connTxt');
+    ct.textContent = '열 수 없음'; ct.style.color = 'var(--bad)';
+  });
+  function scrollDown(){ scroll.scrollTop = scroll.scrollHeight; }
+
+  // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
+  function aiBubble(html, extra){
+    var el = document.createElement('div');
+    el.className = 'msg';
+    el.innerHTML = '<div class="who ai">✦</div><div class="body">' +
+      '<div class="name">잡이스 <span class="t">방금</span></div>' +
+      '<div class="bubble"></div>' + (extra||'') + '</div>';
+    thread.appendChild(el); scrollDown();
+    el.querySelector('.bubble').innerHTML = html;
+    return el;
+  }
+
+  /**
+   * 가짜 스트리밍: AI 말풍선을 글자 하나씩 찍는 연출.
+   * 백엔드는 완성 문장을 한 번에 주지만, 화면에서 ChatGPT처럼 또르르 보이게 한다.
+   * plainText = 타이핑할 순수 텍스트(HTML 태그 없이). extra/onExtra = 타이핑 후 붙일 카드/바인딩.
+   */
+  function aiTyping(plainText, opts){
+    opts = opts || {};
+    var el = document.createElement('div');
+    el.className = 'msg';
+    el.innerHTML = '<div class="who ai">✦</div><div class="body">' +
+      '<div class="name">잡이스 <span class="t">방금</span></div>' +
+      '<div class="bubble"><span class="tw"></span><span class="caret">▍</span></div></div>';
+    thread.appendChild(el); scrollDown();
+    var tw = el.querySelector('.tw');
+    var caret = el.querySelector('.caret');
+    var i = 0;
+    var speed = opts.speed || 22;   // ms per char
+    (function tick(){
+      if(i <= plainText.length){
+        tw.textContent = plainText.slice(0, i);
+        i++;
+        if(i % 3 === 0) scrollDown();
+        setTimeout(tick, speed);
+      } else {
+        if(caret) caret.remove();
+        if(opts.extraHtml){
+          var body = el.querySelector('.body');
+          var wrap = document.createElement('div');
+          wrap.innerHTML = opts.extraHtml;
+          while(wrap.firstChild) body.appendChild(wrap.firstChild);
+        }
+        scrollDown();
+        if(opts.onDone) opts.onDone(el);
+      }
+    })();
+    return el;
+  }
+  function userBubble(text){
+    var el = document.createElement('div');
+    el.className = 'msg user';
+    el.innerHTML = '<div class="who me">'+esc(UINIT)+'</div><div class="body">' +
+      '<div class="name">'+esc(UNAME)+' <span class="t">방금</span></div>' +
+      '<div class="bubble">'+esc(text)+'</div></div>';
+    thread.appendChild(el); scrollDown();
+  }
+  function systemNote(text){
+    var el = document.createElement('div');
+    el.style.cssText = 'text-align:center;font-size:12px;color:var(--muted);margin:2px 0';
+    el.textContent = text; thread.appendChild(el); scrollDown();
+  }
+
+  // ---------- 신호별 처리 ----------
+  function onProgress(m){
+    if(!progressEl){
+      progressEl = aiBubble('<span id="progText"></span>');
+      progressEl.querySelector('.bubble').innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px">' +
+        '<span class="spin" style="width:14px;height:14px;border:2px solid #ddd;border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:spin 1s linear infinite"></span>' +
+        '<span id="progText"></span></div>' +
+        '<div style="height:6px;background:var(--line-2);border-radius:20px;margin-top:10px;overflow:hidden"><i id="progBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:20px;transition:width .5s"></i></div>';
+    }
+    var pct = num(m.percent);
+    progressEl.querySelector('#progText').innerHTML = '분석 진행 중 · <b>'+pct+'%</b> — '+esc(m.stage);
+    progressEl.querySelector('#progBar').style.width = pct + '%';
+    document.getElementById('topSub').textContent = '분석 중 · ' + pct + '%';
+    document.getElementById('flowLbl').textContent = '실시간 분석 · ' + pct + '%';
+    scrollDown();
+  }
+
+  function onQuestion(m){
+    // 진행바 말풍선을 정리 → 다음(2차) 진행이 Q&A 아래 새 말풍선으로 보이게(화면 밖 갱신 방지)
+    if(progressEl){ progressEl.remove(); progressEl = null; }
+    currentQuestion = m;
+    var opts = (m.options||[]).map(function(o){ return '<button data-opt>'+esc(o)+'</button>'; }).join('');
+    var extra = '<div class="qcard"><span class="tag">확인 질문</span>' +
+      '<div class="q">'+esc(m.text)+'</div>' +
+      (opts ? '<div class="opts">'+opts+'</div>' : '') +
+      '<div class="hint">선택지를 누르거나 아래에 직접 답할 수 있어요.</div></div>';
+    // 안내 문장은 타이핑 연출, 질문 카드는 타이핑 끝난 뒤 등장 + 버튼 바인딩
+    aiTyping('잠시 확인할 게 있어요. 답해주시면 반영해서 이어갈게요.', {
+      extraHtml: extra,
+      onDone: function(el){
+        el.querySelectorAll('[data-opt]').forEach(function(b){
+          b.addEventListener('click', function(){ answer(b.textContent); });
+        });
+        send.disabled = false;
+        field.setAttribute('data-ph', '답변을 입력하세요…');
+        document.getElementById('assistNote').textContent = '💡 이 질문에 답해주세요 (선택지 클릭 또는 직접 입력)';
+        field.focus();
+      }
+    });
+  }
+
+  function answer(text){
+    if(!currentQuestion || !text) return;
+    userBubble(text);
+    client.publish({
+      destination: '/app/agent/' + analysisId + '/message',
+      body: JSON.stringify({ text: text, replyTo: currentQuestion.questionId })
+    });
+    currentQuestion = null;
+    send.disabled = true;
+    field.textContent = '';
+    field.setAttribute('data-ph', '분석을 이어가는 중…');
+    document.getElementById('assistNote').textContent = '💡 답변을 반영해 분석을 이어갑니다…';
+  }
+
+  function onDone(m){
+    if(progressEl){ progressEl.remove(); progressEl = null; }
+    renderResult(m.result || {});
+  }
+
+  // 결과(로드맵) 렌더 — 라이브 완료(onDone)와 복원(restore) 둘 다 사용.
+  function renderResult(r){
+    var rd = r.readiness || {};
+    document.getElementById('insBadge').className = 'badge live';
+    document.getElementById('insBadge').textContent = '완료';
+    document.getElementById('fitNum').innerHTML = (rd.now!=null?num(rd.now):'—') + '<small>/100</small>';
+    document.getElementById('fitDelta').className = 'n up'; document.getElementById('fitDelta').textContent = '▲ 목표 '+ (rd.goal!=null?num(rd.goal):'');
+    document.getElementById('fitLbl').textContent = '로드맵 완주 시 ' + (rd.goal!=null?num(rd.goal):'') + ' 목표';
+    var pe = document.getElementById('planEmpty');
+    if(pe) pe.outerHTML = '<div class="ipanel"><div class="ih">준비 로드맵 <span class="n up">'+((r.roadmap||[]).length)+'단계</span></div>' +
+      '<div class="spec-row"><span class="k">우선 보완</span><span class="v">'+esc(rd.topGap||'')+'</span></div>' +
+      '<div class="spec-row"><span class="k">산출물</span><span class="v">'+esc((r.artifact||{}).title||'')+'</span></div></div>';
+    document.getElementById('topSub').textContent = '분석 완료';
+    document.getElementById('flowLbl').textContent = '분석 완료 ✓';
+    document.querySelectorAll('#miniStages li').forEach(function(li){ li.className='done'; });
+    var reportEl = aiBubble('분석이 끝났어요. <strong>'+esc(rd.topGap||'')+'</strong>이 가장 큰 격차입니다. 아래 로드맵을 확인해보세요.', buildReport(r));
+    var altBtn = reportEl.querySelector('[data-alts]');
+    if(altBtn){ altBtn.addEventListener('click', function(){ showAlternatives(r.alternatives || []); }); }
+    // 경로 선택 바인딩 + 복원 시 이미 고른 경로 강조
+    reportEl.querySelectorAll('[data-route-pick]').forEach(function(btn){
+      btn.addEventListener('click', function(){ pickRoute(r, btn.getAttribute('data-route-pick'), reportEl); });
+    });
+    // 저장소/홈에서 열면 그 로드맵의 경로를 우선 표시. 실제 존재하는 경로일 때만 마크(잘못된 route 파라미터 방어).
+    var routeToShow = openRoute || selectedRoute;
+    var selRt = routeToShow ? (r.routes||[]).filter(function(x){ return x.id === routeToShow; })[0] : null;
+    if(selRt){
+      markSelectedRoute(reportEl, selRt.id);
+      renderRouteContent(r, selRt, reportEl.querySelector('[data-route-detail]'));   // 그 경로 콘텐츠 재현
+    }
+    send.disabled = true; field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 완료되었습니다');
+    document.getElementById('assistNote').innerHTML = '✅ 분석 완료 · 준비 로드맵이 생성되었습니다';
+  }
+
+  // 대체 공고 카드 HTML (인라인 패널·말풍선 공용)
+  function altCardsHtml(alts){
+    return alts.map(function(a, i){
+      var badge = a.label==='디딤돌' ? 'step' : 'alt';
+      return '<div class="alt-card">' +
+        '<div class="alt-top"><span class="alt-badge '+badge+'">'+esc(a.label||'대체')+'</span>' +
+        '<span class="alt-co">'+esc(a.company||'')+'</span></div>' +
+        '<div class="alt-role">'+esc(a.role||'')+(a.career?' · '+esc(a.career):'')+'</div>' +
+        '<div class="alt-reason">'+esc(a.reason||'')+'</div>' +
+        '<button class="alt-btn" data-alt="'+i+'">이 공고로 재분석 →</button></div>';
+    }).join('');
+  }
+  function bindAltButtons(container, alts){
+    container.querySelectorAll('[data-alt]').forEach(function(b){
+      b.addEventListener('click', function(){ reanalyze(alts[Number(b.dataset.alt)], b); });
+    });
+  }
+  // 대체 공고 목록 — 말풍선(경로 없는 폴백 결과의 "대체 공고 보기" 버튼용). 고르면 그 공고로 독립 재분석.
+  function showAlternatives(alts){
+    if(!alts || !alts.length){ systemNote('추천할 대체 공고가 없어요.'); return; }
+    var el = aiBubble('이 공고는 지원이 어려워도, 지금 지원해볼 만한 곳을 찾아봤어요.',
+      '<div class="alt-panel"><div class="alt-h">대체 공고</div>'+altCardsHtml(alts)+'</div>');
+    bindAltButtons(el, alts);
+  }
+
+  // 대체 공고로 독립 재분석 — 내 저장소 자료 전체로 그 공고를 새 세션 분석.
+  async function reanalyze(alt, btn){
+    if(!alt) return;
+    if(btn){ btn.disabled = true; btn.textContent = '재분석 준비 중…'; }
+    try {
+      var list = await JB.api('/api/evidences');
+      var ids = (list||[]).map(function(e){ return e.id; });
+      if(!ids.length){ systemNote('저장소에 자료가 없어요. 먼저 커리어 저장소를 채워주세요.'); if(btn){ btn.disabled=false; btn.textContent='이 공고로 재분석 →'; } return; }
+      var res = await JB.api('/api/analyses/agent-custom', {
+        method:'POST',
+        body: JSON.stringify({ sourceType:'URL', content: alt.rawText, evidenceIds: ids, parentAnalysisId: analysisId })
+      });
+      var selEv = (list||[]).map(function(e){ return { kind:e.kind, label:e.label }; });
+      try { sessionStorage.setItem('jobis.analysisMeta', JSON.stringify({ id: res.analysisId, evidences: selEv })); } catch(_){}
+      location.href = 'chat.html?id=' + encodeURIComponent(res.analysisId);
+    } catch(e){
+      systemNote('재분석을 시작하지 못했어요: ' + e.message);
+      if(btn){ btn.disabled=false; btn.textContent='이 공고로 재분석 →'; }
+    }
+  }
+
+  // 지난(완료된) 분석 복원 — 결과(로드맵)부터. 실시간 연결 없이 저장된 결과를 그린다.
+  function restore(){
+    document.getElementById('connDot').style.background = 'var(--muted)';
+    document.getElementById('connTxt').textContent = '지난 분석';
+    document.getElementById('connTxt').style.color = 'var(--muted)';
+    systemNote('지난 분석 결과를 불러왔어요');
+    if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고');
+    JB.api('/api/analyses/' + encodeURIComponent(analysisId) + '/result').then(function(data){
+      renderResult(data.result || {});
+    }).catch(function(e){ systemNote('결과를 불러오지 못했어요: ' + e.message); });
+  }
+
+  function buildReport(r){
+    var rd = r.readiness || {};
+    var now = num(rd.now), goal = num(rd.goal), gain = goal - now;
+    var steps = roadmapStepsHtml(r);
+    var gaps = (r.gaps||[]).slice(0,3).map(function(g){
+      var mk = g.mark==='ok'?'ok':(g.mark==='no'?'no':'tri');
+      var sym = g.mark==='ok'?'✓':(g.mark==='no'?'✕':'△');
+      return '<div class="gap-line"><span class="mk '+mk+'">'+sym+'</span><div><div class="gt">'+esc(g.requirement)+'</div><div class="gd">'+esc(g.fix||g.evidence||'')+'</div></div></div>';
+    }).join('');
+    var hasRoutes = (r.routes||[]).length > 0;
+    return '<div class="report">' +
+      '<div class="report-head"><div class="rk">준비 로드맵 · '+esc(jobLabel||'분석 결과')+'</div><h3>'+esc(rd.judge||'')+'</h3></div>' +
+      '<div class="report-gauge"><div class="gauge-num">'+(rd.now!=null?now:'—')+'<small>/100</small></div>' +
+        '<div class="gauge-bar"><div class="gb-track"><div class="gb-now" style="width:'+now+'%"></div><div class="gb-gain" style="left:'+now+'%;width:'+gain+'%"></div></div>' +
+        '<div class="gb-lbl"><span>현재 '+now+'</span><span>완주 시 '+goal+'</span></div></div>' +
+        '<div class="gauge-cap">준비 참고 지표 · 합격 여부를 뜻하지 않아요</div></div>' +
+      '<div class="report-body">' +
+        '<div class="rsec"><div class="rt">부족한 증거 → 준비 과제</div>'+gaps+'</div>' +
+        // 로드맵은 경로 있으면 숨기고 "보강 지원" 선택 시 표시(스펙 §12.1). 경로 없는 일반 공고는 폴백으로 인라인.
+        (hasRoutes ? '' : '<div class="rsec"><div class="rt">준비 로드맵</div>'+steps+'</div>') +
+      '</div>' +
+      buildRoutes(r) +
+      (hasRoutes ? '' :
+        '<div class="report-cta">' +
+        ((r.alternatives||[]).length ? '<a class="btn line" data-alts>대체 공고 보기</a>' : '') +
+        '<a class="btn pri">산출물 준비 시작 →</a></div>') +
+      '</div>';
+  }
+
+  // ── 준비·지원 경로 2~3개(스펙 §11) — 결과의 routes[]가 있을 때만 렌더. 종합 점수는 넣지 않는다(§10.5). ──
+  var ROUTE_KIND = { as_is: '지금 지원', reinforce: '보강 후 지원', parallel: '유사공고 병행' };
+  var ROUTE_EFFORT = { low: '낮음', mid: '중간', high: '높음' };
+  function buildRoutes(r){
+    var routes = r.routes || [];
+    if(!routes.length) return '';
+    var cards = routes.map(function(rt){
+      var kind = ROUTE_KIND[rt.kind] ? rt.kind : 'as_is';       // 화이트리스트(안전 토큰)
+      var eff = ROUTE_EFFORT[rt.effort] ? rt.effort : 'mid';    // 화이트리스트(안전 토큰)
+      var chips = (rt.confirmed||[]).map(function(c){ return '<span class="rv-chip ok">✓ '+esc(c)+'</span>'; }).join('') +
+                  (rt.missing||[]).map(function(m){ return '<span class="rv-chip miss">＋ '+esc(m)+'</span>'; }).join('');
+      return '<div class="route-card" data-route="'+escA(rt.id)+'">' +
+        '<div class="route-top"><span class="route-badge '+kind+'">'+esc(ROUTE_KIND[kind])+'</span>' +
+          '<span class="route-effort '+eff+'">준비 부담 '+esc(ROUTE_EFFORT[eff])+'</span></div>' +
+        '<div class="route-title">'+esc(rt.title||'')+'</div>' +
+        '<div class="route-sum">'+esc(rt.summary||'')+'</div>' +
+        (chips ? '<div class="route-ev">'+chips+'</div>' : '') +
+        (rt.deliverable ? '<div class="route-meta">🎯 대표 산출물 · '+esc(rt.deliverable)+'</div>' : '') +
+        (rt.hardRisk ? '<div class="route-meta risk">⚠ 명시적 필수조건과 충돌하는 항목이 있어요</div>' : '') +
+        '<button class="route-btn" data-route-pick="'+escA(rt.id)+'">이 경로로 진행 →</button></div>';
+    }).join('');
+    return '<div class="report-routes"><div class="rt">준비·지원 경로 — 하나를 골라 진행하세요</div>' +
+      '<div class="route-grid">'+cards+'</div>' +
+      '<div class="route-detail" data-route-detail></div></div>';
+  }
+
+  // 경로 카드 선택 → 서버에 저장 + 강조 + 유형별 다음 행동(parallel이면 대체공고, 그 외엔 로드맵 진행)
+  function pickRoute(r, routeId, reportEl){
+    var route = (r.routes||[]).filter(function(x){ return x.id === routeId; })[0];
+    if(!route) return;
+    selectedRoute = routeId;
+    JB.api('/api/analyses/' + encodeURIComponent(analysisId) + '/selected-route', {
+      method: 'POST', body: JSON.stringify({ routeId: routeId })
+    }).catch(function(){});   // 저장 실패해도 화면 흐름은 계속
+    markSelectedRoute(reportEl, routeId);
+    renderRouteContent(r, route, reportEl.querySelector('[data-route-detail]'));
+  }
+
+  // 로드맵 스텝 HTML (리포트 폴백 + 보강 경로 패널 공용)
+  function roadmapStepsHtml(r){
+    return (r.roadmap||[]).slice(0,3).map(function(it){
+      var cls = it.status==='done'?'done':(it.status==='active'?'active':'lock');
+      var sn = it.status==='done'?'✓':(it.status==='locked'?'🔒':it.no);
+      return '<div class="step '+cls+'"><span class="sn">'+esc(sn)+'</span><div><div class="st">'+esc(it.title)+'</div><div class="sm">'+esc(it.state||it.meta||'')+'</div></div><span class="sd">'+esc(it.delta||'')+'</span></div>';
+    }).join('');
+  }
+
+  // 고른 경로 콘텐츠를 경로 카드 아래 인라인 패널에 표시(선택 직후 + 복원 공용).
+  // parallel=대체공고(재분석은 페이지 이동) / as_is·reinforce=미리보기 + "로드맵 생성" 버튼.
+  function renderRouteContent(r, route, detailEl){
+    if(!route) return;
+    if(route.kind === 'parallel'){
+      var rel = route.relatedPostings || [];
+      var alts = (r.alternatives||[]).filter(function(a){ return rel.indexOf(a.id) >= 0; });
+      if(!alts.length) alts = (r.alternatives||[]);
+      if(!detailEl){ showAlternatives(alts); return; }   // 폴백(패널 없으면 말풍선)
+      if(!alts.length){ detailEl.innerHTML = '<div class="rd-inner"><div class="rd-sum">추천할 대체 공고가 없어요.</div></div>'; return; }
+      detailEl.innerHTML = '<div class="rd-inner"><div class="alt-panel"><div class="alt-h">대체 공고 — 골라서 재분석</div>'+altCardsHtml(alts)+'</div></div>';
+      bindAltButtons(detailEl, alts);
+      return;
+    }
+    if(!detailEl) return;
+    var preview = '<div class="rd-sum">'+esc(route.summary||'')+'</div>' +
+      (route.kind === 'as_is' ? applyGuideHtml(route) : '');
+    detailEl.innerHTML = '<div class="rd-inner">' + preview +
+      '<button class="rmgen-btn" data-rmgen>이 경로로 로드맵 생성 →</button>' +
+      '<div class="rmgen-out"></div></div>';
+    var btn = detailEl.querySelector('[data-rmgen]');
+    if(btn) btn.addEventListener('click', function(){ doGenerateRoadmap(route, btn, detailEl); });
+  }
+
+  // 지원 자료 정리 HTML(자소서 대필 아님 — 재료 정리). applyGuide 없으면 빈 문자열.
+  function applyGuideHtml(route){
+    var g = route.applyGuide || {};
+    var matches = (g.matches||[]).map(function(m){
+      return '<div class="guide-match"><div class="guide-req">'+esc(m.requirement||'')+'</div>' +
+        '<div class="guide-line"><span class="gl-k">내 증거</span>'+esc(m.evidence||'')+'</div>' +
+        '<div class="guide-line"><span class="gl-k">어필 각도</span>'+esc(m.angle||'')+'</div></div>';
+    }).join('');
+    var checks = (g.checklist||[]).map(function(c){
+      return '<label class="guide-ch-item"><input type="checkbox"><span>'+esc(c)+'</span></label>';
+    }).join('');
+    if(!matches && !checks) return '';
+    return '<div class="guide-panel"><div class="guide-h">지원 자료 정리</div>' + matches +
+      (checks ? '<div class="guide-check"><div class="guide-ch-h">지원 전 체크리스트</div>'+checks+'</div>' : '') +
+      '</div>';
+  }
+
+  // "로드맵 생성" — 웹 백엔드에 요청하면 AI가 (분석+경로+목표맥락)으로 로드맵을 정리해 저장한다.
+  async function doGenerateRoadmap(route, btn, detailEl){
+    btn.disabled = true; btn.textContent = '로드맵 생성 중…';
+    var out = detailEl.querySelector('.rmgen-out');
+    try {
+      var res = await JB.api('/api/roadmaps', {
+        method: 'POST', body: JSON.stringify({ analysisId: analysisId, routeId: route.id })
+      });
+      if(out) out.innerHTML = generatedRoadmapHtml(res.roadmap || {});
+      btn.textContent = '저장됨 ✓'; btn.classList.add('done');
+    } catch(e){
+      btn.disabled = false; btn.textContent = '이 경로로 로드맵 생성 →';
+      if(out) out.innerHTML = '<div class="rmgen-err">로드맵 생성 실패: '+esc(e.message)+'</div>';
+    }
+  }
+
+  // 생성된 로드맵 렌더 {title, intro, steps:[{no,title,meta}], goalLink}
+  function generatedRoadmapHtml(rm){
+    var steps = (rm.steps||[]).map(function(s){
+      return '<div class="step active"><span class="sn">'+esc(String(s.no==null?'':s.no))+'</span>' +
+        '<div><div class="st">'+esc(s.title||'')+'</div><div class="sm">'+esc(s.meta||'')+'</div></div></div>';
+    }).join('');
+    return '<div class="rmgen-card"><div class="rmgen-h">'+esc(rm.title||'생성된 로드맵')+'</div>' +
+      (rm.intro ? '<div class="rmgen-intro">'+esc(rm.intro)+'</div>' : '') +
+      steps +
+      (rm.goalLink ? '<div class="rmgen-goal">'+esc(rm.goalLink)+'</div>' : '') +
+      '<div class="rmgen-saved">✓ 내 로드맵 저장소에 저장됐어요</div></div>';
+  }
+
+  // 선택한 경로 카드 강조(복원 시에도 사용) — 고른 카드 sel, 나머지 dim.
+  function markSelectedRoute(reportEl, routeId){
+    if(!reportEl) return;
+    reportEl.querySelectorAll('.route-card').forEach(function(card){
+      var picked = card.getAttribute('data-route') === routeId;
+      card.classList.toggle('sel', picked);
+      card.classList.toggle('dim', !picked);
+      var btn = card.querySelector('[data-route-pick]');
+      if(btn){ btn.disabled = picked; btn.textContent = picked ? '선택한 경로 ✓' : '이 경로로 진행 →'; }
+    });
+  }
+
+  // 인사이트 "공고 요구 기술" 패널 채우기 (라이브 JOB_CONTEXT + 복원 둘 다 사용)
+  function fillJobReq(career, stack){
+    var stacks = Array.isArray(stack) ? stack : [];
+    var host = document.getElementById('insightScroll');
+    var panel = document.getElementById('jobReqPanel');
+    if (!panel){
+      panel = document.createElement('div');
+      panel.className = 'ipanel'; panel.id = 'jobReqPanel';
+      host.insertBefore(panel, host.firstChild);
+    }
+    panel.innerHTML = '<div class="ih">공고 요구 기술 <span class="n mut">'+stacks.length+'</span></div>' +
+      (career ? '<div class="spec-row"><span class="k">경력</span><span class="v">'+esc(career)+'</span></div>' : '') +
+      (stacks.length ? '<div class="stacks">'+stacks.map(function(s){ return '<span class="stk">'+esc(s)+'</span>'; }).join('')+'</div>'
+                     : '<div style="font-size:12px;color:var(--muted);margin-top:6px">원문에서 요구 기술을 특정하지 못했어요</div>');
+  }
+
+  // 공고 이해 신호: 웹은 원문만 넘겼고, AI가 회사·직무·요구스택을 분석해 보내온 것.
+  function onJobContext(m){
+    var title = (m.company||'') + (m.role ? ' · ' + m.role : '');
+    if (title.trim()){
+      jobLabel = title;
+      document.getElementById('topTitle').textContent = title;
+      document.title = '잡이스 — ' + (m.company || '분석');
+    }
+    var stacks = Array.isArray(m.stack) ? m.stack : [];
+    fillJobReq(m.career, m.stack);
+    // 대화로도 알려줌(공고를 읽은 느낌)
+    var line = '공고를 읽었어요' + (title.trim() ? ' — ' + title : '') + '. ' +
+      (stacks.length ? '요구 기술 ' + stacks.length + '개를 확인했어요. 이제 내 자료와 대조할게요.' : '이제 내 자료와 대조할게요.');
+    aiTyping(line);
+  }
+
+  function handle(m){
+    if(m.type==='PROGRESS') onProgress(m);
+    else if(m.type==='JOB_CONTEXT') onJobContext(m);
+    else if(m.type==='QUESTION') onQuestion(m);
+    else if(m.type==='AGENT_MESSAGE') aiTyping(m.text);   // AI 반응도 타이핑 연출
+    else if(m.type==='DONE') onDone(m);
+    else if(m.type==='ERROR') systemNote('⚠ ' + (m.message||'분석 오류'));
+  }
+
+  // 컴포저 전송(직접 입력 답변)
+  function submitField(){ var t = field.textContent.trim(); if(currentQuestion && t) answer(t); }
+  send.addEventListener('click', submitField);
+  field.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submitField(); }});
+
+  // ---------- 부팅: STOMP 연결 → 구독 → 구독 후 세션 시작(begin) ----------
+  // '새 분석'은 Run만 만들어 두고, 여기서 구독을 마친 뒤 begin을 호출해 AI 세션을 연다.
+  // (그래야 JOB_CONTEXT 같은 초기 신호를 놓치지 않는다)
+  var begun = false;
+  function boot(){
+    client = new StompJs.Client({
+      brokerURL: WS_URL,
+      reconnectDelay: 4000,
+      connectHeaders: { Authorization: 'Bearer ' + (JB.token() || '') }   // 실시간 채널 인증
+    });
+    client.onConnect = function(){
+      document.getElementById('connDot').style.background = 'var(--ok)';
+      document.getElementById('connTxt').textContent = '실시간 연결됨';
+      document.getElementById('connTxt').style.color = 'var(--ok)';
+      client.subscribe('/topic/analysis/' + analysisId, function(frame){ handle(JSON.parse(frame.body)); });
+      if (!begun){
+        begun = true;
+        if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고로 재분석해요');
+        aiTyping('공고와 자료를 받았어요. 먼저 공고부터 읽어볼게요 🔍');
+        JB.api('/api/analyses/agent/' + encodeURIComponent(analysisId) + '/begin', { method:'POST' })
+          .catch(function(e){ systemNote('분석 시작 실패: ' + e.message); });
+      }
+    };
+    client.onStompError = function(f){ systemNote('연결 오류: ' + (f.headers && f.headers.message)); };
+    client.onWebSocketError = function(){ document.getElementById('connTxt').textContent = '연결 실패'; };
+    client.activate();
+  }
+  // boot()/restore()는 위 상태 조회(라이브/복원 분기)에서 호출된다.
+})();
+</script>
+<style>
+@keyframes spin{to{transform:rotate(360deg)}}
+.caret{display:inline-block;width:2px;margin-left:1px;color:var(--brand);animation:blink-caret .9s steps(1) infinite;font-weight:400}
+@keyframes blink-caret{50%{opacity:0}}
+.tw{white-space:pre-wrap}
+</style>
+</body>
+</html>
