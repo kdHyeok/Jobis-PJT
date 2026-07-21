@@ -75,7 +75,7 @@
     <div class="stg-scroll">
       <div class="stg-inner">
         <h1 class="stg-h">로드맵 저장소</h1>
-        <p class="stg-sub">분석 결과에서 경로를 골라 생성·저장한 로드맵이 모여요. 하나를 <b>대표</b>로 지정하면 홈에서 바로 볼 수 있어요. <b>같은 회사</b>라도 목표 맥락(디딤돌/목표)이 다르면 다른 로드맵이에요.</p>
+        <p class="stg-sub">분석 결과에서 경로를 골라 생성·저장한 로드맵이 모여요. 하나를 <b>대표</b>로 지정하면 홈에서 바로 볼 수 있어요.</p>
 
         <div class="stg-card">
           <div class="sc-h"><span>🗺 내 로드맵</span><span class="n" id="rmCount"></span></div>
@@ -130,7 +130,7 @@
       el.innerHTML =
         '<div class="rm-top">' +
           '<span class="rm-badge '+routeCls+'">'+esc(ROUTE_LABEL[it.routeId] || '경로')+'</span>' +
-          (it.goalLabel ? '<span class="rm-goal-badge">↳ 목표 '+esc(it.goalLabel)+'</span>' : '<span class="rm-badge">독립 목표</span>') +
+          (it.goalLabel ? '<span class="rm-goal-badge">↳ '+esc(it.goalLabel)+'에서</span>' : '') +
           (it.representative ? '<span class="rm-rep-badge">대표</span>' : '') +
         '</div>' +
         '<div class="rm-title">'+esc(rm.title || '로드맵')+'</div>' +
@@ -139,7 +139,8 @@
         (rm.goalLink ? '<div class="rm-goal-link">'+esc(rm.goalLink)+'</div>' : '') +
         '<div class="rm-acts">' +
           '<button class="rep-btn" data-rep="'+it.id+'"'+(it.representative?' disabled':'')+'>'+(it.representative?'대표 ✓':'대표로 지정')+'</button>' +
-          '<a href="chat.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">분석 열기 →</a>' +
+          '<a href="roadmap.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">로드맵 열기 →</a>' +
+          '<a href="chat.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">분석 열기</a>' +
         '</div>';
       list.appendChild(el);
     });

@@ -9,6 +9,51 @@
 <link rel="stylesheet" href="styles.css">
 <script src="auth.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+<style>
+  /* 목표 상태 판정(decision) — 경로 위에 얹히는 종합 결론 카드 */
+  .decision{border-radius:14px;padding:15px 17px;margin:12px 0 14px;border:1px solid transparent}
+  .decision .dc-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px}
+  .decision .dc-head{font-size:16px;font-weight:800;letter-spacing:-.01em;margin-top:10px;line-height:1.4}
+  .decision .dc-reasons{margin:9px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+  .decision .dc-reasons li{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .decision .dc-hc{margin-top:12px;border-top:1px solid var(--line-2);padding-top:10px}
+  .decision .dc-hc-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+  .decision .hc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:4px 0}
+  .decision .hc-req{font-weight:700}
+  .decision .hc-cur{color:var(--muted)}
+  .decision .hc-sub{font-size:11px;font-weight:800;border-radius:6px;padding:2px 8px;margin-left:auto}
+  .decision .hc-sub.no{background:var(--warn-soft);color:var(--warn)}
+  .decision .hc-sub.ok{background:var(--ok-soft);color:var(--ok)}
+  .decision .dc-next,.decision .dc-recheck{font-size:12.5px;margin-top:9px;line-height:1.5;color:var(--ink-2)}
+  .decision .dc-next .k,.decision .dc-recheck .k{font-weight:800;color:var(--ink);margin-right:6px}
+  .decision.ready{background:var(--ok-soft)}
+  .decision.ready .dc-badge{background:var(--ok);color:#fff}
+  .decision.ready .dc-head{color:var(--ok)}
+  .decision.caution{background:var(--warn-soft)}
+  .decision.caution .dc-badge{background:var(--warn);color:#fff}
+  .decision.caution .dc-head{color:var(--warn)}
+  .decision.block{background:var(--warn-soft)}
+  .decision.block .dc-badge{background:var(--bad,#d64550);color:#fff}
+  .decision.block .dc-head{color:var(--bad,#d64550)}
+  .decision.unknown{background:var(--surface-2);border-color:var(--line)}
+  .decision.unknown .dc-badge{background:var(--muted);color:#fff}
+  .decision.unknown .dc-head{color:var(--ink-2)}
+  /* 경로를 판정 아래로 종속 */
+  .report-routes .rt .rt-sub{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:3px}
+  /* '권장' 도장이 카드 모서리에 걸치되(right:-12·top:-28) .report 경계 안에 머물게 → overflow 변경 불필요.
+     경로 그리드 위에 여백을 줘서 도장이 '준비·지원 경로' 헤딩을 침범하지 않게 한다. */
+  .report-routes .route-grid{margin-top:30px}
+  /* '권장' = 도장 느낌 — 권장 카드 우상단 모서리에 걸쳐 찍힌 듯. 흐름에서 빼서 상단 칩도 안 접힘 */
+  .route-card.rec{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft);position:relative}
+  .report-routes .route-effort{white-space:nowrap}
+  .route-rec{
+    position:absolute;top:-28px;right:-12px;width:48px;height:48px;border-radius:50%;
+    display:grid;place-items:center;text-align:center;
+    font-size:12.5px;font-weight:900;letter-spacing:-.8px;line-height:1;
+    color:var(--brand);background:transparent;border:2.5px solid currentColor;
+    box-shadow:inset 0 0 0 1.5px currentColor;
+    transform:rotate(-13deg);opacity:.9;z-index:3;pointer-events:none}
+</style>
 </head>
 <body>
 <div class="app">
@@ -366,9 +411,8 @@
   // 대체 공고 카드 HTML (인라인 패널·말풍선 공용)
   function altCardsHtml(alts){
     return alts.map(function(a, i){
-      var badge = a.label==='디딤돌' ? 'step' : 'alt';
       return '<div class="alt-card">' +
-        '<div class="alt-top"><span class="alt-badge '+badge+'">'+esc(a.label||'대체')+'</span>' +
+        '<div class="alt-top"><span class="alt-badge alt">'+esc(a.label||'관련 공고')+'</span>' +
         '<span class="alt-co">'+esc(a.company||'')+'</span></div>' +
         '<div class="alt-role">'+esc(a.role||'')+(a.career?' · '+esc(a.career):'')+'</div>' +
         '<div class="alt-reason">'+esc(a.reason||'')+'</div>' +
@@ -421,6 +465,34 @@
     }).catch(function(e){ systemNote('결과를 불러오지 못했어요: ' + e.message); });
   }
 
+  // ── 목표 상태 판정(decision) — 재료를 종합해 "이 공고를 지금/중기 목표 중 어디에 둘지" 결론. 경로보다 먼저(위). ──
+  var DECISION_META = {
+    APPLY_NOW:         { cls:'ready',   icon:'✓' },
+    APPLY_WITH_POLISH: { cls:'ready',   icon:'✓' },
+    REINFORCE_FIRST:   { cls:'caution', icon:'⚑' },
+    MID_TERM_TARGET:   { cls:'caution', icon:'◷' },
+    STRUCTURAL_BLOCK:  { cls:'block',   icon:'⚠' },
+    UNDETERMINED:      { cls:'unknown', icon:'?' }
+  };
+  var REC_ROUTE = { APPLY_NOW:'as_is', APPLY_WITH_POLISH:'as_is', REINFORCE_FIRST:'reinforce', MID_TERM_TARGET:'parallel' };
+  function decisionHtml(dec){
+    if(!dec || !dec.status) return '';
+    var meta = DECISION_META[dec.status] || DECISION_META.UNDETERMINED;
+    var reasons = (dec.reasons||[]).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('');
+    var hc = (dec.hardConstraints||[]).map(function(c){
+      var sub = c.substitutableByProject ? '<span class="hc-sub ok">프로젝트로 보완 가능</span>' : '<span class="hc-sub no">프로젝트로 대체 불가</span>';
+      return '<div class="hc-row"><span class="hc-req">'+esc(c.requirement||'')+'</span><span class="hc-cur">현재 · '+esc(c.current||'')+'</span>'+sub+'</div>';
+    }).join('');
+    return '<div class="decision '+meta.cls+'">' +
+      '<span class="dc-badge">'+meta.icon+' '+esc(dec.label||'판정')+'</span>' +
+      '<div class="dc-head">'+esc(dec.headline||'')+'</div>' +
+      (reasons ? '<ul class="dc-reasons">'+reasons+'</ul>' : '') +
+      (hc ? '<div class="dc-hc"><div class="dc-hc-h">구조적 조건</div>'+hc+'</div>' : '') +
+      (dec.nextTarget ? '<div class="dc-next"><span class="k">권장 첫 목표</span>'+esc(dec.nextTarget)+'</div>' : '') +
+      (dec.recheckCondition ? '<div class="dc-recheck"><span class="k">다시 볼 때</span>'+esc(dec.recheckCondition)+'</div>' : '') +
+    '</div>';
+  }
+
   function buildReport(r){
     var rd = r.readiness || {};
     var now = num(rd.now), goal = num(rd.goal), gain = goal - now;
@@ -433,6 +505,7 @@
     var hasRoutes = (r.routes||[]).length > 0;
     return '<div class="report">' +
       '<div class="report-head"><div class="rk">준비 로드맵 · '+esc(jobLabel||'분석 결과')+'</div><h3>'+esc(rd.judge||'')+'</h3></div>' +
+      decisionHtml(r.decision) +
       '<div class="report-gauge"><div class="gauge-num">'+(rd.now!=null?now:'—')+'<small>/100</small></div>' +
         '<div class="gauge-bar"><div class="gb-track"><div class="gb-now" style="width:'+now+'%"></div><div class="gb-gain" style="left:'+now+'%;width:'+gain+'%"></div></div>' +
         '<div class="gb-lbl"><span>현재 '+now+'</span><span>완주 시 '+goal+'</span></div></div>' +
@@ -456,14 +529,19 @@
   function buildRoutes(r){
     var routes = r.routes || [];
     if(!routes.length) return '';
+    var dec = r.decision || {};
+    var rec = REC_ROUTE[dec.status];
+    var blocked = (dec.status === 'MID_TERM_TARGET' || dec.status === 'STRUCTURAL_BLOCK');
     var cards = routes.map(function(rt){
       var kind = ROUTE_KIND[rt.kind] ? rt.kind : 'as_is';       // 화이트리스트(안전 토큰)
       var eff = ROUTE_EFFORT[rt.effort] ? rt.effort : 'mid';    // 화이트리스트(안전 토큰)
+      var isRec = rec && rt.id === rec;
       var chips = (rt.confirmed||[]).map(function(c){ return '<span class="rv-chip ok">✓ '+esc(c)+'</span>'; }).join('') +
                   (rt.missing||[]).map(function(m){ return '<span class="rv-chip miss">＋ '+esc(m)+'</span>'; }).join('');
-      return '<div class="route-card" data-route="'+escA(rt.id)+'">' +
+      return '<div class="route-card'+(isRec?' rec':'')+'" data-route="'+escA(rt.id)+'">' +
         '<div class="route-top"><span class="route-badge '+kind+'">'+esc(ROUTE_KIND[kind])+'</span>' +
-          '<span class="route-effort '+eff+'">준비 부담 '+esc(ROUTE_EFFORT[eff])+'</span></div>' +
+          '<span class="route-effort '+eff+'">준비 부담 '+esc(ROUTE_EFFORT[eff])+'</span>' +
+          (isRec?'<span class="route-rec">권장</span>':'') + '</div>' +
         '<div class="route-title">'+esc(rt.title||'')+'</div>' +
         '<div class="route-sum">'+esc(rt.summary||'')+'</div>' +
         (chips ? '<div class="route-ev">'+chips+'</div>' : '') +
@@ -471,7 +549,10 @@
         (rt.hardRisk ? '<div class="route-meta risk">⚠ 명시적 필수조건과 충돌하는 항목이 있어요</div>' : '') +
         '<button class="route-btn" data-route-pick="'+escA(rt.id)+'">이 경로로 진행 →</button></div>';
     }).join('');
-    return '<div class="report-routes"><div class="rt">준비·지원 경로 — 하나를 골라 진행하세요</div>' +
+    var intro = blocked
+      ? '판정상 지금 직접 지원은 권장하지 않아요 — 위 “권장 첫 목표”를 먼저 보고, 그래도 진행하려면 아래에서 고르세요.'
+      : (dec.status ? '판정을 참고해 경로를 고르세요.' : '하나를 골라 진행하세요.');
+    return '<div class="report-routes"><div class="rt">준비·지원 경로<span class="rt-sub">'+esc(intro)+'</span></div>' +
       '<div class="route-grid">'+cards+'</div>' +
       '<div class="route-detail" data-route-detail></div></div>';
   }
@@ -546,7 +627,7 @@
       var res = await JB.api('/api/roadmaps', {
         method: 'POST', body: JSON.stringify({ analysisId: analysisId, routeId: route.id })
       });
-      if(out) out.innerHTML = generatedRoadmapHtml(res.roadmap || {});
+      if(out) out.innerHTML = generatedRoadmapHtml(res.roadmap || {}, route.id);
       btn.textContent = '저장됨 ✓'; btn.classList.add('done');
     } catch(e){
       btn.disabled = false; btn.textContent = '이 경로로 로드맵 생성 →';
@@ -554,17 +635,18 @@
     }
   }
 
-  // 생성된 로드맵 렌더 {title, intro, steps:[{no,title,meta}], goalLink}
-  function generatedRoadmapHtml(rm){
+  // 생성된 로드맵 요약 렌더(인라인). 상세는 roadmap.html 전체 페이지에서.
+  function generatedRoadmapHtml(rm, routeId){
     var steps = (rm.steps||[]).map(function(s){
       return '<div class="step active"><span class="sn">'+esc(String(s.no==null?'':s.no))+'</span>' +
         '<div><div class="st">'+esc(s.title||'')+'</div><div class="sm">'+esc(s.meta||'')+'</div></div></div>';
     }).join('');
+    var link = routeId ? '<a href="roadmap.html?id='+encodeURIComponent(analysisId)+'&route='+encodeURIComponent(routeId)+'" ' +
+      'style="display:inline-block;margin-top:11px;font-size:12.5px;font-weight:700;color:var(--brand-ink);text-decoration:none">전체 로드맵 페이지로 보기 →</a>' : '';
     return '<div class="rmgen-card"><div class="rmgen-h">'+esc(rm.title||'생성된 로드맵')+'</div>' +
       (rm.intro ? '<div class="rmgen-intro">'+esc(rm.intro)+'</div>' : '') +
       steps +
-      (rm.goalLink ? '<div class="rmgen-goal">'+esc(rm.goalLink)+'</div>' : '') +
-      '<div class="rmgen-saved">✓ 내 로드맵 저장소에 저장됐어요</div></div>';
+      '<div class="rmgen-saved">✓ 내 로드맵 저장소에 저장됐어요</div>' + link + '</div>';
   }
 
   // 선택한 경로 카드 강조(복원 시에도 사용) — 고른 카드 sel, 나머지 dim.

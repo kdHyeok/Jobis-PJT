@@ -134,10 +134,10 @@
     box.innerHTML = '<div class="rep-k">✦ 내 대표 로드맵</div>' +
       '<div class="rep-title">'+esc(rm.title||'로드맵')+'</div>' +
       '<div class="rep-badges"><span class="rep-b route">'+esc(routeLabel)+'</span>' +
-        (rep.goalLabel?'<span class="rep-b goal">↳ 목표 '+esc(rep.goalLabel)+'</span>':'') + '</div>' +
+        (rep.goalLabel?'<span class="rep-b goal">↳ '+esc(rep.goalLabel)+'에서</span>':'') + '</div>' +
       (steps?'<div class="rep-steps">'+steps+'</div>':'') +
       '<div class="rep-acts">' +
-        '<a class="pri" href="chat.html?id='+encodeURIComponent(rep.analysisId)+'&route='+encodeURIComponent(rep.routeId)+'">분석 열기 →</a>' +
+        '<a class="pri" href="roadmap.html?id='+encodeURIComponent(rep.analysisId)+'&route='+encodeURIComponent(rep.routeId)+'">로드맵 열기 →</a>' +
         '<a class="line" href="roadmaps.html">로드맵 저장소</a>' +
       '</div>';
     box.style.display = '';

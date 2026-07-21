@@ -1,7 +1,12 @@
 package com.jobiss.backend.controller;
 
+import com.jobiss.backend.dto.roadmap.AskRequest;
+import com.jobiss.backend.dto.roadmap.AskResponse;
 import com.jobiss.backend.dto.roadmap.GenerateRoadmapRequest;
+import com.jobiss.backend.dto.roadmap.ReassessRequest;
+import com.jobiss.backend.dto.roadmap.RoadmapDetailResponse;
 import com.jobiss.backend.dto.roadmap.SavedRoadmapResponse;
+import com.jobiss.backend.dto.roadmap.StepProgressResponse;
 import com.jobiss.backend.service.SavedRoadmapService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -10,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -36,6 +42,27 @@ public class RoadmapController {
     @GetMapping
     public List<SavedRoadmapResponse> list(@AuthenticationPrincipal Long userId) {
         return savedRoadmapService.list(userId);
+    }
+
+    /** 단건 조회(로드맵 페이지용) — GET /api/roadmaps/one?analysisId=&routeId= (로드맵 + 스텝 진행 상태) */
+    @GetMapping("/one")
+    public RoadmapDetailResponse one(@AuthenticationPrincipal Long userId,
+                                     @RequestParam String analysisId, @RequestParam String routeId) {
+        return savedRoadmapService.getOne(userId, analysisId, routeId);
+    }
+
+    /** 스텝 산출물 링크 제출 → 가짜 AI 재진단 → 진행 상태 저장. */
+    @PostMapping("/reassess")
+    public StepProgressResponse reassess(@AuthenticationPrincipal Long userId,
+                                         @Valid @RequestBody ReassessRequest request) {
+        return savedRoadmapService.reassess(userId, request);
+    }
+
+    /** 로드맵에 물어보기(가짜 AI 답변, 저장 없음). */
+    @PostMapping("/ask")
+    public AskResponse ask(@AuthenticationPrincipal Long userId,
+                           @Valid @RequestBody AskRequest request) {
+        return savedRoadmapService.ask(userId, request);
     }
 
     /** 대표 로드맵 지정(한 사용자에 하나). */

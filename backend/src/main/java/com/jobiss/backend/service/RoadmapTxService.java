@@ -2,9 +2,12 @@ package com.jobiss.backend.service;
 
 import com.jobiss.backend.domain.AnalysisRun;
 import com.jobiss.backend.domain.JobPosting;
+import com.jobiss.backend.domain.RoadmapStepProgress;
+import com.jobiss.backend.domain.RoadmapStepStatus;
 import com.jobiss.backend.domain.SavedRoadmap;
 import com.jobiss.backend.exception.ApiException;
 import com.jobiss.backend.repository.AnalysisRunRepository;
+import com.jobiss.backend.repository.RoadmapStepProgressRepository;
 import com.jobiss.backend.repository.SavedRoadmapRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,10 +24,13 @@ public class RoadmapTxService {
 
     private final AnalysisRunRepository runRepository;
     private final SavedRoadmapRepository savedRepository;
+    private final RoadmapStepProgressRepository progressRepository;
 
-    public RoadmapTxService(AnalysisRunRepository runRepository, SavedRoadmapRepository savedRepository) {
+    public RoadmapTxService(AnalysisRunRepository runRepository, SavedRoadmapRepository savedRepository,
+                            RoadmapStepProgressRepository progressRepository) {
         this.runRepository = runRepository;
         this.savedRepository = savedRepository;
+        this.progressRepository = progressRepository;
     }
 
     /** 분석 소유권 확인 + AI 호출 맥락(회사·직무·목표맥락)을 트랜잭션 안에서 추출(LAZY 연관 로딩). */
@@ -71,6 +77,34 @@ public class RoadmapTxService {
     @Transactional(readOnly = true)
     public List<SavedRoadmap> listForUser(Long userId) {
         return savedRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    /** 단건 조회(로드맵 페이지용) — (분석·경로)로 저장된 로드맵 하나. */
+    @Transactional(readOnly = true)
+    public SavedRoadmap findOne(Long userId, String analysisId, String routeId) {
+        return savedRepository.findByUserIdAndAnalysisIdAndRouteId(userId, analysisId, routeId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ROADMAP_NOT_FOUND",
+                        "저장된 로드맵이 없어요. 먼저 '로드맵 생성'을 눌러주세요."));
+    }
+
+    /** 한 로드맵(분석·경로)의 스텝별 진행 상태(로드맵 페이지에서 요건 매트릭스·상태에 사용). */
+    @Transactional(readOnly = true)
+    public List<RoadmapStepProgress> progressFor(Long userId, String analysisId, String routeId) {
+        return progressRepository.findByUserIdAndAnalysisIdAndRouteId(userId, analysisId, routeId);
+    }
+
+    /** 스텝 재진단 결과 저장(같은 스텝이면 최신 제출로 교체). 짧은 쓰기 트랜잭션. */
+    @Transactional
+    public RoadmapStepProgress upsertProgress(Long userId, String analysisId, String routeId, int stepNo,
+                                              RoadmapStepStatus status, String submittedUrl, String verdictJson) {
+        return progressRepository.findByUserIdAndAnalysisIdAndRouteIdAndStepNo(userId, analysisId, routeId, stepNo)
+                .map(existing -> {
+                    existing.update(status, submittedUrl, verdictJson);
+                    return progressRepository.save(existing);
+                })
+                .orElseGet(() -> progressRepository.save(RoadmapStepProgress.builder()
+                        .userId(userId).analysisId(analysisId).routeId(routeId).stepNo(stepNo)
+                        .status(status).submittedUrl(submittedUrl).verdictJson(verdictJson).build()));
     }
 
     /** 대표 로드맵 지정 — 한 사용자에 대표는 하나(나머지 해제 후 지정). */
