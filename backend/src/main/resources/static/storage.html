@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JOBISS — 커리어 저장소</title>
+<title>J.O.B.I.S — 커리어 저장소</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -15,7 +15,7 @@
   <aside class="sidebar">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
-      <span class="nm">JOB<span>ISS</span></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
     </div>
     <button class="new-btn" onclick="location.href='new.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -57,9 +57,9 @@
         <div class="stg-card">
           <div class="sc-h"><span>＋ 자료 올리기</span></div>
           <div class="method-tabs">
-            <button data-m="TEXT" class="on">📝 텍스트 붙여넣기</button>
-            <button data-m="GITHUB">🔗 GitHub URL</button>
-            <button data-m="FILE">📎 파일</button>
+            <button data-m="TEXT" class="on"><i class="i i-note"></i> 텍스트 붙여넣기</button>
+            <button data-m="GITHUB"><i class="i i-link"></i> GitHub URL</button>
+            <button data-m="FILE"><i class="i i-clip"></i> 파일</button>
           </div>
           <textarea id="inText" class="stg-input" placeholder="이력서·자기소개서 본문을 붙여넣으세요. 예) 클라우드 모니터링 대시보드 프로젝트 — Java, Spring Boot, MySQL로 개발. 목록 API 응답을 1.2s→180ms로 개선…"></textarea>
           <input id="inUrl" class="stg-input" style="display:none" placeholder="https://github.com/사용자명/저장소" aria-label="GitHub URL">
@@ -85,7 +85,7 @@
 
         <!-- 내 저장소 현황 -->
         <div class="stg-card">
-          <div class="sc-h"><span>📁 내 저장소</span><span class="n" id="storeCount"></span></div>
+          <div class="sc-h"><span><i class="i i-folder"></i> 내 저장소</span><span class="n" id="storeCount"></span></div>
           <div id="storeBody"><div class="store-empty">불러오는 중…</div></div>
         </div>
       </div>

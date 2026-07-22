@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JOBISS — 분석 대화 (실시간)</title>
+<title>J.O.B.I.S — 분석 대화 (실시간)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -87,7 +87,7 @@
   .agent-dock .ar-now .big{width:36px;height:36px;border-radius:11px}
   .agent-dock .ar-now .big svg{width:22px;height:22px}
   .agent-dock.finished .ar-now .big{animation:none}
-  /* 말풍선 화자 아바타 — 에이전트가 직접 말할 때(JOBISS 기본 ✦ 대신 아이콘 + 화자 고유색) */
+  /* 말풍선 화자 아바타 — 에이전트가 직접 말할 때(J.O.B.I.S 기본 ✦ 대신 아이콘 + 화자 고유색) */
   .who.agent{color:var(--ac,var(--brand-ink));border:1px solid color-mix(in srgb,var(--ac,#fff) 42%,transparent);
     background:color-mix(in srgb,var(--ac,#fff) 13%,transparent)}
   .who.agent svg{width:18px;height:18px}
@@ -206,7 +206,7 @@
   <aside class="sidebar">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
-      <span class="nm">JOB<span>ISS</span></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
     </div>
     <button class="new-btn" onclick="location.href='new.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -250,7 +250,7 @@
   <!-- ============ 메인(채팅) ============ -->
   <main class="main">
     <div class="topbar">
-      <div class="model-pill"><span class="g" id="connDot"></span> JOBISS 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
+      <div class="model-pill"><span class="g" id="connDot"></span> J.O.B.I.S 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
       <div>
         <div class="title" id="topTitle">분석 세션</div>
         <div class="sub" id="topSub">실시간 분석 세션</div>
@@ -274,12 +274,12 @@
 
     <div class="composer-wrap">
       <div class="composer-inner">
-        <div class="assist-note" id="assistNote">💡 질문이 오면 선택지를 누르거나 직접 답할 수 있어요</div>
+        <div class="assist-note" id="assistNote"><i class="i i-bulb"></i> 질문이 오면 선택지를 누르거나 직접 답할 수 있어요</div>
         <div class="composer">
           <div class="field" id="field" contenteditable="true" data-ph="답변을 입력하세요…"></div>
           <div class="toolrow">
-            <button class="tbtn icon" title="첨부">📎</button>
-            <button class="tbtn">🔗 포트폴리오 링크</button>
+            <button class="tbtn icon" title="첨부"><i class="i i-clip"></i></button>
+            <button class="tbtn"><i class="i i-link"></i> 포트폴리오 링크</button>
             <button class="send" id="send" title="전송" aria-label="전송" disabled>➤</button>
           </div>
         </div>
@@ -290,7 +290,7 @@
   <!-- ============ 우측 인사이트 패널 ============ -->
   <aside class="insight">
     <div class="insight-head">
-      <div class="t">📊 인사이트 <span class="badge wait" id="insBadge">분석 중</span></div>
+      <div class="t">인사이트 <span class="badge wait" id="insBadge">분석 중</span></div>
       <div class="s">답변에 따라 실시간 갱신됩니다</div>
     </div>
     <div class="insight-scroll" id="insightScroll">
@@ -306,7 +306,7 @@
         <div class="fit-big"><div class="num" id="fitNum">—<small>/100</small></div><div class="lbl" id="fitLbl">분석이 끝나면 표시됩니다</div></div>
       </div>
       <div class="empty-panel" id="planEmpty">
-        <div class="e-ic">🗺️</div>
+        <div class="e-ic"><i class="i i-map"></i></div>
         <div class="e-t">준비 로드맵 생성 대기</div>
         <div class="e-s">분석이 끝나면<br>맞춤 로드맵이 완성됩니다</div>
       </div>
@@ -387,7 +387,7 @@
     if (title.trim()){
       jobLabel = title;
       document.getElementById('topTitle').textContent = title;
-      document.title = 'JOBISS — ' + (jp.company || '분석');
+      document.title = 'J.O.B.I.S — ' + (jp.company || '분석');
     }
     parentLabel = st.parentLabel || null;   // 대체 재분석이면 원래 공고명 (서버가 보관)
     selectedRoute = st.selectedRoute || null;   // 고른 주 경로 id (서버가 보관 → 복원 시 표시)
@@ -407,11 +407,11 @@
   });
   function scrollDown(){ scroll.scrollTop = scroll.scrollHeight; }
 
-  // 화자 결정 — speaker(에이전트 key)가 있으면 그 에이전트 아이콘·역할명·고유색으로, 없으면 JOBISS.
+  // 화자 결정 — speaker(에이전트 key)가 있으면 그 에이전트 아이콘·역할명·고유색으로, 없으면 J.O.B.I.S.
   function whoHtml(speaker){
     var a = speaker && AGENT_META[speaker];
     if(a) return { av:'<div class="who ai agent"><svg><use href="#'+a.icon+'"/></svg></div>', name:a.name, color:a.color };
-    return { av:'<div class="who ai">✦</div>', name:'JOBISS', color:null };
+    return { av:'<div class="who ai">✦</div>', name:'J.O.B.I.S', color:null };
   }
   // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
   function aiBubble(html, extra, speaker){
@@ -586,7 +586,7 @@
         });
         send.disabled = false;
         field.setAttribute('data-ph', '답변을 입력하세요…');
-        document.getElementById('assistNote').textContent = '💡 이 질문에 답해주세요 (선택지 클릭 또는 직접 입력)';
+        document.getElementById('assistNote').innerHTML = '<i class="i i-bulb"></i> 이 질문에 답해주세요 (선택지 클릭 또는 직접 입력)';
         field.focus();
       }
     });
@@ -603,7 +603,7 @@
     send.disabled = true;
     field.textContent = '';
     field.setAttribute('data-ph', '분석을 이어가는 중…');
-    document.getElementById('assistNote').textContent = '💡 답변을 반영해 분석을 이어갑니다…';
+    document.getElementById('assistNote').innerHTML = '<i class="i i-bulb"></i> 답변을 반영해 분석을 이어갑니다…';
   }
 
   function onDone(m){
@@ -642,7 +642,7 @@
       renderRouteContent(r, selRt, reportEl.querySelector('[data-route-detail]'));   // 그 경로 콘텐츠 재현
     }
     send.disabled = true; field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 완료되었습니다');
-    document.getElementById('assistNote').innerHTML = '✅ 분석 완료 · 준비 로드맵이 생성되었습니다';
+    document.getElementById('assistNote').innerHTML = '분석 완료 · 준비 로드맵이 생성되었습니다';
   }
 
   // 대체 공고 카드 HTML (인라인 패널·말풍선 공용)
@@ -782,7 +782,7 @@
         '<div class="route-title">'+esc(rt.title||'')+'</div>' +
         '<div class="route-sum">'+esc(rt.summary||'')+'</div>' +
         (chips ? '<div class="route-ev">'+chips+'</div>' : '') +
-        (rt.deliverable ? '<div class="route-meta">🎯 대표 산출물 · '+esc(rt.deliverable)+'</div>' : '') +
+        (rt.deliverable ? '<div class="route-meta"><i class="i i-target"></i> 대표 산출물 · '+esc(rt.deliverable)+'</div>' : '') +
         (rt.hardRisk ? '<div class="route-meta risk">⚠ 명시적 필수조건과 충돌하는 항목이 있어요</div>' : '') +
         '<button class="route-btn" data-route-pick="'+escA(rt.id)+'">이 경로로 진행 →</button></div>';
     }).join('');
@@ -810,8 +810,9 @@
   function roadmapStepsHtml(r){
     return (r.roadmap||[]).slice(0,3).map(function(it){
       var cls = it.status==='done'?'done':(it.status==='active'?'active':'lock');
-      var sn = it.status==='done'?'✓':(it.status==='locked'?'🔒':it.no);
-      return '<div class="step '+cls+'"><span class="sn">'+esc(sn)+'</span><div><div class="st">'+esc(it.title)+'</div><div class="sm">'+esc(it.state||it.meta||'')+'</div></div><span class="sd">'+esc(it.delta||'')+'</span></div>';
+      var locked = it.status==='locked';
+      var sn = it.status==='done'?'✓':(locked?'':it.no);
+      return '<div class="step '+cls+'"><span class="sn">'+(locked?'<i class="i i-lock"></i>':esc(sn))+'</span><div><div class="st">'+esc(it.title)+'</div><div class="sm">'+esc(it.state||it.meta||'')+'</div></div><span class="sd">'+esc(it.delta||'')+'</span></div>';
     }).join('');
   }
 
@@ -920,7 +921,7 @@
     if (title.trim()){
       jobLabel = title;
       document.getElementById('topTitle').textContent = title;
-      document.title = 'JOBISS — ' + (m.company || '분석');
+      document.title = 'J.O.B.I.S — ' + (m.company || '분석');
     }
     var stacks = Array.isArray(m.stack) ? m.stack : [];
     fillJobReq(m.career, m.stack);
@@ -983,7 +984,7 @@
       if (!begun){
         begun = true;
         if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고로 재분석해요');
-        aiTyping('공고와 자료를 받았어요. 먼저 공고부터 읽어볼게요 🔍');
+        aiTyping('공고와 자료를 받았어요. 먼저 공고부터 읽어볼게요');
         JB.api('/api/analyses/agent/' + encodeURIComponent(analysisId) + '/begin', { method:'POST' })
           .catch(function(e){ systemNote('분석 시작 실패: ' + e.message); });
       }

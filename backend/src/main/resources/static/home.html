@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JOBISS — 홈</title>
+<title>J.O.B.I.S — 홈</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -28,7 +28,8 @@
   object-fit:cover;object-position:50% 50%;
   /* 영상이 뷰포트보다 가로로 넓어 cover가 세로 여백을 안 남긴다 → 살짝 키워 여유를 만들고
      그 안에서 오브 중심을 입력박스로 옮긴다(1440x900 기준 측정값에서 역산).
-     원본이 1284x716뿐이라 확대할수록 뭉개진다 → 화면을 덮는 최소 배율(1.10)만 쓴다. */
+     소스가 3874x2160으로 올라가 확대 화질 제약은 사라졌다(이전 1284x716). 배율 1.10은
+     화질이 아니라 오브 중심을 입력박스에 맞추기 위한 값이라 그대로 둔다. */
   transform:translate(1%,-4.1%) scale(1.10);
   pointer-events:none;border:0;background:var(--bg);
   /* 스케일된 영상을 GPU에서 합성해 리샘플링 품질을 확보 */
@@ -125,7 +126,7 @@
 /* 움직임을 줄이도록 설정한 사용자에겐 영상 대신 정지 프레임 */
 @media(prefers-reduced-motion:reduce){
   .home-bg{display:none}
-  .app.home{background:var(--bg) url('img/landing-orb-poster.jpg') 50% 45%/cover no-repeat}
+  .app.home{background:var(--bg) url('img/vid1-poster.jpg') 50% 45%/cover no-repeat}
 }
 
 /* 좁은 화면: 여백을 줄이고 카드는 다시 쌓는다 */
@@ -147,16 +148,16 @@
 <body>
 <div class="app home">
   <!-- 배경 영상. 사이드바보다 뒤에 깔려야 하므로 .app의 첫 자식이어야 한다(형제 페인트 순서) -->
-  <video class="home-bg" poster="img/landing-orb-poster.jpg"
+  <video class="home-bg" poster="img/vid1-poster.jpg"
          autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1">
-    <source src="vid/landing-orb.mp4" type="video/mp4">
+    <source src="vid/vid1.mp4" type="video/mp4">
   </video>
 
   <!-- ============ 사이드바 ============ -->
   <aside class="sidebar">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
-      <span class="nm">JOB<span>ISS</span></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
     </div>
     <button class="new-btn" onclick="location.href='new.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -197,13 +198,13 @@
 
         <div class="home-cards">
           <a class="home-card" onclick="location.href='new.html'">
-            <div class="ic a">🎯</div>
+            <div class="ic a"><i class="i i-target"></i></div>
             <h3>새 분석 시작</h3>
             <p>목표 공고와 자료를 골라 실시간으로 준비도를 진단하고 로드맵을 받아요.</p>
             <div class="go">공고 · 자료 고르기 →</div>
           </a>
           <a class="home-card" onclick="location.href='storage.html'">
-            <div class="ic b">📁</div>
+            <div class="ic b"><i class="i i-folder"></i></div>
             <h3>커리어 저장소 채우기</h3>
             <p>이력서·GitHub·프로젝트를 올리면 AI가 스킬·경험 조각으로 정리해줘요.</p>
             <div class="go">자료 올리기 →</div>
@@ -217,7 +218,7 @@
         </div>
 
         <form class="home-composer" id="quickForm">
-          <span style="color:var(--muted)">🔗</span>
+          <span style="color:var(--muted)"><i class="i i-link"></i></span>
           <input id="quickInput" placeholder="공고 URL이나 원문을 붙여넣고 바로 시작…" aria-label="공고 빠른 시작">
           <button class="go" type="submit">시작 →</button>
         </form>

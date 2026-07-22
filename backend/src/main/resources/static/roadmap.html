@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JOBISS — 준비 로드맵</title>
+<title>J.O.B.I.S — 준비 로드맵</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -221,18 +221,18 @@
     return '<div class="rmx-card">'+
       (s.gap?'<div class="rmx-gap"><span class="mk">!</span><span><b>격차</b> · '+esc(s.gap)+'</span></div>':'')+
       (s.quote?'<div class="rmx-quote">'+esc(s.quote)+'</div>':'')+
-      (s.artifact?'<div class="rmx-art"><span class="ic">📦</span><div class="bd"><span class="k">만들 산출물</span>'+esc(s.artifact)+(s.requirement?'<span class="map">→ 요건 “'+esc(s.requirement)+'” 충족</span>':'')+'</div></div>':'')+
+      (s.artifact?'<div class="rmx-art"><span class="ic"><i class="i i-pkg"></i></span><div class="bd"><span class="k">만들 산출물</span>'+esc(s.artifact)+(s.requirement?'<span class="map">→ 요건 “'+esc(s.requirement)+'” 충족</span>':'')+'</div></div>':'')+
       (s.done?'<div class="rmx-done"><span class="mk">✓</span><span><b>완료 기준</b> · '+esc(s.done)+'</span></div>':'')+
       '<div class="presets">'+
         '<button class="pchip" data-toggle="why-'+no+'">❓ 이 스텝 왜?</button>'+
-        '<button class="pchip" data-toggle="hint-'+no+'">💡 산출물 힌트</button>'+
-        '<button class="pchip" data-toggle="stuck-'+no+'">🧩 막혔어요</button>'+
+        '<button class="pchip" data-toggle="hint-'+no+'"><i class="i i-bulb"></i> 산출물 힌트</button>'+
+        '<button class="pchip" data-toggle="stuck-'+no+'"><i class="i i-puzzle"></i> 막혔어요</button>'+
       '</div>'+
       '<div class="ppanel" id="why-'+no+'">'+whyText(s)+'</div>'+
       '<div class="ppanel" id="hint-'+no+'">'+hintText(s)+'</div>'+
       '<div class="ppanel" id="stuck-'+no+'">'+stuckText(s)+'</div>'+
       refHtml(s)+
-      '<div class="sub"><div class="sub-h">📤 산출물 링크 제출 → AI 재진단</div><div class="sub-row">'+
+      '<div class="sub"><div class="sub-h"><i class="i i-upload"></i> 산출물 링크 제출 → AI 재진단</div><div class="sub-row">'+
         '<input class="subinput" data-step="'+no+'" aria-label="스텝 '+esc(String(no))+' 산출물 링크" placeholder="GitHub·배포·문서 링크를 붙여넣기" value="'+esc((state.progress[no]||{}).submittedUrl||'')+'">'+
         '<button class="subbtn" data-submit="'+no+'">제출 → 재진단</button>'+
       '</div><div class="suberr" id="suberr-'+no+'"></div>'+verdictHtml((state.progress[no]||{}).verdict)+'</div>'+
@@ -284,14 +284,14 @@
 
   function askHtml(rm){
     var thread=state.ask.map(function(qa){
-      return '<div class="rmx-qa"><div class="rmx-q">'+esc(qa.q)+'</div><div class="rmx-a"><div class="who">JOBISS AI</div>'+esc(qa.a)+'</div></div>';
+      return '<div class="rmx-qa"><div class="rmx-q">'+esc(qa.q)+'</div><div class="rmx-a"><div class="who">J.O.B.I.S AI</div>'+esc(qa.a)+'</div></div>';
     }).join('');
     return '<div class="rmx-ask">'+
       (thread?'<div class="rmx-ask-thread">'+thread+'</div>':'')+
       '<div class="rmx-ask-presets">'+
         '<button class="pchip" data-ask-preset="2주밖에 없어, 압축해줘">⏱ 2주밖에 없어</button>'+
-        '<button class="pchip" data-ask-preset="가장 큰 격차가 뭐야?">🎯 가장 큰 격차가 뭐야?</button>'+
-        '<button class="pchip" data-ask-preset="제출은 어떻게 해?">📤 제출은 어떻게 해?</button>'+
+        '<button class="pchip" data-ask-preset="가장 큰 격차가 뭐야?"><i class="i i-target"></i> 가장 큰 격차가 뭐야?</button>'+
+        '<button class="pchip" data-ask-preset="제출은 어떻게 해?"><i class="i i-upload"></i> 제출은 어떻게 해?</button>'+
       '</div>'+
       '<div class="rmx-ask-row"><input class="subinput" id="askInput" aria-label="로드맵에 물어보기" placeholder="이 로드맵에 대해 물어보세요…"><button class="subbtn" id="askSend">물어보기</button></div>'+
     '</div>';
@@ -299,10 +299,10 @@
 
   function exportHtml(){
     return '<div class="rmx-exports">'+
-      '<button class="rmx-exp" data-export="portfolio">📦 포트폴리오로 묶기</button>'+
-      '<button class="rmx-exp" data-export="report">📄 증거 요약 리포트</button>'+
-      '<button class="rmx-exp" data-export="ics">📅 캘린더에 넣기</button>'+
-      '<button class="rmx-exp" data-export="share">🔗 멘토에게 공유</button>'+
+      '<button class="rmx-exp" data-export="portfolio"><i class="i i-pkg"></i> 포트폴리오로 묶기</button>'+
+      '<button class="rmx-exp" data-export="report"><i class="i i-doc"></i> 증거 요약 리포트</button>'+
+      '<button class="rmx-exp" data-export="ics"><i class="i i-cal"></i> 캘린더에 넣기</button>'+
+      '<button class="rmx-exp" data-export="share"><i class="i i-link"></i> 멘토에게 공유</button>'+
     '</div>';
   }
 
@@ -346,7 +346,7 @@
         '<div class="rmx-stat"><div class="k">지원일까지</div><div class="v" style="color:'+(st.dday!=null&&st.dday>=0?'var(--warn)':'var(--muted)')+'">'+(st.dday==null?'—':(st.dday>=0?'D-'+st.dday:'지남'))+'</div><div class="n">'+(rm.targetDate?esc(rm.targetDate)+' 목표':'목표일 미설정')+'</div></div>'+
         '<div class="rmx-stat"><div class="k">오늘 할 일</div><div class="v" style="color:var(--brand)">'+st.todayN+'</div><div class="n">작게 시작</div></div>'+
       '</div>'+
-      (today.length?'<div class="rmx-today"><div class="h">☀ 오늘 할 일 — 준비도를 제일 크게 올리는 것</div><ul>'+today.map(function(t){ return '<li>'+esc(t)+'</li>'; }).join('')+'</ul></div>':'')+
+      (today.length?'<div class="rmx-today"><div class="h"><i class="i i-sun"></i> 오늘 할 일 — 준비도를 제일 크게 올리는 것</div><ul>'+today.map(function(t){ return '<li>'+esc(t)+'</li>'; }).join('')+'</ul></div>':'')+
       '<div class="rmx-sec">요건 × 증거</div>'+matrixHtml(rm)+
       '<div class="rmx-sec">준비 로드맵 — 산출물로 증거를 만든다</div>'+steps.map(stepHtml).join('')+
       '<div class="rmx-sec">결과물 루프</div>'+loopHtml(rm)+
@@ -422,7 +422,7 @@
   function download(name,text,mime){ var b=new Blob([text],{type:mime||'text/plain;charset=utf-8'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); },1000); }
   function icsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
   function buildIcs(rm,steps){
-    var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//JOBISS//roadmap//KO','CALSCALE:GREGORIAN'];
+    var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//J.O.B.I.S//roadmap//KO','CALSCALE:GREGORIAN'];
     var cur=new Date(); cur.setHours(0,0,0,0);
     var sd=new Date(); var stamp=sd.getUTCFullYear()+pad(sd.getUTCMonth()+1)+pad(sd.getUTCDate())+'T'+pad(sd.getUTCHours())+pad(sd.getUTCMinutes())+pad(sd.getUTCSeconds())+'Z';
     function ymd(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate()); }
@@ -451,7 +451,7 @@
   function openPortfolio(rm,steps){
     var vs=steps.filter(function(s){ return statusOf(s.no)==='VERIFIED'; });
     var items=vs.length?vs.map(function(s){ var p=state.progress[s.no]||{}; return '<li><b>'+esc(s.requirement||s.title||'')+'</b><br><span class="u">'+esc(p.submittedUrl||'')+'</span><br><span class="d">'+esc(s.artifact||'')+'</span></li>'; }).join(''):'<li class="empty">아직 확인된 증거가 없어요.<br>스텝에 산출물 링크를 제출하면 여기 모여요.</li>';
-    openModal('📦 포트폴리오로 묶기','<p class="sub">확인된 증거를 지원 자료에 바로 붙일 수 있게 모았어요.</p><ul class="rmx-pf">'+items+'</ul>');
+    openModal('<i class="i i-pkg"></i> 포트폴리오로 묶기','<p class="sub">확인된 증거를 지원 자료에 바로 붙일 수 있게 모았어요.</p><ul class="rmx-pf">'+items+'</ul>');
   }
   function openModal(title,inner){ var m=document.getElementById('modal'), bd=document.getElementById('modalBd'); bd.innerHTML='<button class="rmx-modal-x" id="modalX">×</button><h3>'+title+'</h3>'+inner; m.hidden=false; document.getElementById('modalX').onclick=closeModal; m.onclick=function(e){ if(e.target===m) closeModal(); }; }
   function closeModal(){ document.getElementById('modal').hidden=true; }

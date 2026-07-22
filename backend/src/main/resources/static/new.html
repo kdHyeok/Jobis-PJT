@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JOBISS — 새 분석</title>
+<title>J.O.B.I.S — 새 분석</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -14,7 +14,7 @@
 <div class="setup-top">
   <div class="brand">
     <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
-    <span class="nm">JOB<span>ISS</span></span>
+    <span class="nm">J.O.B.<span>I.S</span></span>
   </div>
   <button class="ghost-btn" onclick="location.href='home.html'">← 홈</button>
   <span class="sp"></span>
@@ -35,15 +35,15 @@
       <span class="st-t">목표 공고</span>
     </div>
     <div class="method-tabs">
-      <button data-m="URL" class="on">🔗 URL</button>
-      <button data-m="TEXT">📝 원문 붙여넣기</button>
-      <button data-m="FILE">📎 파일</button>
+      <button data-m="URL" class="on"><i class="i i-link"></i> URL</button>
+      <button data-m="TEXT"><i class="i i-note"></i> 원문 붙여넣기</button>
+      <button data-m="FILE"><i class="i i-clip"></i> 파일</button>
     </div>
     <input id="inUrl" class="job-input" placeholder="https://careers.example.com/jobs/backend" aria-label="공고 URL">
     <textarea id="inText" class="job-input" style="display:none" placeholder="채용공고 원문을 붙여넣으세요. 예) 클라우드웨이브 · 백엔드 엔지니어(Java/Spring) · 3년↑ · Java, Spring Boot, MySQL, AWS 필수 · Kafka 우대"></textarea>
     <input id="inFile" class="job-input" style="display:none" type="file" accept=".txt,.md,.html,.htm" aria-label="공고 파일">
     <div class="job-parse-actions">
-      <span class="hint">🤖 공고는 분석을 시작하면 AI가 읽고 회사·직무·요구 기술로 정리해줘요.</span>
+      <span class="hint"><i class="i i-chip"></i> 공고는 분석을 시작하면 AI가 읽고 회사·직무·요구 기술로 정리해줘요.</span>
     </div>
   </div>
 

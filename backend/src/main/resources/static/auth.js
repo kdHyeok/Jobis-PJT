@@ -1,5 +1,5 @@
 /* ============================================================
-   JOBISS chat-app 공통 스크립트
+   J.O.B.I.S chat-app 공통 스크립트
    - JWT 토큰/사용자 저장 (localStorage)
    - 인증 fetch 헬퍼 (Authorization 자동 첨부, 401 → 로그인)
    - 로그인 게이트
