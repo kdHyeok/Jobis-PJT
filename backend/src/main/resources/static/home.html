@@ -150,8 +150,9 @@
 <div class="app home">
   <!-- 배경 영상. 사이드바보다 뒤에 깔려야 하므로 .app의 첫 자식이어야 한다(형제 페인트 순서) -->
   <!-- 영상·포스터는 theme.js가 테마를 정한 뒤 넣는다(preload="none" → 반대 테마 영상을 미리 받지 않음) -->
-  <video class="home-bg"
-         autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
+  <!-- data-hover-play: 커서가 영상 속 오브 위에 있을 때만 재생(theme.js). autoplay를 빼야 첫 로드에 안 돈다. -->
+  <video class="home-bg" data-hover-play
+         muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
     <source type="video/mp4">
   </video>
   <button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
