@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 모든 컨트롤러의 예외를 잡아 { error: { code, message } } 형식으로 통일.
@@ -26,6 +27,18 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .orElse("요청 값이 올바르지 않습니다.");
         return ResponseEntity.badRequest().body(ErrorResponse.of("VALIDATION_ERROR", message));
+    }
+
+    /**
+     * 정적 리소스 없음(없는 .html/.css/favicon 등). 스프링 6.1+ 는 이때 NoResourceFoundException 을 던지는데,
+     * 아래 catch-all 이 이를 삼키면 404 여야 할 응답이 500 이 되고 오류 페이지도 못 뜬다.
+     * 같은 예외 인스턴스를 그대로 되던져 "이건 내가 처리 안 함"을 알린다
+     * (ExceptionHandlerExceptionResolver 는 원본과 동일한 예외면 경고 없이 기본 처리로 넘긴다).
+     * → 브라우저(Accept: text/html)에는 error/404.html, API 클라이언트에는 JSON 404 가 나간다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public void handleNoResource(NoResourceFoundException e) throws NoResourceFoundException {
+        throw e;
     }
 
     @ExceptionHandler(Exception.class)

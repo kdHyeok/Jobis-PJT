@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>잡이스 — 로드맵 저장소</title>
+<title>JOBISS — 로드맵 저장소</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -14,10 +14,10 @@
 .rm-item.rep{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft)}
 .rm-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
 .rm-badge{font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
-.rm-badge.as_is{background:#eafaf0;color:var(--ok);border-color:transparent}
+.rm-badge.as_is{background:var(--brand-soft);color:var(--ok);border-color:transparent}
 .rm-badge.reinforce{background:var(--brand-soft);color:var(--brand-ink);border-color:transparent}
 .rm-goal-badge{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:20px;padding:3px 10px}
-.rm-rep-badge{font-size:11px;font-weight:800;color:#fff;background:var(--brand);border-radius:20px;padding:3px 10px}
+.rm-rep-badge{font-size:11px;font-weight:800;color:var(--on-brand);background:var(--brand);border-radius:20px;padding:3px 10px}
 .rm-title{font-size:15px;font-weight:800;letter-spacing:-.01em}
 .rm-intro{font-size:12.5px;color:var(--muted);margin:5px 0 11px;line-height:1.5}
 .rm-steps{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
@@ -27,10 +27,15 @@
 .rm-goal-link{font-size:12.5px;color:var(--brand-ink);background:var(--brand-soft);border-radius:9px;padding:9px 11px;margin-bottom:12px;line-height:1.5;font-weight:600}
 .rm-acts{display:flex;gap:8px}
 .rm-acts button,.rm-acts a{border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);cursor:pointer;text-decoration:none;display:inline-block}
-.rm-acts .rep-btn{background:var(--brand);color:#fff;border-color:var(--brand)}
+.rm-acts .rep-btn{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
 .rm-acts .rep-btn:disabled{background:var(--ok);border-color:var(--ok);cursor:default}
 .rm-acts a:hover,.rm-acts button:hover:not(:disabled){background:var(--line-2)}
 .rm-acts .rep-btn:hover:not(:disabled){background:var(--brand-2)}
+.rm-item.orphan{opacity:.92}
+.rm-orphan-badge{font-size:11px;font-weight:700;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);border-radius:20px;padding:3px 10px;cursor:help}
+.rm-acts .rm-act-off{border-radius:9px;padding:8px 13px;font-size:12.5px;font-weight:700;border:1px dashed var(--line);background:transparent;color:var(--faint);cursor:not-allowed}
+.rm-acts .del-btn{margin-left:auto;color:var(--muted);border-color:transparent;background:transparent}
+.rm-acts .del-btn:hover{background:var(--bad-soft,#fdecee);color:var(--bad,#d64550)}
 </style>
 </head>
 <body>
@@ -39,7 +44,7 @@
   <aside class="sidebar">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
-      <span class="nm">잡<span>이스</span></span>
+      <span class="nm">JOB<span>ISS</span></span>
     </div>
     <button class="new-btn" onclick="location.href='new.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -103,6 +108,7 @@
   document.getElementById('logoutBtn').addEventListener('click', function(){ JB.logout(); location.href='login.html'; });
 
   var items = [];
+  var liveAnalyses = {};   // 현재 살아있는 분석 id 집합(고아 로드맵 판별용)
 
   function render(){
     document.getElementById('rmCount').textContent = items.length + '개';
@@ -125,13 +131,15 @@
         return '<div class="rm-step"><span class="n">'+esc(String(s.no==null?'':s.no))+'</span>' +
           '<span><span class="t">'+esc(s.title||'')+'</span> <span class="m">'+esc(s.meta||'')+'</span></span></div>';
       }).join('');
+      var orphan = !liveAnalyses[it.analysisId];   // 원본 분석이 삭제된 로드맵
       var el = document.createElement('div');
-      el.className = 'rm-item' + (it.representative ? ' rep' : '');
+      el.className = 'rm-item' + (it.representative ? ' rep' : '') + (orphan ? ' orphan' : '');
       el.innerHTML =
         '<div class="rm-top">' +
           '<span class="rm-badge '+routeCls+'">'+esc(ROUTE_LABEL[it.routeId] || '경로')+'</span>' +
           (it.goalLabel ? '<span class="rm-goal-badge">↳ '+esc(it.goalLabel)+'에서</span>' : '') +
           (it.representative ? '<span class="rm-rep-badge">대표</span>' : '') +
+          (orphan ? '<span class="rm-orphan-badge" title="이 로드맵을 만든 분석이 삭제됐어요. 로드맵 자체는 그대로 열 수 있어요.">원본 분석 삭제됨</span>' : '') +
         '</div>' +
         '<div class="rm-title">'+esc(rm.title || '로드맵')+'</div>' +
         (rm.intro ? '<div class="rm-intro">'+esc(rm.intro)+'</div>' : '') +
@@ -140,12 +148,34 @@
         '<div class="rm-acts">' +
           '<button class="rep-btn" data-rep="'+it.id+'"'+(it.representative?' disabled':'')+'>'+(it.representative?'대표 ✓':'대표로 지정')+'</button>' +
           '<a href="roadmap.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">로드맵 열기 →</a>' +
-          '<a href="chat.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">분석 열기</a>' +
+          (orphan
+            ? '<span class="rm-act-off" title="원본 분석이 삭제돼 열 수 없어요">분석 열기</span>'
+            : '<a href="chat.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">분석 열기</a>') +
+          '<button class="del-btn" data-del="'+it.id+'" title="이 로드맵 삭제">삭제</button>' +
         '</div>';
       list.appendChild(el);
     });
     list.querySelectorAll('[data-rep]').forEach(function(b){
       b.addEventListener('click', function(){ setRep(b.getAttribute('data-rep'), b); });
+    });
+    list.querySelectorAll('[data-del]').forEach(function(b){
+      b.addEventListener('click', function(){ delRoadmap(b.getAttribute('data-del')); });
+    });
+  }
+
+  function delRoadmap(id){
+    var it = items.filter(function(x){ return String(x.id) === String(id); })[0] || {};
+    var rm = it.roadmap || {};
+    JB.confirmModal({
+      title: '이 로드맵을 삭제할까요?', danger:true, confirmText:'삭제',
+      message: '“'+esc(rm.title || '로드맵')+'” 과 스텝 진행 내역이 삭제돼요. 되돌릴 수 없어요.',
+      onConfirm: async function(ov, close){
+        var ok = ov.querySelector('[data-ok]'); ok.disabled = true; ok.textContent = '삭제 중…';
+        try {
+          await JB.api('/api/roadmaps/' + encodeURIComponent(id), { method:'DELETE' });
+          close(); toast('로드맵을 삭제했어요'); load();
+        } catch(e){ ok.disabled = false; ok.textContent = '삭제'; toast('삭제 실패: ' + e.message); }
+      }
     });
   }
 
@@ -159,8 +189,15 @@
   }
 
   function load(){
-    JB.api('/api/roadmaps').then(function(list){ items = list || []; render(); })
-      .catch(function(e){ document.getElementById('rmBody').innerHTML = '<div class="store-empty">불러오기 실패: '+esc(e.message)+'</div>'; });
+    Promise.all([
+      JB.api('/api/roadmaps'),
+      JB.api('/api/analyses').catch(function(){ return []; })   // 실패해도 로드맵은 보여준다(고아 표시만 생략)
+    ]).then(function(res){
+      items = res[0] || [];
+      liveAnalyses = {};
+      (res[1] || []).forEach(function(a){ liveAnalyses[a.analysisId] = true; });
+      render();
+    }).catch(function(e){ document.getElementById('rmBody').innerHTML = '<div class="store-empty">불러오기 실패: '+esc(e.message)+'</div>'; });
   }
   load();
 })();

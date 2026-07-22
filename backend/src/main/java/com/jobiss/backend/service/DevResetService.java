@@ -45,6 +45,7 @@ public class DevResetService {
         exec("delete from submissions where run_id in " + userRuns);
         exec("delete from analysis_results where run_id in " + userRuns);
         exec("delete from run_evidences where run_id in " + userRuns);
+        exec("delete from roadmap_step_progress where user_id = " + uid);           // 스텝 진행(V5)도 함께(고아 방지)
         int roadmaps = exec("delete from saved_roadmaps where user_id = " + uid);   // 저장 로드맵도 함께(고아 방지)
         int runs = exec("delete from analysis_runs where user_id = " + uid);
         int evidences = exec("delete from evidences where user_id = " + uid);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>잡이스 — 분석 대화 (실시간)</title>
+<title>JOBISS — 분석 대화 (실시간)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
@@ -27,16 +27,16 @@
   .decision .dc-next,.decision .dc-recheck{font-size:12.5px;margin-top:9px;line-height:1.5;color:var(--ink-2)}
   .decision .dc-next .k,.decision .dc-recheck .k{font-weight:800;color:var(--ink);margin-right:6px}
   .decision.ready{background:var(--ok-soft)}
-  .decision.ready .dc-badge{background:var(--ok);color:#fff}
+  .decision.ready .dc-badge{background:var(--ok);color:var(--on-brand)}
   .decision.ready .dc-head{color:var(--ok)}
   .decision.caution{background:var(--warn-soft)}
-  .decision.caution .dc-badge{background:var(--warn);color:#fff}
+  .decision.caution .dc-badge{background:var(--warn);color:var(--on-brand)}
   .decision.caution .dc-head{color:var(--warn)}
   .decision.block{background:var(--warn-soft)}
-  .decision.block .dc-badge{background:var(--bad,#d64550);color:#fff}
-  .decision.block .dc-head{color:var(--bad,#d64550)}
+  .decision.block .dc-badge{background:var(--bad);color:var(--on-brand)}
+  .decision.block .dc-head{color:var(--bad)}
   .decision.unknown{background:var(--surface-2);border-color:var(--line)}
-  .decision.unknown .dc-badge{background:var(--muted);color:#fff}
+  .decision.unknown .dc-badge{background:var(--muted);color:var(--on-brand)}
   .decision.unknown .dc-head{color:var(--ink-2)}
   /* 경로를 판정 아래로 종속 */
   .report-routes .rt .rt-sub{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:3px}
@@ -53,15 +53,160 @@
     color:var(--brand);background:transparent;border:2.5px solid currentColor;
     box-shadow:inset 0 0 0 1.5px currentColor;
     transform:rotate(-13deg);opacity:.9;z-index:3;pointer-events:none}
+  /* 분석 실패 카드 */
+  .fail-card{margin-top:10px;border:1px solid var(--warn);background:var(--warn-soft);border-radius:12px;padding:14px 16px}
+  .fail-card .fail-h{font-size:13px;font-weight:800;color:var(--warn);margin-bottom:10px}
+  .fail-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .fail-btn{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 13px;cursor:pointer;color:var(--ink-2)}
+  .fail-btn:hover{background:var(--surface-2)}
+  .fail-btn.pri{background:var(--brand);color:#fff;border-color:var(--brand)}
+  /* ── 에이전트 레일 — 어느 에이전트가 무슨 일을 하는지 스트리밍 (아이콘: AI팀 cards sprite) ── */
+  .agent-rail{display:flex;flex-direction:column;gap:11px}
+  .agent-rail .ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .agent-rail .ic-soft{stroke-opacity:.42}
+  .ar-done{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .ar-done:empty{display:none}
+  .ar-done .av{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);
+    display:grid;place-items:center;color:var(--muted);position:relative;flex:0 0 auto}
+  .ar-done .av svg{width:15px;height:15px}
+  .ar-done .av::after{content:'✓';position:absolute;right:-4px;bottom:-4px;font-size:8px;font-weight:900;
+    color:var(--on-brand,#14120f);background:var(--brand);border-radius:50%;width:12px;height:12px;
+    display:grid;place-items:center}
+  .ar-done .arw{color:var(--faint);font-size:11px;margin:0 1px}
+  .ar-now{display:flex;align-items:center;gap:12px}
+  .ar-now .big{width:42px;height:42px;border-radius:13px;border:1px solid var(--line);background:var(--brand-soft);
+    color:var(--brand-ink);display:grid;place-items:center;flex:0 0 auto;animation:arPulse 1.7s ease-in-out infinite}
+  .ar-now .big svg{width:25px;height:25px}
+  .ar-now .who{font-size:13.5px;font-weight:800;letter-spacing:-.01em}
+  .ar-now .who .en{font-size:10.5px;font-weight:600;color:var(--faint);margin-left:6px;letter-spacing:0}
+  .ar-now .doing{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+  @keyframes arPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ac,#fff) 28%,transparent)}50%{box-shadow:0 0 0 8px transparent}}
+  /* 에이전트 독 — thread 와 composer 사이 고정(스크롤과 무관하게 항상 보임) */
+  .agent-dock{border-top:1px solid var(--line);background:var(--surface-2);padding:11px 24px 10px}
+  .agent-dock-inner{max-width:760px;margin:0 auto}
+  .agent-dock .ar-now .big{width:36px;height:36px;border-radius:11px}
+  .agent-dock .ar-now .big svg{width:22px;height:22px}
+  .agent-dock.finished .ar-now .big{animation:none}
+  /* 말풍선 화자 아바타 — 에이전트가 직접 말할 때(JOBISS 기본 ✦ 대신 아이콘 + 화자 고유색) */
+  .who.agent{color:var(--ac,var(--brand-ink));border:1px solid color-mix(in srgb,var(--ac,#fff) 42%,transparent);
+    background:color-mix(in srgb,var(--ac,#fff) 13%,transparent)}
+  .who.agent svg{width:18px;height:18px}
+  .who.agent .ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .who.agent .ic-soft{stroke-opacity:.42}
+  /* 화자색이 이름·말풍선 테두리에도 스며들게 */
+  .msg.agent-msg .name{color:color-mix(in srgb,var(--ac) 62%,var(--ink))}
+  .msg.agent-msg .bubble{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
+  /* 독의 지나간 아바타·현재 에이전트도 각자 색 */
+  .ar-done .av{color:var(--ac,var(--muted));border-color:color-mix(in srgb,var(--ac,#fff) 32%,transparent);
+    background:color-mix(in srgb,var(--ac,#fff) 9%,transparent)}
+  .ar-now .big{color:var(--ac,var(--brand-ink));border-color:color-mix(in srgb,var(--ac,#fff) 40%,transparent);
+    background:color-mix(in srgb,var(--ac,#fff) 13%,transparent)}
 </style>
 </head>
 <body>
+<svg style="display:none" aria-hidden="true">
+  <!-- 에이전트 아이콘 sprite — AI팀 jobis-agent-cards.html 에서 이식 (10노드 공용) -->
+  <defs>
+    <!-- 1. parse_job_posting : 비정형 문서 → 정형 표 -->
+    <symbol id="ic-parse" viewBox="0 0 48 48">
+      <rect class="ic" x="4" y="9" width="15" height="30" rx="2.5"/>
+      <path class="ic ic-soft" d="M7.5,16h8 M7.5,21h8 M7.5,26h5.5 M7.5,31h8"/>
+      <path class="ic" d="M22,24h6 M25.5,20.5l3.5,3.5l-3.5,3.5"/>
+      <rect class="ic" x="31" y="11" width="13" height="26" rx="2.5"/>
+      <path class="ic" d="M31,18h13 M31,25h13 M31,32h13 M37.5,18v19"/>
+    </symbol>
+
+    <!-- 2. build_user_profile : 사람 + 근거 카드 -->
+    <symbol id="ic-profile" viewBox="0 0 48 48">
+      <circle class="ic" cx="14" cy="14" r="5.5"/>
+      <path class="ic" d="M5,32c0-5,4-8,9-8s9,3,9,8"/>
+      <rect class="ic" x="27" y="12" width="17" height="24" rx="2.5"/>
+      <path class="ic ic-soft" d="M30.5,19h10 M30.5,24h10 M30.5,29h6.5"/>
+      <path class="ic ic-dash" d="M20,32h6"/>
+      <circle class="ic-fill" cx="27" cy="32" r="1.8"/>
+    </symbol>
+
+    <!-- 3. check_profile_completeness : 체크리스트 + 미기입 -->
+    <symbol id="ic-complete" viewBox="0 0 48 48">
+      <rect class="ic" x="8" y="6" width="32" height="36" rx="3"/>
+      <rect class="ic" x="13" y="12" width="7" height="7" rx="1.5"/>
+      <path class="ic" d="M14.5,15.5l2,2l3.5,-4"/>
+      <path class="ic ic-soft" d="M24,15.5h11"/>
+      <rect class="ic" x="13" y="22.5" width="7" height="7" rx="1.5"/>
+      <path class="ic" d="M14.5,26l2,2l3.5,-4"/>
+      <path class="ic ic-soft" d="M24,26h11"/>
+      <rect class="ic ic-dash" x="13" y="33" width="7" height="7" rx="1.5"/>
+      <path class="ic" d="M24.5,34.6a2.6,2.6 0 1 1 2.6,2.6v1.3"/>
+      <circle class="ic-fill" cx="27.1" cy="40.4" r="1.3"/>
+    </symbol>
+
+    <!-- 4. check_sufficiency : 판정 가능한가 게이지 -->
+    <symbol id="ic-sufficiency" viewBox="0 0 48 48">
+      <path class="ic" d="M8,34a16,16 0 0 1 32,0"/>
+      <path class="ic ic-soft" d="M9.5,24.5l3,1.6 M24,14v3.4 M38.5,24.5l-3,1.6"/>
+      <path class="ic" d="M24,34l8.5,-8"/>
+      <circle class="ic-fill" cx="24" cy="34" r="2.6"/>
+      <path class="ic ic-soft" d="M6,38h36"/>
+    </symbol>
+
+    <!-- 5. ask_user : 추가 질문 -->
+    <symbol id="ic-ask" viewBox="0 0 48 48">
+      <path class="ic" d="M9,10h30a4,4 0 0 1 4,4v16a4,4 0 0 1 -4,4h-16l-9,7v-7h-5a4,4 0 0 1 -4,-4v-16a4,4 0 0 1 4,-4z"/>
+      <path class="ic" d="M20.3,18.6a3.9,3.9 0 1 1 3.9,3.9v2.3"/>
+      <circle class="ic-fill" cx="24.2" cy="28.6" r="1.7"/>
+    </symbol>
+
+    <!-- 6. analyze_gap : 요구 수준 vs 보유 수준의 갭 -->
+    <symbol id="ic-gap" viewBox="0 0 48 48">
+      <path class="ic ic-soft" d="M5,39h38"/>
+      <rect class="ic" x="10" y="11" width="10" height="28" rx="1.5"/>
+      <rect class="ic ic-fill" x="27" y="26" width="10" height="13" rx="1.5"/>
+      <path class="ic ic-dash" d="M20,12h20"/>
+      <path class="ic" d="M37,25.6V12.4 M34.6,15l2.4,-2.6l2.4,2.6 M34.6,23l2.4,2.6l2.4,-2.6"/>
+    </symbol>
+
+    <!-- 7. plan_roadmap : 기간 배치(간트) + 완료 기준 -->
+    <symbol id="ic-roadmap" viewBox="0 0 48 48">
+      <path class="ic ic-soft" d="M7,8v33h34"/>
+      <rect class="ic ic-fill" x="11" y="12" width="19" height="5.5" rx="2.7"/>
+      <rect class="ic" x="17" y="21.5" width="19" height="5.5" rx="2.7"/>
+      <rect class="ic" x="23" y="31" width="16" height="5.5" rx="2.7"/>
+      <path class="ic ic-dash ic-soft" d="M17,8v33"/>
+    </symbol>
+
+    <!-- 8. find_alternatives : 대체 경로 분기 -->
+    <symbol id="ic-alt" viewBox="0 0 48 48">
+      <circle class="ic" cx="9" cy="24" r="4.5"/>
+      <path class="ic" d="M13.5,22.5C21,20 25,14 30.5,13"/>
+      <path class="ic ic-dash" d="M13.5,25.5C21,28 25,34 30.5,35"/>
+      <circle class="ic" cx="37" cy="12" r="4.5"/>
+      <circle class="ic ic-fill" cx="37" cy="36" r="4.5"/>
+      <path class="ic ic-soft" d="M9,7v9 M9,32v9"/>
+    </symbol>
+
+    <!-- 9. verify_result : 4단 검수 통과 -->
+    <symbol id="ic-verify" viewBox="0 0 48 48">
+      <path class="ic" d="M24,5l15,5.5v13c0,10 -6.5,15.5 -15,19.5c-8.5,-4 -15,-9.5 -15,-19.5v-13z"/>
+      <path class="ic" d="M16.5,23.5l5,5l10,-10"/>
+    </symbol>
+
+    <!-- 10. assemble_output : 산출물 조립 + 자연어 한 문장 -->
+    <symbol id="ic-assemble" viewBox="0 0 48 48">
+      <rect class="ic ic-soft" x="6" y="6" width="21" height="27" rx="2.5"/>
+      <rect class="ic ic-soft" x="11" y="10" width="21" height="27" rx="2.5"/>
+      <rect class="ic" x="16" y="14" width="23" height="28" rx="2.5"/>
+      <path class="ic ic-soft" d="M20,21h15 M20,26h15 M20,31h9"/>
+      <path class="ic" d="M40,4l1.6,3.9L45.5,9.5l-3.9,1.6L40,15l-1.6,-3.9L34.5,9.5l3.9,-1.6z"/>
+    </symbol>
+
+    </defs>
+</svg>
 <div class="app">
   <!-- ============ 사이드바 ============ -->
   <aside class="sidebar">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
-      <span class="nm">잡<span>이스</span></span>
+      <span class="nm">JOB<span>ISS</span></span>
     </div>
     <button class="new-btn" onclick="location.href='new.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -105,7 +250,7 @@
   <!-- ============ 메인(채팅) ============ -->
   <main class="main">
     <div class="topbar">
-      <div class="model-pill"><span class="g" id="connDot"></span> 잡이스 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
+      <div class="model-pill"><span class="g" id="connDot"></span> JOBISS 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
       <div>
         <div class="title" id="topTitle">분석 세션</div>
         <div class="sub" id="topSub">실시간 분석 세션</div>
@@ -116,6 +261,15 @@
 
     <div class="chat-scroll" id="scroll">
       <div class="chat-inner" id="thread"></div>
+    </div>
+
+    <!-- 에이전트 독 — 분석 중 상시 표시(스크롤과 무관). 팀이 손을 거치는 과정이 여기 쌓인다 -->
+    <div class="agent-dock" id="agentDock" style="display:none">
+      <div class="agent-dock-inner agent-rail">
+        <div class="ar-done" id="dockDone"></div>
+        <div class="ar-now" id="dockNow"></div>
+        <div style="height:5px;background:var(--line-2);border-radius:20px;overflow:hidden"><i id="dockBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:20px;transition:width .5s"></i></div>
+      </div>
     </div>
 
     <div class="composer-wrap">
@@ -233,13 +387,15 @@
     if (title.trim()){
       jobLabel = title;
       document.getElementById('topTitle').textContent = title;
-      document.title = '잡이스 — ' + (jp.company || '분석');
+      document.title = 'JOBISS — ' + (jp.company || '분석');
     }
     parentLabel = st.parentLabel || null;   // 대체 재분석이면 원래 공고명 (서버가 보관)
     selectedRoute = st.selectedRoute || null;   // 고른 주 경로 id (서버가 보관 → 복원 시 표시)
     if (st.status === 'COMPLETED') {
       fillJobReq(jp.career, jp.stack);   // 저장된 공고 요구 기술
       restore();                          // 지난 분석: 결과(로드맵)부터
+    } else if (st.status === 'FAILED') {
+      renderFailure({ message: '이전 분석이 완료되지 못했어요.', recoverable: true });   // 실패로 끝난 분석 — 실시간 재개 대신 복구 안내
     } else {
       boot();                             // 진행 중/새 분석: 실시간
     }
@@ -251,12 +407,20 @@
   });
   function scrollDown(){ scroll.scrollTop = scroll.scrollHeight; }
 
+  // 화자 결정 — speaker(에이전트 key)가 있으면 그 에이전트 아이콘·역할명·고유색으로, 없으면 JOBISS.
+  function whoHtml(speaker){
+    var a = speaker && AGENT_META[speaker];
+    if(a) return { av:'<div class="who ai agent"><svg><use href="#'+a.icon+'"/></svg></div>', name:a.name, color:a.color };
+    return { av:'<div class="who ai">✦</div>', name:'JOBISS', color:null };
+  }
   // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
-  function aiBubble(html, extra){
+  function aiBubble(html, extra, speaker){
+    var w = whoHtml(speaker);
     var el = document.createElement('div');
-    el.className = 'msg';
-    el.innerHTML = '<div class="who ai">✦</div><div class="body">' +
-      '<div class="name">잡이스 <span class="t">방금</span></div>' +
+    el.className = 'msg' + (w.color ? ' agent-msg' : '');
+    if(w.color) el.style.setProperty('--ac', w.color);   // 화자색 → 아바타·이름·말풍선 테두리
+    el.innerHTML = w.av + '<div class="body">' +
+      '<div class="name">'+esc(w.name)+' <span class="t">방금</span></div>' +
       '<div class="bubble"></div>' + (extra||'') + '</div>';
     thread.appendChild(el); scrollDown();
     el.querySelector('.bubble').innerHTML = html;
@@ -270,10 +434,12 @@
    */
   function aiTyping(plainText, opts){
     opts = opts || {};
+    var w = whoHtml(opts.speaker);
     var el = document.createElement('div');
-    el.className = 'msg';
-    el.innerHTML = '<div class="who ai">✦</div><div class="body">' +
-      '<div class="name">잡이스 <span class="t">방금</span></div>' +
+    el.className = 'msg' + (w.color ? ' agent-msg' : '');
+    if(w.color) el.style.setProperty('--ac', w.color);   // 화자색 → 아바타·이름·말풍선 테두리
+    el.innerHTML = w.av + '<div class="body">' +
+      '<div class="name">'+esc(w.name)+' <span class="t">방금</span></div>' +
       '<div class="bubble"><span class="tw"></span><span class="caret">▍</span></div></div>';
     thread.appendChild(el); scrollDown();
     var tw = el.querySelector('.tw');
@@ -315,12 +481,67 @@
   }
 
   // ---------- 신호별 처리 ----------
+  // 에이전트 레일 — PROGRESS의 agent 필드로 "누가 무슨 일을 하는지"를 그린다.
+  // (진짜 AI의 SSE envelope {status,from,to,message}와 같은 모양 — 필드만 매핑하면 그대로 붙음)
+  // color = 화자 고유색 (AI팀 카드의 계층 색을 다크 테마용으로: 읽기=주황계 · 판단=청록/파랑계 · 말하기=보라계)
+  var AGENT_META = {
+    parse_job_posting:   { name:'공고 분석가',   icon:'ic-parse',       color:'#e5b566' },
+    build_user_profile:  { name:'이력 정리 담당', icon:'ic-profile',     color:'#dd9a72' },
+    check_profile_completeness: { name:'프로필 점검 담당', icon:'ic-complete', color:'#b9c48a' },
+    check_sufficiency:   { name:'정보 점검 담당', icon:'ic-sufficiency', color:'#6ec6b2' },
+    ask_user:            { name:'질문 담당',     icon:'ic-ask',         color:'#b5a1e5' },
+    analyze_gap:         { name:'갭 분석가',     icon:'ic-gap',         color:'#7cb9e8' },
+    plan_roadmap:        { name:'로드맵 설계자', icon:'ic-roadmap',     color:'#8fce9f' },
+    find_alternatives:   { name:'경로 탐색가',   icon:'ic-alt',         color:'#6fc4d8' },
+    verify_result:       { name:'검증 담당',     icon:'ic-verify',      color:'#96a9dc' },
+    assemble_output:     { name:'리포트 작성자', icon:'ic-assemble',    color:'#cf9ad9' }
+  };
+  var AGENT_STAGE = { parse_job_posting:0, build_user_profile:0, check_sufficiency:0, ask_user:1,
+    analyze_gap:2, plan_roadmap:2, find_alternatives:2, verify_result:2, assemble_output:2 };
+  var railDone = [], railCur = null;   // 지나간 에이전트들 · 현재 에이전트 (질문 중에도 독에 이력 유지)
+
+  function agentAv(key){
+    var a = AGENT_META[key] || {};
+    return '<span class="av"'+(a.color ? ' style="--ac:'+a.color+'"' : '')+' title="'+esc(a.name||key)+'">' +
+      '<svg><use href="#'+(a.icon||'ic-parse')+'"/></svg></span>';
+  }
   function onProgress(m){
+    if(!m.agent) return onProgressLegacy(m);   // 옛 계약(agent 없음) 하위호환
+    var isNew = railCur !== m.agent;
+    if(railCur && isNew && railDone.indexOf(railCur) < 0) railDone.push(railCur);
+    railCur = m.agent;
+    var meta = AGENT_META[m.agent] || {};
+    var name = m.agentName || meta.name || m.agent;
+    var pct = num(m.percent);
+    // ① 하단 독 갱신 — 지나간 에이전트가 ✓로 쌓이고 현재 에이전트가 펄스
+    var dock = document.getElementById('agentDock');
+    dock.style.display = ''; dock.classList.remove('finished');
+    document.getElementById('dockDone').innerHTML = railDone.map(agentAv).join('<span class="arw">→</span>');
+    document.getElementById('dockNow').innerHTML =
+      '<span class="big"'+(meta.color ? ' style="--ac:'+meta.color+'"' : '')+'><svg><use href="#'+(meta.icon||'ic-parse')+'"/></svg></span>' +
+      '<span><div class="who"'+(meta.color ? ' style="color:'+meta.color+'"' : '')+'>'+esc(name)+'<span class="en">'+esc(m.agent)+'</span></div>' +
+      '<div class="doing">'+esc(m.message || m.stage || '')+'</div></span>';
+    document.getElementById('dockBar').style.width = pct + '%';
+    // ② 채팅에도 등장 — 새 에이전트가 일을 받으면 그 에이전트 명의로 한마디
+    //    (ask_user 는 곧바로 질문 말풍선으로 직접 말하므로 중복 안내는 생략)
+    if(isNew && m.agent !== 'ask_user' && m.message){
+      aiTyping(m.message, { speaker: m.agent, speed: 14 });
+    }
+    document.getElementById('topSub').textContent = '분석 중 · ' + name;
+    document.getElementById('flowLbl').textContent = '실시간 분석 · ' + name + ' · ' + pct + '%';
+    // 좌측 "분석 단계" 미니 리스트도 같은 신호로 동기화
+    var g = AGENT_STAGE[m.agent] != null ? AGENT_STAGE[m.agent] : 0;
+    document.querySelectorAll('#miniStages li').forEach(function(li, i){
+      li.className = i < g ? 'done' : (i === g ? 'active' : '');
+    });
+    scrollDown();
+  }
+  function onProgressLegacy(m){
     if(!progressEl){
       progressEl = aiBubble('<span id="progText"></span>');
       progressEl.querySelector('.bubble').innerHTML =
         '<div style="display:flex;align-items:center;gap:10px">' +
-        '<span class="spin" style="width:14px;height:14px;border:2px solid #ddd;border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:spin 1s linear infinite"></span>' +
+        '<span class="spin" style="width:14px;height:14px;border:2px solid rgba(245,241,236,.2);border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:spin 1s linear infinite"></span>' +
         '<span id="progText"></span></div>' +
         '<div style="height:6px;background:var(--line-2);border-radius:20px;margin-top:10px;overflow:hidden"><i id="progBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:20px;transition:width .5s"></i></div>';
     }
@@ -331,18 +552,33 @@
     document.getElementById('flowLbl').textContent = '실시간 분석 · ' + pct + '%';
     scrollDown();
   }
+  /** 분석 완료 시 독 마무리 — 현재 에이전트까지 ✓로 넘기고 펄스 중단, 잠시 후 접힘. */
+  function finishRail(){
+    if(railCur && railDone.indexOf(railCur) < 0) railDone.push(railCur);
+    var dock = document.getElementById('agentDock');
+    if(dock && dock.style.display !== 'none'){
+      dock.classList.add('finished');
+      document.getElementById('dockDone').innerHTML = railDone.map(agentAv).join('<span class="arw">→</span>');
+      document.getElementById('dockNow').innerHTML =
+        '<span style="font-size:12.5px;color:var(--muted)">에이전트 '+railDone.length+'명이 분석을 마쳤어요 ✓</span>';
+      document.getElementById('dockBar').style.width = '100%';
+      setTimeout(function(){ dock.style.display = 'none'; }, 3200);
+    }
+    railCur = null;
+  }
 
   function onQuestion(m){
     // 진행바 말풍선을 정리 → 다음(2차) 진행이 Q&A 아래 새 말풍선으로 보이게(화면 밖 갱신 방지)
     if(progressEl){ progressEl.remove(); progressEl = null; }
     currentQuestion = m;
     var opts = (m.options||[]).map(function(o){ return '<button data-opt>'+esc(o)+'</button>'; }).join('');
-    var extra = '<div class="qcard"><span class="tag">확인 질문</span>' +
+    var extra = '<div class="qcard"><span class="tag">'+(m.agentName ? esc(m.agentName)+' · ' : '')+'확인 질문</span>' +
       '<div class="q">'+esc(m.text)+'</div>' +
       (opts ? '<div class="opts">'+opts+'</div>' : '') +
       '<div class="hint">선택지를 누르거나 아래에 직접 답할 수 있어요.</div></div>';
     // 안내 문장은 타이핑 연출, 질문 카드는 타이핑 끝난 뒤 등장 + 버튼 바인딩
     aiTyping('잠시 확인할 게 있어요. 답해주시면 반영해서 이어갈게요.', {
+      speaker: 'ask_user',   // 질문 담당이 직접 묻는다
       extraHtml: extra,
       onDone: function(el){
         el.querySelectorAll('[data-opt]').forEach(function(b){
@@ -387,10 +623,11 @@
     if(pe) pe.outerHTML = '<div class="ipanel"><div class="ih">준비 로드맵 <span class="n up">'+((r.roadmap||[]).length)+'단계</span></div>' +
       '<div class="spec-row"><span class="k">우선 보완</span><span class="v">'+esc(rd.topGap||'')+'</span></div>' +
       '<div class="spec-row"><span class="k">산출물</span><span class="v">'+esc((r.artifact||{}).title||'')+'</span></div></div>';
+    finishRail();   // 에이전트 레일 마무리(✓ 처리·펄스 중단)
     document.getElementById('topSub').textContent = '분석 완료';
     document.getElementById('flowLbl').textContent = '분석 완료 ✓';
     document.querySelectorAll('#miniStages li').forEach(function(li){ li.className='done'; });
-    var reportEl = aiBubble('분석이 끝났어요. <strong>'+esc(rd.topGap||'')+'</strong>이 가장 큰 격차입니다. 아래 로드맵을 확인해보세요.', buildReport(r));
+    var reportEl = aiBubble('분석이 끝났어요. <strong>'+esc(rd.topGap||'')+'</strong>이 가장 큰 격차입니다. 아래 로드맵을 확인해보세요.', buildReport(r), 'assemble_output');   // 리포트 작성자 명의
     var altBtn = reportEl.querySelector('[data-alts]');
     if(altBtn){ altBtn.addEventListener('click', function(){ showAlternatives(r.alternatives || []); }); }
     // 경로 선택 바인딩 + 복원 시 이미 고른 경로 강조
@@ -683,23 +920,44 @@
     if (title.trim()){
       jobLabel = title;
       document.getElementById('topTitle').textContent = title;
-      document.title = '잡이스 — ' + (m.company || '분석');
+      document.title = 'JOBISS — ' + (m.company || '분석');
     }
     var stacks = Array.isArray(m.stack) ? m.stack : [];
     fillJobReq(m.career, m.stack);
     // 대화로도 알려줌(공고를 읽은 느낌)
     var line = '공고를 읽었어요' + (title.trim() ? ' — ' + title : '') + '. ' +
       (stacks.length ? '요구 기술 ' + stacks.length + '개를 확인했어요. 이제 내 자료와 대조할게요.' : '이제 내 자료와 대조할게요.');
-    aiTyping(line);
+    aiTyping(line, { speaker: 'parse_job_posting' });   // 공고 분석가 명의
   }
 
   function handle(m){
     if(m.type==='PROGRESS') onProgress(m);
     else if(m.type==='JOB_CONTEXT') onJobContext(m);
     else if(m.type==='QUESTION') onQuestion(m);
-    else if(m.type==='AGENT_MESSAGE') aiTyping(m.text);   // AI 반응도 타이핑 연출
+    else if(m.type==='AGENT_MESSAGE') aiTyping(m.text, { speaker: m.agent || railCur });   // 현재 담당 에이전트 명의
     else if(m.type==='DONE') onDone(m);
-    else if(m.type==='ERROR') systemNote('⚠ ' + (m.message||'분석 오류'));
+    else if(m.type==='ERROR') renderFailure(m);
+  }
+
+  // 분석 실패 — 실시간 세션 정리 + 실패 이유 + 복구 행동(다시 시도 / 공고 원문 / 새 분석)
+  function renderFailure(m){
+    if (typeof client !== 'undefined' && client && client.deactivate) { try { client.deactivate(); } catch(_){} }
+    currentQuestion = null;
+    send.disabled = true;
+    field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 종료되었습니다');
+    var an=document.getElementById('assistNote'); if(an) an.textContent='';
+    var ct=document.getElementById('connTxt'); if(ct){ ct.textContent='분석 실패'; ct.style.color='var(--bad)'; }
+    var dot=document.getElementById('connDot'); if(dot) dot.style.background='var(--bad)';
+    if(progressEl){ progressEl.remove(); progressEl=null; }
+    var msg=(m&&m.message)||'분석을 완료하지 못했어요.';
+    var recoverable=!m||m.recoverable!==false;
+    var btns=(recoverable?'<button class="fail-btn" data-fail="retry">다시 시도</button>':'')+
+      '<button class="fail-btn" data-fail="paste">공고 원문으로 다시 입력</button>'+
+      '<button class="fail-btn pri" data-fail="new">새 분석 시작</button>';
+    var el=aiBubble('⚠ '+esc(msg),'<div class="fail-card"><div class="fail-h">분석을 이어갈 수 없어요</div><div class="fail-actions">'+btns+'</div></div>');
+    var r=el.querySelector('[data-fail="retry"]'); if(r) r.addEventListener('click',function(){ location.reload(); });
+    el.querySelector('[data-fail="paste"]').addEventListener('click',function(){ location.href='new.html'; });
+    el.querySelector('[data-fail="new"]').addEventListener('click',function(){ location.href='new.html'; });
   }
 
   // 컴포저 전송(직접 입력 답변)

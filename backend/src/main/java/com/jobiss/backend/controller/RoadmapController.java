@@ -10,6 +10,7 @@ import com.jobiss.backend.dto.roadmap.StepProgressResponse;
 import com.jobiss.backend.service.SavedRoadmapService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -69,5 +70,12 @@ public class RoadmapController {
     @PostMapping("/{id}/representative")
     public SavedRoadmapResponse setRepresentative(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
         return savedRoadmapService.setRepresentative(userId, id);
+    }
+
+    /** 저장 로드맵 삭제(+스텝 진행). */
+    @DeleteMapping("/{id}")
+    public java.util.Map<String, Object> delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
+        savedRoadmapService.deleteRoadmap(userId, id);
+        return java.util.Map.of("deleted", true);
     }
 }

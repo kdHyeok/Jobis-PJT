@@ -121,6 +121,19 @@ public class RoadmapTxService {
         return target;
     }
 
+    /** 저장 로드맵 1개 삭제(+그 스텝 진행). 소유권 확인. */
+    @Transactional
+    public void deleteRoadmap(Long userId, Long id) {
+        SavedRoadmap sr = savedRepository.findById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ROADMAP_NOT_FOUND", "로드맵을 찾을 수 없습니다."));
+        if (!sr.getUserId().equals(userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "접근 권한이 없습니다.");
+        }
+        progressRepository.findByUserIdAndAnalysisIdAndRouteId(userId, sr.getAnalysisId(), sr.getRouteId())
+                .forEach(progressRepository::delete);
+        savedRepository.delete(sr);
+    }
+
     private static String cap(String s, int n) {
         if (s == null) return null;
         return s.length() > n ? s.substring(0, n) : s;

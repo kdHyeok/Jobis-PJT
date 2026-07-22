@@ -115,6 +115,11 @@ public class SavedRoadmapService {
         return toResponse(txService.setRepresentative(userId, id));
     }
 
+    /** 저장 로드맵 삭제(+스텝 진행). */
+    public void deleteRoadmap(Long userId, Long id) {
+        txService.deleteRoadmap(userId, id);
+    }
+
     /** 로드맵에 물어보기 — 저장된 로드맵 맥락(topGap·회사)을 실어 가짜 AI에 질문(DB 쓰기 없음). */
     public AskResponse ask(Long userId, AskRequest req) {
         if (!ALLOWED_ROUTES.contains(req.routeId())) {

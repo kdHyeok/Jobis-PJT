@@ -16,6 +16,7 @@ const path = require('path');
 
 const PORT = 8000;
 const STAGE_MS = 10000;   // 진행 신호 간격(ms)
+const ANSWER_TIMEOUT_MS = 180000;   // 질문 답변 대기 한도(ms) — 초과 시 안전 종료(무한 대기 방지)
 const RESULT = JSON.parse(fs.readFileSync(path.join(__dirname, 'result.json'), 'utf8')); // 일반 결과(폴백)
 
 const sessions = new Map();
@@ -28,8 +29,9 @@ const httpServer = http.createServer((req, res) => {
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      let payload = {};
-      try { payload = JSON.parse(body || '{}'); } catch (e) {}
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
       const fragments = extractEvidence(payload.sourceType || 'TEXT', payload.content || '');
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ fragments }));
@@ -42,8 +44,9 @@ const httpServer = http.createServer((req, res) => {
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      let payload = {};
-      try { payload = JSON.parse(body || '{}'); } catch (e) {}
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
       const roadmap = generateRoadmap(payload);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(roadmap));
@@ -56,8 +59,9 @@ const httpServer = http.createServer((req, res) => {
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      let payload = {};
-      try { payload = JSON.parse(body || '{}'); } catch (e) {}
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
       const verdict = generateReassess(payload);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(verdict));
@@ -71,8 +75,9 @@ const httpServer = http.createServer((req, res) => {
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      let payload = {};
-      try { payload = JSON.parse(body || '{}'); } catch (e) {}
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
       const out = generateAsk(payload);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(out));
@@ -112,10 +117,35 @@ function handle(ws, msg) {
   } else if (msg.type === 'USER_MESSAGE') {
     const s = sessions.get(msg.analysisId);
     if (s && s.resolveAnswer) {
+      if (s.answerTimer) { clearTimeout(s.answerTimer); s.answerTimer = null; }
       s.resolveAnswer(msg.text);
       s.resolveAnswer = null;
     }
   }
+}
+
+/* ── 에이전트 카탈로그 — 진짜 AI(LangGraph 10노드)와 같은 이름·순서.
+      PROGRESS에 agent/from/to/message를 실어 "누가 무슨 일을 하는지"를 스트리밍한다.
+      (AI팀 handoff §3.3 SSE envelope {status,from,to,message}의 선행 구현 — 진짜 AI가 붙으면 필드만 매핑) */
+const AGENTS = {
+  parse_job_posting:   { name: '공고 분석가',   icon: 'ic-parse',       message: '채용공고를 읽고 요구사항을 추출하고 있어요' },
+  build_user_profile:  { name: '이력 정리 담당', icon: 'ic-profile',     message: '선택한 경험을 정형 프로필로 정리하고 있어요' },
+  check_sufficiency:   { name: '정보 점검 담당', icon: 'ic-sufficiency', message: '지금 정보로 판정이 가능한지 확인하고 있어요' },
+  ask_user:            { name: '질문 담당',     icon: 'ic-ask',         message: '더 정확한 분석을 위해 몇 가지 여쭤볼게요' },
+  analyze_gap:         { name: '갭 분석가',     icon: 'ic-gap',         message: '요구사항과 증거를 대조해 강점·부족을 계산하고 있어요' },
+  plan_roadmap:        { name: '로드맵 설계자', icon: 'ic-roadmap',     message: '부족 역량을 메울 준비 계획을 짜고 있어요' },
+  find_alternatives:   { name: '경로 탐색가',   icon: 'ic-alt',         message: '함께 볼 만한 관련 공고를 찾고 있어요' },
+  verify_result:       { name: '검증 담당',     icon: 'ic-verify',      message: '결과에 근거 없는 주장이 없는지 검사하고 있어요' },
+  assemble_output:     { name: '리포트 작성자', icon: 'ic-assemble',    message: '최종 리포트를 정리하고 있어요' },
+};
+
+/** 에이전트 단위 진행 신호. stage/percent는 옛 렌더 하위호환용으로 유지. */
+function sendAgentProgress(ws, id, agentKey, fromKey, pct) {
+  const a = AGENTS[agentKey];
+  send(ws, { type: 'PROGRESS', analysisId: id,
+    agent: agentKey, from: fromKey || null, to: agentKey,
+    agentName: a.name, message: a.message,
+    stage: a.name + ' — ' + a.message, percent: pct });
 }
 
 async function runAnalysis(ws, start) {
@@ -124,36 +154,67 @@ async function runAnalysis(ws, start) {
   sessions.set(id, session);
   const rawJob = (start.jobPosting && start.jobPosting.rawText) || '';
   const sc = pickScenario(rawJob);
+  if (!sc) {
+    await sleep(1200);
+    send(ws, { type: 'ERROR', analysisId: id, code: 'UNSUPPORTED_SCENARIO',
+      message: '현재 데모에서 지원하지 않는 공고예요. 지원되는 데모 공고를 선택하거나 공고 원문을 붙여넣어 주세요.',
+      recoverable: true, actions: ['공고 원문 붙여넣기', '지원되는 데모 공고 선택'] });
+    console.log(`\n▶ 분석 거절(미지원 시나리오)  analysisId=${id}`);
+    sessions.delete(id);
+    return;
+  }
   console.log(`\n▶ 분석 시작  analysisId=${id}  (시나리오=${sc.name})`);
 
-  // 0) 공고 이해 → JOB_CONTEXT (웹은 원문만 넘겼고, 구조화는 여기서)
+  // 0) 공고 분석가 — 파싱 후 JOB_CONTEXT (웹은 원문만 넘겼고, 구조화는 여기서)
+  sendAgentProgress(ws, id, 'parse_job_posting', null, 8);
   await sleep(1500);
   const ctx = sc.ctx;
   console.log(`  · 공고 파악: ${ctx.company} / ${ctx.role} / 요구스택 ${ctx.stack.length}개`);
   send(ws, { type: 'JOB_CONTEXT', analysisId: id, company: ctx.company, role: ctx.role, career: ctx.career, stack: ctx.stack });
 
-  // 1차 진행
-  for (const [stage, pct] of [['공고 요구사항 분석', 30], ['내 자료 대조', 50]]) {
-    await sleep(STAGE_MS);
-    send(ws, { type: 'PROGRESS', analysisId: id, stage, percent: pct });
-  }
+  // 1) 이력 정리 → 정보 점검 (핸드오프 순서 = 진짜 그래프와 동일)
+  await sleep(STAGE_MS);
+  sendAgentProgress(ws, id, 'build_user_profile', 'parse_job_posting', 24);
+  await sleep(STAGE_MS);
+  sendAgentProgress(ws, id, 'check_sufficiency', 'build_user_profile', 38);
 
-  // 질문 — 하나씩 (답하면 다음 질문)
+  // 질문 — 하나씩 (답하면 다음 질문) · 질문 담당(ask_user) 명의
   const questions = sc.questions;
+  if (questions.length) sendAgentProgress(ws, id, 'ask_user', 'check_sufficiency', 44);
   for (const q of questions) {
     await sleep(700);
-    send(ws, { type: 'QUESTION', analysisId: id, questionId: q.questionId, field: q.field, text: q.text, options: q.options, isBlocking: true });
-    const answer = await waitForAnswer(session);
+    send(ws, { type: 'QUESTION', analysisId: id, agent: 'ask_user', agentName: AGENTS.ask_user.name,
+      questionId: q.questionId, field: q.field, text: q.text, options: q.options, isBlocking: true });
+    const answer = await waitForAnswer(session, ANSWER_TIMEOUT_MS);
+    if (answer && answer.__timeout) {
+      send(ws, { type: 'ERROR', analysisId: id, code: 'ANSWER_TIMEOUT',
+        message: '답변 대기 시간이 초과돼 분석을 종료했어요. 새로 시작해 주세요.',
+        recoverable: true, actions: ['새 분석 시작'] });
+      console.log(`  ⏱ 답변 시간 초과 → 종료  analysisId=${id}`);
+      sessions.delete(id);
+      return;
+    }
     console.log('  ✎ 답변:', answer);
     await sleep(500);
-    send(ws, { type: 'AGENT_MESSAGE', analysisId: id, text: q.followup || `"${answer}" 확인했어요. 반영할게요.`, interrupted: false });
+    send(ws, { type: 'AGENT_MESSAGE', analysisId: id, agent: 'ask_user', agentName: AGENTS.ask_user.name,
+      text: q.followup || `"${answer}" 확인했어요. 반영할게요.`, interrupted: false });
   }
 
-  // 2차 진행 (답변 반영)
-  for (const [stage, pct] of [['답변 반영', 75], ['준비 로드맵 생성', 95]]) {
+  // 2) 답변 반영 후 판정~조립 — 갭 분석 → 로드맵 → (대체공고 있으면) 경로 탐색 → 검증 → 리포트
+  await sleep(STAGE_MS);
+  sendAgentProgress(ws, id, 'analyze_gap', questions.length ? 'ask_user' : 'check_sufficiency', 58);
+  await sleep(STAGE_MS);
+  sendAgentProgress(ws, id, 'plan_roadmap', 'analyze_gap', 72);
+  let prev = 'plan_roadmap';
+  if (sc.result && sc.result.alternatives && sc.result.alternatives.length) {   // 진짜 그래프의 조건부 라우팅처럼
     await sleep(STAGE_MS);
-    send(ws, { type: 'PROGRESS', analysisId: id, stage, percent: pct });
+    sendAgentProgress(ws, id, 'find_alternatives', prev, 84);
+    prev = 'find_alternatives';
   }
+  await sleep(STAGE_MS);
+  sendAgentProgress(ws, id, 'verify_result', prev, 92);
+  await sleep(700);
+  sendAgentProgress(ws, id, 'assemble_output', 'verify_result', 97);
 
   // 완료 → 결과
   await sleep(600);
@@ -162,8 +223,11 @@ async function runAnalysis(ws, start) {
   sessions.delete(id);
 }
 
-function waitForAnswer(session) {
-  return new Promise((resolve) => { session.resolveAnswer = resolve; });
+function waitForAnswer(session, ms) {
+  return new Promise((resolve) => {
+    session.resolveAnswer = resolve;
+    session.answerTimer = setTimeout(() => { session.resolveAnswer = null; resolve({ __timeout: true }); }, ms);
+  });
 }
 
 /* ============================================================
@@ -450,7 +514,7 @@ function pickScenario(rawJob) {
   if (isShieldPosting(rawJob)) return { name: 'shield', ctx: SHIELD_CONTEXT, questions: SHIELD_QUESTIONS, result: SHIELD_RESULT };
   if (isDsntech(rawJob)) return { name: 'dsntech', ctx: DSNTECH_CONTEXT, questions: DSNTECH_QUESTIONS, result: DSNTECH_RESULT };
   if (isHyundai(rawJob)) return { name: 'hyundai', ctx: HYUNDAI_CONTEXT, questions: HYUNDAI_QUESTIONS, result: HYUNDAI_RESULT };
-  return { name: 'generic', ctx: parseJob(rawJob), questions: GENERIC_QUESTIONS, result: RESULT };
+  return null;   // 지원 시나리오(쉴드원·디에스앤텍·현대) 외 = 미지원 → runAnalysis가 안전하게 거절(UNSUPPORTED_SCENARIO)
 }
 
 /* ============================================================
@@ -704,8 +768,8 @@ function generateReassess(input) {
       nextHint: '완료 기준: ' + (step.done || '산출물 링크') + ' — 이걸 담은 링크를 제출해 주세요.',
     };
   }
-  // 2) 링크는 유효하나 이 스텝의 핵심 신호가 안 보임(힌트가 정의된 경우만 엄격히 본다)
-  if (hints.length > 0 && !matched) {
+  // 2) 링크는 유효하나 이 스텝의 핵심 신호(내용 토큰)가 안 보임 → 보수적으로 UNVERIFIED(토큰 매칭 없으면 절대 verified 아님)
+  if (!matched) {
     return {
       verdict: 'insufficient', resolvedRequirement: null,
       headline: '링크는 확인했지만 이 요건의 증거가 약해요',

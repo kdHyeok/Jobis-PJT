@@ -16,6 +16,9 @@ public interface AnalysisRunRepository extends JpaRepository<AnalysisRun, Long> 
     /** 사이드바 세션 목록: 내 분석을 최신순으로. */
     List<AnalysisRun> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    /** 대체 재분석 자식 조회(삭제 시 연쇄용). */
+    List<AnalysisRun> findByUserIdAndParentAnalysisId(Long userId, String parentAnalysisId);
+
     /** analysisId의 소유자 userId만 조회(STOMP 소유권 검증용, 엔티티 로딩 없이). */
     @Query("select r.user.id from AnalysisRun r where r.analysisId = :analysisId")
     Optional<Long> findOwnerIdByAnalysisId(@Param("analysisId") String analysisId);

@@ -33,6 +33,7 @@ public class SecurityConfig {
                         // 정적 프론트(목업) — 로그인 전에도 페이지 자체는 열 수 있어야 함
                         .requestMatchers("/", "/*.html", "/*.css", "/*.js", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/chat-app/**", "/ws/**").permitAll()   // 채팅 목업 + STOMP 핸드셰이크
+                        .requestMatchers("/img/**", "/vid/**").permitAll()       // 배경 이미지/영상 등 정적 미디어
                         .requestMatchers("/health", "/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/job-postings/samples").permitAll()
                         .requestMatchers("/api/dev/**").permitAll()   // DEV ONLY — 가짜 AI 트리거, 배포 전 제거

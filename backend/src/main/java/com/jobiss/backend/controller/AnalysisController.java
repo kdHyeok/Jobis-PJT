@@ -8,17 +8,20 @@ import com.jobiss.backend.dto.analysis.CustomAnalysisRequest;
 import com.jobiss.backend.dto.analysis.QuestionResponse;
 import com.jobiss.backend.dto.analysis.ResultResponse;
 import com.jobiss.backend.dto.analysis.SelectRouteRequest;
+import com.jobiss.backend.service.AnalysisDeletionService;
 import com.jobiss.backend.service.AnalysisService;
 import com.jobiss.backend.service.agent.AgentRunService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -30,10 +33,13 @@ public class AnalysisController {
 
     private final AnalysisService analysisService;
     private final AgentRunService agentRunService;
+    private final AnalysisDeletionService deletionService;
 
-    public AnalysisController(AnalysisService analysisService, AgentRunService agentRunService) {
+    public AnalysisController(AnalysisService analysisService, AgentRunService agentRunService,
+                             AnalysisDeletionService deletionService) {
         this.analysisService = analysisService;
         this.agentRunService = agentRunService;
+        this.deletionService = deletionService;
     }
 
     /**
@@ -110,5 +116,18 @@ public class AnalysisController {
                                            @Valid @RequestBody SelectRouteRequest request) {
         analysisService.selectRoute(userId, analysisId, request.routeId());
         return Map.of("status", "ok");
+    }
+
+    /** 삭제 미리보기 — 함께 지워질 자식 재분석·저장 로드맵 수(확인창용). */
+    @GetMapping("/{analysisId}/deletion-preview")
+    public Map<String, Object> deletionPreview(@AuthenticationPrincipal Long userId, @PathVariable String analysisId) {
+        return deletionService.preview(userId, analysisId);
+    }
+
+    /** 분석 삭제(자식 재분석 연쇄). deleteRoadmaps=false면 저장 로드맵은 남긴다(고아). */
+    @DeleteMapping("/{analysisId}")
+    public Map<String, Object> delete(@AuthenticationPrincipal Long userId, @PathVariable String analysisId,
+                                      @RequestParam(defaultValue = "true") boolean deleteRoadmaps) {
+        return deletionService.delete(userId, analysisId, deleteRoadmaps);
     }
 }

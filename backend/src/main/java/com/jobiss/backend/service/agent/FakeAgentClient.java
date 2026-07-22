@@ -62,7 +62,7 @@ public class FakeAgentClient {
                     log.error("[AI 연결 실패] {} — 가짜 AI 서버(node server.js)가 켜져 있나요?", ex.getMessage());
                     started.remove(analysisId);
                     resultService.fail(analysisId, "AI 서버 연결 실패");
-                    relay(analysisId, "{\"type\":\"ERROR\",\"analysisId\":\"" + analysisId + "\",\"message\":\"AI 서버 연결 실패\"}");
+                    relayError(analysisId, "AI_UNREACHABLE", "AI 서버에 연결하지 못했어요. 가짜 AI 서버가 켜져 있는지 확인하고 다시 시도해 주세요.");
                     return null;
                 });
     }
@@ -88,6 +88,18 @@ public class FakeAgentClient {
         messaging.convertAndSend("/topic/analysis/" + analysisId, rawJson);
     }
 
+    /** 백엔드 발(연결 실패·끊김) 오류를 브라우저로 중계 — 복구 가능 표시 + 다음 행동 제시. */
+    private void relayError(String analysisId, String code, String message) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", "ERROR");
+        m.put("analysisId", analysisId);
+        m.put("code", code);
+        m.put("message", message);
+        m.put("recoverable", true);
+        m.put("actions", java.util.List.of("다시 시도", "공고 원문 붙여넣기", "새 분석 시작"));
+        relay(analysisId, om.writeValueAsString(m));
+    }
+
     private static String str(Object o) {
         return o == null ? null : String.valueOf(o);
     }
@@ -96,6 +108,7 @@ public class FakeAgentClient {
         private final String analysisId;
         private final String startJson;
         private final StringBuilder buffer = new StringBuilder();
+        private volatile boolean completed = false;   // DONE/ERROR로 정상 종료됐는지 — onClose에서 무한 ANALYZING 방지
 
         AgentListener(String analysisId, String startJson) {
             this.analysisId = analysisId;
@@ -131,13 +144,22 @@ public class FakeAgentClient {
             log.error("[AI 연결 오류] {}", error.getMessage());
             sessions.remove(analysisId);
             started.remove(analysisId);
-            resultService.fail(analysisId, "연결 오류");
+            if (!completed) {
+                completed = true;
+                resultService.fail(analysisId, "연결 오류");
+                relayError(analysisId, "CONNECTION_ERROR", "AI 연결 중 오류가 났어요. 다시 시도해 주세요.");
+            }
         }
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             sessions.remove(analysisId);
             started.remove(analysisId);
+            if (!completed) {   // DONE/ERROR 없이 끊김 → 무한 ANALYZING 방지: FAILED로 종료 + 브라우저 통지
+                completed = true;
+                resultService.fail(analysisId, "완료 전 연결 종료");
+                relayError(analysisId, "CONNECTION_LOST", "분석이 완료되기 전에 연결이 끊겼어요. 다시 시도해 주세요.");
+            }
             return null;
         }
 
@@ -160,6 +182,7 @@ public class FakeAgentClient {
                 case "QUESTION" -> log.info("  [중계] QUESTION → 브라우저 (사용자 답변 대기)");
                 case "AGENT_MESSAGE" -> log.info("  [중계] AGENT: {}", msg.get("text"));
                 case "DONE" -> {
+                    completed = true;
                     String resultJson = om.writeValueAsString(msg.get("result"));
                     resultService.complete(analysisId, resultJson);
                     log.info("  [중계+저장] DONE → analysis_results 저장 (COMPLETED)");
@@ -167,10 +190,12 @@ public class FakeAgentClient {
                     webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "done");
                 }
                 case "ERROR" -> {
+                    completed = true;
                     log.error("  [중계] ERROR: {}", msg.get("message"));
                     resultService.fail(analysisId, String.valueOf(msg.get("message")));
                     sessions.remove(analysisId);
                     started.remove(analysisId);
+                    webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "error");
                 }
                 default -> log.info("  [중계] {} ", type);
             }
