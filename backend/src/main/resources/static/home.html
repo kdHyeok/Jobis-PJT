@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
 <script src="auth.js"></script>
+<script src="theme.js"></script>
 <style>
 /* ============================================================
    홈 — 배경 영상 + 오브 중심 정렬. 색은 styles.css 토큰을 따른다.
@@ -36,33 +37,33 @@
   will-change:transform;backface-visibility:hidden}
 .home-main{position:relative;background:transparent;isolation:isolate}
 .home-main::after{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:linear-gradient(180deg,rgba(15,14,12,.6) 0%,rgba(15,14,12,.32) 20%,rgba(15,14,12,.06) 34%,rgba(15,14,12,.48) 62%,rgba(15,14,12,.92) 100%)}
+  background:linear-gradient(180deg,rgba(var(--veil-rgb),.6) 0%,rgba(var(--veil-rgb),.32) 20%,rgba(var(--veil-rgb),.06) 34%,rgba(var(--veil-rgb),.48) 62%,rgba(var(--veil-rgb),.92) 100%)}
 
 /* ---- 3. 사이드바: 거의 투명 — 배경이 그대로 비치고 화이트 테두리로만 구분 ---- */
-.home .sidebar{background:transparent;border-right:1px solid rgba(245,241,236,.3);
+.home .sidebar{background:transparent;border-right:1px solid rgba(var(--ink-rgb),.3);
   -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
-.home .search{background:rgba(245,241,236,.05);border-color:rgba(245,241,236,.16)}
+.home .search{background:rgba(var(--ink-rgb),.05);border-color:rgba(var(--ink-rgb),.16)}
 .home .search input{color:var(--ink)}
-.home .side-nav:hover,.home .session:hover{background:rgba(245,241,236,.08)}
-.home .userchip{background:rgba(245,241,236,.06);border-color:rgba(245,241,236,.16)}
+.home .side-nav:hover,.home .session:hover{background:rgba(var(--ink-rgb),.08)}
+.home .userchip{background:rgba(var(--ink-rgb),.06);border-color:rgba(var(--ink-rgb),.16)}
 
 /* ---- 4. 레이아웃: 입력박스를 오브 중심에 올린다(구조 변경 없이 order로) ---- */
 .home-scroll{justify-content:flex-start;padding:0 24px 72px}
 /* 오브·입력박스·문구를 위로 — 아래 카드 줄에 오브가 잘리지 않게(배경 33%와 짝) */
 .home-inner{display:flex;flex-direction:column;max-width:940px;padding-top:4vh}
-.home-badge{order:1;align-self:center;background:rgba(245,241,236,.07);color:rgba(245,241,236,.8);
-  border:1px solid rgba(245,241,236,.13);backdrop-filter:blur(12px)}
-.home-hi{order:2;font-size:32px;text-shadow:0 2px 24px rgba(0,0,0,.6)}
-.home-hi .hl{color:#fff}
-.home-sub{order:3;color:rgba(245,241,236,.6);margin-bottom:0;max-width:680px;
-  text-shadow:0 1px 14px rgba(0,0,0,.95),0 0 30px rgba(0,0,0,.8)}
+.home-badge{order:1;align-self:center;background:rgba(var(--ink-rgb),.07);color:rgba(var(--ink-rgb),.8);
+  border:1px solid rgba(var(--ink-rgb),.13);backdrop-filter:blur(12px)}
+.home-hi{order:2;font-size:32px;text-shadow:0 2px 24px rgba(var(--glow-rgb),.6)}
+.home-hi .hl{color:var(--ink-hi)}
+.home-sub{order:3;color:rgba(var(--ink-rgb),.6);margin-bottom:0;max-width:680px;
+  text-shadow:0 1px 14px rgba(var(--glow-rgb),.95),0 0 30px rgba(var(--glow-rgb),.8)}
 /* 핵심 문구만 화이트로 끌어올려 강조 */
-.home-sub b{color:#fff;font-weight:800}
+.home-sub b{color:var(--ink-hi);font-weight:800}
 .home-composer{order:4;margin-top:clamp(52px,10vh,120px)}
 /* 오브 밝은 부분 위에 얹히는 글자 — 명도로만 띄운다 */
 /* 오브의 가장 밝은 부분 위에 앉으므로 글자색만으론 안 읽힌다 — 어두운 유리 알약을 깐다 */
-.home-hint{order:5;align-self:center;color:rgba(245,241,236,.72);text-shadow:none;
-  background:rgba(15,14,12,.55);border:1px solid rgba(245,241,236,.08);border-radius:20px;padding:5px 15px;
+.home-hint{order:5;align-self:center;color:rgba(var(--ink-rgb),.72);text-shadow:none;
+  background:rgba(var(--veil-rgb),.55);border:1px solid rgba(var(--ink-rgb),.08);border-radius:20px;padding:5px 15px;
   -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
   margin-bottom:clamp(52px,10vh,112px)}
 #repRoadmap{order:6;margin:0 0 14px}
@@ -71,62 +72,61 @@
   grid-template-columns:repeat(3,1fr);gap:11px}
 .home-card{padding:13px 14px;border-radius:13px}
 .home-card .ic{width:28px;height:28px;font-size:13px;border-radius:9px;margin-bottom:8px}
-.home-card .ic svg{width:15px;height:15px;color:rgba(245,241,236,.9)}
+.home-card .ic svg{width:15px;height:15px;color:rgba(var(--ink-rgb),.9)}
 .home-card h3{font-size:13.5px;margin-bottom:3px}
 .home-card p{font-size:11.5px;line-height:1.45}
 .home-card .go{margin-top:9px;font-size:11.5px}
 
 /* ---- 5. 입력박스: 아래 카드 3장과 같은 블랙 + 화이트 텍스트 ---- */
 .home-composer{align-self:center;width:min(600px,100%);max-width:none;
-  background:rgba(23,20,17,.78);border:1px solid rgba(245,241,236,.13);border-radius:13px;
+  background:rgba(var(--panel-rgb),.78);border:1px solid rgba(var(--ink-rgb),.13);border-radius:13px;
   padding:9px 9px 9px 18px;
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
-  box-shadow:0 16px 44px rgba(0,0,0,.5)}
-.home-composer:focus-within{background:rgba(30,26,22,.88);border-color:rgba(245,241,236,.3);
-  box-shadow:0 16px 44px rgba(0,0,0,.55)}
-.home-composer input{color:#fff;font-size:15px}
-.home-composer input::placeholder{color:rgba(245,241,236,.5)}
+  box-shadow:0 16px 44px rgba(var(--shadow-rgb),.5)}
+.home-composer:focus-within{background:rgba(var(--panel-2-rgb),.88);border-color:rgba(var(--ink-rgb),.3);
+  box-shadow:0 16px 44px rgba(var(--shadow-rgb),.55)}
+.home-composer input{color:var(--ink-hi);font-size:15px}
+.home-composer input::placeholder{color:rgba(var(--ink-rgb),.5)}
 /* 시작 버튼도 흰 채움 대신 카드와 같은 화이트 라인/텍스트로 */
-.home-composer .go{background:rgba(245,241,236,.08);border:1px solid rgba(245,241,236,.22);
-  color:#fff;border-radius:10px;padding:9px 17px}
-.home-composer .go:hover{background:rgba(245,241,236,.16);border-color:rgba(245,241,236,.4)}
+.home-composer .go{background:rgba(var(--ink-rgb),.08);border:1px solid rgba(var(--ink-rgb),.22);
+  color:var(--ink-hi);border-radius:10px;padding:9px 17px}
+.home-composer .go:hover{background:rgba(var(--ink-rgb),.16);border-color:rgba(var(--ink-rgb),.4)}
 
 /* ---- 6. 카드: 반투명 무채색 유리 ---- */
 /* 살짝만 비치는 정도 — 배경이 카드 글자를 방해하지 않게 거의 불투명하게 */
-.home-card{background:rgba(23,20,17,.78);border:1px solid rgba(245,241,236,.13);
+.home-card{background:rgba(var(--panel-rgb),.78);border:1px solid rgba(var(--ink-rgb),.13);
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
-.home-card:hover{background:rgba(30,26,22,.88);border-color:rgba(245,241,236,.3);
-  box-shadow:0 16px 44px rgba(0,0,0,.5)}
-/* 이모지 아이콘도 무채색으로 — 마크업은 그대로 두고 필터로만 뺀다 */
-.home-card .ic{background:rgba(245,241,236,.08)!important;border:1px solid rgba(245,241,236,.1);
-  filter:grayscale(1) brightness(1.25)}
-.home-card .go{color:rgba(245,241,236,.85)}
-.home-card p{color:rgba(245,241,236,.5)}
+.home-card:hover{background:rgba(var(--panel-2-rgb),.88);border-color:rgba(var(--ink-rgb),.3);
+  box-shadow:0 16px 44px rgba(var(--shadow-rgb),.5)}
+/* 아이콘은 currentColor 마스크라 색이 글자색을 그대로 따라온다(예전 이모지용 filter 제거) */
+.home-card .ic{background:rgba(var(--ink-rgb),.08)!important;border:1px solid rgba(var(--ink-rgb),.1)}
+.home-card .go{color:rgba(var(--ink-rgb),.85)}
+.home-card p{color:rgba(var(--ink-rgb),.5)}
 
 /* ---- 7. 대표 로드맵 카드 ---- */
-.home-rep{background:rgba(245,241,236,.05);border:1px solid rgba(245,241,236,.16);box-shadow:none;
+.home-rep{background:rgba(var(--ink-rgb),.05);border:1px solid rgba(var(--ink-rgb),.16);box-shadow:none;
   border-radius:16px;padding:18px 20px;text-align:left;
   -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
-.home-rep .rep-k{font-size:11.5px;font-weight:800;color:rgba(245,241,236,.75);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.home-rep .rep-k{font-size:11.5px;font-weight:800;color:rgba(var(--ink-rgb),.75);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
 .home-rep .rep-title{font-size:17px;font-weight:800;letter-spacing:-.01em}
 .home-rep .rep-badges{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0 13px}
-.home-rep .rep-b{font-size:11px;font-weight:700;border-radius:20px;padding:3px 10px;border:1px solid rgba(245,241,236,.12)}
-.home-rep .rep-b.route{background:rgba(245,241,236,.1);color:#f4f4f5}
-.home-rep .rep-b.goal{background:transparent;color:rgba(245,241,236,.6)}
+.home-rep .rep-b{font-size:11px;font-weight:700;border-radius:20px;padding:3px 10px;border:1px solid rgba(var(--ink-rgb),.12)}
+.home-rep .rep-b.route{background:rgba(var(--ink-rgb),.1);color:var(--ink)}
+.home-rep .rep-b.goal{background:transparent;color:rgba(var(--ink-rgb),.6)}
 .home-rep .rep-steps{display:flex;flex-direction:column;gap:6px;margin-bottom:15px}
 .home-rep .rep-step{font-size:13.5px;color:var(--ink-2)}
-.home-rep .rep-step b{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:5px;background:rgba(245,241,236,.12);color:#f4f4f5;font-size:11px;font-weight:800;margin-right:8px;vertical-align:middle}
+.home-rep .rep-step b{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:5px;background:rgba(var(--ink-rgb),.12);color:var(--ink);font-size:11px;font-weight:800;margin-right:8px;vertical-align:middle}
 .home-rep .rep-acts{display:flex;gap:8px}
 .home-rep .rep-acts a{border-radius:10px;padding:9px 15px;font-size:13px;font-weight:700;text-decoration:none}
 .home-rep .rep-acts .pri{background:var(--brand);color:var(--on-brand)}
-.home-rep .rep-acts .pri:hover{background:#fff}
-.home-rep .rep-acts .line{background:rgba(245,241,236,.05);border:1px solid rgba(245,241,236,.14);color:rgba(245,241,236,.78)}
-.home-rep .rep-acts .line:hover{background:rgba(245,241,236,.1)}
+.home-rep .rep-acts .pri:hover{background:var(--brand-hi)}
+.home-rep .rep-acts .line{background:rgba(var(--ink-rgb),.05);border:1px solid rgba(var(--ink-rgb),.14);color:rgba(var(--ink-rgb),.78)}
+.home-rep .rep-acts .line:hover{background:rgba(var(--ink-rgb),.1)}
 
 /* 움직임을 줄이도록 설정한 사용자에겐 영상 대신 정지 프레임 */
 @media(prefers-reduced-motion:reduce){
   .home-bg{display:none}
-  .app.home{background:var(--bg) url('img/vid1-poster.jpg') 50% 45%/cover no-repeat}
+  .app.home{background:var(--bg) var(--bg-still) 50% 45%/cover no-repeat}
 }
 
 /* 좁은 화면: 여백을 줄이고 카드는 다시 쌓는다 */
@@ -148,10 +148,12 @@
 <body>
 <div class="app home">
   <!-- 배경 영상. 사이드바보다 뒤에 깔려야 하므로 .app의 첫 자식이어야 한다(형제 페인트 순서) -->
-  <video class="home-bg" poster="img/vid1-poster.jpg"
-         autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1">
-    <source src="vid/vid1.mp4" type="video/mp4">
+  <!-- 영상·포스터는 theme.js가 테마를 정한 뒤 넣는다(preload="none" → 반대 테마 영상을 미리 받지 않음) -->
+  <video class="home-bg"
+         autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
+    <source type="video/mp4">
   </video>
+  <button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
 
   <!-- ============ 사이드바 ============ -->
   <aside class="sidebar">

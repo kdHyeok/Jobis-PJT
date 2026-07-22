@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
 <script src="auth.js"></script>
 <style>
   body{background:var(--bg);margin:0;font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
@@ -116,7 +117,7 @@
   .vk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
   .vk .ic{width:16px;height:16px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--on-brand);flex:none}
   .vk.y .ic{background:var(--ok)}.vk.n .ic{background:var(--warn)}
-  .vfoot{font-size:12px;margin-top:9px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06);line-height:1.45}
+  .vfoot{font-size:12px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2);line-height:1.45}
   .vfoot.ok{color:var(--ok)}.vfoot.warn{color:var(--ink-2)}
 
   /* 결과물 루프 */
@@ -147,9 +148,9 @@
   /* 토스트 · 모달 */
   .rmx-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:60}
   .rmx-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-  .rmx-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:20px}
+  .rmx-modal{position:fixed;inset:0;background:rgba(var(--shadow-rgb),.45);display:grid;place-items:center;z-index:50;padding:20px}
   .rmx-modal[hidden]{display:none}
-  .rmx-modal-bd{background:var(--surface);border-radius:16px;max-width:440px;width:100%;max-height:80vh;overflow:auto;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .rmx-modal-bd{background:var(--surface);border-radius:16px;max-width:440px;width:100%;max-height:80vh;overflow:auto;padding:20px 22px;box-shadow:0 20px 60px rgba(var(--shadow-rgb),.3)}
   .rmx-modal-bd h3{font-size:16px;font-weight:800;margin:0 0 4px}
   .rmx-modal-bd .sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
   .rmx-modal-x{float:right;border:0;background:none;font-size:18px;color:var(--faint);cursor:pointer;line-height:1}
@@ -161,6 +162,7 @@
 </style>
 </head>
 <body>
+<button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
 <div class="rmx">
   <a class="rmx-back" href="#" id="backLink">← 뒤로</a>
   <div id="body"><div class="rmx-msg">불러오는 중…</div></div>

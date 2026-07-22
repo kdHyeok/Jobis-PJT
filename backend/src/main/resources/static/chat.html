@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
 <script src="auth.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
 <style>
@@ -59,7 +60,7 @@
   .fail-actions{display:flex;gap:8px;flex-wrap:wrap}
   .fail-btn{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 13px;cursor:pointer;color:var(--ink-2)}
   .fail-btn:hover{background:var(--surface-2)}
-  .fail-btn.pri{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .fail-btn.pri{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
   /* ── 에이전트 레일 — 어느 에이전트가 무슨 일을 하는지 스트리밍 (아이콘: AI팀 cards sprite) ── */
   .agent-rail{display:flex;flex-direction:column;gap:11px}
   .agent-rail .ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -104,6 +105,7 @@
 </style>
 </head>
 <body>
+<button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
 <svg style="display:none" aria-hidden="true">
   <!-- 에이전트 아이콘 sprite — AI팀 jobis-agent-cards.html 에서 이식 (10노드 공용) -->
   <defs>
@@ -485,16 +487,16 @@
   // (진짜 AI의 SSE envelope {status,from,to,message}와 같은 모양 — 필드만 매핑하면 그대로 붙음)
   // color = 화자 고유색 (AI팀 카드의 계층 색을 다크 테마용으로: 읽기=주황계 · 판단=청록/파랑계 · 말하기=보라계)
   var AGENT_META = {
-    parse_job_posting:   { name:'공고 분석가',   icon:'ic-parse',       color:'#e5b566' },
-    build_user_profile:  { name:'이력 정리 담당', icon:'ic-profile',     color:'#dd9a72' },
-    check_profile_completeness: { name:'프로필 점검 담당', icon:'ic-complete', color:'#b9c48a' },
-    check_sufficiency:   { name:'정보 점검 담당', icon:'ic-sufficiency', color:'#6ec6b2' },
-    ask_user:            { name:'질문 담당',     icon:'ic-ask',         color:'#b5a1e5' },
-    analyze_gap:         { name:'갭 분석가',     icon:'ic-gap',         color:'#7cb9e8' },
-    plan_roadmap:        { name:'로드맵 설계자', icon:'ic-roadmap',     color:'#8fce9f' },
-    find_alternatives:   { name:'경로 탐색가',   icon:'ic-alt',         color:'#6fc4d8' },
-    verify_result:       { name:'검증 담당',     icon:'ic-verify',      color:'#96a9dc' },
-    assemble_output:     { name:'리포트 작성자', icon:'ic-assemble',    color:'#cf9ad9' }
+    parse_job_posting:   { name:'공고 분석가',   icon:'ic-parse',       color:'var(--ag-parse)' },
+    build_user_profile:  { name:'이력 정리 담당', icon:'ic-profile',     color:'var(--ag-profile)' },
+    check_profile_completeness: { name:'프로필 점검 담당', icon:'ic-complete', color:'var(--ag-complete)' },
+    check_sufficiency:   { name:'정보 점검 담당', icon:'ic-sufficiency', color:'var(--ag-sufficiency)' },
+    ask_user:            { name:'질문 담당',     icon:'ic-ask',         color:'var(--ag-ask)' },
+    analyze_gap:         { name:'갭 분석가',     icon:'ic-gap',         color:'var(--ag-gap)' },
+    plan_roadmap:        { name:'로드맵 설계자', icon:'ic-roadmap',     color:'var(--ag-roadmap)' },
+    find_alternatives:   { name:'경로 탐색가',   icon:'ic-alt',         color:'var(--ag-alt)' },
+    verify_result:       { name:'검증 담당',     icon:'ic-verify',      color:'var(--ag-verify)' },
+    assemble_output:     { name:'리포트 작성자', icon:'ic-assemble',    color:'var(--ag-assemble)' }
   };
   var AGENT_STAGE = { parse_job_posting:0, build_user_profile:0, check_sufficiency:0, ask_user:1,
     analyze_gap:2, plan_roadmap:2, find_alternatives:2, verify_result:2, assemble_output:2 };
