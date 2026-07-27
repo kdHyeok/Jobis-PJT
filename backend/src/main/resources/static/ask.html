@@ -29,6 +29,19 @@
 .cp-chips span{font-size:11px;font-weight:700;background:var(--brand-soft);color:var(--brand-ink);
   border-radius:14px;padding:4px 9px}
 .cp-note{font-size:11px;color:var(--faint);margin-top:8px}
+.jm{padding:7px 0;border-top:1px solid var(--line)}
+.jm:first-child{border-top:0}
+.jm .jm-t{font-size:11.5px;line-height:1.45;color:var(--ink-2)}
+.jm .jm-m{display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap}
+.jm .st{font-size:10.5px;font-weight:800;border-radius:10px;padding:2px 8px}
+.jm .st.met{background:#16a34a1a;color:#16a34a}
+.jm .st.partially_met{background:#d977061a;color:#d97706}
+.jm .st.not_met{background:#dc26261a;color:#dc2626}
+.jm .st.uncertain{background:var(--surface-2);color:var(--faint)}
+.jm .mth{font-size:10.5px;color:var(--faint)}
+.jm .jm-r{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5}
+.js-row{display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0;color:var(--ink-2)}
+.js-row b{font-weight:800}
 @media (max-width:1100px){.ask-panel{display:none}}
 /* 답변 속 항목 라벨(**…**) 강조 — 요구 연차·필수 요건·우대 사항 같은 항목명 */
 .ask-bubble strong.hl{font-weight:800;color:#dc2626}
@@ -218,6 +231,12 @@
       <div class="cp-card" id="cpProfile" hidden>
         <div class="cp-title">내 이력서 정리</div>
         <div id="cpProfileBody"></div>
+      </div>
+      <div class="cp-card" id="cpJudge" hidden>
+        <div class="cp-title">판정 근거 — 요건별 매칭</div>
+        <div class="cp-head" id="cpJudgeHead"></div>
+        <div id="cpJudgeScore"></div>
+        <div id="cpJudgeBody"></div>
       </div>
     </aside>
   </main>
@@ -477,6 +496,7 @@
     ctxPanel.hidden = true;
     document.getElementById('cpJob').hidden = true;
     document.getElementById('cpProfile').hidden = true;
+    document.getElementById('cpJudge').hidden = true;
   }
   function sec(title, itemsHtml){
     return itemsHtml ? '<div class="cp-k">' + title + '</div>' + itemsHtml : '';
@@ -487,6 +507,39 @@
   function chips(items){
     if (!(items || []).length) return '';
     return '<div class="cp-chips">' + items.map(function(t){ return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
+  }
+  /* 판정 방법 라벨 — 엔진의 method 코드를 사람이 읽는 말로 (표시용 매핑). */
+  var METHOD_KO = { exact:'정확 매칭', keyword:'키워드', llm_semantic:'의미 판정(LLM)',
+                    seniority_ladder:'연차 룰', domain_keyword:'도메인 매칭',
+                    claimed_skill:'기재 스킬 인정' };
+  var STATUS_KO = { met:'충족', partially_met:'부분 충족', not_met:'미충족', uncertain:'불확실' };
+  function renderJudgment(j){
+    var matches = j.matches || [];
+    var score = j.score || {};
+    var counts = { met:0, partially_met:0, not_met:0, uncertain:0 };
+    matches.forEach(function(m){ if (counts[m.status] !== undefined) counts[m.status]++; });
+    document.getElementById('cpJudgeHead').textContent =
+      (score.grade ? '적합도 ' + score.grade + (score.weightedScore != null ? ' · 가중 점수 ' + score.weightedScore : '') : '') || '요건별 판정';
+    var used = score.usedCategories || {};
+    var CAT_KO = { techSkill:'기술 스킬', projectExperience:'프로젝트 경험', domainFit:'도메인 적합',
+                   roleRelevance:'직무 연관(연차)', evidenceBacked:'근거 충실도' };
+    document.getElementById('cpJudgeScore').innerHTML =
+      Object.keys(used).map(function(k){
+        return '<div class="js-row"><span>' + (CAT_KO[k] || k) + ' <span class="mth">(가중치 ' + used[k].weight + ')</span></span><b>' + used[k].score + '</b></div>';
+      }).join('') +
+      '<div class="js-row"><span>충족 ' + counts.met + ' · 부분 ' + counts.partially_met +
+      ' · 미충족 ' + counts.not_met + ' · 불확실 ' + counts.uncertain + '</span></div>';
+    document.getElementById('cpJudgeBody').innerHTML = matches.map(function(m){
+      return '<div class="jm">' +
+        '<div class="jm-t">' + esc(m.text || m.requirementId || '') + '</div>' +
+        '<div class="jm-m"><span class="st ' + esc(m.status || 'uncertain') + '">' + (STATUS_KO[m.status] || m.status) + '</span>' +
+        '<span class="mth">' + (METHOD_KO[m.method] || esc(m.method || '')) +
+        (m.confidence != null ? ' · 신뢰도 ' + m.confidence : '') + '</span></div>' +
+        (m.reason ? '<div class="jm-r">' + esc(m.reason) + '</div>' : '') +
+        '</div>';
+    }).join('');
+    document.getElementById('cpJudge').hidden = false;
+    ctxPanel.hidden = false;
   }
   /* AI 가 파싱해 보낸 항목만 그린다 — 없는 값은 칸을 만들지 않는다. */
   function renderContext(ctx){
@@ -504,6 +557,7 @@
       document.getElementById('cpJob').hidden = false;
       ctxPanel.hidden = false;
     }
+    if (ctx.judgment) renderJudgment(ctx.judgment);
     if (ctx.profile){
       var m = ctx.profile;
       document.getElementById('cpProfileBody').innerHTML =
