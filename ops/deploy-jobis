@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly APP_ROOT="/opt/jobis"
+readonly APP_USER="ubuntu"
+readonly APP_GROUP="ubuntu"
+readonly BACKEND_SERVICE="jobis.service"
+readonly FAKE_AI_SERVICE="jobis-fake-ai.service"
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "deploy-jobis must run as root." >&2
+  exit 1
+fi
+
+readonly RELEASE_SHA="${1:-}"
+if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Release SHA must be a 40-character lowercase Git commit SHA." >&2
+  exit 1
+fi
+
+readonly DEPLOY_ACTOR="${SUDO_USER:-}"
+if [[ -z "$DEPLOY_ACTOR" || "$DEPLOY_ACTOR" == "root" ]]; then
+  echo "deploy-jobis must be invoked through sudo by the deployment user." >&2
+  exit 1
+fi
+
+readonly UPLOADED_BACKEND="/tmp/jobis-backend-${RELEASE_SHA}.jar"
+readonly UPLOADED_FAKE_AI="/tmp/jobis-fake-ai-${RELEASE_SHA}.tar.gz"
+
+for uploaded_file in "$UPLOADED_BACKEND" "$UPLOADED_FAKE_AI"; do
+  if [[ ! -f "$uploaded_file" || -L "$uploaded_file" ]]; then
+    echo "Expected regular upload file is missing: $uploaded_file" >&2
+    exit 1
+  fi
+  if [[ "$(stat -c '%U' "$uploaded_file")" != "$DEPLOY_ACTOR" ]]; then
+    echo "Upload file owner does not match deployment user: $uploaded_file" >&2
+    exit 1
+  fi
+done
+
+if tar -tzf "$UPLOADED_FAKE_AI" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+  echo "fake-ai archive contains an unsafe path." >&2
+  exit 1
+fi
+
+readonly BACKEND_RELEASE_DIR="${APP_ROOT}/releases"
+readonly BACKEND_RELEASE="${BACKEND_RELEASE_DIR}/backend-${RELEASE_SHA}.jar"
+readonly BACKEND_CURRENT="${APP_ROOT}/current.jar"
+readonly FAKE_AI_RELEASE_DIR="${APP_ROOT}/fake-ai-releases"
+readonly FAKE_AI_RELEASE="${FAKE_AI_RELEASE_DIR}/${RELEASE_SHA}"
+readonly FAKE_AI_CURRENT="${APP_ROOT}/fake-ai-current"
+
+mkdir -p "$BACKEND_RELEASE_DIR" "$FAKE_AI_RELEASE_DIR"
+
+readonly PREVIOUS_BACKEND="$(readlink -f "$BACKEND_CURRENT" 2>/dev/null || true)"
+readonly PREVIOUS_FAKE_AI="$(readlink -f "$FAKE_AI_CURRENT" 2>/dev/null || true)"
+readonly UPLOADED_FAKE_AI_SHA256="$(sha256sum "$UPLOADED_FAKE_AI" | awk '{print $1}')"
+
+rollback() {
+  local exit_code=$?
+  trap - ERR
+  echo "Deployment failed. Rolling back to the previous release." >&2
+
+  if [[ -n "${FAKE_AI_STAGING:-}" && -d "$FAKE_AI_STAGING" ]]; then
+    rm -rf -- "$FAKE_AI_STAGING"
+  fi
+
+  if [[ -n "$PREVIOUS_BACKEND" && -f "$PREVIOUS_BACKEND" ]]; then
+    ln -sfn "$PREVIOUS_BACKEND" "$BACKEND_CURRENT"
+  fi
+  if [[ -n "$PREVIOUS_FAKE_AI" && -d "$PREVIOUS_FAKE_AI" ]]; then
+    ln -sfn "$PREVIOUS_FAKE_AI" "$FAKE_AI_CURRENT"
+  fi
+
+  systemctl restart "$FAKE_AI_SERVICE" || true
+  systemctl restart "$BACKEND_SERVICE" || true
+  exit "$exit_code"
+}
+trap rollback ERR
+
+if [[ -f "$BACKEND_RELEASE" ]]; then
+  if ! cmp -s "$UPLOADED_BACKEND" "$BACKEND_RELEASE"; then
+    echo "An immutable backend release already exists with different contents." >&2
+    false
+  fi
+else
+  install -o "$APP_USER" -g "$APP_GROUP" -m 0644 \
+    "$UPLOADED_BACKEND" "$BACKEND_RELEASE"
+fi
+
+if [[ -d "$FAKE_AI_RELEASE" ]]; then
+  if [[ ! -f "$FAKE_AI_RELEASE/.artifact.sha256" ]] ||
+     [[ "$(cat "$FAKE_AI_RELEASE/.artifact.sha256")" != "$UPLOADED_FAKE_AI_SHA256" ]]; then
+    echo "An immutable fake-ai release already exists with different contents." >&2
+    false
+  fi
+else
+  readonly FAKE_AI_STAGING="${FAKE_AI_RELEASE}.staging.$$"
+  rm -rf -- "$FAKE_AI_STAGING"
+  mkdir -p "$FAKE_AI_STAGING"
+  tar --no-same-owner --no-same-permissions \
+    -xzf "$UPLOADED_FAKE_AI" \
+    -C "$FAKE_AI_STAGING"
+  printf '%s\n' "$UPLOADED_FAKE_AI_SHA256" >"$FAKE_AI_STAGING/.artifact.sha256"
+  chown -R "$APP_USER:$APP_GROUP" "$FAKE_AI_STAGING"
+  mv "$FAKE_AI_STAGING" "$FAKE_AI_RELEASE"
+fi
+
+for required_file in server.js package.json package-lock.json result.json; do
+  if [[ ! -f "$FAKE_AI_RELEASE/$required_file" ]]; then
+    echo "fake-ai release is missing $required_file." >&2
+    false
+  fi
+done
+if [[ ! -d "$FAKE_AI_RELEASE/node_modules/ws" ]]; then
+  echo "fake-ai release is missing the ws production dependency." >&2
+  false
+fi
+
+ln -sfn "$BACKEND_RELEASE" "$BACKEND_CURRENT"
+ln -sfn "$FAKE_AI_RELEASE" "$FAKE_AI_CURRENT"
+
+systemctl restart "$FAKE_AI_SERVICE"
+systemctl restart "$BACKEND_SERVICE"
+
+fake_ai_ready=false
+for _ in {1..30}; do
+  if curl -fsS \
+    -X POST \
+    -H 'Content-Type: application/json' \
+    -d '{"sourceType":"TEXT","content":"Java Spring Boot MySQL"}' \
+    http://127.0.0.1:8000/extract >/dev/null; then
+    fake_ai_ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$fake_ai_ready" != true ]]; then
+  echo "fake-ai health check failed." >&2
+  false
+fi
+
+backend_ready=false
+for _ in {1..60}; do
+  if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+    backend_ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$backend_ready" != true ]]; then
+  echo "Backend health check failed." >&2
+  false
+fi
+
+rm -f -- "$UPLOADED_BACKEND" "$UPLOADED_FAKE_AI"
+trap - ERR
+
+echo "Deployment completed successfully: $RELEASE_SHA"
