@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,17 @@ public class ChatController {
                                                   @PathVariable Long conversationId) {
         conversationService.delete(userId, conversationId);
         return Map.of("status", "deleted");
+    }
+
+    /** 대화 + 실시간 진행(SSE). 응답 형태는 done 이벤트 안에 /api/chat 과 동일하게 실린다. */
+    @PostMapping("/stream")
+    public SseEmitter askStream(@AuthenticationPrincipal Long userId,
+                                @RequestBody ChatAskRequest request) {
+        if (request == null || request.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EMPTY_MESSAGE",
+                    "메시지나 자료(이력서·공고) 중 하나는 있어야 해요.");
+        }
+        return chatService.askStream(userId, request);
     }
 
     @PostMapping

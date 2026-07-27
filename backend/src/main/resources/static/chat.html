@@ -118,6 +118,11 @@
   .msg.agent-msg .name{color:color-mix(in srgb,var(--ac) 62%,var(--ink))}
   .msg.agent-msg .bubble{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
   .bubble strong.hl{font-weight:800;color:var(--brand-ink)}
+  .bubble em{font-style:normal}
+  .bubble em.hl-good{color:#16a34a;font-weight:700}
+  .bubble em.hl-warn{color:#d97706;font-weight:700}
+  .bubble em.hl-bad{color:#dc2626;font-weight:700}
+  .bubble em.hl-num{color:var(--brand-ink);font-weight:700}
   /* 독의 지나간 아바타·현재 에이전트도 각자 색 */
   .ar-done .av{color:var(--ac,var(--muted));border-color:color-mix(in srgb,var(--ac,#fff) 32%,transparent);
     background:color-mix(in srgb,var(--ac,#fff) 9%,transparent)}
@@ -476,9 +481,23 @@
     if(a) return { av:'<div class="who ai agent"><svg><use href="#'+a.icon+'"/></svg></div>', name:a.name, color:a.color };
     return { av:'<div class="who ai">✦</div>', name:'J.O.B.I.S', color:null };
   }
-  /* AI 답변 속 **라벨** 강조 — esc 후 <strong> 치환. */
+  /* AI 답변 강조 — 서식만 입힌다, 문구는 전부 AI 가 쓴 것. (ask.html 과 같은 룰) */
+  var HL_RULES = [
+    { re: /(적합도\s*[상]|충족되었|충족됩니다|충족했|강점)/g,          cls: 'hl-good' },
+    { re: /(부분\s*충족|부분적으로\s*충족|보완)/g,                    cls: 'hl-warn' },
+    { re: /(미충족|불충족|부족(?:합니다|한|해요)?|찾지\s*못해|확인되지\s*않)/g, cls: 'hl-bad' },
+    { re: /(충족)/g,                                                   cls: 'hl-good' },
+    { re: /(\d+(?:[.,]\d+)?\s*(?:년|개월|주|건|개|시간|%)(?:\s*이상|\s*이하)?)/g, cls: 'hl-num' },
+  ];
   function mdHl(text){
-    return esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong class="hl">$1</strong>');
+    var out = esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong class="hl">$1</strong>');
+    return out.split(/(<[^>]+>)/g).map(function(part){
+      if (part.charAt(0) === '<') return part;
+      HL_RULES.forEach(function(rule){
+        part = part.replace(rule.re, '<em class="' + rule.cls + '">$1</em>');
+      });
+      return part;
+    }).join('');
   }
   // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
   function aiBubble(html, extra, speaker){
