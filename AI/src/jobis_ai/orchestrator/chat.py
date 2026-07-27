@@ -75,6 +75,10 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
     # 발화 원문을 세션에 실어 대화형 에이전트(preference_intake 등)가 읽게 한다.
     get_session_store().update(session_id, {"last_message": request.message})
     session = _load_session(session_id)
+    # 이번 턴에 무엇이 제출됐는지 — 플래너의 그라운딩 입력(자산이 아니라 사본에만 붙는 표식).
+    # 이게 없으면 첨부만 온 턴의 합성 발화("자료로 이어서…")만 보고 플래너가 이력서 제출과
+    # 공고 제출을 구분하지 못한다.
+    session["_submittedThisTurn"] = [att.kind for att in request.attachments]
 
     # 1) 플래너 — LLM 이 발화·상태를 보고 에이전트를 직접 고른다(자율 추론).
     plan, warnings = plan_agents(request.message, session)

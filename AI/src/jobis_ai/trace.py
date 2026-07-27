@@ -41,6 +41,9 @@ class TraceRecorder:
         self._t0 = time.perf_counter()
         self._seq = 0
         self._sink = sink
+        # 중첩 recording 시 바깥 레코더. 안쪽이 이벤트를 독점하면 바깥 sink(진행 스트리밍)가
+        # 눈이 멀기 때문에, 이벤트를 부모에게도 전달한다 (recording() 이 설정).
+        self._parent: "TraceRecorder | None" = None
 
     def emit(self, kind: str, label: str, detail: dict[str, Any] | None = None) -> None:
         self._seq += 1
@@ -57,6 +60,8 @@ class TraceRecorder:
                 self._sink(event)
             except Exception:   # noqa: BLE001 — 관찰이 실행을 막지 않는다
                 pass
+        if self._parent is not None:
+            self._parent.emit(kind, label, detail)
 
 
 def emit(kind: str, label: str, detail: dict[str, Any] | None = None) -> None:
@@ -79,6 +84,7 @@ def recording(sink: "Callable[[dict[str, Any]], None] | None" = None) -> Iterato
     """
 
     rec = TraceRecorder(sink)
+    rec._parent = _current.get()   # 중첩이면 바깥 레코더로도 이벤트를 흘린다
     token = _current.set(rec)
     try:
         yield rec

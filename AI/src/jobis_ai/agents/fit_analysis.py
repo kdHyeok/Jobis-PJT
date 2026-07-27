@@ -6,12 +6,50 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from jobis_ai.agents import AgentResult
 from jobis_ai.contracts.api import AnalyzeOptions, AnalyzeRequest, JobPostingInput
 from jobis_ai.service import request_to_state, run_pipeline
+from jobis_ai.structured import run_structured
+from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
+
+
+class _NextWrite(BaseModel):
+    """판정 결과를 건넨 뒤 다음 행동을 제안하는 마무리 문장."""
+
+    reply: str = Field(default="", description=(
+        "판정 요약 아래에 붙일 한두 문장. 이 결과로 이어서 할 수 있는 일 — 준비 로드맵 확인, "
+        "자소서 초안, 면접 예상 질문, (격차가 크면) 대안 공고 탐색 — 중 결과에 맞는 것을 "
+        "제안하고 무엇부터 할지 묻는 질문으로 끝낸다. 판정 내용을 다시 요약하지 않는다. "
+        "합격 가능성을 단정하지 않는다."))
+
+
+_NEXT_SYSTEM = """너는 취업 서비스의 대화 상담원이다. 방금 공고×이력서 적합도 판정 결과를 사용자에게 보여줬다.
+그 아래에 붙일 다음 행동 제안 문장을 쓴다.
+- facts 의 grade(상/중/하)·topGap 에 맞는 다음 행동만 제안한다. 예: 격차가 크면 로드맵·대안 공고,
+  적합도가 높으면 자소서·면접 준비.
+- 제안 가능한 것: 준비 로드맵 확인, 자소서 초안 작성, 면접 예상 질문, 대안 공고 탐색.
+- 응답은 무엇부터 할지 묻는 질문으로 끝난다. 두 문장 이내. 합격 가능성 단정 금지."""
+
+
+def _next_steps(facts: dict) -> tuple[str, list[dict]]:
+    """다음 행동 제안 — LLM 표현 + 검증(금지표현·질문형), 실패 시 결정론 폴백."""
+
+    fallback = ("이 결과로 준비 로드맵 확인, 자소서 초안, 면접 예상 질문, 대안 공고 탐색을 "
+                "이어서 할 수 있어요. 무엇부터 해볼까요?")
+    read, warnings = run_structured(
+        _NextWrite, _NEXT_SYSTEM, json.dumps(facts, ensure_ascii=False),
+        node="fit_analysis_next",
+    )
+    text = (read.reply or "").strip() if read is not None else ""
+    if not text or "?" not in text or any(expr in text for expr in FORBIDDEN_EXPRESSIONS):
+        return fallback, warnings
+    return text, warnings
 
 # 대화 경로에는 준비 기간 입력 폼이 없으므로 기본값을 가정하고, 가정임을 응답에 명시한다.
 DEFAULT_WEEKS = 8
@@ -50,6 +88,15 @@ def run(session: dict[str, Any]) -> AgentResult:
         reply = response.summary or f"적합도 판정 결과: {grade} 등급입니다."
         if not session.get("preparationPeriodWeeks"):
             reply += f" (준비 기간은 {DEFAULT_WEEKS}주·주 {DEFAULT_HOURS}시간을 가정했습니다.)"
+        # 판정을 건넨 뒤 다음 행동(로드맵·자소서·면접·대안 공고)을 제안한다 —
+        # 결과에 따라 무엇을 할 수 있는지 사용자가 골라 이어가게 한다.
+        top_gap = next((g.get("reason") or "" for g in (response.gaps or [])), "")
+        next_line, next_warnings = _next_steps({
+            "grade": grade, "topGap": top_gap,
+            "hasRoadmap": bool(response.roadmap),
+            "gapCount": len(response.gaps or []),
+        })
+        reply += "\n\n" + next_line
 
     # 완료된 분석만 세션 자산으로 승격한다 — need_more_info 의 미완성 결과를 저장하면
     # 다음 턴 라우터가 "분석 있음"으로 오판해 자소서·면접 에이전트가 빈 근거 위에서 돈다.
@@ -63,7 +110,7 @@ def run(session: dict[str, Any]) -> AgentResult:
     return AgentResult(
         reply=reply,
         data=result,
-        warnings=list(response.warnings),
+        warnings=list(response.warnings) + (next_warnings if response.status == "completed" else []),
         followUpQuestions=list(response.followUpQuestions),
         sessionUpdates=session_updates,
     )

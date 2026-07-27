@@ -68,6 +68,14 @@ _PLANNER_SYSTEM_TEMPLATE = """너는 취업 지원 서비스의 오케스트레�
 - **지금 실행 가능한 에이전트만 고른다.** "실행 불가"로 표시된 것은 고르지 않는다.
 - 사용자가 원하는 것을 바로 못 한다면, **지금 가진 자산으로 사용자에게 도움이 되는 일을 먼저
   하는 에이전트**를 고른다. 부족한 자료는 그 에이전트가 결과를 들고 대화로 직접 요청한다.
+- [세션 자산 상태]에 "이번 턴 제출 자료"가 있으면, 이 발화에서 판정을 명시적으로 요청하지
+  않는 한 **먼저 그 자료를 읽어 정리해 보여주는 에이전트**를 고른다: 공고 제출이면
+  posting_analysis, 이력서 제출이면 resume_diagnosis. 시스템이 앞 턴에 "이력서를 주시면
+  분석해 드릴까요"라고 물었더라도, 자료가 새로 제출된 턴에는 정리부터 한다 — 정리 에이전트가
+  정리 결과를 보여주고 진단 여부를 다시 묻는다.
+- fit_analysis(무거운 판정)는 사용자가 정리 결과를 본 뒤 진단을 요청·동의한 턴에 고른다.
+  직전 턴에 시스템이 "진단해볼까요?"라고 물었고 사용자가 동의("응", "해줘", "진단해줘")하면
+  fit_analysis 다 — 이때는 resume_diagnosis 를 다시 고르지 않는다(이미 정리를 보여줬다).
 - 적합도·합격 가능성·조언·추천을 스스로 판단하거나 답하지 않는다 — 그것은 에이전트의 일이다.
 - 발화가 짧거나 지시어("그거 해줘", "응", "이어서")면 [최근 대화] 맥락으로 해석한다.
   직전 턴에서 시스템이 물은 것에 대한 답이면 그 흐름을 잇는 에이전트를 고른다.
@@ -110,6 +118,10 @@ def _asset_state(session: dict[str, Any]) -> str:
     """사용자 상태 — 세션 자산의 있고 없음을 문장으로. 플래너의 맥락 입력."""
 
     parts = []
+    submitted = session.get("_submittedThisTurn") or []
+    if submitted:
+        kind_ko = {"resume": "이력서", "job_posting": "공고"}
+        parts.append("이번 턴 제출 자료: " + ", ".join(kind_ko.get(k, k) for k in submitted))
     has_resume = bool(session.get("resume") or session.get("profile"))
     parts.append(f"이력서: {'있음' if has_resume else '없음'}")
     for key in ("job_posting", "analysis", "roadmap"):

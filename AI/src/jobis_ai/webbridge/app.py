@@ -141,6 +141,69 @@ async def extract_file(body: dict) -> dict:
         handlers.extract_uploaded_file, str(body.get("filename") or ""), raw)
 
 
+@app.post("/chat/stream")
+async def chat_stream(body: dict):
+    """대화 한 턴 + 실시간 진행(SSE).
+
+    /chat 과 같은 처리를 하되, 오케스트레이터·판정 그래프가 남기는 trace 를
+    progress 이벤트로 흘린다 — 파싱·항목화·판정이 수십 초 걸리는 동안 사용자가
+    "지금 무엇을 하고 있는지"를 본다. 마지막 이벤트(done)가 /chat 응답 전문이다.
+
+    진행 문구는 지어내지 않는다: 에이전트 라벨(agent_label)과 노드가 toolLog 에
+    직접 쓴 문구만 흘린다 (WS 경로의 PROGRESS 와 같은 원칙).
+    """
+
+    import json as _json
+    import queue as _queue
+    import threading
+
+    from fastapi.responses import StreamingResponse
+
+    from jobis_ai.orchestrator.router import agent_label
+
+    events: "_queue.Queue[dict | None]" = _queue.Queue()
+
+    def _sink(event: dict) -> None:
+        kind = event.get("kind")
+        detail = event.get("detail") or {}
+        if kind == "agent_start":
+            agent = str(detail.get("agent") or "")
+            if agent:
+                events.put({"type": "progress", "agent": agent,
+                            "label": agent_label(agent), "message": ""})
+        elif kind == "node":
+            node = str(detail.get("node") or "")
+            logs = (detail.get("update") or {}).get("toolLog") or []
+            said = str((logs[-1] or {}).get("message") or "") if logs else ""
+            if node:
+                events.put({"type": "progress", "agent": node,
+                            "label": agent_label(node), "message": said})
+
+    def _work() -> None:
+        from jobis_ai import trace
+        try:
+            with trace.recording(sink=_sink):
+                resp = handlers.chat_turn(body)
+            events.put({"type": "done", "response": resp})
+        except Exception as exc:   # noqa: BLE001 — 스트림으로도 실패를 알린다
+            log.exception("[/chat/stream] 처리 실패")
+            events.put({"type": "error", "message": str(exc)})
+        finally:
+            events.put(None)
+
+    threading.Thread(target=_work, daemon=True).start()
+
+    async def _gen():
+        while True:
+            item = await asyncio.to_thread(events.get)
+            if item is None:
+                break
+            yield f"data: {_json.dumps(item, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(_gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache"})
+
+
 @app.post("/chat")
 async def chat(body: dict) -> dict:
     """일반 대화 한 턴 (오케스트레이터). 분석 WS 와 달리 요청·응답 한 번으로 끝난다."""
