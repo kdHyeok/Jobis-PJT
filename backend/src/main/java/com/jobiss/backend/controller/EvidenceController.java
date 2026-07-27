@@ -4,6 +4,8 @@ import com.jobiss.backend.dto.evidence.BulkImportRequest;
 import com.jobiss.backend.dto.evidence.BulkImportResponse;
 import com.jobiss.backend.dto.evidence.EvidenceCreateRequest;
 import com.jobiss.backend.dto.evidence.EvidenceResponse;
+import com.jobiss.backend.dto.evidence.ImportParseFileRequest;
+import com.jobiss.backend.dto.evidence.ImportParseFileResponse;
 import com.jobiss.backend.dto.evidence.ImportParseRequest;
 import com.jobiss.backend.dto.evidence.ImportParseResponse;
 import com.jobiss.backend.service.EvidenceImportService;
@@ -48,6 +50,16 @@ public class EvidenceController {
     public ImportParseResponse parse(@AuthenticationPrincipal Long userId,
                                      @Valid @RequestBody ImportParseRequest request) {
         return importService.parse(userId, request);
+    }
+
+    /**
+     * 이력서 파일 업로드 → AI 파싱. 원문과 조각 후보를 함께 반환(저장 안 함).
+     * pdf·docx 처럼 브라우저가 읽을 수 없는 형식을 위해 base64 로 받는다.
+     */
+    @PostMapping("/parse-file")
+    public ImportParseFileResponse parseFile(@AuthenticationPrincipal Long userId,
+                                             @Valid @RequestBody ImportParseFileRequest request) {
+        return importService.parseFile(userId, request);
     }
 
     /** 사용자가 확인·선택한 조각들을 저장소에 등록(STACK 중복 제거). */

@@ -13,7 +13,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * 보안 설정. 세션 없이(STATELESS) JWT로만 인증.
- * 공개: /health, /api/auth/**, GET /api/job-postings/samples. 나머지는 토큰 필요.
  */
 @Configuration
 public class SecurityConfig {
@@ -35,8 +34,6 @@ public class SecurityConfig {
                         .requestMatchers("/chat-app/**", "/ws/**").permitAll()   // 채팅 목업 + STOMP 핸드셰이크
                         .requestMatchers("/img/**", "/vid/**").permitAll()       // 배경 이미지/영상 등 정적 미디어
                         .requestMatchers("/health", "/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/job-postings/samples").permitAll()
-                        .requestMatchers("/api/dev/**").permitAll()   // DEV ONLY — 가짜 AI 트리거, 배포 전 제거
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

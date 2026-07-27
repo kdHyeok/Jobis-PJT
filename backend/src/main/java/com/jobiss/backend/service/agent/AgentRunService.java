@@ -51,17 +51,6 @@ public class AgentRunService {
         this.om = om;
     }
 
-    /** 로그인한 사용자(userId)로 (샘플)공고 분석: 생성 후 즉시 시작(개발/데모 경로). */
-    @Transactional
-    public String startAgentRun(Long userId, String jobPostingCode, List<Long> evidenceIds) {
-        User user = findUser(userId);
-        JobPosting job = jobPostingRepository.findByCode(jobPostingCode)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "JOB_NOT_FOUND", "공고를 찾을 수 없습니다."));
-        AnalysisRun run = createRun(user, job, evidenceIds, null);
-        beginNow(run);
-        return run.getAnalysisId();
-    }
-
     /**
      * 자유 입력 공고로 분석 준비. 웹은 파싱하지 않고 원문(content)만 담아 JobPosting/Run만 만든다.
      * 실제 AI 세션은 브라우저가 구독을 마친 뒤 beginSession()으로 시작한다(JOB_CONTEXT 등 초기 신호 유실 방지).
@@ -118,7 +107,8 @@ public class AgentRunService {
     /** Run의 공고·자료로 START를 구성해 AI 세션을 연다. */
     private void beginNow(AnalysisRun run) {
         List<Evidence> evidences = new ArrayList<>(run.getEvidences());
-        String startJson = buildStartJson(run.getAnalysisId(), run.getJobPosting(), evidences);
+        String startJson = buildStartJson(run.getAnalysisId(), run.getUser().getId(),
+                run.getJobPosting(), evidences);
         agentClient.startSession(run.getAnalysisId(), startJson);
     }
 
@@ -136,15 +126,12 @@ public class AgentRunService {
         };
     }
 
-    /** 개발용(인증 없이): 데모 사용자로 시작. DevController가 사용. */
-    @Transactional
-    public String startDemoRun(String jobPostingCode, List<Long> evidenceIds) {
-        User demo = userRepository.findByEmail("junyoung.park@gmail.com")
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NO_DEMO_USER", "데모 사용자가 없습니다."));
-        return startAgentRun(demo.getId(), jobPostingCode, evidenceIds);
-    }
-
-    private String buildStartJson(String analysisId, JobPosting job, List<Evidence> evidences) {
+    /**
+     * START 메시지. userId 를 함께 보내는 이유는 AI 가 **사용자 단위 세션**에 자산을 쌓기 때문이다 —
+     * 분석이 끝난 뒤 대화(/api/chat)에서 "자소서 써줘"·"면접 질문 뽑아줘"로 바로 이어갈 수 있다.
+     */
+    private String buildStartJson(String analysisId, Long userId, JobPosting job,
+                                  List<Evidence> evidences) {
         Map<String, Object> jp = new LinkedHashMap<>();
         jp.put("company", job.getCompany());
         jp.put("role", job.getRole());
@@ -162,6 +149,7 @@ public class AgentRunService {
         Map<String, Object> start = new LinkedHashMap<>();
         start.put("type", "START");
         start.put("analysisId", analysisId);
+        start.put("userId", userId);
         start.put("jobPosting", jp);
         start.put("evidences", evs);
         return om.writeValueAsString(start);

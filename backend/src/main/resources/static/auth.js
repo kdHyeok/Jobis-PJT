@@ -33,7 +33,13 @@
       var t = JB.token();
       if (t) headers['Authorization'] = 'Bearer ' + t;
       var res = await fetch(path, Object.assign({}, opts, { headers: headers }));
-      if (res.status === 401) { JB.logout(); location.href = 'login.html'; throw new Error('로그인이 필요합니다.'); }
+      // 401·403 모두 "인증 실패"로 다룬다. Spring Security 는 토큰이 없거나 만료된 요청에
+      // 401 이 아니라 403 을 준다(익명 사용자의 보호 리소스 접근). 403 을 일반 오류로 흘리면
+      // 페이지가 리다이렉트 없이 데이터만 조용히 못 불러와서, 예컨대 새 공고 분석 화면의
+      // "분석 시작" 버튼이 영구히 잠긴 것처럼 보인다.
+      if (res.status === 401 || res.status === 403) {
+        JB.logout(); location.href = 'login.html'; throw new Error('로그인이 필요합니다.');
+      }
       if (!res.ok) {
         var msg = 'HTTP ' + res.status;
         try { var j = await res.json(); msg = JB.errMsg(j, msg); } catch (e) {}

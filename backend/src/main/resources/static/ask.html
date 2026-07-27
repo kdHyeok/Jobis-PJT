@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.O.B.I.S — 물어보기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
+<script src="auth.js"></script>
+<style>
+/* .app 이 100vh 그리드이고 메인 컬럼이 내부 스크롤이다 — 창을 스크롤하지 않는다.
+   그래서 대화는 .ask-scroll 안에서 흐르고, 입력창은 그 아래 고정 영역으로 둔다. */
+.ask-main{display:flex;flex-direction:column;min-height:0}
+.ask-scroll{flex:1;min-height:0;overflow-y:auto;padding:26px 30px 20px}
+.ask-head{max-width:760px;margin:0 auto 18px}
+.ask-head h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0 0 5px}
+.ask-head p{margin:0;font-size:13px;color:var(--muted)}
+.ask-thread{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.ask-msg{display:flex;gap:11px;align-items:flex-start}
+.ask-msg .who{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
+  font-size:13px;font-weight:800;background:var(--brand-soft);color:var(--brand-ink)}
+.ask-msg.me{flex-direction:row-reverse}
+.ask-msg.me .who{background:var(--surface-2);color:var(--ink-2)}
+.ask-bubble{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 15px;
+  font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word;max-width:calc(100% - 46px)}
+.ask-msg.me .ask-bubble{background:var(--brand-soft);border-color:transparent}
+.ask-meta{max-width:760px;margin:0 auto;font-size:11.5px;color:var(--faint);padding-left:41px}
+.ask-note{max-width:760px;margin:0 auto;font-size:12.5px;color:var(--muted);
+  background:var(--surface-2);border-radius:10px;padding:9px 12px}
+.ask-composer{flex:0 0 auto;padding:14px 30px 18px;border-top:1px solid var(--line);background:var(--bg)}
+.ask-composer form{max-width:760px;margin:0 auto;display:flex;gap:9px;align-items:flex-end}
+.ask-composer textarea{flex:1;min-height:46px;max-height:180px;background:var(--surface);color:var(--ink);
+  border:1px solid var(--line);border-radius:13px;padding:12px 14px;font:14px/1.55 inherit;resize:none}
+.ask-composer textarea:focus{outline:none;border-color:var(--brand)}
+.ask-composer button{background:var(--brand);color:var(--on-brand);border:0;border-radius:13px;
+  padding:13px 18px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
+.ask-composer button:disabled{opacity:.5;cursor:default}
+.ask-chips{max-width:760px;margin:0 auto 12px;display:flex;gap:8px;flex-wrap:wrap}
+.ask-chips button{background:var(--surface);border:1px solid var(--line);border-radius:20px;
+  padding:8px 13px;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+.ask-chips button:hover{border-color:var(--brand);color:var(--brand-ink)}
+/* 채팅박스 왼쪽 파일 버튼 — 이력서·문서를 바로 올린다. */
+.aa-file-btn{flex:0 0 auto;width:44px;height:46px;border:1px solid var(--line);border-radius:13px;
+  display:grid;place-items:center;cursor:pointer;background:var(--surface);color:var(--ink-2)}
+.aa-file-btn:hover{border-color:var(--brand);color:var(--brand-ink)}
+.aa-file-btn svg{width:19px;height:19px}
+.ask-hint{max-width:760px;margin:6px auto 0;font-size:11.5px;color:var(--faint);min-height:14px}
+/* 에이전트가 자료를 요청할 때만 대화 안에 생기는 카드 */
+.ask-req{max-width:760px;margin:0 auto;background:var(--surface);border:1px solid var(--brand);
+  border-radius:13px;padding:13px 15px}
+.ask-req .rq-k{font-size:11px;font-weight:800;color:var(--brand-ink);letter-spacing:.02em}
+.ask-req .rq-q{font-size:14px;font-weight:700;margin:6px 0 9px;line-height:1.5}
+.ask-req textarea{width:100%;background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+  border-radius:9px;padding:9px 11px;font:12.5px/1.5 inherit;resize:vertical}
+.ask-req textarea:focus{outline:none;border-color:var(--brand)}
+.ask-req .rq-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.ask-req button{background:var(--brand);color:var(--on-brand);border:0;border-radius:9px;
+  padding:8px 14px;font-weight:700;font-size:12.5px;cursor:pointer}
+.ask-req button.line{background:transparent;color:var(--ink-2);border:1px solid var(--line)}
+.ask-req .rq-file{font-size:12px;font-weight:700;color:var(--brand-ink);background:var(--brand-soft);
+  border-radius:20px;padding:7px 12px;cursor:pointer}
+.ask-req .rq-note{font-size:11.5px;color:var(--faint);margin-top:7px}
+.ask-req.done{border-color:var(--line);opacity:.75}
+.side-label{display:flex;align-items:center;justify-content:space-between;margin:16px 4px 6px;
+  font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.04em}
+.side-label button{background:none;border:0;color:var(--faint);font-size:16px;cursor:pointer;line-height:1;padding:0 4px}
+.side-label button:hover{color:var(--brand-ink)}
+.conv-list{display:flex;flex-direction:column;gap:2px}
+.conv-item{display:flex;align-items:center;gap:6px;border-radius:9px;padding:8px 10px;cursor:pointer;
+  font-size:12.5px;color:var(--ink-2);border:1px solid transparent}
+.conv-item:hover{background:var(--surface-2)}
+.conv-item.on{background:var(--brand-soft);color:var(--brand-ink);font-weight:700}
+.conv-item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv-item .x{opacity:0;background:none;border:0;color:var(--faint);cursor:pointer;font-size:13px;padding:0 2px}
+.conv-item:hover .x{opacity:1}
+.conv-empty{font-size:12px;color:var(--faint);padding:6px 10px}
+.dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--faint);margin-right:3px;
+  animation:askblink 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes askblink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (max-width:900px){.ask-composer{left:0}}
+</style>
+</head>
+<body>
+<button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
+<div class="app stg">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
+    </div>
+    <button class="new-btn" onclick="location.href='new.html'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      새 분석 시작
+    </button>
+    <div class="side-scroll">
+      <a class="side-nav" onclick="location.href='home.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+        홈
+      </a>
+      <a class="side-nav" style="background:var(--brand-soft);color:var(--brand-ink);font-weight:700">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        물어보기
+      </a>
+      <a class="side-nav" onclick="location.href='storage.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        커리어 저장소
+      </a>
+      <a class="side-nav" onclick="location.href='roadmaps.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+        로드맵 저장소
+      </a>
+
+      <!-- 대화 목록 — 첫 발화를 보내면 여기에 바로 생긴다. -->
+      <div class="side-label">
+        <span>내 대화</span>
+        <button id="newConvBtn" title="새 대화">＋</button>
+      </div>
+      <div id="convList" class="conv-list"><div class="conv-empty">아직 대화가 없어요</div></div>
+    </div>
+    <div class="userchip">
+      <div class="av" id="sideAv">?</div>
+      <div><div class="u-name" id="sideName">사용자</div><div class="u-mail" id="sideMail"></div></div>
+      <button class="more" id="logoutBtn" title="로그아웃" style="background:none;border:0;font-size:16px;color:var(--faint)">⎋</button>
+    </div>
+  </aside>
+
+  <main class="stg-main ask-main">
+    <div class="ask-scroll" id="scroller">
+      <div class="ask-head">
+        <h1>JOBIS에게 물어보기</h1>
+        <p>취업 준비에 대해 무엇이든 물어보세요. 공고 판정이 필요하면 분석으로 이어드립니다.</p>
+      </div>
+      <div class="ask-chips" id="chips">
+        <button data-q="백엔드 신입 취업 준비, 뭐부터 해야 할까요?">뭐부터 해야 할까요?</button>
+        <button data-q="제 이력서에서 약한 부분을 진단해 주세요.">이력서 진단</button>
+        <button data-q="제 이력에 맞는 공고를 추천해 주세요.">공고 추천</button>
+        <button data-q="면접에서 나올 예상 질문을 만들어 주세요.">면접 예상 질문</button>
+      </div>
+      <div class="ask-thread" id="thread"></div>
+    </div>
+    <div class="ask-composer">
+      <!-- 입력칸을 상시 붙여두지 않는다. 자료는 (1) 그냥 채팅에 붙여넣거나
+           (2) 왼쪽 파일 버튼으로 올리거나 (3) 에이전트가 요청할 때 뜨는 카드로 준다. -->
+      <form id="askForm">
+        <label class="aa-file-btn" title="파일 올리기 (pdf·docx·txt)">
+          <input type="file" id="attFile" accept=".txt,.md,.html,.pdf,.docx" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.05 12.3 20.2a5 5 0 0 1-7.07-7.07l8.49-8.49a3 3 0 1 1 4.24 4.24l-8.49 8.49a1 1 0 0 1-1.41-1.41l7.78-7.78"/></svg>
+        </label>
+        <textarea id="askInput" rows="1" placeholder="무엇이든 물어보세요… 공고 URL·원문을 그대로 붙여넣어도 돼요"></textarea>
+        <button type="submit" id="askSend">보내기</button>
+      </form>
+      <div class="ask-hint" id="composerHint"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  if (!JB.requireAuth()) return;
+
+  var thread = document.getElementById('thread');
+  var scroller = document.getElementById('scroller');
+  // 사용자가 위로 올려 읽는 중이면 새 메시지가 와도 끌어내리지 않는다.
+  var stickToBottom = true;
+  scroller.addEventListener('scroll', function(){
+    stickToBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  }, { passive: true });
+  function scrollDown(force){
+    if (force) stickToBottom = true;
+    if (stickToBottom) scroller.scrollTop = scroller.scrollHeight;
+  }
+  var input  = document.getElementById('askInput');
+  var sendBtn = document.getElementById('askSend');
+  var esc = function(s){ return String(s == null ? '' : s)
+    .replace(/[&<>"]/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); };
+
+  // 사이드바 사용자 정보
+  JB.api('/api/auth/me').then(function(u){
+    document.getElementById('sideName').textContent = u.name || '사용자';
+    document.getElementById('sideMail').textContent = u.email || '';
+    document.getElementById('sideAv').textContent = (u.name || '?').charAt(0);
+  }).catch(function(){});
+  document.getElementById('logoutBtn').addEventListener('click', function(){ JB.logout(); location.href='login.html'; });
+
+  function bubble(role, text){
+    var el = document.createElement('div');
+    el.className = 'ask-msg' + (role === 'me' ? ' me' : '');
+    el.innerHTML = '<div class="who">' + (role === 'me' ? '나' : '✦') + '</div>' +
+                   '<div class="ask-bubble">' + esc(text) + '</div>';
+    thread.appendChild(el);
+    scrollDown();
+    return el;
+  }
+  function note(text){
+    var el = document.createElement('div');
+    el.className = 'ask-note';
+    el.innerHTML = esc(text);
+    thread.appendChild(el);
+    scrollDown();
+    return el;
+  }
+  function meta(text){
+    var el = document.createElement('div');
+    el.className = 'ask-meta';
+    el.textContent = text;
+    thread.appendChild(el);
+    return el;
+  }
+
+  // 어떤 에이전트가 답했는지 사용자 말로 보여준다(오해했으면 정정할 수 있게).
+  var AGENT_KO = {
+    career_chat: '진로 상담', fit_analysis: '적합도 분석', job_recommend: '공고 추천',
+    resume_diagnosis: '이력서 진단', interview_prep: '면접 준비', coverletter_draft: '자소서 초안',
+    roadmap_manager: '로드맵 조회', posting_analysis: '공고 분석', preference_intake: '선호 파악'
+  };
+
+  // ── 자료 전달 ──────────────────────────────────────────────────────
+  // 상시 입력칸은 두지 않는다. 세 갈래로 받는다:
+  //   ① 채팅에 그대로 붙여넣기(공고 URL·원문은 서버가 알아본다)
+  //   ② 채팅박스 왼쪽 파일 버튼
+  //   ③ 에이전트가 요청할 때 대화 안에 생기는 카드
+  var attFile = document.getElementById('attFile');
+  var hint    = document.getElementById('composerHint');
+  // 에이전트가 방금 요청한 자료 — 다음 발화를 어느 칸으로 보낼지 정한다.
+  var pending = null;   // 'resume' | 'job_posting' | null
+
+  /** 파일 → 텍스트 (pdf·docx 는 브라우저가 못 읽어 서버가 추출한다). */
+  async function readFile(file){
+    var b64 = await new Promise(function(res, rej){
+      var r = new FileReader();
+      r.onerror = function(){ rej(new Error('파일을 읽지 못했어요.')); };
+      r.onload = function(){ res(String(r.result || '').split(',')[1] || ''); };
+      r.readAsDataURL(file);
+    });
+    var parsed = await JB.api('/api/evidences/parse-file', {
+      method:'POST', body: JSON.stringify({ filename: file.name, contentBase64: b64 })
+    });
+    return parsed.text || '';
+  }
+
+  attFile.addEventListener('change', async function(){
+    var f = attFile.files[0];
+    attFile.value = '';
+    if (!f) return;
+    hint.textContent = f.name + ' 읽는 중…';
+    try {
+      var text = await readFile(f);
+      if (!text){ hint.textContent = '파일에서 글자를 찾지 못했어요. 원문을 붙여넣어 주세요.'; return; }
+      hint.textContent = '';
+      // 파일은 이력서로 본다 — 공고는 보통 URL·원문으로 붙여넣는다.
+      await send({ resumeText: text, label: f.name + ' (' + text.length + '자)' });
+    } catch(err){ hint.textContent = '파일을 읽지 못했어요: ' + err.message; }
+  });
+
+  /** 에이전트가 자료를 요청했을 때만 대화 안에 입력 카드를 만든다. */
+  function requestCard(field, question){
+    var isResume = field === 'resume';
+    var el = document.createElement('div');
+    el.className = 'ask-req';
+    el.innerHTML =
+      '<div class="rq-k">' + (isResume ? '이력서 요청' : '공고 요청') + '</div>' +
+      '<div class="rq-q">' + esc(question) + '</div>' +
+      '<textarea rows="3" placeholder="' +
+        (isResume ? '이력서 내용을 붙여넣으세요' : '공고 원문 또는 URL 을 붙여넣으세요') + '"></textarea>' +
+      '<div class="rq-acts">' +
+        '<button data-send>보내기</button>' +
+        (isResume ? '<label class="rq-file">파일 올리기<input type="file" accept=".txt,.md,.html,.pdf,.docx" style="display:none"></label>' : '') +
+        '<button class="line" data-skip>지금은 건너뛰기</button>' +
+      '</div>' +
+      '<div class="rq-note">이 대화창에 바로 붙여넣어도 돼요.</div>';
+    thread.appendChild(el);
+    scrollDown();
+
+    var ta = el.querySelector('textarea');
+    function finish(label){
+      el.classList.add('done');
+      el.querySelector('.rq-acts').remove();
+      el.querySelector('.rq-note').textContent = label;
+      pending = null;
+    }
+    el.querySelector('[data-send]').addEventListener('click', async function(){
+      var text = (ta.value || '').trim();
+      if (!text) return;
+      finish('전달했어요 (' + text.length + '자)');
+      await send(isResume ? { resumeText: text } : { postingText: text });
+    });
+    el.querySelector('[data-skip]').addEventListener('click', function(){
+      finish('건너뛰었어요.');
+      pending = null;
+    });
+    var fileInput = el.querySelector('input[type=file]');
+    if (fileInput){
+      fileInput.addEventListener('change', async function(){
+        var f = fileInput.files[0];
+        if (!f) return;
+        el.querySelector('.rq-note').textContent = f.name + ' 읽는 중…';
+        try {
+          var text = await readFile(f);
+          if (!text){ el.querySelector('.rq-note').textContent = '파일에서 글자를 찾지 못했어요.'; return; }
+          finish(f.name + ' 전달했어요 (' + text.length + '자)');
+          await send({ resumeText: text });
+        } catch(err){ el.querySelector('.rq-note').textContent = '읽지 못했어요: ' + err.message; }
+      });
+    }
+    ta.focus();
+  }
+
+  // ── 사이드바 대화 목록 ──────────────────────────────────────────────
+  // 첫 발화를 보내면 서버가 대화를 만들어 id 를 돌려준다 → 즉시 목록 맨 위에 꽂는다.
+  var convList = document.getElementById('convList');
+  var conversationId = null;
+
+  function renderConversations(items){
+    if (!items.length){
+      convList.innerHTML = '<div class="conv-empty">아직 대화가 없어요</div>';
+      return;
+    }
+    convList.innerHTML = items.map(function(c){
+      return '<div class="conv-item' + (c.id === conversationId ? ' on' : '') + '" data-id="' + c.id + '">' +
+             '<span class="t">' + esc(c.title) + '</span>' +
+             '<button class="x" data-del="' + c.id + '" title="삭제">✕</button></div>';
+    }).join('');
+    convList.querySelectorAll('.conv-item').forEach(function(el){
+      el.addEventListener('click', function(e){
+        if (e.target.hasAttribute('data-del')) return;
+        openConversation(Number(el.dataset.id));
+      });
+    });
+    convList.querySelectorAll('[data-del]').forEach(function(b){
+      b.addEventListener('click', async function(e){
+        e.stopPropagation();
+        var id = Number(b.dataset.del);
+        try { await JB.api('/api/chat/conversations/' + id, { method:'DELETE' }); } catch(_){}
+        if (id === conversationId){ conversationId = null; thread.innerHTML = ''; }
+        loadConversations();
+      });
+    });
+  }
+
+  async function loadConversations(){
+    try { renderConversations(await JB.api('/api/chat/conversations') || []); }
+    catch(_){}
+  }
+
+  /** 목록에서 고른 대화를 열어 지난 발화를 복원한다. */
+  async function openConversation(id){
+    conversationId = id;
+    thread.innerHTML = '';
+    try {
+      var msgs = await JB.api('/api/chat/conversations/' + id) || [];
+      msgs.forEach(function(m){
+        bubble(m.role === 'USER' ? 'me' : 'ai', m.content);
+        if (m.role !== 'USER' && (m.agents || []).length){
+          meta('담당 ' + m.agents.map(function(d){ return AGENT_KO[d] || d; }).join(' · '));
+        }
+      });
+    } catch(err){ note('대화를 불러오지 못했어요: ' + err.message); }
+    loadConversations();
+    input.focus();
+  }
+
+  document.getElementById('newConvBtn').addEventListener('click', function(){
+    conversationId = null;
+    thread.innerHTML = '';
+    loadConversations();
+    input.focus();
+  });
+
+  loadConversations();
+
+  var busy = false;
+
+  /**
+   * 한 턴 전송. payload 로 어느 칸에 담을지 지정한다:
+   *   { message } 일반 발화 / { resumeText } 이력서 / { postingText } 공고
+   * 에이전트가 방금 요청한 자료(pending)가 있으면 사용자가 그냥 입력해도 그 칸으로 보낸다.
+   */
+  async function send(payload){
+    if (busy) return;
+    var body = {
+      conversationId: conversationId,
+      message: payload.message || '',
+      resumeText: payload.resumeText || '',
+      postingText: payload.postingText || ''
+    };
+    if (!body.message && !body.resumeText && !body.postingText) return;
+
+    busy = true;
+    sendBtn.disabled = true;
+
+    if (body.message) bubble('me', body.message);
+    else bubble('me', payload.label || (body.resumeText ? '이력서를 보냈어요' : '공고를 보냈어요'));
+
+    var thinking = bubble('ai', '');
+    thinking.querySelector('.ask-bubble').innerHTML =
+      '<span class="dots"><span></span><span></span><span></span></span>';
+    try {
+      var res = await JB.api('/api/chat', { method:'POST', body: JSON.stringify(body) });
+      // 새 대화였으면 서버가 만든 id 를 받아 사이드바에 바로 반영한다.
+      var isNew = (conversationId === null);
+      conversationId = res.conversationId || conversationId;
+      if (isNew) loadConversations();
+
+      thinking.querySelector('.ask-bubble').textContent = res.reply || '(답변이 비었어요)';
+      var who = (res.dispatched || []).map(function(d){ return AGENT_KO[d] || d; }).join(' · ');
+      if (who) meta('담당 ' + who);
+
+      // 에이전트가 자료를 요청했으면 **그때** 입력 카드를 만든다.
+      pending = null;
+      (res.askedFor || []).forEach(function(q){
+        if (q.field === 'resume' || q.field === 'job_posting'){
+          pending = q.field;
+          requestCard(q.field, q.question);
+        } else if (q.question) {
+          note('확인이 필요해요 — ' + q.question);
+        }
+      });
+      hint.textContent = pending
+        ? (pending === 'resume' ? '이력서를 붙여넣거나 파일로 올려주세요.' : '공고 원문이나 URL 을 붙여넣어 주세요.')
+        : '';
+    } catch(err){
+      thinking.querySelector('.ask-bubble').textContent = '답변을 받지 못했어요: ' + err.message;
+    } finally {
+      busy = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  /** 입력창에서 보낼 때 — 요청받은 자료가 있으면 그 칸으로 담는다. */
+  function ask(text){
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+    if (pending === 'resume') return send({ resumeText: text });
+    if (pending === 'job_posting') return send({ postingText: text });
+    return send({ message: text });
+  }
+
+  document.getElementById('askForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    ask(input.value.trim());
+  });
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ask(input.value.trim()); }
+  });
+  input.addEventListener('input', function(){
+    input.style.height = 'auto';
+    input.style.height = Math.min(180, input.scrollHeight) + 'px';
+  });
+  document.querySelectorAll('#chips button').forEach(function(b){
+    b.addEventListener('click', function(){ ask(b.dataset.q); });
+  });
+
+  // 홈 입력창에서 넘어온 첫 질문은 바로 보낸다.
+  var first = null;
+  try { first = sessionStorage.getItem('jobis.firstAsk'); sessionStorage.removeItem('jobis.firstAsk'); } catch(_){}
+  if (first) ask(first); else input.focus();
+})();
+</script>
+</body>
+</html>

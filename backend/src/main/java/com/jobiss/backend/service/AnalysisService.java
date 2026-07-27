@@ -1,98 +1,35 @@
 package com.jobiss.backend.service;
 
-import com.jobiss.backend.domain.AnalysisAnswer;
-import com.jobiss.backend.domain.AnalysisEngine;
-import com.jobiss.backend.domain.AnalysisQuestion;
 import com.jobiss.backend.domain.AnalysisResult;
 import com.jobiss.backend.domain.AnalysisRun;
-import com.jobiss.backend.domain.Evidence;
 import com.jobiss.backend.domain.JobPosting;
 import com.jobiss.backend.domain.RunStatus;
-import com.jobiss.backend.domain.User;
-import com.jobiss.backend.dto.analysis.AnalysisCreateRequest;
 import com.jobiss.backend.dto.analysis.AnalysisStatusResponse;
 import com.jobiss.backend.dto.analysis.AnalysisSummaryResponse;
-import com.jobiss.backend.dto.analysis.AnswersRequest;
 import com.jobiss.backend.dto.analysis.JobPostingBrief;
-import com.jobiss.backend.dto.analysis.QuestionResponse;
 import com.jobiss.backend.dto.analysis.ResultResponse;
 import com.jobiss.backend.exception.ApiException;
-import com.jobiss.backend.repository.AnalysisAnswerRepository;
-import com.jobiss.backend.repository.AnalysisQuestionRepository;
 import com.jobiss.backend.repository.AnalysisResultRepository;
 import com.jobiss.backend.repository.AnalysisRunRepository;
-import com.jobiss.backend.repository.EvidenceRepository;
-import com.jobiss.backend.repository.JobPostingRepository;
-import com.jobiss.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
 
+/**
+ * 분석 조회·상태 관리. 분석 자체는 에이전트(AgentRunService → 웹 브릿지)가 수행한다.
+ * 목업 엔진(고정 질문·고정 결과)으로 분석을 만들던 경로는 제거했다 — 결과는 실제 판정만 적재된다.
+ */
 @Service
 public class AnalysisService {
 
     private final AnalysisRunRepository runRepository;
-    private final JobPostingRepository jobPostingRepository;
-    private final EvidenceRepository evidenceRepository;
-    private final UserRepository userRepository;
-    private final AnalysisQuestionRepository questionRepository;
-    private final AnalysisAnswerRepository answerRepository;
     private final AnalysisResultRepository resultRepository;
-    private final AnalysisEngineService engine;
 
-    public AnalysisService(AnalysisRunRepository runRepository, JobPostingRepository jobPostingRepository,
-                           EvidenceRepository evidenceRepository, UserRepository userRepository,
-                           AnalysisQuestionRepository questionRepository, AnalysisAnswerRepository answerRepository,
-                           AnalysisResultRepository resultRepository, AnalysisEngineService engine) {
+    public AnalysisService(AnalysisRunRepository runRepository, AnalysisResultRepository resultRepository) {
         this.runRepository = runRepository;
-        this.jobPostingRepository = jobPostingRepository;
-        this.evidenceRepository = evidenceRepository;
-        this.userRepository = userRepository;
-        this.questionRepository = questionRepository;
-        this.answerRepository = answerRepository;
         this.resultRepository = resultRepository;
-        this.engine = engine;
-    }
-
-    /** 분석 시작: Run 생성 → (Mock) 질문 생성 → AWAITING_ANSWERS. */
-    @Transactional
-    public AnalysisStatusResponse createAnalysis(Long userId, AnalysisCreateRequest req) {
-        JobPosting job = jobPostingRepository.findByCode(req.jobPostingCode())
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "JOB_NOT_FOUND", "공고를 찾을 수 없습니다."));
-
-        List<Evidence> evidences = evidenceRepository.findAllById(req.evidenceIds());
-        boolean valid = evidences.size() == req.evidenceIds().size()
-                && evidences.stream().allMatch(e -> e.getUser().getId().equals(userId));
-        if (!valid) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_EVIDENCE", "선택한 자료가 올바르지 않습니다.");
-        }
-
-        User userRef = userRepository.getReferenceById(userId);
-        AnalysisRun run = AnalysisRun.builder()
-                .analysisId(UUID.randomUUID().toString())
-                .user(userRef)
-                .jobPosting(job)
-                .status(RunStatus.ANALYZING)
-                .engine(AnalysisEngine.MOCK)
-                .evidences(new HashSet<>(evidences))
-                .build();
-        runRepository.save(run);
-
-        // Mock: 질문을 즉시 생성하고 답변 대기 상태로.
-        for (QuestionSpec spec : engine.generateQuestions(run)) {
-            questionRepository.save(AnalysisQuestion.builder()
-                    .run(run).seq(spec.seq()).field(spec.field()).title(spec.title())
-                    .why(spec.why()).defaultAnswer(spec.defaultAnswer()).effect(spec.effect())
-                    .build());
-        }
-        run.changeStatus(RunStatus.AWAITING_ANSWERS);
-
-        return new AnalysisStatusResponse(run.getAnalysisId(), run.getStatus().name(),
-                JobPostingBrief.from(job), "확인 질문이 준비되었습니다.", null, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -117,41 +54,6 @@ public class AnalysisService {
         AnalysisRun run = getOwnedRun(userId, analysisId);
         String rid = (routeId != null && routeId.length() > 40) ? routeId.substring(0, 40) : routeId;
         run.selectRoute(rid);
-    }
-
-    @Transactional(readOnly = true)
-    public List<QuestionResponse> getQuestions(Long userId, String analysisId) {
-        AnalysisRun run = getOwnedRun(userId, analysisId);
-        return questionRepository.findByRunIdOrderBySeqAsc(run.getId()).stream()
-                .map(QuestionResponse::from)
-                .toList();
-    }
-
-    /** 답변 제출 → (Mock) 결과 생성 → COMPLETED. */
-    @Transactional
-    public AnalysisStatusResponse submitAnswers(Long userId, String analysisId, AnswersRequest req) {
-        AnalysisRun run = getOwnedRun(userId, analysisId);
-
-        for (AnswersRequest.AnswerItem item : req.answers()) {
-            AnalysisQuestion question = questionRepository.findById(item.questionId())
-                    .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "QUESTION_NOT_FOUND", "질문을 찾을 수 없습니다."));
-            if (!question.getRun().getId().equals(run.getId())) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "QUESTION_MISMATCH", "질문이 이 분석에 속하지 않습니다.");
-            }
-            if (answerRepository.existsByQuestionId(question.getId())) {
-                continue; // 이미 답한 질문은 건너뜀
-            }
-            answerRepository.save(AnalysisAnswer.builder()
-                    .run(run).question(question).answerText(item.answer()).build());
-        }
-
-        run.changeStatus(RunStatus.FINALIZING);
-        String resultJson = engine.generateResult(run);
-        resultRepository.save(AnalysisResult.builder().run(run).result(resultJson).build());
-        run.changeStatus(RunStatus.COMPLETED);
-
-        return new AnalysisStatusResponse(analysisId, run.getStatus().name(),
-                JobPostingBrief.from(run.getJobPosting()), null, null, null, null);
     }
 
     @Transactional(readOnly = true)

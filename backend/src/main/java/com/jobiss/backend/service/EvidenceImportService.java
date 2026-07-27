@@ -8,6 +8,8 @@ import com.jobiss.backend.dto.evidence.BulkImportRequest;
 import com.jobiss.backend.dto.evidence.BulkImportResponse;
 import com.jobiss.backend.dto.evidence.EvidenceCreateRequest;
 import com.jobiss.backend.dto.evidence.EvidenceResponse;
+import com.jobiss.backend.dto.evidence.ImportParseFileRequest;
+import com.jobiss.backend.dto.evidence.ImportParseFileResponse;
 import com.jobiss.backend.dto.evidence.ImportParseRequest;
 import com.jobiss.backend.dto.evidence.ImportParseResponse;
 import com.jobiss.backend.dto.evidence.ParsedFragment;
@@ -73,6 +75,28 @@ public class EvidenceImportService {
                 .map(e -> e.getLabel().toLowerCase(Locale.ROOT))
                 .collect(Collectors.toSet());
 
+        return new ImportParseResponse(toFragments(raw, existingStacks));
+    }
+
+    /**
+     * 이력서 파일 파싱(등록 아님). pdf·docx 처럼 브라우저가 읽을 수 없는 형식을 위해
+     * 파일 바이트를 AI(브릿지)로 보내 원문과 조각을 함께 받는다.
+     */
+    @Transactional(readOnly = true)
+    public ImportParseFileResponse parseFile(Long userId, ImportParseFileRequest req) {
+        FileExtract extracted = callAgentExtractFile(req.filename(), req.contentBase64());
+
+        Set<String> existingStacks = evidenceRepository.findByUserId(userId).stream()
+                .filter(e -> e.getKind() == EvidenceKind.STACK)
+                .map(e -> e.getLabel().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        return new ImportParseFileResponse(extracted.text(),
+                toFragments(extracted.fragments(), existingStacks));
+    }
+
+    /** 조각 원본 → 후보 목록. 결과 내 STACK 중복 제거 + 저장소에 이미 있는 STACK 표시. */
+    private List<ParsedFragment> toFragments(List<RawFragment> raw, Set<String> existingStacks) {
         Set<String> seenStack = new HashSet<>();
         List<ParsedFragment> out = new ArrayList<>();
         for (RawFragment f : raw) {
@@ -85,7 +109,7 @@ public class EvidenceImportService {
                 out.add(new ParsedFragment(f.kind(), f.label(), f.description(), false));   // 나머지는 누적
             }
         }
-        return new ImportParseResponse(out);
+        return out;
     }
 
     /** 확인·선택한 조각들을 실제 등록. STACK은 저장 시에도 방어적으로 중복 제거. */
@@ -158,6 +182,62 @@ public class EvidenceImportService {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_UNREACHABLE",
                     "AI 서버에 연결하지 못했어요. (가짜 AI 서버가 켜져 있나요?)");
         }
+    }
+
+    /** AI HTTP /extract-file 호출 → (이력서 원문, 조각 원본). */
+    @SuppressWarnings("unchecked")
+    private FileExtract callAgentExtractFile(String filename, String contentBase64) {
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("filename", filename == null ? "" : filename);
+            body.put("contentBase64", contentBase64 == null ? "" : contentBase64);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(agentHttpUrl + "/extract-file"))
+                    // 파일 추출 + 조각 생성(LLM)까지 하므로 텍스트 파싱보다 넉넉히 준다.
+                    .timeout(Duration.ofSeconds(120))
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() / 100 != 2) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_PARSE_FAILED",
+                        "이력서 파일 파싱 실패(" + response.statusCode() + ")");
+            }
+
+            Map<String, Object> parsed = om.readValue(response.body(), Map.class);
+            String text = str(parsed.get("text"));
+            List<RawFragment> list = new ArrayList<>();
+            if (parsed.get("fragments") instanceof List<?> frags) {
+                for (Object o : frags) {
+                    if (!(o instanceof Map<?, ?> f)) continue;
+                    EvidenceKind kind = parseKind(f.get("kind"));
+                    String label = str(f.get("label")).trim();
+                    if (kind == null || label.isEmpty()) continue;
+                    list.add(new RawFragment(kind, cap(label, 255), str(f.get("description"))));
+                }
+            }
+            if (text.isBlank()) {
+                // AI 가 남긴 사유(미지원 확장자·글자 없음 등)를 그대로 전달한다 — 사용자가 다음 행동을 알 수 있게.
+                String reason = "파일에서 글자를 찾지 못했어요. 스캔 이미지 PDF 라면 원문을 붙여 넣어 주세요.";
+                if (parsed.get("warnings") instanceof List<?> warns && !warns.isEmpty()
+                        && warns.get(0) instanceof Map<?, ?> w0 && !str(w0.get("message")).isBlank()) {
+                    reason = str(w0.get("message"));
+                }
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "EMPTY_RESUME", reason);
+            }
+            return new FileExtract(text, list);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_UNREACHABLE",
+                    "AI 서버에 연결하지 못했어요. (웹 브릿지가 켜져 있나요?)");
+        }
+    }
+
+    private record FileExtract(String text, List<RawFragment> fragments) {
     }
 
     private static EvidenceKind parseKind(Object kind) {

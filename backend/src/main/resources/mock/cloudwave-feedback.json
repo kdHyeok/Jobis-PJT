@@ -1,9 +1,0 @@
-{
-  "summary": "공고 기준 5개 항목 중 3개 충족, 2개 보완 권장. 합격 여부를 단정하지 않으며, 공고 기준으로 부족한 증거를 안내합니다.",
-  "checks": [
-    { "mark": "ok",  "requirement": "REST API 설계", "comment": "엔드포인트 구조와 상태코드 사용이 적절합니다." },
-    { "mark": "ok",  "requirement": "성능 개선 근거", "comment": "목록 API 1.2s → 180ms 수치가 README에 확인됩니다." },
-    { "mark": "tri", "requirement": "배포 · 운영",    "comment": "배포 URL은 확인되나 CI/CD 흔적이 없습니다. 보완하면 경쟁력이 높아집니다." },
-    { "mark": "no",  "requirement": "테스트 코드",    "comment": "test 디렉터리가 확인되지 않습니다 — 보완을 권장합니다." }
-  ]
-}
