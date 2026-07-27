@@ -3,16 +3,16 @@ spring:
     name: backend
 
   # === MySQL 연결 ===
-  # 기본값은 로컬 개발용. 다르면 환경변수로 덮어쓴다(DB_USERNAME / DB_PASSWORD).
+  # 운영 환경에서는 systemd EnvironmentFile 등 외부 환경변수로 주입한다.
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/jobiss?serverTimezone=UTC&characterEncoding=UTF-8}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:ssafy}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   # === JPA / Hibernate ===
   jpa:
     hibernate:
-      ddl-auto: validate      # 스키마의 주인은 Flyway. Hibernate는 "엔티티가 테이블과 맞나" 검증만.
+      ddl-auto: validate      # 스키마의 주인은 Flyway. Hibernate는 엔티티와 테이블의 일치만 검증한다.
     open-in-view: false
     show-sql: true
     properties:
@@ -26,7 +26,7 @@ spring:
 
 # === JWT ===
 jwt:
-  secret: ${JWT_SECRET:jobiss-dev-secret-please-change-in-production-0123456789abcdef}
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000   # 24시간
 
 # === 가짜 AI 에이전트 서버 (별도 프로세스로 먼저 실행해야 함) ===
