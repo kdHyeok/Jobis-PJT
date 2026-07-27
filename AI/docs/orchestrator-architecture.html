@@ -1,0 +1,246 @@
+<title>오케스트레이터 기반 멀티에이전트 구조</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #eef0f4;
+    --ink: #1c2230;
+    --ink-soft: #5a6478;
+    --line: #d7dbe4;
+    --llm: #3564d9;
+    --llm-soft: #e7edfb;
+    --rule: #1f8a5f;
+    --rule-soft: #e2f3ea;
+    --gen: #b06a12;
+    --gen-soft: #f9eeda;
+    --human: #c23a5b;
+    --human-soft: #fae6ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d; --surface: #1d2129; --surface-2: #262b36;
+      --ink: #e8eaf0; --ink-soft: #99a1b3; --line: #363c49;
+      --llm: #6f95ec; --llm-soft: #24304a;
+      --rule: #4dbd8c; --rule-soft: #1d3a2e;
+      --gen: #d99a4e; --gen-soft: #3d2f1b;
+      --human: #e0688a; --human-soft: #42222c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171d; --surface: #1d2129; --surface-2: #262b36;
+    --ink: #e8eaf0; --ink-soft: #99a1b3; --line: #363c49;
+    --llm: #6f95ec; --llm-soft: #24304a;
+    --rule: #4dbd8c; --rule-soft: #1d3a2e;
+    --gen: #d99a4e; --gen-soft: #3d2f1b;
+    --human: #e0688a; --human-soft: #42222c;
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef0f4;
+    --ink: #1c2230; --ink-soft: #5a6478; --line: #d7dbe4;
+    --llm: #3564d9; --llm-soft: #e7edfb;
+    --rule: #1f8a5f; --rule-soft: #e2f3ea;
+    --gen: #b06a12; --gen-soft: #f9eeda;
+    --human: #c23a5b; --human-soft: #fae6ec;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", -apple-system, sans-serif;
+    line-height: 1.45;
+    padding: 44px 20px 64px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; align-items: stretch; }
+
+  h1 { font-size: 26px; font-weight: 800; text-align: center; letter-spacing: -.01em; }
+  .sub { text-align: center; color: var(--ink-soft); font-size: 14px; margin-top: 4px; margin-bottom: 30px; }
+
+  /* ── 사용자 ── */
+  .user {
+    align-self: center; text-align: center;
+    background: var(--surface); border: 1.5px solid var(--line); border-radius: 999px;
+    padding: 12px 34px; font-weight: 800; font-size: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .user small { display: block; font-weight: 500; font-size: 12.5px; color: var(--ink-soft); }
+
+  /* ── 연결선 ── */
+  .down { display: flex; flex-direction: column; align-items: center; }
+  .down .stem { width: 2px; height: 16px; background: var(--line); }
+  .down .head { color: var(--ink-soft); font-size: 14px; line-height: 1; margin-top: -3px; }
+  .down .cap {
+    font-size: 12px; font-weight: 700; color: var(--ink-soft);
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 14px; margin: 4px 0;
+  }
+
+  /* ── 오케스트레이터 ── */
+  .orch {
+    background: var(--surface); border: 2px solid var(--llm); border-radius: 16px;
+    padding: 18px 22px; box-shadow: 0 3px 14px rgba(0,0,0,.07);
+  }
+  .orch h2 { font-size: 19px; font-weight: 800; text-align: center; }
+  .orch h2 span { color: var(--llm); }
+  .orch-flow {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    margin-top: 14px; flex-wrap: wrap;
+  }
+  .step {
+    border-radius: 12px; padding: 10px 18px; text-align: center; font-size: 13px; font-weight: 700;
+  }
+  .step small { display: block; font-weight: 500; font-size: 11.5px; margin-top: 1px; opacity: .85; }
+  .step.s-llm  { background: var(--llm-soft);  color: var(--llm); }
+  .step.s-rule { background: var(--rule-soft); color: var(--rule); }
+  .orch-flow .arrow { color: var(--ink-soft); font-size: 16px; font-weight: 700; }
+
+  /* ── 에이전트 카드 ── */
+  .agents {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .agent {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    text-align: center;
+  }
+  .io {
+    font-size: 12px; font-weight: 700; border-radius: 8px; padding: 5px 12px;
+    background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line);
+    width: 100%;
+  }
+  .agent .mini-arrow { color: var(--ink-soft); font-size: 13px; line-height: .6; }
+  .a-name {
+    font-size: 16.5px; font-weight: 800; padding: 8px 10px; width: 100%;
+    border-radius: 10px; color: #fff;
+  }
+  .a-name.c-rule { background: var(--rule); }
+  .a-name.c-gen  { background: var(--gen); }
+  .out {
+    font-size: 12.5px; font-weight: 800; border-radius: 8px; padding: 6px 12px; width: 100%;
+  }
+  .out.o-rule { background: var(--rule-soft); color: var(--rule); }
+  .out.o-gen  { background: var(--gen-soft);  color: var(--gen); }
+
+  /* ── 결과 반환 + 인간 게이트 ── */
+  .gate {
+    align-self: center; display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 2px solid var(--human); border-radius: 16px;
+    padding: 14px 26px; box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    flex-wrap: wrap; justify-content: center;
+  }
+  .gate .g-icon { font-size: 26px; }
+  .gate .g-main { font-size: 16px; font-weight: 800; color: var(--human); }
+  .gate .g-sub { font-size: 12.5px; color: var(--ink-soft); }
+
+  footer {
+    margin-top: 30px; text-align: center; font-size: 15px; font-weight: 700;
+  }
+  footer .k { padding: 2px 6px; border-radius: 6px; }
+  footer .k1 { background: var(--rule-soft); color: var(--rule); }
+  footer .k2 { background: var(--human-soft); color: var(--human); }
+  footer .k3 { background: var(--llm-soft); color: var(--llm); }
+
+  @media (max-width: 760px) {
+    .agents { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .agents { grid-template-columns: 1fr; }
+    .orch-flow { flex-direction: column; }
+    .orch-flow .arrow { transform: rotate(90deg); }
+  }
+</style>
+
+<div class="wrap">
+  <h1>오케스트레이터 기반 멀티에이전트</h1>
+  <p class="sub">모든 에이전트 호출은 오케스트레이터가 주도한다 — 에이전트끼리는 서로 모른다</p>
+
+  <div class="user">
+    사용자
+    <small>"이 공고 나 되나?" · "자소서 써줘"</small>
+  </div>
+
+  <div class="down">
+    <div class="stem"></div>
+    <div class="cap">자연어 대화</div>
+    <div class="head">▼</div>
+  </div>
+
+  <section class="orch">
+    <h2><span>오케스트레이터</span> — 판단하지 않고 호출만 한다</h2>
+    <div class="orch-flow">
+      <div class="step s-llm">의도 파악<small>LLM · 말을 라벨로 번역</small></div>
+      <div class="arrow">→</div>
+      <div class="step s-rule">에이전트 배차<small>미리 적어둔 대응표</small></div>
+      <div class="arrow">→</div>
+      <div class="step s-rule">순서 조합<small>분석 없으면 분석부터 ⊕</small></div>
+    </div>
+  </section>
+
+  <div class="down">
+    <div class="stem"></div>
+    <div class="cap">호출 (dispatch)</div>
+    <div class="head">▼</div>
+  </div>
+
+  <section class="agents">
+    <div class="agent">
+      <div class="io">이력서 + 공고</div>
+      <div class="mini-arrow">▼</div>
+      <div class="a-name c-rule">적합도 분석</div>
+      <div class="mini-arrow">▼</div>
+      <div class="out o-rule">합격 가능성 (상/중/하) + 근거</div>
+    </div>
+    <div class="agent">
+      <div class="io">이력서</div>
+      <div class="mini-arrow">▼</div>
+      <div class="a-name c-rule">공고 추천</div>
+      <div class="mini-arrow">▼</div>
+      <div class="out o-rule">맞춤 공고 목록</div>
+    </div>
+    <div class="agent">
+      <div class="io">이력서</div>
+      <div class="mini-arrow">▼</div>
+      <div class="a-name c-rule">이력서 진단</div>
+      <div class="mini-arrow">▼</div>
+      <div class="out o-rule">강점 · 보완점 리포트</div>
+    </div>
+    <div class="agent">
+      <div class="io">이력서 + 공고 + 분석 결과</div>
+      <div class="mini-arrow">▼</div>
+      <div class="a-name c-gen">자소서 초안</div>
+      <div class="mini-arrow">▼</div>
+      <div class="out o-gen">자소서 초안 (근거 제한)</div>
+    </div>
+    <div class="agent">
+      <div class="io">분석 결과 (로드맵)</div>
+      <div class="mini-arrow">▼</div>
+      <div class="a-name c-gen">로드맵 관리</div>
+      <div class="mini-arrow">▼</div>
+      <div class="out o-gen">학습 일정 · 진척 현황</div>
+    </div>
+    <div class="agent">
+      <div class="io">분석 결과 (갭 · 강점)</div>
+      <div class="mini-arrow">▼</div>
+      <div class="a-name c-gen">면접 준비</div>
+      <div class="mini-arrow">▼</div>
+      <div class="out o-gen">예상 질문 · 답변 포인트</div>
+    </div>
+  </section>
+
+  <div class="down">
+    <div class="stem"></div>
+    <div class="cap">결과는 그대로 사용자에게</div>
+    <div class="head">▼</div>
+  </div>
+
+  <div class="gate">
+    <div class="g-icon">🙋</div>
+    <div>
+      <div class="g-main">최종 확정은 사람</div>
+      <div class="g-sub">초안 검토 · 제출은 사용자 — 에이전트에게 제출 툴이 없다</div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="k k1">판정은 데이터</span> · <span class="k k2">행동은 사람</span> · <span class="k k3">조합은 에이전트</span>
+  </footer>
+</div>

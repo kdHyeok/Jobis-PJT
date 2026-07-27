@@ -1,0 +1,555 @@
+{
+  "mode": "플래너(실 LLM 호출)",
+  "summary": {
+    "cases": 46,
+    "sequence_accuracy": 1.0,
+    "ask_accuracy": 1.0,
+    "llm_failed": 0
+  },
+  "cases": [
+    {
+      "caseId": "fit-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-paraphrase-1",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-paraphrase-2",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-paraphrase-3",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-paraphrase-4",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-paraphrase-5",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-no-judgment-bait",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-missing-posting-degrade",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-missing-resume-degrade",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "posting_analysis"
+      ],
+      "actual": [
+        "posting_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "fit-missing-both",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "planner"
+    },
+    {
+      "caseId": "posting-analysis-direct",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "posting_analysis"
+      ],
+      "actual": [
+        "posting_analysis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "recommend-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "recommend-paraphrase-1",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "recommend-paraphrase-2",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "recommend-paraphrase-3",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "recommend-terse",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "recommend-missing-resume",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "preference_intake"
+      ],
+      "actual": [
+        "preference_intake"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "preference-open",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "preference_intake"
+      ],
+      "actual": [
+        "preference_intake"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "preference-followup",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "preference_intake"
+      ],
+      "actual": [
+        "preference_intake"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "resume-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "resume-paraphrase-1",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "resume-paraphrase-2",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "resume-paraphrase-3",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "resume-missing",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "planner"
+    },
+    {
+      "caseId": "coverletter-with-analysis",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "coverletter-auto-prereq",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "actual": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "coverletter-paraphrase",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "coverletter-motivation",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "actual": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "coverletter-rewrite",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "coverletter-missing-posting",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "planner"
+    },
+    {
+      "caseId": "interview-with-analysis",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "interview_prep"
+      ],
+      "actual": [
+        "interview_prep"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "interview-auto-prereq",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "actual": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "interview-followup",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "interview_prep"
+      ],
+      "actual": [
+        "interview_prep"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "interview-missing",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "planner"
+    },
+    {
+      "caseId": "roadmap-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "roadmap_manager"
+      ],
+      "actual": [
+        "roadmap_manager"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "roadmap-paraphrase",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "roadmap_manager"
+      ],
+      "actual": [
+        "roadmap_manager"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "roadmap-with-all-assets",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "roadmap_manager"
+      ],
+      "actual": [
+        "roadmap_manager"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "roadmap-missing",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "planner"
+    },
+    {
+      "caseId": "multi-fit-then-coverletter",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "actual": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "multi-fit-then-interview",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "actual": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "multi-coverletter-and-interview",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft",
+        "interview_prep"
+      ],
+      "actual": [
+        "coverletter_draft",
+        "interview_prep"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "greeting-chat",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "career_chat"
+      ],
+      "actual": [
+        "career_chat"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "offtopic-chat",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "career_chat"
+      ],
+      "actual": [
+        "career_chat"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "thanks-chat",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "career_chat"
+      ],
+      "actual": [
+        "career_chat"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "vent-chat",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "career_chat"
+      ],
+      "actual": [
+        "career_chat"
+      ],
+      "path": "planner"
+    },
+    {
+      "caseId": "general-question-chat",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "career_chat"
+      ],
+      "actual": [
+        "career_chat"
+      ],
+      "path": "planner"
+    }
+  ]
+}

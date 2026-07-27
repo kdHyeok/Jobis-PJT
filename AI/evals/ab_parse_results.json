@@ -1,0 +1,183 @@
+{
+  "runs": 3,
+  "variants": {
+    "hybrid": {
+      "cases": [
+        {
+          "caseId": "backend-clear-headers",
+          "req_f1": 1.0,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "junior"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "frontend-prose-no-headers",
+          "req_f1": 0.917,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "junior"
+          ],
+          "distinct_outputs": 3,
+          "reproducible": false
+        },
+        {
+          "caseId": "data-engineer-bullets",
+          "req_f1": 1.0,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "mid"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "devops-mixed-inline",
+          "req_f1": 0.909,
+          "stack_f1": 0.933,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "mid"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "ml-engineer-senior",
+          "req_f1": 1.0,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "senior"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "mobile-lead-messy",
+          "req_f1": 1.0,
+          "stack_f1": 0.75,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "lead"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        }
+      ],
+      "summary": {
+        "avg_req_f1": 0.971,
+        "avg_stack_f1": 0.947,
+        "total_halluc": 0,
+        "seniority_acc": 1.0,
+        "reproducible_rate": 0.833
+      }
+    },
+    "llm_only": {
+      "cases": [
+        {
+          "caseId": "backend-clear-headers",
+          "req_f1": 1.0,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "junior"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "frontend-prose-no-headers",
+          "req_f1": 0.75,
+          "stack_f1": 0.939,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "junior"
+          ],
+          "distinct_outputs": 2,
+          "reproducible": false
+        },
+        {
+          "caseId": "data-engineer-bullets",
+          "req_f1": 1.0,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "mid"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "devops-mixed-inline",
+          "req_f1": 1.0,
+          "stack_f1": 0.894,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "mid"
+          ],
+          "distinct_outputs": 2,
+          "reproducible": false
+        },
+        {
+          "caseId": "ml-engineer-senior",
+          "req_f1": 1.0,
+          "stack_f1": 0.889,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "senior"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        },
+        {
+          "caseId": "mobile-lead-messy",
+          "req_f1": 1.0,
+          "stack_f1": 1.0,
+          "halluc": 0,
+          "halluc_items": [],
+          "seniority_acc": 1.0,
+          "seniority_preds": [
+            "lead"
+          ],
+          "distinct_outputs": 1,
+          "reproducible": true
+        }
+      ],
+      "summary": {
+        "avg_req_f1": 0.958,
+        "avg_stack_f1": 0.954,
+        "total_halluc": 0,
+        "seniority_acc": 1.0,
+        "reproducible_rate": 0.667
+      }
+    }
+  }
+}

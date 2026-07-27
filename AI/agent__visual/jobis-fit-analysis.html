@@ -1,0 +1,198 @@
+<meta charset="utf-8">
+<title>JOBIS AI — 맞춤 적합도 분석 (시각자료 1장)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+
+<style>
+  :root{
+    --bg-deck:#14181B; --paper:#FFFFFF; --panel:#F6F8F7; --panel-2:#ECF0EE;
+    --line:#DCE2E0; --line-soft:#E9EDEB;
+    --ink:#101616; --ink-2:#47534F; --ink-3:#79857F;
+    --job:#A05C00;    --job-bg:#FBF1E2;
+    --me:#5636A8;     --me-bg:#EDE8F9;
+    --ok:#06705F;     --ok-bg:#E1F1EE;
+    --gap:#AE3B24;    --gap-bg:#FBE9E4;
+    --gold:#B8860B;
+    --edge:#8B9994;
+    --font-sans:"Pretendard Variable",Pretendard,Inter,"Segoe UI","Malgun Gothic",-apple-system,sans-serif;
+    --font-mono:"JetBrains Mono","Cascadia Code","SF Mono",ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--bg-deck);}
+  body{margin:0; font-family:var(--font-sans); color:var(--ink);
+    -webkit-font-smoothing:antialiased; word-break:keep-all;}
+
+  .howto{max-width:1600px;margin:0 auto;padding:18px 10px 2px;color:#9FB0AA;font-size:13px;display:flex;gap:22px;flex-wrap:wrap;}
+  .howto b{color:#E7EEEB;font-weight:600;}
+  .howto kbd{font-family:var(--font-mono);font-size:12px;color:#DDE6E2;background:#232A2E;border:1px solid #333C41;border-radius:5px;padding:2px 6px;}
+
+  .deck{display:flex;justify-content:center;padding:16px 8px 60px;}
+  .slide{position:relative;width:1600px;height:900px;background:var(--paper);
+    padding:62px 80px 66px;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 18px 46px rgba(0,0,0,.42);}
+  .s-head{display:flex;align-items:baseline;gap:18px;}
+  .s-idx{font-family:var(--font-mono);font-size:15px;font-weight:600;letter-spacing:.1em;color:var(--ok);}
+  .s-title{font-size:42px;font-weight:800;letter-spacing:-.025em;margin:0;}
+  .s-sub{font-size:20px;color:var(--ink-2);margin:14px 0 0;line-height:1.5;}
+  .s-sub b{color:var(--ink);font-weight:700;}
+  .s-rule{height:4px;width:64px;background:var(--ink);margin:22px 0 0;}
+  .body{flex:1 1 auto;min-height:0;display:flex;align-items:center;}
+  .s-foot{position:absolute;left:80px;right:80px;bottom:26px;display:flex;justify-content:space-between;
+    align-items:center;font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--line-soft);padding-top:12px;}
+  .s-foot .brand{font-family:var(--font-mono);letter-spacing:.08em;}
+
+  .ic{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+  .ic-soft{stroke-opacity:.45;}
+  .ic-fill{fill:currentColor;stroke:none;}
+
+  /* 3단 레이아웃: 입력(공고/이력서) — 매칭 — 결과 */
+  .stage{display:flex;align-items:stretch;gap:0;width:100%;}
+
+  .inputs{flex:0 0 400px;display:flex;flex-direction:column;gap:22px;justify-content:center;}
+  .panel{border:1.5px solid;border-radius:18px;padding:20px 22px;}
+  .panel.job{border-color:var(--job);background:var(--job-bg);}
+  .panel.me{border-color:var(--me);background:var(--me-bg);}
+  .panel .ptitle{display:flex;align-items:center;gap:11px;font-size:20px;font-weight:800;margin-bottom:14px;}
+  .panel.job .ptitle{color:var(--job);} .panel.me .ptitle{color:var(--me);}
+  .panel .ptitle svg{width:30px;height:30px;}
+  .panel .ptitle .upl{font-size:13px;font-weight:700;color:var(--me);background:rgba(255,255,255,.8);
+    border:1px solid var(--me);border-radius:999px;padding:4px 11px;letter-spacing:.01em;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{font-size:15px;font-weight:600;padding:7px 13px;border-radius:9px;background:rgba(255,255,255,.72);
+    border:1px solid rgba(0,0,0,.08);color:var(--ink-2);}
+
+  .arrows{flex:0 0 96px;display:flex;align-items:center;justify-content:center;color:var(--edge);}
+  .arrows svg{width:88px;height:200px;overflow:visible;}
+
+  .engine{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:0 20px;}
+  .engine-box{width:100%;background:var(--ok-bg);border:1.5px solid var(--ok);border-radius:20px;
+    padding:26px 24px;text-align:center;}
+  .engine-box .en{font-size:26px;font-weight:800;color:var(--ok);letter-spacing:-.02em;}
+  .engine-box .ed{font-size:16px;font-weight:600;color:var(--ink-2);margin-top:8px;line-height:1.5;}
+  .engine-box .algo{display:inline-block;margin-top:14px;font-family:var(--font-mono);font-size:13px;font-weight:700;
+    color:#fff;background:var(--ok);border-radius:999px;padding:6px 14px;}
+  .matchrows{width:100%;display:flex;flex-direction:column;gap:9px;}
+  .mrow{display:flex;align-items:center;gap:11px;font-size:15px;}
+  .mrow .req{flex:1 1 auto;font-weight:600;color:var(--ink-2);}
+  .mrow .tag{flex:0 0 auto;font-family:var(--font-mono);font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:7px;}
+  .mrow.met  .tag{color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok);}
+  .mrow.gapr .tag{color:var(--gap);background:var(--gap-bg);border:1px solid var(--gap);}
+  .mrow .mk{flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:800;}
+  .mrow.met  .mk{background:var(--ok);}
+  .mrow.gapr .mk{background:var(--gap);}
+
+  .result{flex:0 0 360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+  .gauge{position:relative;width:300px;height:170px;}
+  .score{position:absolute;left:0;right:0;bottom:6px;text-align:center;}
+  .score .n{font-size:66px;font-weight:900;letter-spacing:-.03em;line-height:1;color:var(--ok);}
+  .score .n small{font-size:26px;font-weight:700;color:var(--ink-3);}
+  .score .lb{font-size:15px;font-weight:600;color:var(--ink-3);margin-top:2px;}
+  .grade-badge{display:inline-flex;align-items:center;gap:10px;font-size:22px;font-weight:800;color:var(--ink);}
+  .grade-badge .g{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;color:#fff;font-size:28px;font-weight:900;background:var(--ok);}
+  .evi{font-size:14.5px;color:var(--ink-2);text-align:center;line-height:1.5;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:12px 16px;}
+  .evi b{color:var(--ink);}
+
+  .keyline{margin-top:30px;display:flex;align-items:center;gap:14px;background:var(--ink);color:#fff;
+    border-radius:14px;padding:18px 26px;font-size:19px;font-weight:700;}
+  .keyline .hl{color:#7FD3C4;}
+
+  @page{size:1600px 900px;margin:0;}
+  @media print{
+    html,body{background:#fff;}
+    .howto{display:none;}
+    .deck{padding:0;}
+    .slide{box-shadow:none;}
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-job" viewBox="0 0 48 48">
+    <rect class="ic" x="7" y="12" width="34" height="30" rx="3"/>
+    <path class="ic" d="M18,12v-4a2,2 0 0 1 2,-2h8a2,2 0 0 1 2,2v4"/>
+    <path class="ic ic-soft" d="M13,21h22 M13,28h22 M13,35h14"/>
+  </symbol>
+  <symbol id="i-resume" viewBox="0 0 48 48">
+    <path class="ic" d="M26,5H12a3,3 0 0 0 -3,3v32a3,3 0 0 0 3,3h24a3,3 0 0 0 3,-3V18z"/>
+    <path class="ic ic-soft" d="M26,5v13h13"/>
+    <path class="ic" d="M24,36V23 M18.5,28.5L24,23l5.5,5.5"/>
+  </symbol>
+</defs></svg>
+
+<div class="howto">
+  <span><b>PPT에 넣는 법</b></span>
+  <span>브라우저에서 <kbd>Ctrl</kbd>+<kbd>P</kbd> → <b>PDF로 저장</b> → 배경 그래픽 켜기 → 16:9 1페이지</span>
+</div>
+
+<div class="deck">
+<section class="slide">
+  <div class="s-head"><span class="s-idx">FEAT 01</span><h2 class="s-title">맞춤 적합도 분석</h2></div>
+  <p class="s-sub">이력서와 <b>실제 공고</b>를 대조해, 요구사항을 하나씩 <b>충족 / 부족</b>으로 판정하고 적합도를 낸다.</p>
+  <div class="s-rule"></div>
+
+  <div class="body">
+    <div class="stage">
+
+      <!-- 입력 -->
+      <div class="inputs">
+        <div class="panel job">
+          <div class="ptitle"><svg><use href="#i-job"/></svg>실제 공고</div>
+          <div class="chips">
+            <span class="chip">React</span><span class="chip">TypeScript</span>
+            <span class="chip">3년+</span><span class="chip">REST API</span><span class="chip">AWS</span>
+          </div>
+        </div>
+        <div class="panel me">
+          <div class="ptitle"><svg><use href="#i-resume"/></svg>내 이력서 <span class="upl">PDF·DOCX 업로드</span></div>
+          <div class="chips">
+            <span class="chip">React 프로젝트</span><span class="chip">JavaScript</span>
+            <span class="chip">2년</span><span class="chip">REST API</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 화살표 -->
+      <div class="arrows">
+        <svg viewBox="0 0 88 200">
+          <path d="M4,60 C40,60 40,96 80,96" stroke="var(--job)" stroke-width="3" fill="none"/>
+          <path d="M4,140 C40,140 40,104 80,104" stroke="var(--me)" stroke-width="3" fill="none"/>
+          <path d="M74,90 L84,96 L74,102" fill="none" stroke="var(--edge)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <!-- 판정 엔진 + 매칭 -->
+      <div class="engine">
+        <div class="engine-box">
+          <div class="en">가중치 벡터 매칭</div>
+          <div class="ed">표기가 달라도 같은 기술로 정규화하고<br>요구사항별 충족 여부를 계산</div>
+          <span class="algo">판단 = 알고리즘 · LLM 없음</span>
+        </div>
+        <div class="matchrows">
+          <div class="mrow met"><span class="mk">✓</span><span class="req">React</span><span class="tag">충족</span></div>
+          <div class="mrow met"><span class="mk">✓</span><span class="req">REST API</span><span class="tag">충족</span></div>
+          <div class="mrow gapr"><span class="mk">!</span><span class="req">TypeScript · AWS · 경력 1년</span><span class="tag">부족</span></div>
+        </div>
+      </div>
+
+      <!-- 결과 -->
+      <div class="result">
+        <div class="gauge">
+          <svg viewBox="0 0 300 170" width="300" height="170">
+            <path d="M20,150 A130,130 0 0 1 280,150" fill="none" stroke="var(--panel-2)" stroke-width="20" stroke-linecap="round"/>
+            <path d="M20,150 A130,130 0 0 1 246,74" fill="none" stroke="var(--gold)" stroke-width="20" stroke-linecap="round"/>
+          </svg>
+          <div class="score"><div class="n">62<small>점</small></div><div class="lb">종합 적합도</div></div>
+        </div>
+        <div class="grade-badge"><span class="g" style="background:var(--gold)">중</span>지금은 ‘중’</div>
+        <div class="evi">판정마다 <b>이력서 원문 근거</b>가 붙는다<br>— 없는 경력·자격증은 지어내지 않는다</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="keyline">
+    같은 이력서엔 <span class="hl">언제나 같은 점수</span> · 왜 그렇게 봤는지 <span class="hl">근거로 설명</span> — 그래서 신뢰할 수 있는 진단
+  </div>
+
+  <div class="s-foot"><span class="brand">JOBIS AI · FIT ANALYSIS</span><span>맞춤 적합도 분석</span></div>
+</section>
+</div>

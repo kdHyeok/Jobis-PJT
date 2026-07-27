@@ -1,0 +1,150 @@
+{
+  "$defs": {
+    "ResponseMeta": {
+      "description": "응답 메타데이터.",
+      "properties": {
+        "retriedNodes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Retriednodes",
+          "type": "array"
+        },
+        "generatedAt": {
+          "title": "Generatedat",
+          "type": "string"
+        },
+        "modelVersion": {
+          "default": "",
+          "title": "Modelversion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "generatedAt"
+      ],
+      "title": "ResponseMeta",
+      "type": "object"
+    }
+  },
+  "description": "AI 서버 → 백엔드 응답 (설계 15.3).\n\nstatus 가 need_more_info 이면 백엔드는 followUpQuestions 를 사용자에게 노출하고,\n답을 모아 analysisId 와 함께 같은 엔드포인트로 재요청한다.",
+  "properties": {
+    "analysisId": {
+      "title": "Analysisid",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "need_more_info",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+    },
+    "fitGrade": {
+      "default": "",
+      "title": "Fitgrade",
+      "type": "string"
+    },
+    "overallScore": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Overallscore"
+    },
+    "requirements": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Requirements",
+      "type": "array"
+    },
+    "strengths": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Strengths",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "roadmap": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Roadmap",
+      "type": "array"
+    },
+    "alternativeJobs": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Alternativejobs",
+      "type": "array"
+    },
+    "followUpQuestions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Followupquestions",
+      "type": "array"
+    },
+    "profileCompletionQuestions": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Profilecompletionquestions",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "meta": {
+      "$ref": "#/$defs/ResponseMeta"
+    }
+  },
+  "required": [
+    "analysisId",
+    "status",
+    "meta"
+  ],
+  "title": "AnalyzeResponse",
+  "type": "object"
+}

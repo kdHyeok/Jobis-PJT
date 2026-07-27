@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잡퀘스트 — 공고 접수</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="scrim" aria-hidden="true"></div>
+<div class="app">
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+      잡퀘스트
+    </a>
+    <a class="s-new" href="new.html">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      새 공고 분석
+    </a>
+    <p class="s-label">현재 목표 공고</p>
+    <div class="s-goal">
+      <p class="g-m" style="margin:0">아직 목표 공고가 없습니다. 공고를 접수하면 여기에 표시됩니다.</p>
+    </div>
+    <p class="s-label">최근 분석</p>
+    <nav class="s-list">
+      <a class="on" href="new.html">새 분석 · 접수 전</a>
+      <a href="result.html">넥스트커머스 · 백엔드 (신입)</a>
+      <a href="result.html">티스퀘어랩 · 플랫폼 엔지니어</a>
+      <a href="result.html">데이터라인 · 주니어 서버</a>
+    </nav>
+    <div class="s-user">
+      <span class="av">박</span>
+      <div><div class="u-n">박준영</div><div class="u-s">프로필 66% 완성</div></div>
+    </div>
+  </aside>
+
+  <!-- 메인: 접수 데스크 -->
+  <main class="main">
+    <div class="main-head">
+      <button class="drawer-btn" aria-label="메뉴 열기"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="mh-t">공고 접수</span>
+      <span class="sp"></span>
+      <span class="mh-s">분석 1건당 평균 47초</span>
+    </div>
+
+    <div class="deskwrap">
+      <div class="stepline" aria-label="진행 단계">
+        <span><span class="sn on num">1</span><b>목표 공고</b></span>
+        <span class="sl"></span>
+        <span><span class="sn num">2</span>내 자료</span>
+        <span class="sl"></span>
+        <span><span class="sn num">3</span>검토</span>
+      </div>
+
+      <p class="kicker">접수 데스크</p>
+      <h1 style="font-size:26px">어떤 공고에 도전하시나요?</h1>
+      <p class="muted mt8" style="font-size:14px">목표 채용공고 하나를 접수하세요. 검토가 시작되면 준영님의 프로필과 대조해 준비 경로를 설계합니다.</p>
+
+      <div class="method" role="tablist">
+        <button class="on" role="tab" aria-selected="true">URL 붙여넣기</button>
+        <button role="tab" aria-selected="false">원문 붙여넣기</button>
+        <button role="tab" aria-selected="false">파일 업로드</button>
+      </div>
+
+      <!-- 빈 서류 -->
+      <div class="blank-doc">
+        <p class="bd-h">채용공고 접수란 <span style="margin-left:auto;font-weight:400">JOBQUEST 분석기 v2</span></p>
+        <label for="jd-input" class="small" style="display:none">공고 URL 또는 원문</label>
+        <textarea id="jd-input" readonly>https://careers.cloudwave.kr/jobs/backend-engineer-2026</textarea>
+      </div>
+
+      <a class="btn btn-pri btn-lg btn-full mt24" href="analyzing.html">
+        이 공고 검토 시작
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <p class="small mt12" style="text-align:center">다음 단계에서 이력서와 포트폴리오(선택)를 요청합니다. 마감된 공고, PDF 공고도 원문으로 접수할 수 있습니다.</p>
+
+      <div class="samples">
+        <p class="small" style="margin-bottom:4px">이렇게 물어볼 수도 있어요</p>
+        <a href="analyzing.html">이 공고 기준으로 부족한 점 알려줘</a>
+        <a href="analyzing.html">신입이 갈 수 있는 비슷한 공고 찾아줘</a>
+        <a href="analyzing.html">16주 준비 로드맵 짜줘</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<nav class="flow-nav" aria-label="프로토타입 흐름">
+  <span class="lbl">흐름 3/10 · 공고 접수</span>
+  <a href="login.html">← 이전</a>
+  <a class="next" href="agent.html">Agent 상황실 →</a>
+</nav>
+</body>
+</html>
