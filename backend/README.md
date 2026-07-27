@@ -30,7 +30,24 @@ cp .env.example .env
 DB_URL=jdbc:mysql://localhost:3306/jobiss?serverTimezone=UTC&characterEncoding=UTF-8
 DB_USERNAME=root
 DB_PASSWORD=본인비밀번호
-JWT_SECRET=아무_긴_임의_문자열
+JWT_SECRET=32자_이상의_임의_문자열
+```
+
+> **주의: `JWT_SECRET`은 반드시 32자(256비트) 이상이어야 한다.** 짧으면 서버 시작 시
+> `WeakKeyException`으로 실행이 실패한다.
+
+임의의 JWT 시크릿 생성 방법 — 아래 명령 출력값을 복사해서 `JWT_SECRET=` 뒤에 붙여넣는다.
+
+Windows PowerShell:
+
+```powershell
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+macOS/Linux:
+
+```bash
+openssl rand -base64 48
 ```
 
 > `.env`는 Git에서 무시된다. 저장소·메신저·이슈에 절대 올리지 않는다.
