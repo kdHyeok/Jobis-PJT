@@ -20,13 +20,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from jobis_ai import trace
 from jobis_ai.contracts.api import ChatAttachment, ChatRequest, SourceType
 from jobis_ai.extract import extract_text
 from jobis_ai.graph import nodes
 from jobis_ai.orchestrator.chat import handle_chat
 from jobis_ai.structured import llm_unconfigured, run_structured
 from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
-from jobis_ai.webbridge import adapter, store
+from jobis_ai.webbridge import adapter, protocol, store
 
 log = logging.getLogger(__name__)
 
@@ -199,12 +200,56 @@ def chat_turn(body: dict[str, Any]) -> dict[str, Any]:
         ))
         message = ""
 
-    request = ChatRequest(
-        sessionId=str(body.get("sessionId") or "").strip() or "web",
-        message=message,
-        attachments=attachments,
+    session_id = str(body.get("sessionId") or "").strip() or "web"
+    request = ChatRequest(sessionId=session_id, message=message, attachments=attachments)
+
+    # 판정 그래프가 파싱을 남기면(적합도 분석 경로) 화면 항목화에 쓴다 — trace 로 줍는다.
+    parsed: dict[str, Any] = {}
+
+    def _collect(event: dict) -> None:
+        update = (event.get("detail") or {}).get("update") or {}
+        for key in ("normalizedJobPosting", "normalizedUserProfile"):
+            if update.get(key):
+                parsed[key] = update[key]
+
+    with trace.recording(sink=_collect):
+        resp = handle_chat(request).model_dump()
+
+    resp["context"] = _panel_context(session_id, resp, parsed)
+    return resp
+
+
+def _panel_context(session_id: str, resp: dict[str, Any], parsed: dict[str, Any]) -> dict[str, Any]:
+    """이번 턴까지 파싱된 공고·이력서를 화면 항목으로 — 우측 패널이 그린다.
+
+    항목 추출은 WS 경로(JOB_CONTEXT/PROFILE_CONTEXT)와 같은 코드(protocol.job_items/
+    profile_items)를 쓴다 — 문구를 새로 만들지 않고 파싱 결과만 옮긴다.
+    파싱된 공고는 세션에 캐시해(posting_summary) 다음 턴·새로고침에도 패널이 유지된다.
+    """
+
+    from jobis_ai.orchestrator.session import get_session_store
+
+    store_ = get_session_store()
+
+    # 공고: 이번 턴 파싱(그래프 or 공고 정리 에이전트) > 세션 캐시 순.
+    posting = (
+        parsed.get("normalizedJobPosting")
+        or ((resp.get("results") or {}).get("posting_analysis") or {}).get("postingAnalysis")
     )
-    return handle_chat(request).model_dump()
+    if posting:
+        store_.update(session_id, {"posting_summary": posting})
+    else:
+        posting = store_.get(session_id).get("posting_summary")
+
+    # 이력서: 이번 턴 파싱 > 세션의 프로필 캐시(ensure_profile 이 저장) 순.
+    profile = parsed.get("normalizedUserProfile") or store_.get(session_id).get("profile")
+
+    context: dict[str, Any] = {}
+    if posting:
+        context["job"] = protocol.job_items(posting)
+    if profile:
+        context["profile"] = protocol.profile_items(profile)
+    return context
 
 
 # 공고 원문에서만 보이는 표지어. 이게 없는 긴 글은 공고로 보지 않는다(이력서·자기소개일 수 있다).

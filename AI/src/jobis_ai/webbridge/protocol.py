@@ -97,17 +97,25 @@ def job_context(analysis_id: str, posting: dict, hint: Optional[dict] = None) ->
     # 연차 한글 표기는 AI 의 role_taxonomy 가 이미 갖고 있다 — 브릿지가 다시 정의하지 않는다.
     from jobis_ai.role_taxonomy import SENIORITY_KO
 
+    return {"type": "JOB_CONTEXT", "analysisId": analysis_id, **job_items(posting, hint)}
+
+
+def job_items(posting: dict, hint: Optional[dict] = None) -> dict:
+    """파싱한 공고 → 화면 항목. WS(JOB_CONTEXT)와 HTTP(/chat context)가 공유하는 순수 추출.
+
+    파싱 결과를 **항목으로** 낸다 — UI 는 이걸 오른쪽 패널에 표로 그린다.
+    백엔드는 company/role/career/stack 만 DB 에 저장하고 나머지는 그대로 중계한다(계약 유지).
+    """
+
+    from jobis_ai.role_taxonomy import SENIORITY_KO
+
     hint = hint or {}
     seniority = posting.get("seniority") or ""
     return {
-        "type": "JOB_CONTEXT",
-        "analysisId": analysis_id,
         "company": posting.get("companyName") or hint.get("company") or "",
         "role": posting.get("jobTitle") or posting.get("roleCategory") or hint.get("role") or "",
         "career": hint.get("career") or SENIORITY_KO.get(seniority, seniority),
         "stack": list(posting.get("techStack") or []),
-        # 파싱한 요건을 **항목으로** 함께 보낸다 — UI 는 이걸 오른쪽 패널에 표로 그린다.
-        # 백엔드는 company/role/career/stack 만 DB 에 저장하고 나머지는 그대로 중계한다(계약 유지).
         "required": [r.get("text", "") for r in (posting.get("requiredRequirements") or []) if r.get("text")],
         "preferred": [r.get("text", "") for r in (posting.get("preferredRequirements") or []) if r.get("text")],
         "domains": list(posting.get("domainKeywords") or []),
@@ -122,6 +130,12 @@ def profile_context(analysis_id: str, profile: dict) -> dict:
     파싱 결과만 옮긴다 — 없는 항목은 빈 목록으로 두고 추측하지 않는다.
     """
 
+    return {"type": "PROFILE_CONTEXT", "analysisId": analysis_id, **profile_items(profile)}
+
+
+def profile_items(profile: dict) -> dict:
+    """파싱한 이력서 → 화면 항목. WS(PROFILE_CONTEXT)와 HTTP(/chat context)가 공유하는 순수 추출."""
+
     def _labels(items: list, *keys: str) -> list[str]:
         out = []
         for item in items or []:
@@ -131,8 +145,6 @@ def profile_context(analysis_id: str, profile: dict) -> dict:
         return out
 
     return {
-        "type": "PROFILE_CONTEXT",
-        "analysisId": analysis_id,
         "skills": [s.get("name", "") for s in (profile.get("skills") or []) if s.get("name")],
         "projects": _labels(profile.get("projects"), "title"),
         "experiences": _labels(profile.get("experiences"), "company", "role"),

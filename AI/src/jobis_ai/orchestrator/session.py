@@ -37,6 +37,7 @@ ASSET_KEYS = frozenset({
     "roadmap",           # 준비 로드맵 (fit_analysis 산출 → roadmap_manager 조회)
     "coverletter",       # 자소서 초안 (항상 draft_pending_review 상태)
     "application_plan",  # {decision, routes} — application_plan 산출 (목표 상태·지원 경로)
+    "posting_summary",   # NormalizedJobPosting dict — 화면(우측 패널) 항목화용 파싱 결과 캐시
     "userId",
     "preparationPeriodWeeks",
     "availableHoursPerWeek",

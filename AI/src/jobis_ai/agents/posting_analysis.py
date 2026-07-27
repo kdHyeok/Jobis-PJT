@@ -95,27 +95,21 @@ def _seniority_line(posting: dict) -> str:
             break
 
     if evidence:
-        return f"요구 연차는 {label} 수준이에요(공고 표기: {evidence})."
-    return f"요구 연차는 {label} 수준이에요."
+        return f"**요구 연차** {label} 수준(공고 표기: {evidence})"
+    return f"**요구 연차** {label} 수준"
 
 
-def _fmt_reqs(reqs: list[dict], limit: int = 6) -> str:
-    texts = [str(r.get("text", "")).strip() for r in reqs if r.get("text")]
-    shown = " / ".join(texts[:limit])
-    more = f" 외 {len(texts) - limit}건" if len(texts) > limit else ""
-    return shown + more
+def _fmt_reqs(reqs: list[dict]) -> str:
+    """요건 전체를 나열한다 — "외 N건"으로 끊지 않는다(사용자가 무엇이 잘렸는지 알 수 없다)."""
 
-
-# 대화 한 줄에 나열할 요건 수. 나머지는 "외 N건"으로 접고, 전체 항목은 data 로 넘어간다
-# (웹 UI 는 그걸 오른쪽 패널에 표로 그린다). 한 문단에 다 붓으면 읽히지 않는다.
-_INLINE_REQS = 3
+    return " / ".join(str(r.get("text", "")).strip() for r in reqs if r.get("text"))
 
 
 def _summary_reply(posting: dict, closing: str) -> str:
     """파싱 결과를 **줄로 나눠** 요약 — 순수 조립, LLM 없음.
 
-    한 덩어리 문단이 아니라 항목별 줄로 낸다. 전체 목록은 AgentResult.data 에 그대로 실려
-    가므로, 화면이 있는 쪽(웹 패널)은 거기서 표로 그리고 대화에는 요점만 남는다.
+    한 덩어리 문단이 아니라 항목별 줄로 내고, 목록은 끝까지 나열한다. 라벨은 **굵게**
+    마크업한다(UI 가 강조 렌더링). 같은 항목이 우측 패널(JOB_CONTEXT/context)에도 표로 간다.
     """
 
     title = posting.get("jobTitle") or ""
@@ -128,17 +122,16 @@ def _summary_reply(posting: dict, closing: str) -> str:
     if seniority_line:
         lines.append(f"· {seniority_line}")
     if posting.get("requiredRequirements"):
-        lines.append(f"· 필수 요건 {len(posting['requiredRequirements'])}건 — "
-                     f"{_fmt_reqs(posting['requiredRequirements'], _INLINE_REQS)}")
+        lines.append(f"· **필수 요건** {len(posting['requiredRequirements'])}건 — "
+                     f"{_fmt_reqs(posting['requiredRequirements'])}")
     if posting.get("preferredRequirements"):
-        lines.append(f"· 우대 사항 {len(posting['preferredRequirements'])}건 — "
-                     f"{_fmt_reqs(posting['preferredRequirements'], _INLINE_REQS)}")
+        lines.append(f"· **우대 사항** {len(posting['preferredRequirements'])}건 — "
+                     f"{_fmt_reqs(posting['preferredRequirements'])}")
     if posting.get("techStack"):
-        lines.append(f"· 요구 기술 {len(posting['techStack'])}개 — "
-                     f"{', '.join(posting['techStack'][:6])}"
-                     + (" 외" if len(posting["techStack"]) > 6 else ""))
+        lines.append(f"· **요구 기술** {len(posting['techStack'])}개 — "
+                     f"{', '.join(posting['techStack'])}")
     if posting.get("domainKeywords"):
-        lines.append(f"· 도메인 — {', '.join(posting['domainKeywords'][:4])}")
+        lines.append(f"· **도메인** — {', '.join(posting['domainKeywords'])}")
 
     lines.append("")
     lines.append(closing)
