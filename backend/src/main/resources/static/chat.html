@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.O.B.I.S — 분석 대화 (실시간)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
+<script src="auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+<style>
+  /* 목표 상태 판정(decision) — 경로 위에 얹히는 종합 결론 카드 */
+  .decision{border-radius:14px;padding:15px 17px;margin:12px 0 14px;border:1px solid transparent}
+  .decision .dc-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;border-radius:20px;padding:4px 12px}
+  .decision .dc-head{font-size:16px;font-weight:800;letter-spacing:-.01em;margin-top:10px;line-height:1.4}
+  .decision .dc-reasons{margin:9px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+  .decision .dc-reasons li{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+  .decision .dc-hc{margin-top:12px;border-top:1px solid var(--line-2);padding-top:10px}
+  .decision .dc-hc-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+  .decision .hc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:4px 0}
+  .decision .hc-req{font-weight:700}
+  .decision .hc-cur{color:var(--muted)}
+  .decision .hc-sub{font-size:11px;font-weight:800;border-radius:6px;padding:2px 8px;margin-left:auto}
+  .decision .hc-sub.no{background:var(--warn-soft);color:var(--warn)}
+  .decision .hc-sub.ok{background:var(--ok-soft);color:var(--ok)}
+  .decision .dc-next,.decision .dc-recheck{font-size:12.5px;margin-top:9px;line-height:1.5;color:var(--ink-2)}
+  .decision .dc-next .k,.decision .dc-recheck .k{font-weight:800;color:var(--ink);margin-right:6px}
+  .decision.ready{background:var(--ok-soft)}
+  .decision.ready .dc-badge{background:var(--ok);color:var(--on-brand)}
+  .decision.ready .dc-head{color:var(--ok)}
+  .decision.caution{background:var(--warn-soft)}
+  .decision.caution .dc-badge{background:var(--warn);color:var(--on-brand)}
+  .decision.caution .dc-head{color:var(--warn)}
+  .decision.block{background:var(--warn-soft)}
+  .decision.block .dc-badge{background:var(--bad);color:var(--on-brand)}
+  .decision.block .dc-head{color:var(--bad)}
+  .decision.unknown{background:var(--surface-2);border-color:var(--line)}
+  .decision.unknown .dc-badge{background:var(--muted);color:var(--on-brand)}
+  .decision.unknown .dc-head{color:var(--ink-2)}
+  /* 경로를 판정 아래로 종속 */
+  .report-routes .rt .rt-sub{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:3px}
+  /* '권장' 도장이 카드 모서리에 걸치되(right:-12·top:-28) .report 경계 안에 머물게 → overflow 변경 불필요.
+     경로 그리드 위에 여백을 줘서 도장이 '준비·지원 경로' 헤딩을 침범하지 않게 한다. */
+  .report-routes .route-grid{margin-top:30px}
+  /* '권장' = 도장 느낌 — 권장 카드 우상단 모서리에 걸쳐 찍힌 듯. 흐름에서 빼서 상단 칩도 안 접힘 */
+  .route-card.rec{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-soft);position:relative}
+  .report-routes .route-effort{white-space:nowrap}
+  .route-rec{
+    position:absolute;top:-28px;right:-12px;width:48px;height:48px;border-radius:50%;
+    display:grid;place-items:center;text-align:center;
+    font-size:12.5px;font-weight:900;letter-spacing:-.8px;line-height:1;
+    color:var(--brand);background:transparent;border:2.5px solid currentColor;
+    box-shadow:inset 0 0 0 1.5px currentColor;
+    transform:rotate(-13deg);opacity:.9;z-index:3;pointer-events:none}
+  /* 분석 실패 카드 */
+  .fail-card{margin-top:10px;border:1px solid var(--warn);background:var(--warn-soft);border-radius:12px;padding:14px 16px}
+  .fail-card .fail-h{font-size:13px;font-weight:800;color:var(--warn);margin-bottom:10px}
+  .fail-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .fail-btn{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 13px;cursor:pointer;color:var(--ink-2)}
+  .fail-btn:hover{background:var(--surface-2)}
+  .fail-btn.pri{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+  /* ── 에이전트 레일 — 어느 에이전트가 무슨 일을 하는지 스트리밍 (아이콘: AI팀 cards sprite) ── */
+  .agent-rail{display:flex;flex-direction:column;gap:11px}
+  .agent-rail .ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .agent-rail .ic-soft{stroke-opacity:.42}
+  .ar-done{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .ar-done:empty{display:none}
+  .ar-done .av{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);
+    display:grid;place-items:center;color:var(--muted);position:relative;flex:0 0 auto}
+  .ar-done .av svg{width:15px;height:15px}
+  .ar-done .av::after{content:'✓';position:absolute;right:-4px;bottom:-4px;font-size:8px;font-weight:900;
+    color:var(--on-brand,#14120f);background:var(--brand);border-radius:50%;width:12px;height:12px;
+    display:grid;place-items:center}
+  .ar-done .arw{color:var(--faint);font-size:11px;margin:0 1px}
+  .ar-now{display:flex;align-items:center;gap:12px}
+  .ar-now .big{width:42px;height:42px;border-radius:13px;border:1px solid var(--line);background:var(--brand-soft);
+    color:var(--brand-ink);display:grid;place-items:center;flex:0 0 auto;animation:arPulse 1.7s ease-in-out infinite}
+  .ar-now .big svg{width:25px;height:25px}
+  .ar-now .who{font-size:13.5px;font-weight:800;letter-spacing:-.01em}
+  .ar-now .who .en{font-size:10.5px;font-weight:600;color:var(--faint);margin-left:6px;letter-spacing:0}
+  .ar-now .doing{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+  @keyframes arPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ac,#fff) 28%,transparent)}50%{box-shadow:0 0 0 8px transparent}}
+  /* 에이전트 독 — thread 와 composer 사이 고정(스크롤과 무관하게 항상 보임) */
+  .agent-dock{border-top:1px solid var(--line);background:var(--surface-2);padding:11px 24px 10px}
+  .agent-dock-inner{max-width:760px;margin:0 auto}
+  .agent-dock .ar-now .big{width:36px;height:36px;border-radius:11px}
+  .agent-dock .ar-now .big svg{width:22px;height:22px}
+  .agent-dock.finished .ar-now .big{animation:none}
+  /* 말풍선 화자 아바타 — 에이전트가 직접 말할 때(J.O.B.I.S 기본 ✦ 대신 아이콘 + 화자 고유색) */
+  .who.agent{color:var(--ac,var(--brand-ink));border:1px solid color-mix(in srgb,var(--ac,#fff) 42%,transparent);
+    background:color-mix(in srgb,var(--ac,#fff) 13%,transparent)}
+  .who.agent svg{width:18px;height:18px}
+  .who.agent .ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .who.agent .ic-soft{stroke-opacity:.42}
+  /* 화자색이 이름·말풍선 테두리에도 스며들게 */
+  .msg.agent-msg .name{color:color-mix(in srgb,var(--ac) 62%,var(--ink))}
+  .msg.agent-msg .bubble{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
+  /* 독의 지나간 아바타·현재 에이전트도 각자 색 */
+  .ar-done .av{color:var(--ac,var(--muted));border-color:color-mix(in srgb,var(--ac,#fff) 32%,transparent);
+    background:color-mix(in srgb,var(--ac,#fff) 9%,transparent)}
+  .ar-now .big{color:var(--ac,var(--brand-ink));border-color:color-mix(in srgb,var(--ac,#fff) 40%,transparent);
+    background:color-mix(in srgb,var(--ac,#fff) 13%,transparent)}
+</style>
+</head>
+<body>
+<button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
+<svg style="display:none" aria-hidden="true">
+  <!-- 에이전트 아이콘 sprite — AI팀 jobis-agent-cards.html 에서 이식 (10노드 공용) -->
+  <defs>
+    <!-- 1. parse_job_posting : 비정형 문서 → 정형 표 -->
+    <symbol id="ic-parse" viewBox="0 0 48 48">
+      <rect class="ic" x="4" y="9" width="15" height="30" rx="2.5"/>
+      <path class="ic ic-soft" d="M7.5,16h8 M7.5,21h8 M7.5,26h5.5 M7.5,31h8"/>
+      <path class="ic" d="M22,24h6 M25.5,20.5l3.5,3.5l-3.5,3.5"/>
+      <rect class="ic" x="31" y="11" width="13" height="26" rx="2.5"/>
+      <path class="ic" d="M31,18h13 M31,25h13 M31,32h13 M37.5,18v19"/>
+    </symbol>
+
+    <!-- 2. build_user_profile : 사람 + 근거 카드 -->
+    <symbol id="ic-profile" viewBox="0 0 48 48">
+      <circle class="ic" cx="14" cy="14" r="5.5"/>
+      <path class="ic" d="M5,32c0-5,4-8,9-8s9,3,9,8"/>
+      <rect class="ic" x="27" y="12" width="17" height="24" rx="2.5"/>
+      <path class="ic ic-soft" d="M30.5,19h10 M30.5,24h10 M30.5,29h6.5"/>
+      <path class="ic ic-dash" d="M20,32h6"/>
+      <circle class="ic-fill" cx="27" cy="32" r="1.8"/>
+    </symbol>
+
+    <!-- 3. check_profile_completeness : 체크리스트 + 미기입 -->
+    <symbol id="ic-complete" viewBox="0 0 48 48">
+      <rect class="ic" x="8" y="6" width="32" height="36" rx="3"/>
+      <rect class="ic" x="13" y="12" width="7" height="7" rx="1.5"/>
+      <path class="ic" d="M14.5,15.5l2,2l3.5,-4"/>
+      <path class="ic ic-soft" d="M24,15.5h11"/>
+      <rect class="ic" x="13" y="22.5" width="7" height="7" rx="1.5"/>
+      <path class="ic" d="M14.5,26l2,2l3.5,-4"/>
+      <path class="ic ic-soft" d="M24,26h11"/>
+      <rect class="ic ic-dash" x="13" y="33" width="7" height="7" rx="1.5"/>
+      <path class="ic" d="M24.5,34.6a2.6,2.6 0 1 1 2.6,2.6v1.3"/>
+      <circle class="ic-fill" cx="27.1" cy="40.4" r="1.3"/>
+    </symbol>
+
+    <!-- 4. check_sufficiency : 판정 가능한가 게이지 -->
+    <symbol id="ic-sufficiency" viewBox="0 0 48 48">
+      <path class="ic" d="M8,34a16,16 0 0 1 32,0"/>
+      <path class="ic ic-soft" d="M9.5,24.5l3,1.6 M24,14v3.4 M38.5,24.5l-3,1.6"/>
+      <path class="ic" d="M24,34l8.5,-8"/>
+      <circle class="ic-fill" cx="24" cy="34" r="2.6"/>
+      <path class="ic ic-soft" d="M6,38h36"/>
+    </symbol>
+
+    <!-- 5. ask_user : 추가 질문 -->
+    <symbol id="ic-ask" viewBox="0 0 48 48">
+      <path class="ic" d="M9,10h30a4,4 0 0 1 4,4v16a4,4 0 0 1 -4,4h-16l-9,7v-7h-5a4,4 0 0 1 -4,-4v-16a4,4 0 0 1 4,-4z"/>
+      <path class="ic" d="M20.3,18.6a3.9,3.9 0 1 1 3.9,3.9v2.3"/>
+      <circle class="ic-fill" cx="24.2" cy="28.6" r="1.7"/>
+    </symbol>
+
+    <!-- 6. analyze_gap : 요구 수준 vs 보유 수준의 갭 -->
+    <symbol id="ic-gap" viewBox="0 0 48 48">
+      <path class="ic ic-soft" d="M5,39h38"/>
+      <rect class="ic" x="10" y="11" width="10" height="28" rx="1.5"/>
+      <rect class="ic ic-fill" x="27" y="26" width="10" height="13" rx="1.5"/>
+      <path class="ic ic-dash" d="M20,12h20"/>
+      <path class="ic" d="M37,25.6V12.4 M34.6,15l2.4,-2.6l2.4,2.6 M34.6,23l2.4,2.6l2.4,-2.6"/>
+    </symbol>
+
+    <!-- 7. plan_roadmap : 기간 배치(간트) + 완료 기준 -->
+    <symbol id="ic-roadmap" viewBox="0 0 48 48">
+      <path class="ic ic-soft" d="M7,8v33h34"/>
+      <rect class="ic ic-fill" x="11" y="12" width="19" height="5.5" rx="2.7"/>
+      <rect class="ic" x="17" y="21.5" width="19" height="5.5" rx="2.7"/>
+      <rect class="ic" x="23" y="31" width="16" height="5.5" rx="2.7"/>
+      <path class="ic ic-dash ic-soft" d="M17,8v33"/>
+    </symbol>
+
+    <!-- 8. find_alternatives : 대체 경로 분기 -->
+    <symbol id="ic-alt" viewBox="0 0 48 48">
+      <circle class="ic" cx="9" cy="24" r="4.5"/>
+      <path class="ic" d="M13.5,22.5C21,20 25,14 30.5,13"/>
+      <path class="ic ic-dash" d="M13.5,25.5C21,28 25,34 30.5,35"/>
+      <circle class="ic" cx="37" cy="12" r="4.5"/>
+      <circle class="ic ic-fill" cx="37" cy="36" r="4.5"/>
+      <path class="ic ic-soft" d="M9,7v9 M9,32v9"/>
+    </symbol>
+
+    <!-- 9. verify_result : 4단 검수 통과 -->
+    <symbol id="ic-verify" viewBox="0 0 48 48">
+      <path class="ic" d="M24,5l15,5.5v13c0,10 -6.5,15.5 -15,19.5c-8.5,-4 -15,-9.5 -15,-19.5v-13z"/>
+      <path class="ic" d="M16.5,23.5l5,5l10,-10"/>
+    </symbol>
+
+    <!-- 10. assemble_output : 산출물 조립 + 자연어 한 문장 -->
+    <symbol id="ic-assemble" viewBox="0 0 48 48">
+      <rect class="ic ic-soft" x="6" y="6" width="21" height="27" rx="2.5"/>
+      <rect class="ic ic-soft" x="11" y="10" width="21" height="27" rx="2.5"/>
+      <rect class="ic" x="16" y="14" width="23" height="28" rx="2.5"/>
+      <path class="ic ic-soft" d="M20,21h15 M20,26h15 M20,31h9"/>
+      <path class="ic" d="M40,4l1.6,3.9L45.5,9.5l-3.9,1.6L40,15l-1.6,-3.9L34.5,9.5l3.9,-1.6z"/>
+    </symbol>
+
+    </defs>
+</svg>
+<div class="app">
+  <!-- ============ 사이드바 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
+    </div>
+    <button class="new-btn" onclick="location.href='new.html'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      새 분석 시작
+    </button>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <input placeholder="분석 검색">
+    </div>
+    <div class="side-scroll">
+      <a class="side-nav" onclick="location.href='storage.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        커리어 저장소
+      </a>
+      <a class="side-nav" onclick="location.href='roadmaps.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+        로드맵 저장소
+      </a>
+      <div class="side-label">최근 분석</div>
+      <div id="recentList"><div class="side-empty">불러오는 중…</div></div>
+      <div class="side-card">
+        <h4>이번 분석 자료</h4>
+        <div id="evFiles"><div class="file-row" style="color:var(--faint)"><span class="nm">불러오는 중…</span></div></div>
+      </div>
+      <div class="side-card">
+        <h4>분석 단계</h4>
+        <ul class="mini-stages" id="miniStages">
+          <li class="active">공고 · 자료 대조</li>
+          <li>추가 질문</li>
+          <li>준비 로드맵 생성</li>
+        </ul>
+      </div>
+    </div>
+    <div class="userchip">
+      <div class="av" id="sideAv">?</div>
+      <div><div class="u-name" id="sideName">사용자</div><div class="u-mail" id="sideMail"></div></div>
+      <button class="more" id="logoutBtn" title="로그아웃" style="background:none;border:0;font-size:16px;color:var(--faint)">⎋</button>
+    </div>
+  </aside>
+
+  <!-- ============ 메인(채팅) ============ -->
+  <main class="main">
+    <div class="topbar">
+      <div class="model-pill"><span class="g" id="connDot"></span> J.O.B.I.S 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
+      <div>
+        <div class="title" id="topTitle">분석 세션</div>
+        <div class="sub" id="topSub">실시간 분석 세션</div>
+      </div>
+      <div class="sp"></div>
+      <button class="dark-btn" onclick="location.href='new.html'">＋ 새 분석</button>
+    </div>
+
+    <div class="chat-scroll" id="scroll">
+      <div class="chat-inner" id="thread"></div>
+    </div>
+
+    <!-- 에이전트 독 — 분석 중 상시 표시(스크롤과 무관). 팀이 손을 거치는 과정이 여기 쌓인다 -->
+    <div class="agent-dock" id="agentDock" style="display:none">
+      <div class="agent-dock-inner agent-rail">
+        <div class="ar-done" id="dockDone"></div>
+        <div class="ar-now" id="dockNow"></div>
+        <div style="height:5px;background:var(--line-2);border-radius:20px;overflow:hidden"><i id="dockBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:20px;transition:width .5s"></i></div>
+      </div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer-inner">
+        <div class="assist-note" id="assistNote"><i class="i i-bulb"></i> 질문이 오면 선택지를 누르거나 직접 답할 수 있어요</div>
+        <div class="composer">
+          <div class="field" id="field" contenteditable="true" data-ph="답변을 입력하세요…"></div>
+          <div class="toolrow">
+            <button class="tbtn icon" title="첨부"><i class="i i-clip"></i></button>
+            <button class="tbtn"><i class="i i-link"></i> 포트폴리오 링크</button>
+            <button class="send" id="send" title="전송" aria-label="전송" disabled>➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 우측 인사이트 패널 ============ -->
+  <aside class="insight">
+    <div class="insight-head">
+      <div class="t">인사이트 <span class="badge wait" id="insBadge">분석 중</span></div>
+      <div class="s">답변에 따라 실시간 갱신됩니다</div>
+    </div>
+    <div class="insight-scroll" id="insightScroll">
+      <div class="ipanel">
+        <div class="ih">현재 스펙 요약</div>
+        <div class="spec-row"><span class="k">경력 수준</span><span class="v">신입 · 프로젝트 3건</span></div>
+        <div class="spec-row"><span class="k">강점</span><span class="v">Java · 성능 개선</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:9px">주요 스택</div>
+        <div class="stacks"><span class="stk">Java</span><span class="stk">Spring Boot</span><span class="stk">JPA</span><span class="stk">MySQL</span></div>
+      </div>
+      <div class="ipanel">
+        <div class="ih">공고 준비도 <span class="n mut" id="fitDelta">분석 중</span></div>
+        <div class="fit-big"><div class="num" id="fitNum">—<small>/100</small></div><div class="lbl" id="fitLbl">분석이 끝나면 표시됩니다</div></div>
+      </div>
+      <div class="empty-panel" id="planEmpty">
+        <div class="e-ic"><i class="i i-map"></i></div>
+        <div class="e-t">준비 로드맵 생성 대기</div>
+        <div class="e-s">분석이 끝나면<br>맞춤 로드맵이 완성됩니다</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<nav class="flow-nav">
+  <span class="lbl" id="flowLbl">실시간 분석 · 대기</span>
+  <a href="index.html">← 랜딩</a>
+</nav>
+
+<script>
+(function () {
+  if (!JB.requireAuth()) return;
+
+  var WS_URL = 'ws://' + location.host + '/ws';
+  var thread = document.getElementById('thread');
+  var scroll = document.getElementById('scroll');
+  var field = document.getElementById('field');
+  var send = document.getElementById('send');
+
+  // URL의 분석 id (새 분석 화면에서 이미 세션을 열고 넘어옴)
+  var analysisId = new URLSearchParams(location.search).get('id');
+  if (!analysisId) { location.href = 'new.html'; return; }
+  var openRoute = new URLSearchParams(location.search).get('route');   // 로드맵 저장소에서 특정 경로 상태로 열기
+
+  var USER = JB.user() || {};
+  var UNAME = USER.name || '사용자';
+  var UINIT = UNAME.slice(0, 1);
+
+  var client = null;
+  var currentQuestion = null;     // 답 대기 중인 질문
+  var progressEl = null;          // 갱신되는 진행 상태 말풍선
+  var jobLabel = '';              // 공고명(리포트 헤더에 사용)
+  var parentLabel = null;         // 대체 공고 재분석이면 원래 공고명 (서버 상태조회에서 채움 → 영구)
+  var selectedRoute = null;       // 경로 비교에서 고른 주 경로 id (서버 상태조회에서 채움 → 복원 시 표시)
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // AI가 보낸 값을 그대로 HTML/속성에 넣지 않도록 숫자는 숫자로 강제(신뢰 불가 채널 방어).
+  function num(v){ var n = Number(v); return isFinite(n) ? n : 0; }
+  // 속성 컨텍스트용: 따옴표까지 이스케이프(신뢰 불가 채널 값이 data-*/class 속성에 들어갈 때).
+  function escA(s){ return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // ---------- 로그인 사용자 반영 ----------
+  document.getElementById('sideAv').textContent = UINIT;
+  document.getElementById('sideName').textContent = UNAME;
+  document.getElementById('sideMail').textContent = USER.email || '';
+  document.getElementById('logoutBtn').addEventListener('click', function(){ JB.logout(); location.href = 'login.html'; });
+
+  // ---------- 사이드바: 이번 분석 자료(새 분석 화면에서 넘어온 선택) ----------
+  var KIND_FI = { PROJECT:'PJ', GITHUB:'GH', PORTFOLIO:'PF', STACK:'ST', EDU:'ED', CERT:'CT' };
+  var KIND_CLS = { PROJECT:'cv', GITHUB:'gh', PORTFOLIO:'pf', STACK:'jd', EDU:'jd', CERT:'pf' };
+  (function fillEvidenceFiles(){
+    var box = document.getElementById('evFiles');
+    var meta = null;
+    try { meta = JSON.parse(sessionStorage.getItem('jobis.analysisMeta') || 'null'); } catch(e){}
+    var evs = (meta && meta.id === analysisId && Array.isArray(meta.evidences)) ? meta.evidences : null;
+    if (!evs || !evs.length){
+      box.innerHTML = '<div class="file-row" style="color:var(--faint)"><span class="nm">선택한 자료로 분석 중</span></div>';
+      return;
+    }
+    box.innerHTML = evs.map(function(e){
+      var fi = KIND_FI[e.kind] || 'DOC';
+      var cls = KIND_CLS[e.kind] || 'jd';
+      return '<div class="file-row"><span class="fi '+cls+'">'+esc(fi)+'</span><span class="nm">'+esc(e.label)+'</span><span class="ck">✓</span></div>';
+    }).join('');
+  })();
+
+  // ---------- 사이드바 최근 분석 목록 ----------
+  JB.loadSessions(document.getElementById('recentList'), analysisId);
+
+  // ---------- 공고 정보 + 라이브/복원 분기 ----------
+  // 완료된 분석이면 결과(로드맵)부터 복원, 아니면 실시간으로 시작.
+  JB.api('/api/analyses/' + encodeURIComponent(analysisId)).then(function(st){
+    var jp = st.jobPosting || {};
+    var title = (jp.company || '') + (jp.role ? ' · ' + jp.role : '');
+    if (title.trim()){
+      jobLabel = title;
+      document.getElementById('topTitle').textContent = title;
+      document.title = 'J.O.B.I.S — ' + (jp.company || '분석');
+    }
+    parentLabel = st.parentLabel || null;   // 대체 재분석이면 원래 공고명 (서버가 보관)
+    selectedRoute = st.selectedRoute || null;   // 고른 주 경로 id (서버가 보관 → 복원 시 표시)
+    if (st.status === 'COMPLETED') {
+      fillJobReq(jp.career, jp.stack);   // 저장된 공고 요구 기술
+      restore();                          // 지난 분석: 결과(로드맵)부터
+    } else if (st.status === 'FAILED') {
+      renderFailure({ message: '이전 분석이 완료되지 못했어요.', recoverable: true });   // 실패로 끝난 분석 — 실시간 재개 대신 복구 안내
+    } else {
+      boot();                             // 진행 중/새 분석: 실시간
+    }
+  }).catch(function(){
+    // 상태 조회 실패(삭제됐거나 권한 없음) — 실시간 세션을 새로 열지 말고 명확히 알린다.
+    systemNote('이 분석을 열 수 없어요. 삭제됐거나 접근 권한이 없어요.');
+    var ct = document.getElementById('connTxt');
+    ct.textContent = '열 수 없음'; ct.style.color = 'var(--bad)';
+  });
+  function scrollDown(){ scroll.scrollTop = scroll.scrollHeight; }
+
+  // 화자 결정 — speaker(에이전트 key)가 있으면 그 에이전트 아이콘·역할명·고유색으로, 없으면 J.O.B.I.S.
+  function whoHtml(speaker){
+    var a = speaker && AGENT_META[speaker];
+    if(a) return { av:'<div class="who ai agent"><svg><use href="#'+a.icon+'"/></svg></div>', name:a.name, color:a.color };
+    return { av:'<div class="who ai">✦</div>', name:'J.O.B.I.S', color:null };
+  }
+  // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
+  function aiBubble(html, extra, speaker){
+    var w = whoHtml(speaker);
+    var el = document.createElement('div');
+    el.className = 'msg' + (w.color ? ' agent-msg' : '');
+    if(w.color) el.style.setProperty('--ac', w.color);   // 화자색 → 아바타·이름·말풍선 테두리
+    el.innerHTML = w.av + '<div class="body">' +
+      '<div class="name">'+esc(w.name)+' <span class="t">방금</span></div>' +
+      '<div class="bubble"></div>' + (extra||'') + '</div>';
+    thread.appendChild(el); scrollDown();
+    el.querySelector('.bubble').innerHTML = html;
+    return el;
+  }
+
+  /**
+   * 가짜 스트리밍: AI 말풍선을 글자 하나씩 찍는 연출.
+   * 백엔드는 완성 문장을 한 번에 주지만, 화면에서 ChatGPT처럼 또르르 보이게 한다.
+   * plainText = 타이핑할 순수 텍스트(HTML 태그 없이). extra/onExtra = 타이핑 후 붙일 카드/바인딩.
+   */
+  function aiTyping(plainText, opts){
+    opts = opts || {};
+    var w = whoHtml(opts.speaker);
+    var el = document.createElement('div');
+    el.className = 'msg' + (w.color ? ' agent-msg' : '');
+    if(w.color) el.style.setProperty('--ac', w.color);   // 화자색 → 아바타·이름·말풍선 테두리
+    el.innerHTML = w.av + '<div class="body">' +
+      '<div class="name">'+esc(w.name)+' <span class="t">방금</span></div>' +
+      '<div class="bubble"><span class="tw"></span><span class="caret">▍</span></div></div>';
+    thread.appendChild(el); scrollDown();
+    var tw = el.querySelector('.tw');
+    var caret = el.querySelector('.caret');
+    var i = 0;
+    var speed = opts.speed || 22;   // ms per char
+    (function tick(){
+      if(i <= plainText.length){
+        tw.textContent = plainText.slice(0, i);
+        i++;
+        if(i % 3 === 0) scrollDown();
+        setTimeout(tick, speed);
+      } else {
+        if(caret) caret.remove();
+        if(opts.extraHtml){
+          var body = el.querySelector('.body');
+          var wrap = document.createElement('div');
+          wrap.innerHTML = opts.extraHtml;
+          while(wrap.firstChild) body.appendChild(wrap.firstChild);
+        }
+        scrollDown();
+        if(opts.onDone) opts.onDone(el);
+      }
+    })();
+    return el;
+  }
+  function userBubble(text){
+    var el = document.createElement('div');
+    el.className = 'msg user';
+    el.innerHTML = '<div class="who me">'+esc(UINIT)+'</div><div class="body">' +
+      '<div class="name">'+esc(UNAME)+' <span class="t">방금</span></div>' +
+      '<div class="bubble">'+esc(text)+'</div></div>';
+    thread.appendChild(el); scrollDown();
+  }
+  function systemNote(text){
+    var el = document.createElement('div');
+    el.style.cssText = 'text-align:center;font-size:12px;color:var(--muted);margin:2px 0';
+    el.textContent = text; thread.appendChild(el); scrollDown();
+  }
+
+  // ---------- 신호별 처리 ----------
+  // 에이전트 레일 — PROGRESS의 agent 필드로 "누가 무슨 일을 하는지"를 그린다.
+  // (진짜 AI의 SSE envelope {status,from,to,message}와 같은 모양 — 필드만 매핑하면 그대로 붙음)
+  // color = 화자 고유색 (AI팀 카드의 계층 색을 다크 테마용으로: 읽기=주황계 · 판단=청록/파랑계 · 말하기=보라계)
+  var AGENT_META = {
+    parse_job_posting:   { name:'공고 분석가',   icon:'ic-parse',       color:'var(--ag-parse)' },
+    build_user_profile:  { name:'이력 정리 담당', icon:'ic-profile',     color:'var(--ag-profile)' },
+    check_profile_completeness: { name:'프로필 점검 담당', icon:'ic-complete', color:'var(--ag-complete)' },
+    check_sufficiency:   { name:'정보 점검 담당', icon:'ic-sufficiency', color:'var(--ag-sufficiency)' },
+    ask_user:            { name:'질문 담당',     icon:'ic-ask',         color:'var(--ag-ask)' },
+    analyze_gap:         { name:'갭 분석가',     icon:'ic-gap',         color:'var(--ag-gap)' },
+    plan_roadmap:        { name:'로드맵 설계자', icon:'ic-roadmap',     color:'var(--ag-roadmap)' },
+    find_alternatives:   { name:'경로 탐색가',   icon:'ic-alt',         color:'var(--ag-alt)' },
+    verify_result:       { name:'검증 담당',     icon:'ic-verify',      color:'var(--ag-verify)' },
+    assemble_output:     { name:'리포트 작성자', icon:'ic-assemble',    color:'var(--ag-assemble)' }
+  };
+  var AGENT_STAGE = { parse_job_posting:0, build_user_profile:0, check_sufficiency:0, ask_user:1,
+    analyze_gap:2, plan_roadmap:2, find_alternatives:2, verify_result:2, assemble_output:2 };
+  var railDone = [], railCur = null;   // 지나간 에이전트들 · 현재 에이전트 (질문 중에도 독에 이력 유지)
+
+  function agentAv(key){
+    var a = AGENT_META[key] || {};
+    return '<span class="av"'+(a.color ? ' style="--ac:'+a.color+'"' : '')+' title="'+esc(a.name||key)+'">' +
+      '<svg><use href="#'+(a.icon||'ic-parse')+'"/></svg></span>';
+  }
+  function onProgress(m){
+    if(!m.agent) return onProgressLegacy(m);   // 옛 계약(agent 없음) 하위호환
+    var isNew = railCur !== m.agent;
+    if(railCur && isNew && railDone.indexOf(railCur) < 0) railDone.push(railCur);
+    railCur = m.agent;
+    var meta = AGENT_META[m.agent] || {};
+    var name = m.agentName || meta.name || m.agent;
+    var pct = num(m.percent);
+    // ① 하단 독 갱신 — 지나간 에이전트가 ✓로 쌓이고 현재 에이전트가 펄스
+    var dock = document.getElementById('agentDock');
+    dock.style.display = ''; dock.classList.remove('finished');
+    document.getElementById('dockDone').innerHTML = railDone.map(agentAv).join('<span class="arw">→</span>');
+    document.getElementById('dockNow').innerHTML =
+      '<span class="big"'+(meta.color ? ' style="--ac:'+meta.color+'"' : '')+'><svg><use href="#'+(meta.icon||'ic-parse')+'"/></svg></span>' +
+      '<span><div class="who"'+(meta.color ? ' style="color:'+meta.color+'"' : '')+'>'+esc(name)+'<span class="en">'+esc(m.agent)+'</span></div>' +
+      '<div class="doing">'+esc(m.message || m.stage || '')+'</div></span>';
+    document.getElementById('dockBar').style.width = pct + '%';
+    // ② 채팅에도 등장 — 새 에이전트가 일을 받으면 그 에이전트 명의로 한마디
+    //    (ask_user 는 곧바로 질문 말풍선으로 직접 말하므로 중복 안내는 생략)
+    if(isNew && m.agent !== 'ask_user' && m.message){
+      aiTyping(m.message, { speaker: m.agent, speed: 14 });
+    }
+    document.getElementById('topSub').textContent = '분석 중 · ' + name;
+    document.getElementById('flowLbl').textContent = '실시간 분석 · ' + name + ' · ' + pct + '%';
+    // 좌측 "분석 단계" 미니 리스트도 같은 신호로 동기화
+    var g = AGENT_STAGE[m.agent] != null ? AGENT_STAGE[m.agent] : 0;
+    document.querySelectorAll('#miniStages li').forEach(function(li, i){
+      li.className = i < g ? 'done' : (i === g ? 'active' : '');
+    });
+    scrollDown();
+  }
+  function onProgressLegacy(m){
+    if(!progressEl){
+      progressEl = aiBubble('<span id="progText"></span>');
+      progressEl.querySelector('.bubble').innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px">' +
+        '<span class="spin" style="width:14px;height:14px;border:2px solid rgba(245,241,236,.2);border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:spin 1s linear infinite"></span>' +
+        '<span id="progText"></span></div>' +
+        '<div style="height:6px;background:var(--line-2);border-radius:20px;margin-top:10px;overflow:hidden"><i id="progBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:20px;transition:width .5s"></i></div>';
+    }
+    var pct = num(m.percent);
+    progressEl.querySelector('#progText').innerHTML = '분석 진행 중 · <b>'+pct+'%</b> — '+esc(m.stage);
+    progressEl.querySelector('#progBar').style.width = pct + '%';
+    document.getElementById('topSub').textContent = '분석 중 · ' + pct + '%';
+    document.getElementById('flowLbl').textContent = '실시간 분석 · ' + pct + '%';
+    scrollDown();
+  }
+  /** 분석 완료 시 독 마무리 — 현재 에이전트까지 ✓로 넘기고 펄스 중단, 잠시 후 접힘. */
+  function finishRail(){
+    if(railCur && railDone.indexOf(railCur) < 0) railDone.push(railCur);
+    var dock = document.getElementById('agentDock');
+    if(dock && dock.style.display !== 'none'){
+      dock.classList.add('finished');
+      document.getElementById('dockDone').innerHTML = railDone.map(agentAv).join('<span class="arw">→</span>');
+      document.getElementById('dockNow').innerHTML =
+        '<span style="font-size:12.5px;color:var(--muted)">에이전트 '+railDone.length+'명이 분석을 마쳤어요 ✓</span>';
+      document.getElementById('dockBar').style.width = '100%';
+      setTimeout(function(){ dock.style.display = 'none'; }, 3200);
+    }
+    railCur = null;
+  }
+
+  function onQuestion(m){
+    // 진행바 말풍선을 정리 → 다음(2차) 진행이 Q&A 아래 새 말풍선으로 보이게(화면 밖 갱신 방지)
+    if(progressEl){ progressEl.remove(); progressEl = null; }
+    currentQuestion = m;
+    var opts = (m.options||[]).map(function(o){ return '<button data-opt>'+esc(o)+'</button>'; }).join('');
+    var extra = '<div class="qcard"><span class="tag">'+(m.agentName ? esc(m.agentName)+' · ' : '')+'확인 질문</span>' +
+      '<div class="q">'+esc(m.text)+'</div>' +
+      (opts ? '<div class="opts">'+opts+'</div>' : '') +
+      '<div class="hint">선택지를 누르거나 아래에 직접 답할 수 있어요.</div></div>';
+    // 안내 문장은 타이핑 연출, 질문 카드는 타이핑 끝난 뒤 등장 + 버튼 바인딩
+    aiTyping('잠시 확인할 게 있어요. 답해주시면 반영해서 이어갈게요.', {
+      speaker: 'ask_user',   // 질문 담당이 직접 묻는다
+      extraHtml: extra,
+      onDone: function(el){
+        el.querySelectorAll('[data-opt]').forEach(function(b){
+          b.addEventListener('click', function(){ answer(b.textContent); });
+        });
+        send.disabled = false;
+        field.setAttribute('data-ph', '답변을 입력하세요…');
+        document.getElementById('assistNote').innerHTML = '<i class="i i-bulb"></i> 이 질문에 답해주세요 (선택지 클릭 또는 직접 입력)';
+        field.focus();
+      }
+    });
+  }
+
+  function answer(text){
+    if(!currentQuestion || !text) return;
+    userBubble(text);
+    client.publish({
+      destination: '/app/agent/' + analysisId + '/message',
+      body: JSON.stringify({ text: text, replyTo: currentQuestion.questionId })
+    });
+    currentQuestion = null;
+    send.disabled = true;
+    field.textContent = '';
+    field.setAttribute('data-ph', '분석을 이어가는 중…');
+    document.getElementById('assistNote').innerHTML = '<i class="i i-bulb"></i> 답변을 반영해 분석을 이어갑니다…';
+  }
+
+  function onDone(m){
+    if(progressEl){ progressEl.remove(); progressEl = null; }
+    renderResult(m.result || {});
+  }
+
+  // 결과(로드맵) 렌더 — 라이브 완료(onDone)와 복원(restore) 둘 다 사용.
+  function renderResult(r){
+    var rd = r.readiness || {};
+    document.getElementById('insBadge').className = 'badge live';
+    document.getElementById('insBadge').textContent = '완료';
+    document.getElementById('fitNum').innerHTML = (rd.now!=null?num(rd.now):'—') + '<small>/100</small>';
+    document.getElementById('fitDelta').className = 'n up'; document.getElementById('fitDelta').textContent = '▲ 목표 '+ (rd.goal!=null?num(rd.goal):'');
+    document.getElementById('fitLbl').textContent = '로드맵 완주 시 ' + (rd.goal!=null?num(rd.goal):'') + ' 목표';
+    var pe = document.getElementById('planEmpty');
+    if(pe) pe.outerHTML = '<div class="ipanel"><div class="ih">준비 로드맵 <span class="n up">'+((r.roadmap||[]).length)+'단계</span></div>' +
+      '<div class="spec-row"><span class="k">우선 보완</span><span class="v">'+esc(rd.topGap||'')+'</span></div>' +
+      '<div class="spec-row"><span class="k">산출물</span><span class="v">'+esc((r.artifact||{}).title||'')+'</span></div></div>';
+    finishRail();   // 에이전트 레일 마무리(✓ 처리·펄스 중단)
+    document.getElementById('topSub').textContent = '분석 완료';
+    document.getElementById('flowLbl').textContent = '분석 완료 ✓';
+    document.querySelectorAll('#miniStages li').forEach(function(li){ li.className='done'; });
+    var reportEl = aiBubble('분석이 끝났어요. <strong>'+esc(rd.topGap||'')+'</strong>이 가장 큰 격차입니다. 아래 로드맵을 확인해보세요.', buildReport(r), 'assemble_output');   // 리포트 작성자 명의
+    var altBtn = reportEl.querySelector('[data-alts]');
+    if(altBtn){ altBtn.addEventListener('click', function(){ showAlternatives(r.alternatives || []); }); }
+    // 경로 선택 바인딩 + 복원 시 이미 고른 경로 강조
+    reportEl.querySelectorAll('[data-route-pick]').forEach(function(btn){
+      btn.addEventListener('click', function(){ pickRoute(r, btn.getAttribute('data-route-pick'), reportEl); });
+    });
+    // 저장소/홈에서 열면 그 로드맵의 경로를 우선 표시. 실제 존재하는 경로일 때만 마크(잘못된 route 파라미터 방어).
+    var routeToShow = openRoute || selectedRoute;
+    var selRt = routeToShow ? (r.routes||[]).filter(function(x){ return x.id === routeToShow; })[0] : null;
+    if(selRt){
+      markSelectedRoute(reportEl, selRt.id);
+      renderRouteContent(r, selRt, reportEl.querySelector('[data-route-detail]'));   // 그 경로 콘텐츠 재현
+    }
+    send.disabled = true; field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 완료되었습니다');
+    document.getElementById('assistNote').innerHTML = '분석 완료 · 준비 로드맵이 생성되었습니다';
+  }
+
+  // 대체 공고 카드 HTML (인라인 패널·말풍선 공용)
+  function altCardsHtml(alts){
+    return alts.map(function(a, i){
+      return '<div class="alt-card">' +
+        '<div class="alt-top"><span class="alt-badge alt">'+esc(a.label||'관련 공고')+'</span>' +
+        '<span class="alt-co">'+esc(a.company||'')+'</span></div>' +
+        '<div class="alt-role">'+esc(a.role||'')+(a.career?' · '+esc(a.career):'')+'</div>' +
+        '<div class="alt-reason">'+esc(a.reason||'')+'</div>' +
+        '<button class="alt-btn" data-alt="'+i+'">이 공고로 재분석 →</button></div>';
+    }).join('');
+  }
+  function bindAltButtons(container, alts){
+    container.querySelectorAll('[data-alt]').forEach(function(b){
+      b.addEventListener('click', function(){ reanalyze(alts[Number(b.dataset.alt)], b); });
+    });
+  }
+  // 대체 공고 목록 — 말풍선(경로 없는 폴백 결과의 "대체 공고 보기" 버튼용). 고르면 그 공고로 독립 재분석.
+  function showAlternatives(alts){
+    if(!alts || !alts.length){ systemNote('추천할 대체 공고가 없어요.'); return; }
+    var el = aiBubble('이 공고는 지원이 어려워도, 지금 지원해볼 만한 곳을 찾아봤어요.',
+      '<div class="alt-panel"><div class="alt-h">대체 공고</div>'+altCardsHtml(alts)+'</div>');
+    bindAltButtons(el, alts);
+  }
+
+  // 대체 공고로 독립 재분석 — 내 저장소 자료 전체로 그 공고를 새 세션 분석.
+  async function reanalyze(alt, btn){
+    if(!alt) return;
+    if(btn){ btn.disabled = true; btn.textContent = '재분석 준비 중…'; }
+    try {
+      var list = await JB.api('/api/evidences');
+      var ids = (list||[]).map(function(e){ return e.id; });
+      if(!ids.length){ systemNote('저장소에 자료가 없어요. 먼저 커리어 저장소를 채워주세요.'); if(btn){ btn.disabled=false; btn.textContent='이 공고로 재분석 →'; } return; }
+      var res = await JB.api('/api/analyses/agent-custom', {
+        method:'POST',
+        body: JSON.stringify({ sourceType:'URL', content: alt.rawText, evidenceIds: ids, parentAnalysisId: analysisId })
+      });
+      var selEv = (list||[]).map(function(e){ return { kind:e.kind, label:e.label }; });
+      try { sessionStorage.setItem('jobis.analysisMeta', JSON.stringify({ id: res.analysisId, evidences: selEv })); } catch(_){}
+      location.href = 'chat.html?id=' + encodeURIComponent(res.analysisId);
+    } catch(e){
+      systemNote('재분석을 시작하지 못했어요: ' + e.message);
+      if(btn){ btn.disabled=false; btn.textContent='이 공고로 재분석 →'; }
+    }
+  }
+
+  // 지난(완료된) 분석 복원 — 결과(로드맵)부터. 실시간 연결 없이 저장된 결과를 그린다.
+  function restore(){
+    document.getElementById('connDot').style.background = 'var(--muted)';
+    document.getElementById('connTxt').textContent = '지난 분석';
+    document.getElementById('connTxt').style.color = 'var(--muted)';
+    systemNote('지난 분석 결과를 불러왔어요');
+    if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고');
+    JB.api('/api/analyses/' + encodeURIComponent(analysisId) + '/result').then(function(data){
+      renderResult(data.result || {});
+    }).catch(function(e){ systemNote('결과를 불러오지 못했어요: ' + e.message); });
+  }
+
+  // ── 목표 상태 판정(decision) — 재료를 종합해 "이 공고를 지금/중기 목표 중 어디에 둘지" 결론. 경로보다 먼저(위). ──
+  var DECISION_META = {
+    APPLY_NOW:         { cls:'ready',   icon:'✓' },
+    APPLY_WITH_POLISH: { cls:'ready',   icon:'✓' },
+    REINFORCE_FIRST:   { cls:'caution', icon:'⚑' },
+    MID_TERM_TARGET:   { cls:'caution', icon:'◷' },
+    STRUCTURAL_BLOCK:  { cls:'block',   icon:'⚠' },
+    UNDETERMINED:      { cls:'unknown', icon:'?' }
+  };
+  var REC_ROUTE = { APPLY_NOW:'as_is', APPLY_WITH_POLISH:'as_is', REINFORCE_FIRST:'reinforce', MID_TERM_TARGET:'parallel' };
+  function decisionHtml(dec){
+    if(!dec || !dec.status) return '';
+    var meta = DECISION_META[dec.status] || DECISION_META.UNDETERMINED;
+    var reasons = (dec.reasons||[]).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('');
+    var hc = (dec.hardConstraints||[]).map(function(c){
+      var sub = c.substitutableByProject ? '<span class="hc-sub ok">프로젝트로 보완 가능</span>' : '<span class="hc-sub no">프로젝트로 대체 불가</span>';
+      return '<div class="hc-row"><span class="hc-req">'+esc(c.requirement||'')+'</span><span class="hc-cur">현재 · '+esc(c.current||'')+'</span>'+sub+'</div>';
+    }).join('');
+    return '<div class="decision '+meta.cls+'">' +
+      '<span class="dc-badge">'+meta.icon+' '+esc(dec.label||'판정')+'</span>' +
+      '<div class="dc-head">'+esc(dec.headline||'')+'</div>' +
+      (reasons ? '<ul class="dc-reasons">'+reasons+'</ul>' : '') +
+      (hc ? '<div class="dc-hc"><div class="dc-hc-h">구조적 조건</div>'+hc+'</div>' : '') +
+      (dec.nextTarget ? '<div class="dc-next"><span class="k">권장 첫 목표</span>'+esc(dec.nextTarget)+'</div>' : '') +
+      (dec.recheckCondition ? '<div class="dc-recheck"><span class="k">다시 볼 때</span>'+esc(dec.recheckCondition)+'</div>' : '') +
+    '</div>';
+  }
+
+  function buildReport(r){
+    var rd = r.readiness || {};
+    var now = num(rd.now), goal = num(rd.goal), gain = goal - now;
+    var steps = roadmapStepsHtml(r);
+    var gaps = (r.gaps||[]).slice(0,3).map(function(g){
+      var mk = g.mark==='ok'?'ok':(g.mark==='no'?'no':'tri');
+      var sym = g.mark==='ok'?'✓':(g.mark==='no'?'✕':'△');
+      return '<div class="gap-line"><span class="mk '+mk+'">'+sym+'</span><div><div class="gt">'+esc(g.requirement)+'</div><div class="gd">'+esc(g.fix||g.evidence||'')+'</div></div></div>';
+    }).join('');
+    var hasRoutes = (r.routes||[]).length > 0;
+    return '<div class="report">' +
+      '<div class="report-head"><div class="rk">준비 로드맵 · '+esc(jobLabel||'분석 결과')+'</div><h3>'+esc(rd.judge||'')+'</h3></div>' +
+      decisionHtml(r.decision) +
+      '<div class="report-gauge"><div class="gauge-num">'+(rd.now!=null?now:'—')+'<small>/100</small></div>' +
+        '<div class="gauge-bar"><div class="gb-track"><div class="gb-now" style="width:'+now+'%"></div><div class="gb-gain" style="left:'+now+'%;width:'+gain+'%"></div></div>' +
+        '<div class="gb-lbl"><span>현재 '+now+'</span><span>완주 시 '+goal+'</span></div></div>' +
+        '<div class="gauge-cap">준비 참고 지표 · 합격 여부를 뜻하지 않아요</div></div>' +
+      '<div class="report-body">' +
+        '<div class="rsec"><div class="rt">부족한 증거 → 준비 과제</div>'+gaps+'</div>' +
+        // 로드맵은 경로 있으면 숨기고 "보강 지원" 선택 시 표시(스펙 §12.1). 경로 없는 일반 공고는 폴백으로 인라인.
+        (hasRoutes ? '' : '<div class="rsec"><div class="rt">준비 로드맵</div>'+steps+'</div>') +
+      '</div>' +
+      buildRoutes(r) +
+      (hasRoutes ? '' :
+        '<div class="report-cta">' +
+        ((r.alternatives||[]).length ? '<a class="btn line" data-alts>대체 공고 보기</a>' : '') +
+        '<a class="btn pri">산출물 준비 시작 →</a></div>') +
+      '</div>';
+  }
+
+  // ── 준비·지원 경로 2~3개(스펙 §11) — 결과의 routes[]가 있을 때만 렌더. 종합 점수는 넣지 않는다(§10.5). ──
+  var ROUTE_KIND = { as_is: '지금 지원', reinforce: '보강 후 지원', parallel: '유사공고 병행' };
+  var ROUTE_EFFORT = { low: '낮음', mid: '중간', high: '높음' };
+  function buildRoutes(r){
+    var routes = r.routes || [];
+    if(!routes.length) return '';
+    var dec = r.decision || {};
+    var rec = REC_ROUTE[dec.status];
+    var blocked = (dec.status === 'MID_TERM_TARGET' || dec.status === 'STRUCTURAL_BLOCK');
+    var cards = routes.map(function(rt){
+      var kind = ROUTE_KIND[rt.kind] ? rt.kind : 'as_is';       // 화이트리스트(안전 토큰)
+      var eff = ROUTE_EFFORT[rt.effort] ? rt.effort : 'mid';    // 화이트리스트(안전 토큰)
+      var isRec = rec && rt.id === rec;
+      var chips = (rt.confirmed||[]).map(function(c){ return '<span class="rv-chip ok">✓ '+esc(c)+'</span>'; }).join('') +
+                  (rt.missing||[]).map(function(m){ return '<span class="rv-chip miss">＋ '+esc(m)+'</span>'; }).join('');
+      return '<div class="route-card'+(isRec?' rec':'')+'" data-route="'+escA(rt.id)+'">' +
+        '<div class="route-top"><span class="route-badge '+kind+'">'+esc(ROUTE_KIND[kind])+'</span>' +
+          '<span class="route-effort '+eff+'">준비 부담 '+esc(ROUTE_EFFORT[eff])+'</span>' +
+          (isRec?'<span class="route-rec">권장</span>':'') + '</div>' +
+        '<div class="route-title">'+esc(rt.title||'')+'</div>' +
+        '<div class="route-sum">'+esc(rt.summary||'')+'</div>' +
+        (chips ? '<div class="route-ev">'+chips+'</div>' : '') +
+        (rt.deliverable ? '<div class="route-meta"><i class="i i-target"></i> 대표 산출물 · '+esc(rt.deliverable)+'</div>' : '') +
+        (rt.hardRisk ? '<div class="route-meta risk">⚠ 명시적 필수조건과 충돌하는 항목이 있어요</div>' : '') +
+        '<button class="route-btn" data-route-pick="'+escA(rt.id)+'">이 경로로 진행 →</button></div>';
+    }).join('');
+    var intro = blocked
+      ? '판정상 지금 직접 지원은 권장하지 않아요 — 위 “권장 첫 목표”를 먼저 보고, 그래도 진행하려면 아래에서 고르세요.'
+      : (dec.status ? '판정을 참고해 경로를 고르세요.' : '하나를 골라 진행하세요.');
+    return '<div class="report-routes"><div class="rt">준비·지원 경로<span class="rt-sub">'+esc(intro)+'</span></div>' +
+      '<div class="route-grid">'+cards+'</div>' +
+      '<div class="route-detail" data-route-detail></div></div>';
+  }
+
+  // 경로 카드 선택 → 서버에 저장 + 강조 + 유형별 다음 행동(parallel이면 대체공고, 그 외엔 로드맵 진행)
+  function pickRoute(r, routeId, reportEl){
+    var route = (r.routes||[]).filter(function(x){ return x.id === routeId; })[0];
+    if(!route) return;
+    selectedRoute = routeId;
+    JB.api('/api/analyses/' + encodeURIComponent(analysisId) + '/selected-route', {
+      method: 'POST', body: JSON.stringify({ routeId: routeId })
+    }).catch(function(){});   // 저장 실패해도 화면 흐름은 계속
+    markSelectedRoute(reportEl, routeId);
+    renderRouteContent(r, route, reportEl.querySelector('[data-route-detail]'));
+  }
+
+  // 로드맵 스텝 HTML (리포트 폴백 + 보강 경로 패널 공용)
+  function roadmapStepsHtml(r){
+    return (r.roadmap||[]).slice(0,3).map(function(it){
+      var cls = it.status==='done'?'done':(it.status==='active'?'active':'lock');
+      var locked = it.status==='locked';
+      var sn = it.status==='done'?'✓':(locked?'':it.no);
+      return '<div class="step '+cls+'"><span class="sn">'+(locked?'<i class="i i-lock"></i>':esc(sn))+'</span><div><div class="st">'+esc(it.title)+'</div><div class="sm">'+esc(it.state||it.meta||'')+'</div></div><span class="sd">'+esc(it.delta||'')+'</span></div>';
+    }).join('');
+  }
+
+  // 고른 경로 콘텐츠를 경로 카드 아래 인라인 패널에 표시(선택 직후 + 복원 공용).
+  // parallel=대체공고(재분석은 페이지 이동) / as_is·reinforce=미리보기 + "로드맵 생성" 버튼.
+  function renderRouteContent(r, route, detailEl){
+    if(!route) return;
+    if(route.kind === 'parallel'){
+      var rel = route.relatedPostings || [];
+      var alts = (r.alternatives||[]).filter(function(a){ return rel.indexOf(a.id) >= 0; });
+      if(!alts.length) alts = (r.alternatives||[]);
+      if(!detailEl){ showAlternatives(alts); return; }   // 폴백(패널 없으면 말풍선)
+      if(!alts.length){ detailEl.innerHTML = '<div class="rd-inner"><div class="rd-sum">추천할 대체 공고가 없어요.</div></div>'; return; }
+      detailEl.innerHTML = '<div class="rd-inner"><div class="alt-panel"><div class="alt-h">대체 공고 — 골라서 재분석</div>'+altCardsHtml(alts)+'</div></div>';
+      bindAltButtons(detailEl, alts);
+      return;
+    }
+    if(!detailEl) return;
+    var preview = '<div class="rd-sum">'+esc(route.summary||'')+'</div>' +
+      (route.kind === 'as_is' ? applyGuideHtml(route) : '');
+    detailEl.innerHTML = '<div class="rd-inner">' + preview +
+      '<button class="rmgen-btn" data-rmgen>이 경로로 로드맵 생성 →</button>' +
+      '<div class="rmgen-out"></div></div>';
+    var btn = detailEl.querySelector('[data-rmgen]');
+    if(btn) btn.addEventListener('click', function(){ doGenerateRoadmap(route, btn, detailEl); });
+  }
+
+  // 지원 자료 정리 HTML(자소서 대필 아님 — 재료 정리). applyGuide 없으면 빈 문자열.
+  function applyGuideHtml(route){
+    var g = route.applyGuide || {};
+    var matches = (g.matches||[]).map(function(m){
+      return '<div class="guide-match"><div class="guide-req">'+esc(m.requirement||'')+'</div>' +
+        '<div class="guide-line"><span class="gl-k">내 증거</span>'+esc(m.evidence||'')+'</div>' +
+        '<div class="guide-line"><span class="gl-k">어필 각도</span>'+esc(m.angle||'')+'</div></div>';
+    }).join('');
+    var checks = (g.checklist||[]).map(function(c){
+      return '<label class="guide-ch-item"><input type="checkbox"><span>'+esc(c)+'</span></label>';
+    }).join('');
+    if(!matches && !checks) return '';
+    return '<div class="guide-panel"><div class="guide-h">지원 자료 정리</div>' + matches +
+      (checks ? '<div class="guide-check"><div class="guide-ch-h">지원 전 체크리스트</div>'+checks+'</div>' : '') +
+      '</div>';
+  }
+
+  // "로드맵 생성" — 웹 백엔드에 요청하면 AI가 (분석+경로+목표맥락)으로 로드맵을 정리해 저장한다.
+  async function doGenerateRoadmap(route, btn, detailEl){
+    btn.disabled = true; btn.textContent = '로드맵 생성 중…';
+    var out = detailEl.querySelector('.rmgen-out');
+    try {
+      var res = await JB.api('/api/roadmaps', {
+        method: 'POST', body: JSON.stringify({ analysisId: analysisId, routeId: route.id })
+      });
+      if(out) out.innerHTML = generatedRoadmapHtml(res.roadmap || {}, route.id);
+      btn.textContent = '저장됨 ✓'; btn.classList.add('done');
+    } catch(e){
+      btn.disabled = false; btn.textContent = '이 경로로 로드맵 생성 →';
+      if(out) out.innerHTML = '<div class="rmgen-err">로드맵 생성 실패: '+esc(e.message)+'</div>';
+    }
+  }
+
+  // 생성된 로드맵 요약 렌더(인라인). 상세는 roadmap.html 전체 페이지에서.
+  function generatedRoadmapHtml(rm, routeId){
+    var steps = (rm.steps||[]).map(function(s){
+      return '<div class="step active"><span class="sn">'+esc(String(s.no==null?'':s.no))+'</span>' +
+        '<div><div class="st">'+esc(s.title||'')+'</div><div class="sm">'+esc(s.meta||'')+'</div></div></div>';
+    }).join('');
+    var link = routeId ? '<a href="roadmap.html?id='+encodeURIComponent(analysisId)+'&route='+encodeURIComponent(routeId)+'" ' +
+      'style="display:inline-block;margin-top:11px;font-size:12.5px;font-weight:700;color:var(--brand-ink);text-decoration:none">전체 로드맵 페이지로 보기 →</a>' : '';
+    return '<div class="rmgen-card"><div class="rmgen-h">'+esc(rm.title||'생성된 로드맵')+'</div>' +
+      (rm.intro ? '<div class="rmgen-intro">'+esc(rm.intro)+'</div>' : '') +
+      steps +
+      '<div class="rmgen-saved">✓ 내 로드맵 저장소에 저장됐어요</div>' + link + '</div>';
+  }
+
+  // 선택한 경로 카드 강조(복원 시에도 사용) — 고른 카드 sel, 나머지 dim.
+  function markSelectedRoute(reportEl, routeId){
+    if(!reportEl) return;
+    reportEl.querySelectorAll('.route-card').forEach(function(card){
+      var picked = card.getAttribute('data-route') === routeId;
+      card.classList.toggle('sel', picked);
+      card.classList.toggle('dim', !picked);
+      var btn = card.querySelector('[data-route-pick]');
+      if(btn){ btn.disabled = picked; btn.textContent = picked ? '선택한 경로 ✓' : '이 경로로 진행 →'; }
+    });
+  }
+
+  // 인사이트 "공고 요구 기술" 패널 채우기 (라이브 JOB_CONTEXT + 복원 둘 다 사용)
+  function fillJobReq(career, stack){
+    var stacks = Array.isArray(stack) ? stack : [];
+    var host = document.getElementById('insightScroll');
+    var panel = document.getElementById('jobReqPanel');
+    if (!panel){
+      panel = document.createElement('div');
+      panel.className = 'ipanel'; panel.id = 'jobReqPanel';
+      host.insertBefore(panel, host.firstChild);
+    }
+    panel.innerHTML = '<div class="ih">공고 요구 기술 <span class="n mut">'+stacks.length+'</span></div>' +
+      (career ? '<div class="spec-row"><span class="k">경력</span><span class="v">'+esc(career)+'</span></div>' : '') +
+      (stacks.length ? '<div class="stacks">'+stacks.map(function(s){ return '<span class="stk">'+esc(s)+'</span>'; }).join('')+'</div>'
+                     : '<div style="font-size:12px;color:var(--muted);margin-top:6px">원문에서 요구 기술을 특정하지 못했어요</div>');
+  }
+
+  // 공고 이해 신호: 웹은 원문만 넘겼고, AI가 회사·직무·요구스택을 분석해 보내온 것.
+  function onJobContext(m){
+    var title = (m.company||'') + (m.role ? ' · ' + m.role : '');
+    if (title.trim()){
+      jobLabel = title;
+      document.getElementById('topTitle').textContent = title;
+      document.title = 'J.O.B.I.S — ' + (m.company || '분석');
+    }
+    var stacks = Array.isArray(m.stack) ? m.stack : [];
+    fillJobReq(m.career, m.stack);
+    // 대화로도 알려줌(공고를 읽은 느낌)
+    var line = '공고를 읽었어요' + (title.trim() ? ' — ' + title : '') + '. ' +
+      (stacks.length ? '요구 기술 ' + stacks.length + '개를 확인했어요. 이제 내 자료와 대조할게요.' : '이제 내 자료와 대조할게요.');
+    aiTyping(line, { speaker: 'parse_job_posting' });   // 공고 분석가 명의
+  }
+
+  function handle(m){
+    if(m.type==='PROGRESS') onProgress(m);
+    else if(m.type==='JOB_CONTEXT') onJobContext(m);
+    else if(m.type==='QUESTION') onQuestion(m);
+    else if(m.type==='AGENT_MESSAGE') aiTyping(m.text, { speaker: m.agent || railCur });   // 현재 담당 에이전트 명의
+    else if(m.type==='DONE') onDone(m);
+    else if(m.type==='ERROR') renderFailure(m);
+  }
+
+  // 분석 실패 — 실시간 세션 정리 + 실패 이유 + 복구 행동(다시 시도 / 공고 원문 / 새 분석)
+  function renderFailure(m){
+    if (typeof client !== 'undefined' && client && client.deactivate) { try { client.deactivate(); } catch(_){} }
+    currentQuestion = null;
+    send.disabled = true;
+    field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 종료되었습니다');
+    var an=document.getElementById('assistNote'); if(an) an.textContent='';
+    var ct=document.getElementById('connTxt'); if(ct){ ct.textContent='분석 실패'; ct.style.color='var(--bad)'; }
+    var dot=document.getElementById('connDot'); if(dot) dot.style.background='var(--bad)';
+    if(progressEl){ progressEl.remove(); progressEl=null; }
+    var msg=(m&&m.message)||'분석을 완료하지 못했어요.';
+    var recoverable=!m||m.recoverable!==false;
+    var btns=(recoverable?'<button class="fail-btn" data-fail="retry">다시 시도</button>':'')+
+      '<button class="fail-btn" data-fail="paste">공고 원문으로 다시 입력</button>'+
+      '<button class="fail-btn pri" data-fail="new">새 분석 시작</button>';
+    var el=aiBubble('⚠ '+esc(msg),'<div class="fail-card"><div class="fail-h">분석을 이어갈 수 없어요</div><div class="fail-actions">'+btns+'</div></div>');
+    var r=el.querySelector('[data-fail="retry"]'); if(r) r.addEventListener('click',function(){ location.reload(); });
+    el.querySelector('[data-fail="paste"]').addEventListener('click',function(){ location.href='new.html'; });
+    el.querySelector('[data-fail="new"]').addEventListener('click',function(){ location.href='new.html'; });
+  }
+
+  // 컴포저 전송(직접 입력 답변)
+  function submitField(){ var t = field.textContent.trim(); if(currentQuestion && t) answer(t); }
+  send.addEventListener('click', submitField);
+  field.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submitField(); }});
+
+  // ---------- 부팅: STOMP 연결 → 구독 → 구독 후 세션 시작(begin) ----------
+  // '새 분석'은 Run만 만들어 두고, 여기서 구독을 마친 뒤 begin을 호출해 AI 세션을 연다.
+  // (그래야 JOB_CONTEXT 같은 초기 신호를 놓치지 않는다)
+  var begun = false;
+  function boot(){
+    client = new StompJs.Client({
+      brokerURL: WS_URL,
+      reconnectDelay: 4000,
+      connectHeaders: { Authorization: 'Bearer ' + (JB.token() || '') }   // 실시간 채널 인증
+    });
+    client.onConnect = function(){
+      document.getElementById('connDot').style.background = 'var(--ok)';
+      document.getElementById('connTxt').textContent = '실시간 연결됨';
+      document.getElementById('connTxt').style.color = 'var(--ok)';
+      client.subscribe('/topic/analysis/' + analysisId, function(frame){ handle(JSON.parse(frame.body)); });
+      if (!begun){
+        begun = true;
+        if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고로 재분석해요');
+        aiTyping('공고와 자료를 받았어요. 먼저 공고부터 읽어볼게요');
+        JB.api('/api/analyses/agent/' + encodeURIComponent(analysisId) + '/begin', { method:'POST' })
+          .catch(function(e){ systemNote('분석 시작 실패: ' + e.message); });
+      }
+    };
+    client.onStompError = function(f){ systemNote('연결 오류: ' + (f.headers && f.headers.message)); };
+    client.onWebSocketError = function(){ document.getElementById('connTxt').textContent = '연결 실패'; };
+    client.activate();
+  }
+  // boot()/restore()는 위 상태 조회(라이브/복원 분기)에서 호출된다.
+})();
+</script>
+<style>
+@keyframes spin{to{transform:rotate(360deg)}}
+.caret{display:inline-block;width:2px;margin-left:1px;color:var(--brand);animation:blink-caret .9s steps(1) infinite;font-weight:400}
+@keyframes blink-caret{50%{opacity:0}}
+.tw{white-space:pre-wrap}
+</style>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.O.B.I.S — 로그인</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
+<!-- 영상·포스터는 theme.js가 테마를 정한 뒤 넣는다(preload="none" → 반대 테마 영상을 미리 받지 않음) -->
+<video class="page-bg"
+       autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
+  <source type="video/mp4">
+</video>
+<div class="page-veil" aria-hidden="true"></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
+    </div>
+    <h1 id="authTitle">다시 오셨네요</h1>
+    <p class="sub" id="authSub">목표 공고 준비를 이어가 볼까요?</p>
+
+    <div class="auth-tabs">
+      <button class="on" data-tab="login">로그인</button>
+      <button data-tab="signup">회원가입</button>
+    </div>
+
+    <p id="authErr" class="auth-err" style="display:none"></p>
+
+    <!-- 로그인 -->
+    <form id="paneLogin">
+      <label class="field-l"><span>이메일</span><input id="loginEmail" type="email" value="junyoung.park@gmail.com" autocomplete="username"></label>
+      <label class="field-l"><span>비밀번호</span><input id="loginPw" type="password" value="test1234" autocomplete="current-password"></label>
+      <button class="auth-btn" type="submit">로그인</button>
+    </form>
+
+    <!-- 회원가입 -->
+    <form id="paneSignup" style="display:none">
+      <label class="field-l"><span>이름</span><input id="suName" value="박준영"></label>
+      <label class="field-l"><span>이메일</span><input id="suEmail" type="email" placeholder="you@example.com" autocomplete="username"></label>
+      <label class="field-l"><span>비밀번호</span><input id="suPw" type="password" placeholder="4자 이상" autocomplete="new-password"></label>
+      <button class="auth-btn" type="submit">가입하고 시작</button>
+    </form>
+
+    <p class="auth-alt" id="authAlt">계정이 없으신가요? <a href="#" data-tab="signup" style="color:var(--brand);font-weight:700">회원가입</a></p>
+  </div>
+</div>
+
+<nav class="flow-nav">
+  <span class="lbl">채팅형 · 로그인</span>
+  <a href="index.html">← 랜딩</a>
+</nav>
+
+<script src="auth.js"></script>
+<script>
+(function(){
+  var errEl = document.getElementById('authErr');
+  function showErr(msg){ errEl.textContent = msg; errEl.style.display=''; }
+  function clearErr(){ errEl.style.display='none'; }
+
+  function show(tab){
+    clearErr();
+    document.getElementById('paneLogin').style.display = tab==='login' ? '' : 'none';
+    document.getElementById('paneSignup').style.display = tab==='signup' ? '' : 'none';
+    document.querySelectorAll('.auth-tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab===tab); });
+    document.getElementById('authTitle').textContent = tab==='login' ? '다시 오셨네요' : 'J.O.B.I.S 시작하기';
+    document.getElementById('authSub').textContent = tab==='login' ? '목표 공고 준비를 이어가 볼까요?' : '내 자료를 저장하고 첫 로드맵을 만들어 보세요.';
+    document.getElementById('authAlt').innerHTML = tab==='login'
+      ? '계정이 없으신가요? <a href="#" data-tab="signup" style="color:var(--brand);font-weight:700">회원가입</a>'
+      : '이미 계정이 있으신가요? <a href="#" data-tab="login" style="color:var(--brand);font-weight:700">로그인</a>';
+    bindAlt();
+  }
+  function bindAlt(){ var a=document.querySelector('#authAlt a'); if(a) a.addEventListener('click',function(e){e.preventDefault();show(a.dataset.tab);}); }
+  document.querySelectorAll('.auth-tabs button').forEach(function(b){ b.addEventListener('click',function(){show(b.dataset.tab);}); });
+  bindAlt();
+
+  // 이미 로그인돼 있으면 홈으로
+  if (JB.token()) { location.href = 'home.html'; return; }
+
+  function lock(form, on){
+    var btn = form.querySelector('button[type=submit]');
+    btn.disabled = on; btn.style.opacity = on ? .6 : 1;
+    btn.textContent = on ? '처리 중…' : (form.id==='paneLogin' ? '로그인' : '가입하고 시작');
+  }
+
+  async function post(path, body){
+    var res = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok){
+      var msg = '요청에 실패했어요 ('+res.status+')';
+      try { var j = await res.json(); msg = JB.errMsg(j, msg); } catch(e){}
+      throw new Error(msg);
+    }
+    return res.json();
+  }
+
+  document.getElementById('paneLogin').addEventListener('submit', async function(e){
+    e.preventDefault(); clearErr(); lock(this, true);
+    try {
+      var data = await post('/api/auth/login', {
+        email: document.getElementById('loginEmail').value.trim(),
+        password: document.getElementById('loginPw').value
+      });
+      JB.setAuth(data.token, data.user);
+      location.href = 'home.html';
+    } catch(err){ showErr(err.message); lock(this, false); }
+  });
+
+  document.getElementById('paneSignup').addEventListener('submit', async function(e){
+    e.preventDefault(); clearErr(); lock(this, true);
+    try {
+      var data = await post('/api/auth/register', {
+        name: document.getElementById('suName').value.trim(),
+        email: document.getElementById('suEmail').value.trim(),
+        password: document.getElementById('suPw').value
+      });
+      JB.setAuth(data.token, data.user);
+      location.href = 'home.html';
+    } catch(err){ showErr(err.message); lock(this, false); }
+  });
+})();
+</script>
+</body>
+</html>

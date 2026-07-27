@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.O.B.I.S — 준비 로드맵</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
+<script src="auth.js"></script>
+<script src="live-run.js"></script>
+<style>
+  body{background:var(--bg);margin:0;font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  .rmx{max-width:800px;margin:0 auto;padding:28px 22px 80px}
+  .rmx-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;margin-bottom:16px}
+  .rmx-back:hover{color:var(--ink-2)}
+  .rmx-kick{font-size:12px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.05em}
+  .rmx-h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:5px 0 0}
+  .rmx-bc{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .rmx-intro{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin:11px 0 0}
+  .rmx-sec{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:26px 0 11px}
+
+  /* 스탯 3칸 */
+  .rmx-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+  .rmx-stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .rmx-stat .k{font-size:11px;color:var(--muted);font-weight:600}
+  .rmx-stat .v{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+  .rmx-stat .v small{font-size:12px;color:var(--faint);font-weight:700}
+  .rmx-stat .n{font-size:10.5px;color:var(--faint);margin-top:2px}
+  .rmx-bar{height:6px;border-radius:99px;background:var(--surface-2);margin-top:8px;overflow:hidden}
+  .rmx-bar>i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .5s ease}
+
+  /* 오늘 할 일 */
+  .rmx-today{background:var(--brand-soft);border-radius:12px;padding:13px 15px;margin-top:10px}
+  .rmx-today .h{font-size:12px;font-weight:800;color:var(--brand-ink);margin-bottom:7px}
+  .rmx-today ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+  .rmx-today li{font-size:12.5px;color:var(--brand-ink);line-height:1.5;display:flex;gap:7px}
+  .rmx-today li::before{content:"○";opacity:.6}
+
+  /* 히트맵 */
+  .rmx-mtx{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px 15px}
+  .rmx-mg{font-size:10.5px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;padding:11px 0 3px}
+  .rmx-hrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;font-size:13px;border-bottom:1px solid var(--line-2)}
+  .rmx-hrow:last-child{border-bottom:0}
+  .rmx-hrow .pr{font-size:10px;color:var(--warn);font-weight:800;margin-left:6px}
+  .rmx-cell{font-size:10.5px;font-weight:800;border-radius:5px;padding:2px 9px;white-space:nowrap;flex:none}
+  .rmx-cell.no{background:var(--warn-soft);color:var(--warn)}
+  .rmx-cell.ok{background:var(--ok-soft);color:var(--ok)}
+  .rmx-cell.part{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+
+  /* 스텝 타임라인 */
+  .rmx-step{position:relative;padding:0 0 10px 40px}
+  .rmx-step::before{content:"";position:absolute;left:14px;top:34px;bottom:0;width:2px;background:var(--line)}
+  .rmx-step:last-child::before{display:none}
+  .rmx-shead{display:flex;align-items:center;gap:9px;cursor:pointer;padding:6px 0;user-select:none}
+  .rmx-dot{position:absolute;left:0;top:3px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:var(--surface-2);border:2px solid var(--line);color:var(--muted)}
+  .rmx-dot.now{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+  .rmx-dot.ok{background:var(--ok);border-color:var(--ok);color:var(--on-brand)}
+  .rmx-dot.fut{opacity:.55}
+  .rmx-swrap{flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rmx-stitle{font-size:15.5px;font-weight:800;letter-spacing:-.01em}
+  .rmx-step.fut .rmx-stitle{color:var(--ink-2)}
+  .rmx-sdur{font-size:11.5px;color:var(--muted);font-weight:600}
+  .rmx-chev{color:var(--faint);font-size:12px}
+  .spill{font-size:10.5px;font-weight:800;border-radius:20px;padding:2px 9px}
+  .spill.todo{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+  .spill.ok{background:var(--ok-soft);color:var(--ok)}
+  .spill.warn{background:var(--warn-soft);color:var(--warn)}
+  .spill.pri{background:var(--warn-soft);color:var(--warn)}
+
+  .rmx-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:4px 0 6px}
+  .rmx-gap{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--ink);line-height:1.55}
+  .rmx-gap .mk{width:19px;height:19px;border-radius:5px;background:var(--warn);color:var(--on-brand);display:grid;place-items:center;font-size:11px;font-weight:800;flex:none;margin-top:1px}
+  .rmx-quote{font-size:11.5px;color:var(--ink-2);background:var(--surface-2);border-left:2px solid var(--line);padding:6px 11px;margin:8px 0 0;line-height:1.5;border-radius:0 6px 6px 0}
+  .rmx-art{display:flex;gap:10px;align-items:flex-start;background:var(--brand-soft);border-radius:10px;padding:12px 13px;margin:12px 0}
+  .rmx-art .ic{font-size:16px;flex:none;line-height:1.4}
+  .rmx-art .bd{font-size:13px;color:var(--brand-ink);line-height:1.5}
+  .rmx-art .bd .k{font-weight:800;display:block;font-size:11px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;opacity:.85}
+  .rmx-art .bd .map{font-size:11.5px;opacity:.85;margin-top:3px}
+  .rmx-done{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+  .rmx-done .mk{color:var(--ok);font-weight:800;flex:none}
+
+  .presets{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+  .pchip{font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:8px;padding:6px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .pchip:hover{background:var(--line-2)}
+  .pchip.on{background:var(--brand-soft);color:var(--brand-ink);border-color:transparent}
+  .ppanel{display:none;font-size:12.5px;color:var(--ink-2);line-height:1.6;background:var(--surface-2);border-radius:9px;padding:11px 13px;margin-top:9px}
+  .ppanel b{color:var(--ink)}
+
+  .rmx-ref{margin-top:12px;border-top:1px solid var(--line-2);padding-top:10px}
+  .rmx-ref summary{font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+  .rmx-ref summary::-webkit-details-marker{display:none}
+  .rmx-ref summary::before{content:'▸';color:var(--faint)}
+  .rmx-ref[open] summary::before{content:'▾'}
+  .rmx-kw{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+  .rmx-kw span{font-size:11.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--ink-2)}
+  .rmx-links{display:flex;gap:6px;flex-wrap:wrap}
+  .rmx-links span{font-size:11.5px;font-weight:600;color:var(--brand-ink);background:var(--brand-soft);border-radius:6px;padding:4px 9px}
+
+  .sub{border-top:1px dashed var(--line);margin-top:13px;padding-top:12px}
+  .sub-h{font-size:12px;font-weight:800;color:var(--ink-2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .sub-row{display:flex;gap:8px;flex-wrap:wrap}
+  .subinput{flex:1;min-width:190px;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:var(--bg);color:var(--ink)}
+  .subinput:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .subbtn{font-size:13px;font-weight:700;background:var(--brand);color:var(--on-brand);border:0;border-radius:9px;padding:9px 15px;cursor:pointer;white-space:nowrap}
+  .subbtn:hover{background:var(--brand-2)}
+  .subbtn:disabled{opacity:.6;cursor:default}
+  .suberr{display:none;font-size:12px;color:var(--bad);margin-top:8px}
+  .verdict{border-radius:10px;padding:12px 13px;margin-top:11px;border:1px solid transparent}
+  .verdict.ok{background:var(--ok-soft)}
+  .verdict.warn{background:var(--warn-soft)}
+  .vhead{font-size:13px;font-weight:800}
+  .verdict.ok .vhead{color:var(--ok)}
+  .verdict.warn .vhead{color:var(--warn)}
+  .vdetail{font-size:12px;color:var(--ink-2);line-height:1.5;margin-top:4px}
+  .vchecks{display:flex;flex-direction:column;gap:4px;margin-top:9px}
+  .vk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+  .vk .ic{width:16px;height:16px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--on-brand);flex:none}
+  .vk.y .ic{background:var(--ok)}.vk.n .ic{background:var(--warn)}
+  .vfoot{font-size:12px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2);line-height:1.45}
+  .vfoot.ok{color:var(--ok)}.vfoot.warn{color:var(--ink-2)}
+
+  /* 결과물 루프 */
+  .rmx-loop{display:flex;align-items:center;gap:4px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .rmx-loop .ph{font-size:12.5px;font-weight:700;color:var(--faint)}
+  .rmx-loop .ph.done{color:var(--ink-2)}
+  .rmx-loop .ph.act{color:var(--brand-ink);background:var(--brand-soft);border-radius:7px;padding:4px 10px;font-weight:800}
+  .rmx-loop .ar{color:var(--faint);font-size:13px;margin:0 2px}
+
+  /* 물어보기 */
+  .rmx-ask{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .rmx-ask-thread{display:flex;flex-direction:column;gap:9px;margin-bottom:11px}
+  .rmx-qa{display:flex;flex-direction:column;gap:5px}
+  .rmx-q{align-self:flex-end;max-width:85%;background:var(--brand);color:var(--on-brand);font-size:12.5px;border-radius:12px 12px 3px 12px;padding:8px 12px;line-height:1.45}
+  .rmx-a{align-self:flex-start;max-width:90%;background:var(--surface-2);color:var(--ink);font-size:12.5px;border-radius:12px 12px 12px 3px;padding:9px 12px;line-height:1.55}
+  .rmx-a .who{font-size:10px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+  .rmx-ask-presets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+  .rmx-ask-row{display:flex;gap:8px}
+
+  /* export */
+  .rmx-exports{display:flex;gap:8px;flex-wrap:wrap}
+  .rmx-exp{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:9px 13px;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .rmx-exp:hover{background:var(--surface-2);border-color:var(--brand)}
+
+  .rmx-foot{font-size:11.5px;color:var(--muted);text-align:center;margin-top:22px;line-height:1.6}
+  .rmx-msg{font-size:13.5px;color:var(--muted);text-align:center;padding:50px 0}
+
+  /* 토스트 · 모달 */
+  .rmx-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:60}
+  .rmx-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .rmx-modal{position:fixed;inset:0;background:rgba(var(--shadow-rgb),.45);display:grid;place-items:center;z-index:50;padding:20px}
+  .rmx-modal[hidden]{display:none}
+  .rmx-modal-bd{background:var(--surface);border-radius:16px;max-width:440px;width:100%;max-height:80vh;overflow:auto;padding:20px 22px;box-shadow:0 20px 60px rgba(var(--shadow-rgb),.3)}
+  .rmx-modal-bd h3{font-size:16px;font-weight:800;margin:0 0 4px}
+  .rmx-modal-bd .sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .rmx-modal-x{float:right;border:0;background:none;font-size:18px;color:var(--faint);cursor:pointer;line-height:1}
+  .rmx-pf{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+  .rmx-pf li{border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.5}
+  .rmx-pf li.empty{color:var(--muted);text-align:center;border-style:dashed}
+  .rmx-pf .u{color:var(--brand-ink);word-break:break-all;font-size:12px}
+  .rmx-pf .d{color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+<button class="theme-tg fixed" id="themeTg" type="button" aria-pressed="false" aria-label="라이트/다크 모드 전환"><i class="i i-sun"></i><i class="i i-moon"></i></button>
+<div class="rmx">
+  <a class="rmx-back" href="#" id="backLink">← 뒤로</a>
+  <div id="body"><div class="rmx-msg">불러오는 중…</div></div>
+</div>
+<div class="rmx-toast" id="toast"></div>
+<div class="rmx-modal" id="modal" hidden><div class="rmx-modal-bd" id="modalBd"></div></div>
+
+<script>
+(function(){
+  if(!JB.requireAuth()) return;
+
+  var qs = new URLSearchParams(location.search);
+  var analysisId = qs.get('id');
+  var routeId = qs.get('route');
+  var esc = JB.esc;
+  var ROUTE_LABEL = { as_is:'지금 지원', reinforce:'보강 후 지원' };
+  var LOOP = ['정의','제작','제출','재진단','유지·수정·전환'];
+
+  var back = document.getElementById('backLink');
+  if(analysisId){ back.href = 'chat.html?id=' + encodeURIComponent(analysisId) + (routeId?'&route='+encodeURIComponent(routeId):''); back.textContent='← 분석으로'; }
+  else { back.href = 'roadmaps.html'; back.textContent='← 로드맵 저장소'; }
+
+  if(!analysisId || !routeId){
+    document.getElementById('body').innerHTML = '<div class="rmx-msg">잘못된 접근이에요. 로드맵 저장소에서 열어주세요.</div>';
+    return;
+  }
+
+  var state = { res:null, progress:{}, open:null, ask:[] };
+  var currentNo = 1;
+
+  function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); setTimeout(function(){ t.classList.remove('on'); },2400); }
+  function statusOf(no){ var p=state.progress[no]; return p?p.status:null; }
+
+  /* ── 파생 콘텐츠 ── */
+  function whyText(s){ return '이 스텝은 <b>'+esc(s.requirement||s.title||'이 공고의 요건')+'</b>을(를) 산출물로 메우는 단계예요. '+esc(s.gap||''); }
+  function hintText(s){ if(s.hint) return esc(s.hint); var p=[]; if(s.artifact) p.push('이렇게 만들면 돼요 — <b>'+esc(s.artifact)+'</b>'); if(s.done) p.push('완료 기준: '+esc(s.done)); return p.join('<br>')||'작게 시작해 산출물 하나로 증거를 남겨요.'; }
+  function stuckText(s){ if(s.pitfall) return esc(s.pitfall); return '환경 세팅부터 아주 작게 시작하세요. 막히면 완료 기준(<b>'+esc(s.done||'산출물 링크')+'</b>)을 한 줄씩 쪼개 되는 것부터 채우면 돼요.'; }
+
+  function pillHtml(no){ var st=statusOf(no); if(st==='VERIFIED') return '<span class="spill ok">증거 확인됨</span>'; if(st==='NEEDS_WORK') return '<span class="spill warn">보완 필요</span>'; return '<span class="spill todo">해야 할 일</span>'; }
+
+  function verdictHtml(v){
+    if(!v) return '';
+    var isV=v.verdict==='verified';
+    var ck=(v.checks||[]).map(function(c){ return '<div class="vk '+(c.ok?'y':'n')+'"><span class="ic">'+(c.ok?'✓':'✕')+'</span>'+esc(c.label)+'</div>'; }).join('');
+    var foot=isV&&v.resolvedRequirement?'<div class="vfoot ok">↳ 요건 충족: <b>'+esc(v.resolvedRequirement)+'</b> — 매트릭스에 반영했어요.</div>':(!isV&&v.nextHint?'<div class="vfoot warn">다음: '+esc(v.nextHint)+'</div>':'');
+    return '<div class="verdict '+(isV?'ok':'warn')+'"><div class="vhead">'+(isV?'✓ ':'• ')+esc(v.headline||'')+'</div>'+(v.detail?'<div class="vdetail">'+esc(v.detail)+'</div>':'')+(ck?'<div class="vchecks">'+ck+'</div>':'')+foot+'</div>';
+  }
+
+  function refHtml(s){
+    var kw=(s.keywords||[]).map(function(c){ return '<span>'+esc(c)+'</span>'; }).join('');
+    var rs=(s.resources||[]).map(function(r){ return '<span>'+esc(r)+'</span>'; }).join('');
+    if(!kw&&!rs) return '';
+    return '<details class="rmx-ref"><summary>참고 · 학습 키워드와 리소스</summary>'+(kw?'<div class="rmx-kw">'+kw+'</div>':'')+(rs?'<div class="rmx-links">'+rs+'</div>':'')+'</details>';
+  }
+
+  function cardHtml(s){
+    var no=s.no;
+    return '<div class="rmx-card">'+
+      (s.gap?'<div class="rmx-gap"><span class="mk">!</span><span><b>격차</b> · '+esc(s.gap)+'</span></div>':'')+
+      (s.quote?'<div class="rmx-quote">'+esc(s.quote)+'</div>':'')+
+      (s.artifact?'<div class="rmx-art"><span class="ic"><i class="i i-pkg"></i></span><div class="bd"><span class="k">만들 산출물</span>'+esc(s.artifact)+(s.requirement?'<span class="map">→ 요건 “'+esc(s.requirement)+'” 충족</span>':'')+'</div></div>':'')+
+      (s.done?'<div class="rmx-done"><span class="mk">✓</span><span><b>완료 기준</b> · '+esc(s.done)+'</span></div>':'')+
+      '<div class="presets">'+
+        '<button class="pchip" data-toggle="why-'+no+'">❓ 이 스텝 왜?</button>'+
+        '<button class="pchip" data-toggle="hint-'+no+'"><i class="i i-bulb"></i> 산출물 힌트</button>'+
+        '<button class="pchip" data-toggle="stuck-'+no+'"><i class="i i-puzzle"></i> 막혔어요</button>'+
+      '</div>'+
+      '<div class="ppanel" id="why-'+no+'">'+whyText(s)+'</div>'+
+      '<div class="ppanel" id="hint-'+no+'">'+hintText(s)+'</div>'+
+      '<div class="ppanel" id="stuck-'+no+'">'+stuckText(s)+'</div>'+
+      refHtml(s)+
+      '<div class="sub"><div class="sub-h"><i class="i i-upload"></i> 산출물 링크 제출 → AI 재진단</div><div class="sub-row">'+
+        '<input class="subinput" data-step="'+no+'" aria-label="스텝 '+esc(String(no))+' 산출물 링크" placeholder="GitHub·배포·문서 링크를 붙여넣기" value="'+esc((state.progress[no]||{}).submittedUrl||'')+'">'+
+        '<button class="subbtn" data-submit="'+no+'">제출 → 재진단</button>'+
+      '</div><div class="suberr" id="suberr-'+no+'"></div>'+verdictHtml((state.progress[no]||{}).verdict)+'</div>'+
+    '</div>';
+  }
+
+  function stepHtml(s){
+    var no=s.no, st=statusOf(no), open=state.open.has(no);
+    var kind = st==='VERIFIED'?'done':(no>currentNo?'fut':'act');
+    var dotCls = st==='VERIFIED'?'ok':(no===currentNo?'now':(kind==='fut'?'fut':''));
+    var dotInner = st==='VERIFIED'?'✓':esc(String(no));
+    var dur=(s.duration||'')+(s.difficulty?' · 난이도 '+s.difficulty:'');
+    var pri = (no===currentNo && st!=='VERIFIED') ? '<span class="spill pri">지금 할 차례</span>' : '';
+    var head='<div class="rmx-shead" data-step-toggle="'+no+'"><div class="rmx-dot '+dotCls+'">'+dotInner+'</div>'+
+      '<div class="rmx-swrap"><span class="rmx-stitle">'+esc(s.title||'')+'</span>'+pillHtml(no)+pri+(dur?'<span class="rmx-sdur">'+esc(dur)+'</span>':'')+'</div>'+
+      '<span class="rmx-chev">'+(open?'▾':'▸')+'</span></div>';
+    return '<div class="rmx-step '+kind+(open?' open':'')+'">'+head+(open?cardHtml(s):'')+'</div>';
+  }
+
+  function matrixHtml(rm){
+    var strengths=rm.strengths||[], steps=rm.steps||[];
+    var conf=strengths.map(function(x){ return '<div class="rmx-hrow"><span>'+esc(x)+'</span><span class="rmx-cell ok">확인</span></div>'; }).join('');
+    var reqs=steps.map(function(s,i){
+      var st=statusOf(s.no);
+      var cell=st==='VERIFIED'?'<span class="rmx-cell ok">확인</span>':(st==='NEEDS_WORK'?'<span class="rmx-cell part">보완 중</span>':'<span class="rmx-cell no">미확인</span>');
+      var pr=(i===0&&rm.topGap)?'<span class="pr">우선</span>':'';
+      return '<div class="rmx-hrow"><span>'+esc(s.requirement||s.title||('스텝 '+s.no))+pr+'</span>'+cell+'</div>';
+    }).join('');
+    return '<div class="rmx-mtx">'+(conf?'<div class="rmx-mg">이미 확인된 증거</div>'+conf:'')+'<div class="rmx-mg">보완할 요건 — 산출물을 제출하면 채워져요</div>'+reqs+'</div>';
+  }
+
+  function loopHtml(rm){
+    var steps=rm.steps||[];
+    var allV=steps.length&&steps.every(function(s){ return statusOf(s.no)==='VERIFIED'; });
+    var curStatus=statusOf(currentNo);
+    var actIdx = allV?4:(curStatus==='NEEDS_WORK'?3:1);
+    var ph=LOOP.map(function(p,i){ var c=i<actIdx?'done':(i===actIdx?'act':''); return '<span class="ph '+c+'">'+esc(p)+'</span>'; }).join('<span class="ar">→</span>');
+    return '<div class="rmx-loop">'+ph+'</div>';
+  }
+
+  function todayList(rm){
+    if(rm.today&&rm.today.length) return rm.today;
+    var cur=(rm.steps||[]).filter(function(s){ return s.no===currentNo; })[0];
+    if(!cur) return [];
+    var out=['지금 단계: '+(cur.title||'')];
+    if(cur.artifact) out.push('만들 것: '+cur.artifact);
+    return out;
+  }
+
+  function askHtml(rm){
+    var thread=state.ask.map(function(qa){
+      return '<div class="rmx-qa"><div class="rmx-q">'+esc(qa.q)+'</div><div class="rmx-a"><div class="who">J.O.B.I.S AI</div>'+esc(qa.a)+'</div></div>';
+    }).join('');
+    return '<div class="rmx-ask">'+
+      (thread?'<div class="rmx-ask-thread">'+thread+'</div>':'')+
+      '<div class="rmx-ask-presets">'+
+        '<button class="pchip" data-ask-preset="2주밖에 없어, 압축해줘">⏱ 2주밖에 없어</button>'+
+        '<button class="pchip" data-ask-preset="가장 큰 격차가 뭐야?"><i class="i i-target"></i> 가장 큰 격차가 뭐야?</button>'+
+        '<button class="pchip" data-ask-preset="제출은 어떻게 해?"><i class="i i-upload"></i> 제출은 어떻게 해?</button>'+
+      '</div>'+
+      '<div class="rmx-ask-row"><input class="subinput" id="askInput" aria-label="로드맵에 물어보기" placeholder="이 로드맵에 대해 물어보세요…"><button class="subbtn" id="askSend">물어보기</button></div>'+
+    '</div>';
+  }
+
+  function exportHtml(){
+    return '<div class="rmx-exports">'+
+      '<button class="rmx-exp" data-export="portfolio"><i class="i i-pkg"></i> 포트폴리오로 묶기</button>'+
+      '<button class="rmx-exp" data-export="report"><i class="i i-doc"></i> 증거 요약 리포트</button>'+
+      '<button class="rmx-exp" data-export="ics"><i class="i i-cal"></i> 캘린더에 넣기</button>'+
+      '<button class="rmx-exp" data-export="share"><i class="i i-link"></i> 멘토에게 공유</button>'+
+    '</div>';
+  }
+
+  function computeStats(rm){
+    var steps=rm.steps||[], strengths=rm.strengths||[];
+    var vSteps=steps.filter(function(s){ return statusOf(s.no)==='VERIFIED'; }).length;
+    var conf=strengths.length+vSteps, total=strengths.length+steps.length;
+    var pct=total?Math.round(conf/total*100):0;
+    var dday=null;
+    if(rm.targetDate){ var d=new Date(rm.targetDate+'T00:00:00'); if(!isNaN(d)){ var t0=new Date(); t0.setHours(0,0,0,0); dday=Math.round((d-t0)/86400000); } }
+    return { pct:pct, vSteps:vSteps, nSteps:steps.length, dday:dday, todayN:todayList(rm).length };
+  }
+
+  function render(){
+    var body=document.getElementById('body');
+    var draft={}, openPanels=[], focusStep=null, askDraft=null, askFocus=false;
+    var active=document.activeElement;
+    if(active){
+      if(active.classList&&active.classList.contains('subinput')&&active.getAttribute('data-step')) focusStep=active.getAttribute('data-step');
+      else if(active.getAttribute&&active.getAttribute('data-submit')) focusStep=active.getAttribute('data-submit');
+      if(active.id==='askInput') askFocus=true;
+    }
+    var ai=document.getElementById('askInput'); if(ai) askDraft=ai.value;
+    Array.prototype.forEach.call(body.querySelectorAll('.subinput[data-step]'), function(inp){ draft[inp.getAttribute('data-step')]=inp.value; });
+    Array.prototype.forEach.call(body.querySelectorAll('.ppanel'), function(pn){ if(pn.style.display==='block') openPanels.push(pn.id); });
+
+    var res=state.res||{}, rm=res.roadmap||{}, steps=rm.steps||[];
+    var cur=steps.filter(function(s){ return statusOf(s.no)!=='VERIFIED'; })[0];
+    currentNo = cur ? cur.no : (steps.length?steps[steps.length-1].no:1);
+    if(state.open===null) state.open=new Set([currentNo]);
+    var st=computeStats(rm);
+    var today=todayList(rm);
+
+    var html=
+      '<div class="rmx-kick">준비 로드맵 · '+esc(ROUTE_LABEL[res.routeId]||'경로')+'</div>'+
+      '<h1 class="rmx-h1">'+esc(rm.title||'로드맵')+'</h1>'+
+      (res.goalLabel?'<div class="rmx-bc">↳ '+esc(res.goalLabel)+'에서 이어진 공고</div>':'')+
+      (rm.intro?'<div class="rmx-intro">'+esc(rm.intro)+'</div>':'')+
+      '<div class="rmx-stats">'+
+        '<div class="rmx-stat"><div class="k">준비 참고 지표</div><div class="v">'+st.pct+'<small>/100</small></div><div class="n">요건 '+((rm.strengths?rm.strengths.length:0)+st.vSteps)+'/'+((rm.strengths?rm.strengths.length:0)+st.nSteps)+' 확인</div><div class="rmx-bar"><i style="width:'+st.pct+'%"></i></div></div>'+
+        '<div class="rmx-stat"><div class="k">지원일까지</div><div class="v" style="color:'+(st.dday!=null&&st.dday>=0?'var(--warn)':'var(--muted)')+'">'+(st.dday==null?'—':(st.dday>=0?'D-'+st.dday:'지남'))+'</div><div class="n">'+(rm.targetDate?esc(rm.targetDate)+' 목표':'목표일 미설정')+'</div></div>'+
+        '<div class="rmx-stat"><div class="k">오늘 할 일</div><div class="v" style="color:var(--brand)">'+st.todayN+'</div><div class="n">작게 시작</div></div>'+
+      '</div>'+
+      (today.length?'<div class="rmx-today"><div class="h"><i class="i i-sun"></i> 오늘 할 일 — 준비도를 제일 크게 올리는 것</div><ul>'+today.map(function(t){ return '<li>'+esc(t)+'</li>'; }).join('')+'</ul></div>':'')+
+      '<div class="rmx-sec">요건 × 증거</div>'+matrixHtml(rm)+
+      '<div class="rmx-sec">준비 로드맵 — 산출물로 증거를 만든다</div>'+steps.map(stepHtml).join('')+
+      '<div class="rmx-sec">결과물 루프</div>'+loopHtml(rm)+
+      '<div class="rmx-sec">이 로드맵에 물어보기</div>'+askHtml(rm)+
+      '<div class="rmx-sec">내보내기</div>'+exportHtml()+
+      '<div class="rmx-foot">정의 → 제작 → 제출 → 재진단으로 증거를 쌓아가는 로드맵이에요. 완료한 산출물은 요건 매트릭스에 바로 반영돼요.</div>';
+
+    body.innerHTML=html;
+    wire();
+
+    openPanels.forEach(function(id){ var el=document.getElementById(id); if(el){ el.style.display='block'; var b=body.querySelector('[data-toggle="'+id+'"]'); if(b) b.classList.add('on'); } });
+    Object.keys(draft).forEach(function(step){ var inp=body.querySelector('.subinput[data-step="'+step+'"]'); if(inp&&draft[step]&&draft[step]!==inp.value) inp.value=draft[step]; });
+    if(askDraft){ var a2=document.getElementById('askInput'); if(a2&&!a2.value) a2.value=askDraft; }
+    if(focusStep){ var f=body.querySelector('.subinput[data-step="'+focusStep+'"]'); if(f) f.focus(); }
+    else if(askFocus){ var a3=document.getElementById('askInput'); if(a3) a3.focus(); }
+  }
+
+  function wire(){
+    var body=document.getElementById('body');
+    Array.prototype.forEach.call(body.querySelectorAll('[data-toggle]'), function(btn){
+      btn.addEventListener('click', function(){ var el=document.getElementById(btn.getAttribute('data-toggle')); if(el){ var o=el.style.display==='block'; el.style.display=o?'none':'block'; btn.classList.toggle('on',!o); } });
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-step-toggle]'), function(h){
+      h.addEventListener('click', function(e){ if(e.target.closest&&e.target.closest('[data-toggle],.rmx-card')) return; var no=parseInt(h.getAttribute('data-step-toggle'),10); if(state.open.has(no)) state.open.delete(no); else state.open.add(no); render(); });
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-submit]'), function(btn){ btn.addEventListener('click', function(){ doReassess(btn); }); });
+    Array.prototype.forEach.call(body.querySelectorAll('.subinput[data-step]'), function(inp){ inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var b=body.querySelector('[data-submit="'+inp.getAttribute('data-step')+'"]'); if(b) doReassess(b); } }); });
+    var askBtn=document.getElementById('askSend'), askIn=document.getElementById('askInput');
+    if(askBtn) askBtn.addEventListener('click', function(){ doAsk(askIn?askIn.value:''); });
+    if(askIn) askIn.addEventListener('keydown', function(e){ if(e.key==='Enter') doAsk(askIn.value); });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-ask-preset]'), function(b){ b.addEventListener('click', function(){ doAsk(b.getAttribute('data-ask-preset')); }); });
+    Array.prototype.forEach.call(body.querySelectorAll('[data-export]'), function(b){ b.addEventListener('click', function(){ doExport(b.getAttribute('data-export')); }); });
+  }
+
+  function doReassess(btn){
+    var no=parseInt(btn.getAttribute('data-submit'),10);
+    var inp=document.querySelector('.subinput[data-step="'+no+'"]');
+    var url=(inp&&inp.value||'').trim();
+    var errEl=document.getElementById('suberr-'+no); if(errEl) errEl.style.display='none';
+    if(!url){ if(errEl){ errEl.textContent='산출물 링크(GitHub·배포·문서)를 붙여주세요.'; errEl.style.display='block'; } return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='재진단 중…';
+    JB.api('/api/roadmaps/reassess', { method:'POST', body: JSON.stringify({ analysisId:analysisId, routeId:routeId, stepNo:no, url:url }) })
+      .then(function(pr){ state.progress[pr.stepNo]={ status:pr.status, submittedUrl:pr.submittedUrl, verdict:pr.verdict }; state.open.add(pr.stepNo); var nxt=(state.res.roadmap.steps||[]).filter(function(s){ return statusOf(s.no)!=='VERIFIED'; })[0]; if(nxt) state.open.add(nxt.no); render(); })
+      .catch(function(e){ btn.disabled=false; btn.textContent=old; if(errEl){ errEl.textContent='재진단하지 못했어요: '+e.message; errEl.style.display='block'; } });
+  }
+
+  function doAsk(q){
+    q=(q||'').trim(); if(!q) return;
+    var askIn=document.getElementById('askInput'); if(askIn) askIn.value='';   // 전송 후 입력창 비움(재렌더 draft 복원 방지)
+    var send=document.getElementById('askSend'); if(send){ send.disabled=true; send.textContent='…'; }
+    JB.api('/api/roadmaps/ask', { method:'POST', body: JSON.stringify({ analysisId:analysisId, routeId:routeId, question:q }) })
+      .then(function(r){ state.ask.push({ q:q, a:(r&&r.answer)||'답변을 불러오지 못했어요.' }); render(); })
+      .catch(function(e){ state.ask.push({ q:q, a:'답변하지 못했어요: '+e.message }); render(); });
+  }
+
+  /* ── 내보내기(전부 실제 동작) ── */
+  function doExport(kind){
+    var rm=(state.res||{}).roadmap||{}, steps=rm.steps||[];
+    if(kind==='share'){
+      var url=location.href;
+      if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function(){ toast('로드맵 링크를 복사했어요 — 멘토에게 붙여넣기'); }, function(){ toast('주소창의 URL을 복사해 공유하세요'); });
+      else toast('주소창의 URL을 복사해 공유하세요');
+    } else if(kind==='ics'){
+      download((rm.title||'roadmap')+'.ics', buildIcs(rm,steps), 'text/calendar;charset=utf-8'); toast('캘린더 파일(.ics)을 내려받았어요');
+    } else if(kind==='report'){
+      openReport(rm,steps);
+    } else if(kind==='portfolio'){
+      openPortfolio(rm,steps);
+    }
+  }
+
+  function pad(n){ return (n<10?'0':'')+n; }
+  function download(name,text,mime){ var b=new Blob([text],{type:mime||'text/plain;charset=utf-8'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); },1000); }
+  function icsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+  function buildIcs(rm,steps){
+    var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//J.O.B.I.S//roadmap//KO','CALSCALE:GREGORIAN'];
+    var cur=new Date(); cur.setHours(0,0,0,0);
+    var sd=new Date(); var stamp=sd.getUTCFullYear()+pad(sd.getUTCMonth()+1)+pad(sd.getUTCDate())+'T'+pad(sd.getUTCHours())+pad(sd.getUTCMinutes())+pad(sd.getUTCSeconds())+'Z';
+    function ymd(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate()); }
+    steps.forEach(function(s){
+      var a=new Date(cur), b=new Date(cur); b.setDate(b.getDate()+7);
+      L.push('BEGIN:VEVENT');
+      L.push('UID:jobiss-'+encodeURIComponent(analysisId)+'-'+routeId+'-'+s.no+'@jobiss');
+      L.push('DTSTAMP:'+stamp);
+      L.push('DTSTART;VALUE=DATE:'+ymd(a));
+      L.push('DTEND;VALUE=DATE:'+ymd(b));
+      L.push('SUMMARY:'+icsEsc('[준비] '+(s.title||'')));
+      L.push('DESCRIPTION:'+icsEsc('격차: '+(s.gap||'')+'\n산출물: '+(s.artifact||'')+'\n완료 기준: '+(s.done||'')));
+      L.push('END:VEVENT');
+      cur.setDate(cur.getDate()+7);
+    });
+    L.push('END:VCALENDAR');
+    return L.join('\r\n');
+  }
+  function openReport(rm,steps){
+    var rows=steps.map(function(s){ var st=statusOf(s.no); var mk=st==='VERIFIED'?'✔ 증거 확인':(st==='NEEDS_WORK'?'△ 보완 필요':'· 예정'); var p=state.progress[s.no]||{}; return '<tr><td>'+esc(String(s.no))+'</td><td>'+esc(s.title||'')+'</td><td>'+esc(s.requirement||'')+'</td><td>'+mk+'</td><td>'+esc(p.submittedUrl||'')+'</td></tr>'; }).join('');
+    var doc='<!doctype html><meta charset="utf-8"><title>증거 요약 리포트</title><style>body{font-family:Pretendard,system-ui,sans-serif;padding:32px;color:#1a1a1a}h1{font-size:20px;margin:0 0 4px}p{color:#666;font-size:13px}table{border-collapse:collapse;width:100%;font-size:13px;margin-top:14px}td,th{border:1px solid #ddd;padding:8px 10px;text-align:left}th{background:#f5f5f5}</style>'+
+      '<h1>'+esc(rm.title||'준비 로드맵')+' — 증거 요약</h1><p>우선 보완: '+esc(rm.topGap||'')+'</p>'+
+      '<table><tr><th>#</th><th>단계</th><th>요건</th><th>상태</th><th>제출 링크</th></tr>'+rows+'</table>';
+    var w=window.open('','_blank'); if(w){ w.document.write(doc); w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} },350); } else toast('팝업이 차단됐어요 — 팝업 허용 후 다시 눌러주세요');
+  }
+  function openPortfolio(rm,steps){
+    var vs=steps.filter(function(s){ return statusOf(s.no)==='VERIFIED'; });
+    var items=vs.length?vs.map(function(s){ var p=state.progress[s.no]||{}; return '<li><b>'+esc(s.requirement||s.title||'')+'</b><br><span class="u">'+esc(p.submittedUrl||'')+'</span><br><span class="d">'+esc(s.artifact||'')+'</span></li>'; }).join(''):'<li class="empty">아직 확인된 증거가 없어요.<br>스텝에 산출물 링크를 제출하면 여기 모여요.</li>';
+    openModal('<i class="i i-pkg"></i> 포트폴리오로 묶기','<p class="sub">확인된 증거를 지원 자료에 바로 붙일 수 있게 모았어요.</p><ul class="rmx-pf">'+items+'</ul>');
+  }
+  function openModal(title,inner){ var m=document.getElementById('modal'), bd=document.getElementById('modalBd'); bd.innerHTML='<button class="rmx-modal-x" id="modalX">×</button><h3>'+title+'</h3>'+inner; m.hidden=false; document.getElementById('modalX').onclick=closeModal; m.onclick=function(e){ if(e.target===m) closeModal(); }; }
+  function closeModal(){ document.getElementById('modal').hidden=true; }
+
+  JB.api('/api/roadmaps/one?analysisId='+encodeURIComponent(analysisId)+'&routeId='+encodeURIComponent(routeId))
+    .then(function(res){ state.res=res; (res.progress||[]).forEach(function(p){ state.progress[p.stepNo]={ status:p.status, submittedUrl:p.submittedUrl, verdict:p.verdict }; }); render(); })
+    .catch(function(e){ document.getElementById('body').innerHTML='<div class="rmx-msg">로드맵을 불러오지 못했어요.<br>'+esc(e.message)+'</div>'; });
+})();
+</script>
+</body>
+</html>
