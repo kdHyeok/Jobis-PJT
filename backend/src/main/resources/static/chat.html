@@ -117,6 +117,7 @@
   /* 화자색이 이름·말풍선 테두리에도 스며들게 */
   .msg.agent-msg .name{color:color-mix(in srgb,var(--ac) 62%,var(--ink))}
   .msg.agent-msg .bubble{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
+  .bubble strong.hl{font-weight:800;color:var(--brand-ink)}
   /* 독의 지나간 아바타·현재 에이전트도 각자 색 */
   .ar-done .av{color:var(--ac,var(--muted));border-color:color-mix(in srgb,var(--ac,#fff) 32%,transparent);
     background:color-mix(in srgb,var(--ac,#fff) 9%,transparent)}
@@ -475,6 +476,10 @@
     if(a) return { av:'<div class="who ai agent"><svg><use href="#'+a.icon+'"/></svg></div>', name:a.name, color:a.color };
     return { av:'<div class="who ai">✦</div>', name:'J.O.B.I.S', color:null };
   }
+  /* AI 답변 속 **라벨** 강조 — esc 후 <strong> 치환. */
+  function mdHl(text){
+    return esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong class="hl">$1</strong>');
+  }
   // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
   function aiBubble(html, extra, speaker){
     var w = whoHtml(speaker);
@@ -516,6 +521,8 @@
         setTimeout(tick, speed);
       } else {
         if(caret) caret.remove();
+        // 타이핑이 끝나면 **라벨** 강조를 입힌다(서식만 — 문구는 전부 AI 가 쓴 것).
+        tw.innerHTML = mdHl(plainText);
         if(opts.extraHtml){
           var body = el.querySelector('.body');
           var wrap = document.createElement('div');

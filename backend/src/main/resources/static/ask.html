@@ -12,7 +12,26 @@
 <style>
 /* .app 이 100vh 그리드이고 메인 컬럼이 내부 스크롤이다 — 창을 스크롤하지 않는다.
    그래서 대화는 .ask-scroll 안에서 흐르고, 입력창은 그 아래 고정 영역으로 둔다. */
-.ask-main{display:flex;flex-direction:column;min-height:0}
+.ask-main{display:flex;flex-direction:row;min-height:0}
+.ask-col{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+/* 우측 패널 — 파싱·항목화된 공고/이력서. 자료가 파싱되면 나타난다. */
+.ask-panel{flex:0 0 320px;width:320px;border-left:1px solid var(--line);overflow-y:auto;
+  padding:18px 16px;display:flex;flex-direction:column;gap:14px;background:var(--bg)}
+.ask-panel[hidden]{display:none}
+.cp-card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 14px}
+.cp-title{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.05em;margin-bottom:8px}
+.cp-head{font-size:13.5px;font-weight:800;line-height:1.45;margin-bottom:2px}
+.cp-sub{font-size:12px;color:var(--muted);margin-bottom:6px}
+.cp-k{font-size:11.5px;font-weight:800;color:var(--brand-ink);margin:10px 0 5px}
+.cp-li{font-size:12px;line-height:1.55;color:var(--ink-2);padding:3px 0 3px 10px;position:relative}
+.cp-li::before{content:'';position:absolute;left:0;top:10px;width:4px;height:4px;border-radius:50%;background:var(--brand)}
+.cp-chips{display:flex;flex-wrap:wrap;gap:5px}
+.cp-chips span{font-size:11px;font-weight:700;background:var(--brand-soft);color:var(--brand-ink);
+  border-radius:14px;padding:4px 9px}
+.cp-note{font-size:11px;color:var(--faint);margin-top:8px}
+@media (max-width:1100px){.ask-panel{display:none}}
+/* 답변 속 항목 라벨(**…**) 강조 */
+.ask-bubble strong.hl{font-weight:800;color:var(--brand-ink)}
 .ask-scroll{flex:1;min-height:0;overflow-y:auto;padding:26px 30px 20px}
 .ask-head{max-width:760px;margin:0 auto 18px}
 .ask-head h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0 0 5px}
@@ -128,6 +147,7 @@
   </aside>
 
   <main class="stg-main ask-main">
+    <div class="ask-col">
     <div class="ask-scroll" id="scroller">
       <div class="ask-head">
         <h1>JOBIS에게 물어보기</h1>
@@ -154,6 +174,20 @@
       </form>
       <div class="ask-hint" id="composerHint"></div>
     </div>
+    </div>
+    <!-- 파싱·항목화 결과 — AI 가 공고/이력서를 읽어내면 여기 표로 정리된다. -->
+    <aside class="ask-panel" id="ctxPanel" hidden>
+      <div class="cp-card" id="cpJob" hidden>
+        <div class="cp-title">공고 요건 정리</div>
+        <div class="cp-head" id="cpJobHead"></div>
+        <div class="cp-sub" id="cpJobSub"></div>
+        <div id="cpJobBody"></div>
+      </div>
+      <div class="cp-card" id="cpProfile" hidden>
+        <div class="cp-title">내 이력서 정리</div>
+        <div id="cpProfileBody"></div>
+      </div>
+    </aside>
   </main>
 </div>
 
@@ -185,11 +219,15 @@
   }).catch(function(){});
   document.getElementById('logoutBtn').addEventListener('click', function(){ JB.logout(); location.href='login.html'; });
 
+  /* AI 답변의 **라벨** 을 강조한다. 서식만 입힌다 — 문구는 전부 AI 가 쓴 것. */
+  function md(text){
+    return esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong class="hl">$1</strong>');
+  }
   function bubble(role, text){
     var el = document.createElement('div');
     el.className = 'ask-msg' + (role === 'me' ? ' me' : '');
     el.innerHTML = '<div class="who">' + (role === 'me' ? '나' : '✦') + '</div>' +
-                   '<div class="ask-bubble">' + esc(text) + '</div>';
+                   '<div class="ask-bubble">' + (role === 'me' ? esc(text) : md(text)) + '</div>';
     thread.appendChild(el);
     scrollDown();
     return el;
@@ -349,6 +387,7 @@
   async function openConversation(id){
     conversationId = id;
     thread.innerHTML = '';
+    resetContext();
     try {
       var msgs = await JB.api('/api/chat/conversations/' + id) || [];
       msgs.forEach(function(m){
@@ -365,11 +404,60 @@
   document.getElementById('newConvBtn').addEventListener('click', function(){
     conversationId = null;
     thread.innerHTML = '';
+    resetContext();
     loadConversations();
     input.focus();
   });
 
   loadConversations();
+
+  // ── 우측 패널: 파싱·항목화된 공고/이력서 ─────────────────────────────
+  var ctxPanel = document.getElementById('ctxPanel');
+  function resetContext(){
+    ctxPanel.hidden = true;
+    document.getElementById('cpJob').hidden = true;
+    document.getElementById('cpProfile').hidden = true;
+  }
+  function sec(title, itemsHtml){
+    return itemsHtml ? '<div class="cp-k">' + title + '</div>' + itemsHtml : '';
+  }
+  function lis(items){
+    return (items || []).map(function(t){ return '<div class="cp-li">' + esc(t) + '</div>'; }).join('');
+  }
+  function chips(items){
+    if (!(items || []).length) return '';
+    return '<div class="cp-chips">' + items.map(function(t){ return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
+  }
+  /* AI 가 파싱해 보낸 항목만 그린다 — 없는 값은 칸을 만들지 않는다. */
+  function renderContext(ctx){
+    if (!ctx) return;
+    if (ctx.job){
+      var j = ctx.job;
+      document.getElementById('cpJobHead').textContent =
+        [j.company, j.role].filter(Boolean).join(' · ') || '공고';
+      document.getElementById('cpJobSub').textContent = j.career ? '요구 연차 — ' + j.career : '';
+      document.getElementById('cpJobBody').innerHTML =
+        sec('필수 요건' + ((j.required||[]).length ? ' ' + j.required.length + '건' : ''), lis(j.required)) +
+        sec('우대 사항' + ((j.preferred||[]).length ? ' ' + j.preferred.length + '건' : ''), lis(j.preferred)) +
+        sec('요구 기술' + ((j.stack||[]).length ? ' ' + j.stack.length + '개' : ''), chips(j.stack)) +
+        sec('도메인', chips(j.domains));
+      document.getElementById('cpJob').hidden = false;
+      ctxPanel.hidden = false;
+    }
+    if (ctx.profile){
+      var m = ctx.profile;
+      document.getElementById('cpProfileBody').innerHTML =
+        sec('기술 스택' + ((m.skills||[]).length ? ' ' + m.skills.length + '개' : ''), chips(m.skills)) +
+        sec('프로젝트', lis(m.projects)) +
+        sec('경력', lis(m.experiences)) +
+        sec('학력', lis(m.education)) +
+        sec('자격증', lis(m.certifications)) +
+        sec('어학', lis(m.languages)) +
+        (m.evidenceCount ? '<div class="cp-note">판정 근거 문장 ' + m.evidenceCount + '건 추출됨</div>' : '');
+      document.getElementById('cpProfile').hidden = false;
+      ctxPanel.hidden = false;
+    }
+  }
 
   var busy = false;
 
@@ -404,7 +492,8 @@
       conversationId = res.conversationId || conversationId;
       if (isNew) loadConversations();
 
-      thinking.querySelector('.ask-bubble').textContent = res.reply || '(답변이 비었어요)';
+      thinking.querySelector('.ask-bubble').innerHTML = res.reply ? md(res.reply) : '(답변이 비었어요)';
+      renderContext(res.context);
       var who = (res.dispatched || []).map(function(d){ return AGENT_KO[d] || d; }).join(' · ');
       if (who) meta('담당 ' + who);
 

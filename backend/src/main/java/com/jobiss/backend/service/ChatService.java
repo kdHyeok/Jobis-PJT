@@ -101,10 +101,13 @@ public class ChatService {
                 }
             }
             String reply = parsed.get("reply") == null ? "" : String.valueOf(parsed.get("reply"));
+            // 파싱된 공고·이력서 항목 — 해석하지 않고 그대로 중계한다(프론트 우측 패널용).
+            Map<String, Object> context = (parsed.get("context") instanceof Map<?, ?> ctx)
+                    ? (Map<String, Object>) ctx : Map.of();
             // 사용자에게 보이는 이력은 DB 에 남긴다(AI 세션은 브릿지 메모리라 재시작 시 사라진다).
             conversationService.appendTurn(conversation.getId(), req.message(), reply, dispatched);
             return new ChatAskResponse(conversation.getId(), conversation.getTitle(), reply,
-                    str(parsed.get("intent")), dispatched, askedFor);
+                    str(parsed.get("intent")), dispatched, askedFor, context);
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
