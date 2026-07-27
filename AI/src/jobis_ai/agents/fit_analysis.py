@@ -85,7 +85,11 @@ def run(session: dict[str, Any]) -> AgentResult:
             reply = "판정을 확정할 근거가 이력서에서 확인되지 않았어요. 관련 경험을 조금 더 알려주실래요?"
     else:
         grade = response.fitGrade or "판정불가"
-        reply = response.summary or f"적합도 판정 결과: {grade} 등급입니다."
+        # 등급·점수를 요약 앞에 명시한다 — 요약(LLM 표현)만 있으면 사용자가 등급을
+        # 문장 뉘앙스로 추측해야 한다(실사용 피드백). 판정 데이터 그대로, 서술 없음.
+        score_part = f" (가중 점수 {response.overallScore})" if response.overallScore is not None else ""
+        head = f"**적합도 등급 {grade}**{score_part}"
+        reply = f"{head}\n{response.summary}" if response.summary else f"{head} — 적합도 판정 결과입니다."
         if not session.get("preparationPeriodWeeks"):
             reply += f" (준비 기간은 {DEFAULT_WEEKS}주·주 {DEFAULT_HOURS}시간을 가정했습니다.)"
         # 판정을 건넨 뒤 다음 행동(로드맵·자소서·면접·대안 공고)을 제안한다 —

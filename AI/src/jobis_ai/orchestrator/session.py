@@ -38,6 +38,7 @@ ASSET_KEYS = frozenset({
     "coverletter",       # 자소서 초안 (항상 draft_pending_review 상태)
     "application_plan",  # {decision, routes} — application_plan 산출 (목표 상태·지원 경로)
     "posting_summary",   # NormalizedJobPosting dict — 화면(우측 패널) 항목화용 파싱 결과 캐시
+    "judgment_summary",  # {matches, score} — 판정 근거(요건별 매칭·점수 산출) 화면 표시용 캐시
     "userId",
     "preparationPeriodWeeks",
     "availableHoursPerWeek",

@@ -207,10 +207,16 @@ def chat_turn(body: dict[str, Any]) -> dict[str, Any]:
     parsed: dict[str, Any] = {}
 
     def _collect(event: dict) -> None:
-        update = (event.get("detail") or {}).get("update") or {}
+        detail = event.get("detail") or {}
+        update = detail.get("update") or {}
         for key in ("normalizedJobPosting", "normalizedUserProfile"):
             if update.get(key):
                 parsed[key] = update[key]
+        # 판정 엔진의 요건별 매칭·점수 산출 — 우측 패널 "판정 근거"가 그대로 그린다.
+        if event.get("kind") == "judgment" and detail.get("matches"):
+            parsed["judgmentMatches"] = detail["matches"]
+        elif event.get("kind") == "score":
+            parsed["judgmentScore"] = detail
 
     with trace.recording(sink=_collect):
         resp = handle_chat(request).model_dump()
@@ -244,11 +250,22 @@ def _panel_context(session_id: str, resp: dict[str, Any], parsed: dict[str, Any]
     # 이력서: 이번 턴 파싱 > 세션의 프로필 캐시(ensure_profile 이 저장) 순.
     profile = parsed.get("normalizedUserProfile") or store_.get(session_id).get("profile")
 
+    # 판정 근거: 이번 턴에 판정이 돌았으면 캐시하고, 아니면 지난 판정을 보여준다.
+    judgment = None
+    if parsed.get("judgmentMatches"):
+        judgment = {"matches": parsed["judgmentMatches"],
+                    "score": parsed.get("judgmentScore") or {}}
+        store_.update(session_id, {"judgment_summary": judgment})
+    else:
+        judgment = store_.get(session_id).get("judgment_summary")
+
     context: dict[str, Any] = {}
     if posting:
         context["job"] = protocol.job_items(posting)
     if profile:
         context["profile"] = protocol.profile_items(profile)
+    if judgment:
+        context["judgment"] = judgment
     return context
 
 
