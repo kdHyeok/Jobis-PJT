@@ -1,0 +1,10 @@
+# 수집 결과물은 용량 문제로 git에 올리지 않는다 (전달 방식은 팀 협의)
+data/
+exports/
+
+# 로컬 가상환경
+.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
