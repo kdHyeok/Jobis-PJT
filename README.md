@@ -23,7 +23,7 @@ S15P11C202/
 └── _ref/       # 참고 자료 (이미지·영상)
 ```
 
-> `AI/`, `DATA/`는 구조 정리를 위해 비워둔 상태입니다. 기존 작업물은 `ai_agent_jy`, `data` 브랜치와 develop 커밋 이력에 보존되어 있으며, 각 폴더의 README에 위치를 안내해 두었습니다.
+> `AI/`, `DATA/`는 구조 정리를 위해 비워둔 상태입니다. 기존 작업물은 아카이브 태그(`archive/ai_agent_jy`, `archive/data` 등)와 develop 커밋 이력에 보존되어 있습니다. 복원: `git switch -c <브랜치명> archive/<태그명>`
 
 ## 브랜치 운영
 
