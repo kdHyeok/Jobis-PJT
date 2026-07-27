@@ -82,8 +82,10 @@ class _Structured:
         )
 
         out = subprocess.run(
+            # --strict-mcp-config: 전역 설정의 MCP 서버를 로드하지 않는다 — 기동이 수 초
+            # 빨라지고, 구조화 추출에 도구는 필요 없다.
             [*self._chat.cli, "-p", prompt, "--output-format", "json",
-             "--model", self._chat.model, "--max-turns", "1"],
+             "--model", self._chat.model, "--max-turns", "1", "--strict-mcp-config"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
             # 레포 밖에서 실행 — 프로젝트 CLAUDE.md·설정·훅이 판정 프롬프트에 섞이지 않게.

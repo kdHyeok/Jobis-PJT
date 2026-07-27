@@ -37,25 +37,6 @@ _ASK_OPEN = (
 _DIM_KEYS = ("roles", "companies", "domains", "regions", "techStack")
 
 
-class _PreferenceRead(BaseModel):
-    """읽기 전용 — 발화에 실제로 언급된 것만 옮겨 적는다. 판단 필드 없음."""
-
-    roles: list[str] = Field(default_factory=list)      # 직군 표현 (예: 백엔드, Java 백엔드)
-    companies: list[str] = Field(default_factory=list)  # 회사·기관명 또는 회사 특성 (규모가 큰 회사 등)
-    domains: list[str] = Field(default_factory=list)    # 산업·서비스 도메인 (커머스, 핀테크 …)
-    regions: list[str] = Field(default_factory=list)    # 근무 지역·형태 (서울, 판교, 원격 …)
-    techStack: list[str] = Field(default_factory=list)  # 기술 스택·개발환경 (Java/Spring, Node, AWS …)
-
-
-_READ_SYSTEM = """너는 취업 상담 발화에서 선호를 뽑아내는 추출기다. 발화에 **실제로 언급된 것만** 뽑는다.
-- roles: 직군·직무 표현(세부 분야 포함 — 예: 백엔드, Java 백엔드, 데이터 엔지니어).
-- companies: 회사·기관 이름, 또는 회사에 대한 선호 특성("규모가 큰 회사", "스타트업" 같은).
-- domains: 산업/서비스 도메인(커머스, 핀테크, 게임, 헬스케어 등).
-- regions: 근무 지역·근무 형태(서울, 판교, 부산, 원격 등).
-- techStack: 기술 스택·개발환경(Java/Spring, Node, Python, AWS, MSA 등).
-- 추측·확장 금지. 언급이 없으면 빈 배열."""
-
-
 def _detect_roles_by_rule(text: str) -> list[str]:
     """role_taxonomy 별칭 분류 — LLM 없이도 직군을 잡는다."""
 
@@ -161,8 +142,22 @@ _ACTIONS = ("ask_preference", "request_posting", "request_resume", "proceed")
 
 
 class _IntakeAct(BaseModel):
-    """이번 턴의 행동과 사용자에게 할 말."""
+    """이번 턴의 행동 + 사용자에게 할 말 + 발화에서 읽어낸 선호.
 
+    별도 추출 호출(_PreferenceRead)을 두지 않고 한 번에 받는다 — CLI 경유 공급자에서는
+    호출 수가 곧 응답 시간이다(호출당 수 초). 추출 규칙은 필드 description 이 강제한다.
+    """
+
+    roles: list[str] = Field(default_factory=list, description=(
+        "발화에 실제로 언급된 직군·직무 표현만(예: 백엔드, 데이터 엔지니어). 추측·확장 금지."))
+    companies: list[str] = Field(default_factory=list, description=(
+        "발화에 언급된 회사 이름 또는 회사 선호 특성(\"규모가 큰 회사\" 등)만. 없으면 빈 배열."))
+    domains: list[str] = Field(default_factory=list, description=(
+        "발화에 언급된 산업/서비스 도메인(커머스·핀테크·게임 등)만. 없으면 빈 배열."))
+    regions: list[str] = Field(default_factory=list, description=(
+        "발화에 언급된 근무 지역·형태(서울·판교·원격 등)만. 없으면 빈 배열."))
+    techStack: list[str] = Field(default_factory=list, description=(
+        "발화에 언급된 기술 스택·개발환경(Java/Spring, AWS 등)만. 없으면 빈 배열."))
     action: str = Field(default="ask_preference", description=(
         "이번 턴에 할 일. 하나만 고른다.\n"
         "- request_posting: 사용자가 특정 공고를 갖고 있다/보내겠다고 하거나, 그 공고 기준으로 "
@@ -176,6 +171,9 @@ class _IntakeAct(BaseModel):
 
 
 _ACT_SYSTEM = """너는 취업 서비스의 대화 상담원이다. 사용자가 원하는 공고를 찾도록 돕는다.
+
+발화에 실제로 언급된 선호(직군·회사·도메인·지역·기술스택)는 해당 필드에 그대로 옮겨 적는다 —
+추측·확장 금지, 없으면 빈 배열.
 
 이번 턴에 무엇을 할지 네가 고른다(action). 판단 기준:
 - 사용자가 특정 공고를 언급하거나 "보내면 되냐/있다"고 하면 → request_posting.
@@ -195,20 +193,20 @@ _ACT_SYSTEM = """너는 취업 서비스의 대화 상담원이다. 사용자가
 - 상담원처럼 딱딱하지 않게, 짧고 자연스럽게."""
 
 
-def _decide(facts: dict) -> tuple[str, str, list[dict]]:
-    """(action, reply, warnings). LLM 미설정·실패면 ("", "", warnings) — 호출부가 규칙 경로로 폴백."""
+def _decide(facts: dict) -> tuple[str, str, "_IntakeAct | None", list[dict]]:
+    """(action, reply, 추출된 선호, warnings). LLM 미설정·실패면 ("", "", None, warnings)."""
 
     read, warnings = run_structured(
         _IntakeAct, _ACT_SYSTEM, json.dumps(facts, ensure_ascii=False),
         node="preference_intake_act",
     )
     if read is None:
-        return "", "", warnings
+        return "", "", None, warnings
     action = read.action if read.action in _ACTIONS else "ask_preference"
     reply = (read.reply or "").strip()
     if not reply or any(expr in reply for expr in FORBIDDEN_EXPRESSIONS):
-        return "", "", warnings
-    return action, reply, warnings
+        return "", "", read, warnings
+    return action, reply, read, warnings
 
 
 def _render_reply(facts: dict, fallback: str) -> tuple[str, list[dict]]:
@@ -241,15 +239,23 @@ def run(session: dict) -> AgentResult:
     # 1차 룰: 직군은 taxonomy 별칭으로 결정론 탐지
     _merge(prefs, "roles", _detect_roles_by_rule(message))
 
-    # 2차 LLM 읽기: 회사·도메인 등 자유 표현 (미설정·실패 시 룰 결과만으로 진행)
     warnings: list[dict] = []
-    if message.strip():
-        read, warnings = run_structured(
-            _PreferenceRead, _READ_SYSTEM, message, node="preference_intake", tier="light"
-        )
-        if read is not None:
-            for key in _DIM_KEYS:
-                _merge(prefs, key, getattr(read, key))
+    known = {k: prefs[k] for k in _DIM_KEYS if prefs.get(k)}
+
+    # 행동 선택 + 선호 추출을 **한 호출로** 받는다 (읽기 호출 분리는 CLI 공급자에서 턴을
+    # 배로 느리게 한다). 규칙(_next_probe)은 제안만 넘긴다.
+    _, suggested_ask = _next_probe(prefs)
+    action, reply, extracted, act_warnings = _decide({
+        "userMessage": message,
+        "recentHistory": history,
+        "known": known,
+        "hasResume": bool(session.get("resume") or session.get("profile")),
+        "hasPosting": bool(session.get("job_posting")),
+        "suggestedAsk": suggested_ask,
+    })
+    if extracted is not None:
+        for key in _DIM_KEYS:
+            _merge(prefs, key, getattr(extracted, key))
 
     # LLM 이 직군 표현을 도메인·회사로도 중복 분류하는 것 정리 — 직군은 직군 한 곳에만.
     taxonomy = get_role_taxonomy()
@@ -259,19 +265,7 @@ def run(session: dict) -> AgentResult:
             v for v in prefs[key]
             if v.lower() not in role_lower and not taxonomy.classify_role(v)
         ]
-
     known = {k: prefs[k] for k in _DIM_KEYS if prefs.get(k)}
-
-    # 다음 행동은 에이전트가 고른다. 규칙(_next_probe)은 제안만 넘긴다.
-    _, suggested_ask = _next_probe(prefs)
-    action, reply, act_warnings = _decide({
-        "userMessage": message,
-        "recentHistory": history,
-        "known": known,
-        "hasResume": bool(session.get("resume") or session.get("profile")),
-        "hasPosting": bool(session.get("job_posting")),
-        "suggestedAsk": suggested_ask,
-    })
     if action:
         warnings.extend(act_warnings)
         # 행동의 효과는 코드가 정한다 — 무엇을 받아야 하는지를 followUpQuestions 로 알린다.
