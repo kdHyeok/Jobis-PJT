@@ -1,0 +1,69 @@
+{
+  "summary": {
+    "cases": 2,
+    "avg_requirement_f1": 1.0,
+    "avg_groundedness": 1.0,
+    "total_policy_violations": 0,
+    "roadmap_compliance_rate": 1.0
+  },
+  "cases": [
+    {
+      "caseId": "backend-clear-match",
+      "requirement_f1": {
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "groundedness": {
+        "citations": 10,
+        "grounded": 10,
+        "hallucinated": 0,
+        "groundedness": 1.0
+      },
+      "policy": {
+        "violations": 0,
+        "matched": []
+      },
+      "roadmap": {
+        "items": 5,
+        "plannedHours": 285,
+        "budgetHours": 320,
+        "overBudget": false,
+        "missingFields": 0,
+        "compliant": true
+      }
+    },
+    {
+      "caseId": "data-eng-gap-heavy",
+      "requirement_f1": {
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "groundedness": {
+        "citations": 3,
+        "grounded": 3,
+        "hallucinated": 0,
+        "groundedness": 1.0
+      },
+      "policy": {
+        "violations": 0,
+        "matched": []
+      },
+      "roadmap": {
+        "items": 7,
+        "plannedHours": 180,
+        "budgetHours": 180,
+        "overBudget": false,
+        "missingFields": 0,
+        "compliant": true
+      }
+    }
+  ]
+}

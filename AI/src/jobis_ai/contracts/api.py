@@ -1,0 +1,90 @@
+"""백엔드 ↔ AI 서버 요청/응답 계약 (설계 15.2 / 15.3).
+
+POST /api/v1/analyze
+- 요청: AnalyzeRequest
+- 응답: AnalyzeResponse
+"""
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field
+
+
+class SourceType(str, Enum):
+    """공고 입력 소스 종류 (설계 8.3)."""
+
+    url = "url"
+    text = "text"
+    file = "file"
+
+
+class JobPostingInput(BaseModel):
+    """목표 채용공고 입력."""
+
+    sourceType: SourceType
+    value: str
+
+
+class AnalyzeOptions(BaseModel):
+    """분석 옵션."""
+
+    includeAlternatives: bool = False
+
+
+class AnalyzeRequest(BaseModel):
+    """백엔드 → AI 서버 요청 (설계 15.2)."""
+
+    userId: int
+    jobPostingInput: JobPostingInput
+    selectedExperienceIds: list[int] = Field(default_factory=list)
+    preparationPeriodWeeks: int
+    availableHoursPerWeek: int
+    options: AnalyzeOptions = Field(default_factory=AnalyzeOptions)
+    # need_more_info 재개 시 기존 분석을 이어가기 위해 전달 (설계 15.3)
+    analysisId: Optional[str] = None
+
+
+AnalysisStatus = Literal["completed", "need_more_info", "failed"]
+
+
+class ResponseMeta(BaseModel):
+    """응답 메타데이터."""
+
+    retriedNodes: list[str] = Field(default_factory=list)
+    generatedAt: str
+    modelVersion: str = ""
+
+
+class AnalyzeResponse(BaseModel):
+    """AI 서버 → 백엔드 응답 (설계 15.3).
+
+    status 가 need_more_info 이면 백엔드는 followUpQuestions 를 사용자에게 노출하고,
+    답을 모아 analysisId 와 함께 같은 엔드포인트로 재요청한다.
+    """
+
+    analysisId: str
+    status: AnalysisStatus
+    # 분석 결과를 사람이 읽는 한 문단으로 요약한 것 (nl_render 산출, 설계 §3.9).
+    # 기본값이 있는 추가 필드라 기존 소비자는 무시해도 된다.
+    summary: str = ""
+    # 종합 적합도 등급과 점수 (2026-07-21). fitGrade: "상"|"중"|"하"|"판정불가".
+    # 상이면 진단만, 중·하면 로드맵·대안까지 제공한다. 계산 근거가 없으면 "판정불가"/None.
+    # 기본값이 있는 추가 필드라 기존 소비자는 무시해도 된다.
+    fitGrade: str = ""
+    overallScore: Optional[float] = None
+    requirements: list[dict] = Field(default_factory=list)
+    strengths: list[dict] = Field(default_factory=list)
+    gaps: list[dict] = Field(default_factory=list)
+    roadmap: list[dict] = Field(default_factory=list)
+    alternativeJobs: list[dict] = Field(default_factory=list)
+    followUpQuestions: list[dict] = Field(default_factory=list)
+    # docx 에서 못 뽑은 enum 필드(degree/status/employmentType/projectType) 보완 질문.
+    # **비블로킹** — followUpQuestions 와 달리 status 를 need_more_info 로 바꾸지 않는다.
+    # 기본값이 있는 추가 필드라 기존 소비자는 무시해도 된다.
+    profileCompletionQuestions: list[dict] = Field(default_factory=list)
+    sources: list[dict] = Field(default_factory=list)
+    warnings: list[dict] = Field(default_factory=list)
+    meta: ResponseMeta

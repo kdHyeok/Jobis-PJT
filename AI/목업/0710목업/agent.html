@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잡퀘스트 — Agent Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="scrim" aria-hidden="true"></div>
+<div class="app">
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+      잡퀘스트
+    </a>
+    <a class="s-new" href="new.html">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      새 공고 분석
+    </a>
+    <p class="s-label">현재 목표 공고</p>
+    <div class="s-goal">
+      <p class="g-l">
+        <svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+        Agent 실행 중
+      </p>
+      <p class="g-t">클라우드웨이브 · 백엔드 엔지니어</p>
+      <p class="g-m">마감 7. 31. · 경력 3년 이상</p>
+    </div>
+    <p class="s-label">최근 분석</p>
+    <nav class="s-list">
+      <a class="on" href="agent.html">클라우드웨이브 · 실행 기록</a>
+      <a href="result.html">넥스트커머스 · 백엔드 (신입)</a>
+      <a href="result.html">티스퀘어랩 · 플랫폼 엔지니어</a>
+    </nav>
+    <div class="s-user">
+      <span class="av">박</span>
+      <div><div class="u-n">박준영</div><div class="u-s">프로필 66% 완성</div></div>
+    </div>
+  </aside>
+
+  <!-- 메인: Agent Control Room -->
+  <main class="main">
+    <div class="main-head">
+      <button class="drawer-btn" aria-label="메뉴 열기"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="mh-t">Agent Control Room — 목표 공고 오케스트레이션</span>
+      <span class="code-st running">RUNNING</span>
+      <span class="sp"></span>
+      <span class="mh-s">7단계 Orchestrator · 진행률 68%</span>
+      <a class="btn btn-line btn-sm" href="analyzing.html">검토실 화면으로</a>
+    </div>
+
+    <div class="content" style="max-width:1120px">
+
+      <div class="agent-note">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+        <span>이 화면은 단순 분석 결과가 아니라, <b>Agent가 목표 달성을 위해 어떤 도구를 선택하고, 어떤 실패를 복구하고, 어떤 근거로 다음 행동을 결정했는지</b> 보여주는 실행 기록입니다. 정해진 순서대로만 실행되는 워크플로우가 아니라, <b>상태와 근거에 따라 다음 도구와 질문을 선택하는 제한형 Orchestrator Agent</b>입니다.</span>
+      </div>
+
+      <!-- A. 목표 카드 -->
+      <div class="goal mt24">
+        <svg class="i g-flag" style="width:20px;height:20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+        <div style="flex:1;min-width:0">
+          <p class="g-eyebrow">Agent가 수신한 목표</p>
+          <p class="g-title">"클라우드웨이브 백엔드 공고 기준으로 박준영님의 준비 경로를 완성하고 저장하라"</p>
+          <div class="g-meta"><span>현재 상태 <b>분석 진행 중</b></span><span>Agent 단계 <b>7단계 Orchestrator</b></span><span>진행률 <b class="num">68%</b></span></div>
+          <div class="run-meta">
+            <span class="rm">RUN_ID = JQ-RUN-2026-0710-0042</span>
+            <span class="rm">시작 14:02:11</span>
+            <span class="rm">예상 종료 14:03:05</span>
+            <span class="rm">도구 호출 7 / 사용자 질문 3</span>
+          </div>
+        </div>
+        <div class="g-judge">
+          <p class="jl">다음 행동</p>
+          <p class="jv" style="color:var(--brand-hover)">질문 생성 또는 퀘스트 설계</p>
+          <p class="small mt4">confidence 0.74 기준 분기</p>
+        </div>
+      </div>
+
+      <!-- B/C/D 3단 -->
+      <div class="ag-grid">
+
+        <!-- B. State Blackboard -->
+        <div>
+          <p class="ag-col-h">Agent State Blackboard <span class="aside">상태 기반 분기</span></p>
+          <div class="bb">
+            <div class="bb-row"><span class="bb-k">job_posting.status</span><span class="bb-v v-ok">fetched</span></div>
+            <div class="bb-row"><span class="bb-k">job_posting.quality</span><span class="bb-v v-ok">0.82</span></div>
+            <div class="bb-row"><span class="bb-k">user_profile.status</span><span class="bb-v v-warn">partial</span></div>
+            <div class="bb-row"><span class="bb-k">github.status</span><span class="bb-v v-ok">analyzed</span></div>
+            <div class="bb-row"><span class="bb-k">evidence.missing</span><span class="bb-v v-bad">deployment,<br>test_code,<br>collaboration</span></div>
+            <div class="bb-row"><span class="bb-k">career_gate</span><span class="bb-v v-bad">blocked_3y</span></div>
+            <div class="bb-row"><span class="bb-k">rag.status</span><span class="bb-v v-run">searching</span></div>
+            <div class="bb-row"><span class="bb-k">next_action</span><span class="bb-v v-run">ask_user_or_<br>generate_quest</span></div>
+            <div class="bb-row"><span class="bb-k">confidence</span><span class="bb-v">0.74</span></div>
+            <div class="bb-row"><span class="bb-k">readiness</span><span class="bb-v">62 → 85(est)</span></div>
+          </div>
+          <p class="bb-note">Agent는 이 상태판을 근거로 다음 도구를 선택합니다. 상태가 바뀌면 경로도 바뀝니다.</p>
+        </div>
+
+        <!-- C. Orchestrator Timeline -->
+        <div>
+          <p class="ag-col-h">Orchestrator Timeline <span class="aside">도구 선택과 판단 기록</span></p>
+          <ol class="pipe">
+            <li class="done">
+              <span class="p-dot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <p class="p-t">목표 해석 완료</p>
+              <div class="p-judge"><span class="jlbl">판단</span>목표 공고 분석과 사용자 증빙 비교가 필요함 → 다음 도구 <span class="p-tool">Job Posting Analyzer</span></div>
+            </li>
+            <li class="done">
+              <span class="p-dot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <p class="p-t">공고 URL 읽기 <span class="p-time">도구: <span class="p-tool">URL Fetcher</span></span></p>
+              <div class="p-fact">결과 — 성공 · 본문 품질 점수 <b class="num">0.82</b></div>
+              <div class="p-judge"><span class="jlbl">판단</span>본문이 충분하므로 원문 재입력 요청 없이 공고 분석 진행 <span class="small">(실패 시 <a class="txt-link" href="fallback.html">Fallback 시나리오</a>)</span></div>
+            </li>
+            <li class="done">
+              <span class="p-dot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <p class="p-t">공고 요구사항 추출 <span class="p-time">도구: <span class="p-tool">Job Analyzer Agent</span></span></p>
+              <div class="p-fact">결과 — 필수 5개 · 우대 4개 · 경력 조건 1개 추출</div>
+              <div class="p-judge"><span class="jlbl">판단</span>다음 도구 <span class="p-tool">User Evidence Analyzer</span></div>
+            </li>
+            <li class="done">
+              <span class="p-dot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <p class="p-t">사용자 자료 분석 <span class="p-time">도구: <span class="p-tool">Resume Parser</span> <span class="p-tool">GitHub Analyzer</span></span></p>
+              <div class="p-fact">결과 — Java/Spring 근거 있음 · 배포 경험 근거 없음 · 커밋 214건</div>
+              <div class="p-judge"><span class="jlbl">판단</span>일부 항목은 추가 질문 필요 → <b>HUMAN_INPUT 분기</b></div>
+            </li>
+            <li class="done">
+              <span class="p-dot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <p class="p-t">질문 생성 <span class="p-time">도구: <span class="p-tool">Evidence Interview Agent</span></span></p>
+              <div class="p-judge"><span class="jlbl">판단</span>성과 수치 · 배포 경험 · 자격증 여부 3개 질문 필요 → <a class="txt-link" href="conversation.html">면담 기록지</a></div>
+            </li>
+            <li class="now">
+              <span class="p-dot"><span class="spin" aria-hidden="true"></span></span>
+              <p class="p-t">RAG 검색 <span class="p-time">도구: <span class="p-tool">Career Resource Search</span></span></p>
+              <div class="p-fact">SQLD · 정보처리기사 · AWS 배포 과정 · 포트폴리오 템플릿 검색 중 — 12건 중 5건 채택 예정</div>
+            </li>
+            <li>
+              <span class="p-dot" aria-hidden="true"></span>
+              <p class="p-t">퀘스트 생성 <span class="p-time">도구: <span class="p-tool">Quest Planner Agent</span></span></p>
+              <div class="p-judge"><span class="jlbl">예정</span>5개 퀘스트 생성 · 선행 관계 설정</div>
+            </li>
+            <li>
+              <span class="p-dot" aria-hidden="true"></span>
+              <p class="p-t">제출물 검증 대기 <span class="p-time">도구: <span class="p-tool">Quest Validation Agent</span></span></p>
+              <div class="p-judge"><span class="jlbl">예정</span>사용자가 GitHub/배포 URL 제출 시 재검증 → <a class="txt-link" href="feedback.html">채점표</a></div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- D. Tool Router -->
+        <div>
+          <p class="ag-col-h">Tool Router <span class="aside">클릭하면 입·출력</span></p>
+
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">URL Fetcher<span class="code-st done">DONE</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>공고 URL에서 본문 추출</dd></div>
+              <div class="tio"><dt>입력</dt><dd>careers.cloudwave.kr/jobs/…</dd></div>
+              <div class="tio"><dt>출력</dt><dd>본문 텍스트 · 품질 0.82</dd></div>
+              <div class="tio"><dt>결과</dt><dd class="mark-ok">성공 · 6.2초</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">Raw Text Parser<span class="code-st wait">READY</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>붙여넣은 원문 구조화</dd></div>
+              <div class="tio"><dt>비고</dt><dd>URL 실패 시 Fallback 1순위</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">PDF Parser<span class="code-st wait">READY</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>PDF 공고 · 포트폴리오 추출</dd></div>
+              <div class="tio"><dt>비고</dt><dd>Fallback 2순위</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">Resume Parser<span class="code-st done">DONE</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>입력</dt><dd>박준영_이력서.pdf</dd></div>
+              <div class="tio"><dt>출력</dt><dd>학력 · 기술 스택 · 프로젝트 1건</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">GitHub Analyzer<span class="code-st done">DONE</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>입력</dt><dd>github.com/junyoung-p</dd></div>
+              <div class="tio"><dt>출력</dt><dd>커밋 214건 · 테스트 폴더 없음 · 단독 커밋 96%</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">RAG Search<span class="code-st running">RUNNING</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>자격증 · 교육 · 템플릿 검색</dd></div>
+              <div class="tio"><dt>입력</dt><dd>부족 역량 3종 + 직무 키워드</dd></div>
+              <div class="tio"><dt>출력</dt><dd>후보 12건 → 채택 5건 예정</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">Gap Diagnosis Agent<span class="code-st done">DONE</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>출력</dt><dd>충족 3 · 부분 2 · 부족 3 · 경력 게이트 1</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">Quest Planner Agent<span class="code-st wait">READY</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>격차 → 선행 관계 있는 퀘스트</dd></div>
+              <div class="tio"><dt>입력</dt><dd>격차 진단 + RAG 채택 결과</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">Quest Validation Agent<span class="code-st wait">READY</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>제출물을 공고 기준으로 재검증</dd></div>
+              <div class="tio"><dt>입력</dt><dd>GitHub · 배포 URL · README</dd></div>
+            </dl></div>
+          </div>
+          <div class="tool">
+            <button class="tool-h" aria-expanded="false">Human Review Queue<span class="code-st human">HUMAN_REVIEW</span>
+              <svg class="t-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <div class="tool-b"><dl>
+              <div class="tio"><dt>목적</dt><dd>confidence 낮은 판정의 사람 검수</dd></div>
+              <div class="tio"><dt>대기</dt><dd>협업 경험 판정 1건</dd></div>
+            </dl></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E. Decision Log -->
+      <h2 class="sec-h" style="margin-top:44px">Decision Log <span class="cnt">Agent가 다음 행동을 선택한 이유</span>
+        <button class="btn btn-line btn-sm" style="margin-left:auto" data-reveal>다음 판단 보기</button>
+      </h2>
+      <div class="dlog">
+        <div class="dlog-row">
+          <span class="dl-t num">14:02:17</span><span class="dl-tag code-st done">DECIDE</span>
+          <p>공고 본문 품질 점수 <b>0.82</b>로 충분하므로 원문 재입력 요청 없이 분석을 계속합니다.</p>
+        </div>
+        <div class="dlog-row">
+          <span class="dl-t num">14:02:31</span><span class="dl-tag code-st need">NEED_INPUT</span>
+          <p>배포 경험 근거가 없지만 공고의 <b>우대사항과 강하게 연결</b>되므로 추가 질문을 생성합니다.</p>
+        </div>
+        <div class="dlog-row hidden">
+          <span class="dl-t num">14:02:38</span><span class="dl-tag code-st fallback">REROUTE</span>
+          <p>경력 3년 조건은 <b>단기 보완 불가</b>로 판단하여 대체 신입 공고 탐색을 병행합니다.</p>
+        </div>
+        <div class="dlog-row hidden">
+          <span class="dl-t num">14:02:49</span><span class="dl-tag code-st done">DECIDE</span>
+          <p>SQLD는 DB 설계 퀘스트와 <b>학습 범위가 겹치므로</b> 자격증 퀘스트로 추천합니다.</p>
+        </div>
+        <div class="dlog-row hidden">
+          <span class="dl-t num">14:02:55</span><span class="dl-tag code-st human">HUMAN_REVIEW</span>
+          <p>협업 경험 판정은 confidence <b>0.41</b>로 낮아 사람 검수 대기열에 등록합니다.</p>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap">
+        <a class="btn btn-pri" href="fallback.html">실패 복구 시나리오 보기</a>
+        <a class="btn btn-line" href="agent-result.html">Agent 실행 보고서</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<nav class="flow-nav" aria-label="프로토타입 흐름">
+  <span class="lbl">흐름 4/10 · Agent 상황실</span>
+  <a href="new.html">← 이전</a>
+  <a class="next" href="fallback.html">복구 시나리오 →</a>
+</nav>
+</body>
+</html>

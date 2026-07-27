@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잡퀘스트 — 준비 경로 보고서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="scrim" aria-hidden="true"></div>
+<div class="app">
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+      잡퀘스트
+    </a>
+    <a class="s-new" href="new.html">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      새 공고 분석
+    </a>
+    <p class="s-label">현재 목표 공고</p>
+    <div class="s-goal">
+      <p class="g-l">
+        <svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+        목표 설정됨
+      </p>
+      <p class="g-t">클라우드웨이브 · 백엔드 엔지니어</p>
+      <p class="g-m">적합도 62 → 목표 85 · 마감 7. 31.</p>
+    </div>
+    <p class="s-label">최근 분석</p>
+    <nav class="s-list">
+      <a class="on" href="result.html">클라우드웨이브 · 백엔드</a>
+      <a href="result.html">넥스트커머스 · 백엔드 (신입)</a>
+      <a href="result.html">티스퀘어랩 · 플랫폼 엔지니어</a>
+    </nav>
+    <div class="s-user">
+      <span class="av">박</span>
+      <div><div class="u-n">박준영</div><div class="u-s">퀘스트 1/5 완료</div></div>
+    </div>
+  </aside>
+
+  <!-- 메인: 경로 보고서 -->
+  <main class="main">
+    <div class="main-head">
+      <button class="drawer-btn" aria-label="메뉴 열기"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="mh-t">준비 경로 보고서</span>
+      <span class="mh-s">7. 9. 검토 · 47초 소요</span>
+      <span class="sp"></span>
+      <a class="btn btn-line btn-sm" href="agent-result.html">Agent 실행 보고서</a>
+      <button class="btn btn-line btn-sm">보고서 저장</button>
+      <a class="btn btn-pri btn-sm" href="feedback.html">결과물 제출</a>
+    </div>
+
+    <div class="content">
+      <!-- 보고서 머리 -->
+      <div class="goal">
+        <svg class="i g-flag" style="width:20px;height:20px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+        <div style="flex:1;min-width:0">
+          <p class="g-eyebrow">목표 공고</p>
+          <p class="g-title">클라우드웨이브 · 백엔드 엔지니어 (Java/Spring)</p>
+          <div class="g-meta"><span>마감 <b>7. 31.</b></span><span>요구 경력 <b>3년 이상</b></span><span>서울 · 하이브리드</span></div>
+        </div>
+        <div class="g-judge">
+          <p class="jl">지원 판정</p>
+          <span class="stamp bad" style="transform:rotate(-2deg);margin-top:4px;display:inline-block">즉시 지원 불가 · 우회 권고</span>
+          <p class="small mt8"><a class="txt-link" href="#" data-goto="p-alt">우회 경로 4건 →</a></p>
+        </div>
+      </div>
+
+      <!-- 요약 (비대칭 2단) -->
+      <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:40px;margin-top:22px;align-items:start">
+        <div class="ready">
+          <p class="kicker" style="margin-bottom:8px">공고 적합도</p>
+          <div class="r-nums"><span class="r-now num">62</span><span class="r-goal">→ 경로 완주 시 <b class="num">85</b> 예상</span></div>
+          <div class="r-track" aria-hidden="true">
+            <div class="fill" style="width:62%"></div>
+            <div class="gain" style="left:62%;width:23%"></div>
+            <div class="mark" style="left:85%"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 22V3h12l-2.6 4L18 11H8v11z"/></svg></div>
+          </div>
+          <div class="r-scale"><span>현재 62 · 필수 3/5 · 우대 0/4</span><span>목표 85</span></div>
+        </div>
+        <div class="ledger">
+          <p class="kicker" style="margin-bottom:4px">지금 확인할 것</p>
+          <div class="ledger-row"><span class="mark-no">✕</span><span class="lk">가장 큰 격차 — 배포 · 운영 경험</span><span class="lv"><a class="txt-link" href="#" data-goto="p-quest">퀘스트 4 · +12</a></span></div>
+          <div class="ledger-row"><span class="mark-tri">△</span><span class="lk">이번 주 행동 — SQLD 접수</span><span class="lv num" style="color:var(--warn);font-weight:700">D-5</span></div>
+          <div class="ledger-row"><span class="mark-ok">✓</span><span class="lk">진행 중 — DB 설계 실습 3주차</span><span class="lv"><a class="txt-link" href="feedback.html">결과물 제출</a></span></div>
+        </div>
+      </div>
+
+      <!-- 탭 -->
+      <nav class="tabs" role="tablist" aria-label="보고서 영역">
+        <button class="on" data-panel="p-quest" role="tab" aria-selected="true">내 준비 경로 <span class="cnt num">5</span></button>
+        <button data-panel="p-sig" role="tab" aria-selected="false">기업 맞춤 과제</button>
+        <button data-panel="p-alt" role="tab" aria-selected="false">다른 지원 경로 <span class="cnt num">4</span></button>
+        <span class="tab-minor">
+          <button data-panel="p-gap" role="tab" aria-selected="false">격차 분석</button>
+          <button data-panel="p-reco" role="tab" aria-selected="false">추천 정보</button>
+        </span>
+      </nav>
+
+      <!-- ⬛ 내 준비 경로 -->
+      <section class="tabpanel on" id="p-quest" role="tabpanel">
+        <p class="muted" style="margin-bottom:20px">완료할 때마다 적합도가 다시 계산됩니다. 잠긴 체크포인트는 선행 퀘스트를 마치면 열립니다.</p>
+        <ol class="qpath">
+          <li class="qnode done">
+            <span class="qdot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span>
+            <button class="qhead" aria-expanded="false">
+              <span class="q-no num">01</span>
+              <span class="q-t">Spring Boot 기반 REST API 프로젝트 완성</span>
+              <span class="q-state s-done">완료 · 7. 5.</span>
+              <span class="q-delta num">+9 반영됨</span>
+              <svg class="i q-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <p class="q-meta">W1–4 · 난이도 중 · 4주 · <b>검증 점수 72</b> — <a class="txt-link" href="feedback.html">채점표 보기</a></p>
+          </li>
+          <li class="qnode active open">
+            <span class="qdot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span>
+            <button class="qhead" aria-expanded="true">
+              <span class="q-no num">02</span>
+              <span class="q-t">SQL 심화 학습 · DB 설계 실습</span>
+              <span class="q-state s-run">진행 중 · 3주차</span>
+              <span class="q-delta num">+8 예상</span>
+              <svg class="i q-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <p class="q-meta">W5–8 · 난이도 중 · 3주 · 해결하는 격차 — <b>DB 설계 · SQL 심화</b></p>
+            <div class="qbody">
+              <p>인덱스·조인 최적화·트랜잭션을 학습하고, 게시판 프로젝트 DB를 정규화 원칙에 따라 ERD부터 다시 설계합니다. 결과물은 ERD 문서와 개선 전후 쿼리 성능 비교입니다.</p>
+              <div class="q-tags"><span class="tg tg-info">SQL</span><span class="tg tg-info">MySQL</span><span class="tg tg-info">ERD 설계</span></div>
+              <p class="mt12"><a class="btn btn-pri btn-sm" href="feedback.html">결과물 제출</a></p>
+            </div>
+          </li>
+          <li class="qnode next">
+            <span class="qdot"><span class="num" style="font-size:11.5px;font-weight:700">3</span></span>
+            <button class="qhead" aria-expanded="false">
+              <span class="q-no num">03</span>
+              <span class="q-t">정보처리기사 또는 SQLD 취득</span>
+              <span class="q-state s-warn">접수 D-5</span>
+              <span class="q-delta num">+6 예상</span>
+              <svg class="i q-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <p class="q-meta">W1–8 병행 · 난이도 하 · SQLD 접수 7. 14. 시작 · 시험 8. 30. — 퀘스트 2와 학습 범위 80% 중복</p>
+            <div class="qbody">
+              <p>정량 스펙을 보강합니다. 일정상 SQLD를 먼저, 정보처리기사는 3회차(필기 8. 9.)에 도전하는 순서를 추천합니다.</p>
+              <div class="q-tags"><span class="tg">SQLD</span><span class="tg">정보처리기사</span></div>
+            </div>
+          </li>
+          <li class="qnode locked">
+            <span class="qdot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+            <div class="qhead" style="cursor:default">
+              <span class="q-no num">04</span>
+              <span class="q-t">배포 경험 추가 — AWS EC2 + Docker</span>
+              <span class="q-state s-lock">잠김 · 선행: 퀘스트 2</span>
+              <span class="q-delta num">+12 예상</span>
+            </div>
+            <p class="q-meta">W9–12 · 난이도 상 · 3주 · 해결하는 격차 — <b>배포 · 운영 경험 (가장 큰 격차)</b></p>
+          </li>
+          <li class="qnode locked">
+            <span class="qdot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+            <div class="qhead" style="cursor:default">
+              <span class="q-no num">05</span>
+              <span class="q-t">포트폴리오 문서화 · 회고 작성</span>
+              <span class="q-state s-lock">잠김 · 선행: 퀘스트 4</span>
+              <span class="q-delta num">+5 예상</span>
+            </div>
+            <p class="q-meta">W13–16 · 난이도 하 · 2주 · 성과 수치("1.2s → 180ms")를 반드시 포함</p>
+          </li>
+          <li class="qnode goalnode">
+            <span class="qdot"><svg class="i-sm i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
+            <div class="qhead" style="cursor:default">
+              <span class="q-t">목표 공고 재도전 — 클라우드웨이브 백엔드</span>
+              <span class="q-delta num" style="color:var(--red-deep)">예상 적합도 85</span>
+            </div>
+            <p class="q-meta">경로 완주 + 대체 공고 실무 경험 후 재도전을 권고합니다</p>
+          </li>
+        </ol>
+      </section>
+
+      <!-- ⬛ 기업 맞춤 과제 -->
+      <section class="tabpanel" id="p-sig" role="tabpanel">
+        <div class="sig">
+          <div class="sig-head">
+            <span class="g-co" aria-hidden="true">CW</span>
+            <div style="min-width:0">
+              <p class="sh-k">기업 맞춤 포트폴리오 과제 · 목표 기업 클라우드웨이브 — 백엔드 엔지니어</p>
+              <h3>미니 멀티테넌트 클라우드 콘솔 API</h3>
+            </div>
+            <div class="sh-r">
+              <p class="sh-k">완주 시</p>
+              <p class="rv num">적합도 +15</p>
+            </div>
+          </div>
+          <div class="sig-body">
+            <p class="sig-why"><b>추천 이유 —</b> 클라우드웨이브의 핵심 도메인은 <b>클라우드 리소스 관리 · 사용량 미터링 · 과금</b>입니다. 이 과제는 그 서비스 구조와 유사한 문제(멀티테넌시 설계, 대량 데이터 집계, API 설계)를 다뤄, 단순 게시판·CRUD와 달리 이 회사 면접에서 바로 대화가 통하는 경험을 만듭니다.</p>
+            <div class="sig-cols">
+              <div>
+                <p class="sig-sub">필수 구현 기능</p>
+                <ol class="featlist">
+                  <li><span class="fn num">1</span>테넌트(고객사)별 리소스 생성 · 조회 API</li>
+                  <li><span class="fn num">2</span>시간당 사용량 수집 및 일 단위 집계 배치</li>
+                  <li><span class="fn num">3</span>월별 사용량 기반 과금 계산 로직</li>
+                  <li><span class="fn num">4</span>사용량 초과 시 웹훅 알림 발송</li>
+                  <li><span class="fn num">5</span>관리자용 테넌트 통계 API (정렬 · 필터)</li>
+                </ol>
+              </div>
+              <div>
+                <p class="sig-sub">공고 요구사항과 연결되는 역량</p>
+                <div class="maprow"><span class="tg tg-info">REST API 설계</span><span class="arr">→</span><span class="to">필수 기술 직접 증명</span></div>
+                <div class="maprow"><span class="tg tg-info">JPA · MySQL</span><span class="arr">→</span><span class="to">멀티테넌트 스키마 설계</span></div>
+                <div class="maprow"><span class="tg">대용량 트래픽</span><span class="arr">→</span><span class="to">우대사항 · 집계 배치로 증명</span></div>
+                <div class="maprow"><span class="tg">Docker · AWS</span><span class="arr">→</span><span class="to">퀘스트 4 배포와 연계</span></div>
+                <p class="sig-sub mt16">제출 산출물</p>
+                <div class="ev-list">
+                  <span class="ev">GitHub 저장소</span><span class="ev">배포 링크</span><span class="ev">API 문서 (Swagger)</span><span class="ev">ERD</span><span class="ev">README</span>
+                </div>
+              </div>
+            </div>
+            <div class="sig-metar">
+              <span class="diff" aria-label="난이도 상">난이도 <i class="f"></i><i class="f"></i><i class="f"></i></span>
+              <span>예상 기간 <b>5주</b></span>
+              <span>사용 기술 <b>Spring Boot · JPA · MySQL · Redis · Spring Batch · Docker</b></span>
+              <a class="btn btn-pri btn-sm" style="margin-left:auto" href="feedback.html">이 과제를 퀘스트로 시작</a>
+            </div>
+            <p class="sig-note">목표 기업의 디자인 · 로고를 복제하는 과제가 아니라, 서비스의 핵심 구조를 참고한 학습용 과제입니다.</p>
+          </div>
+        </div>
+
+        <h2 class="sec-h">같은 직무라도, 목표 기업이 다르면 과제가 달라집니다</h2>
+        <div class="rows">
+          <div class="rowi">
+            <span class="r-ini">N</span>
+            <div>
+              <p class="r-t">네이버 · 백엔드 개발자 → 미니 검색 포털 API 서비스</p>
+              <p class="r-s">검색어 입력 · 결과 조회 · 카테고리 필터 · 인기 검색어 집계 · 정렬 — 검색과 데이터 처리 역량 증명</p>
+            </div>
+          </div>
+          <div class="rowi">
+            <span class="r-ini">T</span>
+            <div>
+              <p class="r-t">토스 · 서버 개발자 → 간편 결제 · 정산 API 서비스</p>
+              <p class="r-s">결제 요청/승인 · 멱등성 처리 · 이중 결제 방지 · 일일 정산 — 트랜잭션과 정합성 역량 증명</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="verify">
+          <h2 class="sec-h" style="border:none;padding-top:0;margin-top:0">과제 검증 <span class="aside">제출하면 공고 기준으로 재검토합니다</span></h2>
+          <div class="v-slots">
+            <span class="v-slot filled">github.com/junyoung-p/mini-cloud-console<span class="vk">✓</span></span>
+            <span class="v-slot filled">cloud-console.junyoung.dev<span class="vk">✓</span></span>
+            <span class="v-slot">README 업로드…</span>
+            <a class="btn btn-ink btn-sm" href="feedback.html">검증 요청</a>
+          </div>
+          <div class="mt12">
+            <div class="fbk good"><span class="mk">✓</span><span><b>API 문서는 좋습니다.</b> <span class="f-d">Swagger 스펙이 엔드포인트 전체를 커버하고 요청·응답 예시도 충실합니다.</span></span></div>
+            <div class="fbk todo"><span class="mk">✕</span><span><b>성능 개선 설명이 부족합니다.</b> <span class="f-d">집계 쿼리 최적화 전후 수치를 README에 추가하세요 — '대용량 트래픽' 우대와 직결됩니다.</span></span><a class="f-link txt-link" href="feedback.html">채점표</a></div>
+            <div class="fbk todo"><span class="mk">✕</span><span><b>배포 경험이 README에 드러나지 않습니다.</b> <span class="f-d">인프라 구성도와 배포 과정(Docker · EC2)을 문서에 포함하세요.</span></span><a class="f-link txt-link" href="feedback.html">채점표</a></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⬛ 다른 지원 경로 -->
+      <section class="tabpanel" id="p-alt" role="tabpanel">
+        <div style="border-top:2px solid var(--rule);border-bottom:1px solid var(--line);padding:16px 2px;max-width:62em">
+          <p style="font-family:var(--serif);font-weight:700;font-size:15.5px">이 공고는 경력 3년 이상 채용이라 지금 바로 지원하기는 어렵습니다</p>
+          <p class="muted mt4" style="font-size:13.5px">같은 직무의 신입 · 경력무관 공고에 먼저 도전해 실무 경력을 쌓은 뒤 재도전하는 전략을 권고합니다. 아래는 현재 프로필로도 승산이 있는 공고입니다.</p>
+        </div>
+        <h2 class="sec-h" style="border-top:none;padding-top:0">추천 대체 공고 <span class="cnt num">4</span><span class="aside">적합도 순</span></h2>
+        <div class="rows">
+          <div class="rowi">
+            <span class="r-ini">NX</span>
+            <div>
+              <p class="r-t">넥스트커머스 · 백엔드 개발자 <span class="st st-ok">신입</span></p>
+              <div class="r-tags"><span class="tg tg-info">Java</span><span class="tg tg-info">Spring</span><span class="tg tg-info">MySQL</span></div>
+            </div>
+            <div class="r-right"><span class="fitnum hi num">적합도 78%</span><a class="txt-link" href="analyzing.html">이 공고 분석 →</a></div>
+          </div>
+          <div class="rowi">
+            <span class="r-ini">DL</span>
+            <div>
+              <p class="r-t">데이터라인 · 주니어 서버 개발자 <span class="st st-ok">신입</span></p>
+              <div class="r-tags"><span class="tg tg-info">Kotlin</span><span class="tg tg-info">Spring</span><span class="tg tg-info">JPA</span></div>
+            </div>
+            <div class="r-right"><span class="fitnum hi num">적합도 71%</span><a class="txt-link" href="analyzing.html">이 공고 분석 →</a></div>
+          </div>
+          <div class="rowi">
+            <span class="r-ini">HB</span>
+            <div>
+              <p class="r-t">하이브릿지 · 플랫폼 서버 개발자 <span class="st st-ok">신입</span></p>
+              <div class="r-tags"><span class="tg tg-info">Java</span><span class="tg tg-info">Spring Boot</span><span class="tg tg-info">Redis</span></div>
+            </div>
+            <div class="r-right"><span class="fitnum md num">적합도 66%</span><a class="txt-link" href="analyzing.html">이 공고 분석 →</a></div>
+          </div>
+          <div class="rowi">
+            <span class="r-ini">MP</span>
+            <div>
+              <p class="r-t">마켓플로우 · 웹 백엔드 개발자 <span class="st st-mut">경력무관</span></p>
+              <div class="r-tags"><span class="tg tg-info">Python</span><span class="tg tg-info">Django</span><span class="tg tg-info">AWS</span></div>
+            </div>
+            <div class="r-right"><span class="fitnum md num">적합도 64%</span><a class="txt-link" href="analyzing.html">이 공고 분석 →</a></div>
+          </div>
+        </div>
+        <p class="small mt12">대체 공고에서 얻은 실무 경험은 목표 공고의 경력 조건 충족에 반영됩니다.</p>
+      </section>
+
+      <!-- ⬛ 격차 분석 -->
+      <section class="tabpanel" id="p-gap" role="tabpanel">
+        <p class="muted" style="margin-bottom:16px">판정은 문서와 답변에서 찾은 근거를 기준으로 합니다. 근거가 없으면 충족으로 인정하지 않습니다.</p>
+        <div class="gaps">
+          <div class="gap">
+            <p class="g-req"><span class="mk mark-ok">✓</span>Java · Spring 기초</p>
+            <div class="g-ev">전공 과정과 팀 게시판 프로젝트로 충족
+              <div class="ev-list mt4"><span class="ev">이력서 · 학력</span><span class="ev">GitHub 커밋 214건</span></div>
+            </div>
+            <p class="g-fix"><span class="done-t">충족</span></p>
+          </div>
+          <div class="gap">
+            <p class="g-req"><span class="mk mark-ok">✓</span>성능 개선 경험</p>
+            <div class="g-ev">N+1 해결 · 응답 1.2s → 180ms (85% 개선)
+              <div class="ev-list mt4"><span class="ev">면담 답변</span><span class="ev">README 성과 항목</span></div>
+            </div>
+            <p class="g-fix"><span class="done-t">충족 · 면담으로 보완됨</span></p>
+          </div>
+          <div class="gap">
+            <p class="g-req"><span class="mk mark-no">✕</span>배포 · 운영 경험</p>
+            <div class="g-ev"><span class="lack">근거 없음</span> — 배포 URL, 인프라 문서, CI/CD 흔적이 확인되지 않았습니다. 로컬 실행만 확인.</div>
+            <p class="g-fix"><a class="txt-link" href="#" data-goto="p-quest">퀘스트 4로 해결 · +12</a></p>
+          </div>
+          <div class="gap">
+            <p class="g-req"><span class="mk mark-tri">△</span>DB 설계 · SQL 심화</p>
+            <div class="g-ev">MySQL 기본 사용은 확인. <span class="lack">부족한 근거:</span> ERD 설계 문서, 인덱스·트랜잭션 학습 흔적 없음.</div>
+            <p class="g-fix"><a class="txt-link" href="#" data-goto="p-quest">퀘스트 2로 해결 중 · +8</a></p>
+          </div>
+          <div class="gap">
+            <p class="g-req"><span class="mk mark-tri">△</span>자격증 (정량 스펙)</p>
+            <div class="g-ev"><span class="lack">보유 자격증 없음</span> — 면담에서 확인. 서류 가점 요소가 비어 있습니다.</div>
+            <p class="g-fix"><a class="txt-link" href="#" data-goto="p-quest">퀘스트 3으로 해결 · +6</a></p>
+          </div>
+        </div>
+        <p class="small mt16">우선순위 — 진행 중인 DB 설계(퀘스트 2)를 마친 뒤, 가장 큰 격차인 배포 경험(퀘스트 4)에 착수하세요.</p>
+      </section>
+
+      <!-- ⬛ 추천 정보 -->
+      <section class="tabpanel" id="p-reco" role="tabpanel">
+        <h2 class="sec-h" style="border-top:none;padding-top:0">자격증 · 시험 일정 <span class="aside">퀘스트 3과 연결</span></h2>
+        <div class="sched-row">
+          <p class="s-n">SQLD</p>
+          <p class="s-d">접수 7. 14.–7. 18. · 시험 8. 30. · 난이도 하 · 준비 3~4주 — 퀘스트 2와 학습 범위 80% 중복, 가장 가성비 좋은 선택</p>
+          <p class="s-dd num">접수 D-5</p>
+        </div>
+        <div class="sched-row">
+          <p class="s-n">정보처리기사</p>
+          <p class="s-d">필기 접수 7. 21.–7. 24. · 필기 8. 9. · 난이도 중 · 준비 6주 — 대표 정량 스펙, 전공자는 6주면 충분</p>
+          <p class="s-dd num">접수 D-12</p>
+        </div>
+        <div class="sched-row">
+          <p class="s-n">AWS SAA</p>
+          <p class="s-d">상시 접수 (온라인 가능) · 난이도 중상 · 준비 8주 — 퀘스트 4(배포) 이후 응시하면 효율 두 배</p>
+          <p class="s-dd ok">11월 권장</p>
+        </div>
+
+        <h2 class="sec-h">공고에 통하는 포트폴리오 주제</h2>
+        <div class="rows">
+          <div class="rowi">
+            <div>
+              <p class="r-t">JWT 로그인 + 게시판 + 관리자 시스템</p>
+              <p class="r-s">인증·권한 설계로 REST API 실력을 가장 직접적으로 증명 — JWT 갱신, 역할 기반 접근 제어, 페이징·검색</p>
+              <div class="r-tags"><span class="tg tg-info">Spring Security</span><span class="tg tg-info">JPA</span><span class="tg">MySQL</span></div>
+            </div>
+            <div class="r-right"><a class="txt-link" href="feedback.html">시작 →</a></div>
+          </div>
+          <div class="rowi">
+            <div>
+              <p class="r-t">공연 좌석 예약 시스템</p>
+              <p class="r-s">우대사항 '대용량 트래픽' 겨냥 — 좌석 선점 분산 락, 대기열 처리, 부하 테스트 리포트(k6)</p>
+              <div class="r-tags"><span class="tg tg-info">Redis</span><span class="tg tg-info">동시성 제어</span><span class="tg">MySQL</span></div>
+            </div>
+            <div class="r-right"><a class="txt-link" href="feedback.html">시작 →</a></div>
+          </div>
+          <div class="rowi">
+            <div>
+              <p class="r-t">주문 · 정산 API 서버</p>
+              <p class="r-s">SaaS 도메인 실무 코드와 가장 유사 — 주문 상태 관리, 일일 정산 배치, 재시도·멱등성 처리</p>
+              <div class="r-tags"><span class="tg tg-info">Spring Batch</span><span class="tg tg-info">JPA</span><span class="tg">AWS</span></div>
+            </div>
+            <div class="r-right"><a class="txt-link" href="feedback.html">시작 →</a></div>
+          </div>
+        </div>
+
+        <h2 class="sec-h">부족 역량을 채워줄 KDT 교육과정</h2>
+        <div class="rows">
+          <div class="rowi">
+            <span class="r-ini">S</span>
+            <div>
+              <p class="r-t">SSAFY 14기 <span class="st st-ok">모집 중</span></p>
+              <p class="r-s">삼성 청년 SW·AI 아카데미 · 1년 · 교육지원금 월 100만원 — 실전 프로젝트·배포 경험을 팀 단위로 보완</p>
+              <div class="r-tags"><span class="tg tg-info">웹 백엔드</span><span class="tg">팀 프로젝트 3회</span><span class="tg">취업 연계</span></div>
+            </div>
+            <div class="r-right"><span class="fitnum md num">마감 7. 25.</span><a class="txt-link" href="#">과정 보기 →</a></div>
+          </div>
+          <div class="rowi">
+            <span class="r-ini">K</span>
+            <div>
+              <p class="r-t">클라우드 백엔드 양성과정 (KDT) <span class="st st-warn">마감 임박</span></p>
+              <p class="r-s">6개월 · 국비 전액 지원 — AWS 배포·Docker 커리큘럼이 퀘스트 4와 정확히 겹침, 독학이 부담스럽다면 대안</p>
+              <div class="r-tags"><span class="tg tg-info">Spring Boot</span><span class="tg tg-info">AWS</span><span class="tg tg-info">Docker</span></div>
+            </div>
+            <div class="r-right"><span class="fitnum md num">마감 7. 15.</span><a class="txt-link" href="#">과정 보기 →</a></div>
+          </div>
+        </div>
+      </section>
+
+      <p class="small" style="margin-top:44px;border-top:1px solid var(--line);padding-top:12px">본 보고서는 접수하신 채용공고와 사용자 프로필을 근거로 생성한 참고 정보입니다. 퀘스트 결과물을 제출하면 준비 수준을 다시 검토합니다.</p>
+    </div>
+  </main>
+
+  <!-- 우측 패널 -->
+  <aside class="panel">
+    <div class="panel-sec">
+      <h4>적합도</h4>
+      <div class="ready compact">
+        <div class="r-nums"><span class="r-now num">62</span><span class="r-goal">→ 목표 <b class="num">85</b></span></div>
+        <div class="r-track" aria-hidden="true"><div class="fill" style="width:62%"></div><div class="gain" style="left:62%;width:23%"></div></div>
+        <div class="r-scale"><span>필수 3/5 · 우대 0/4</span><span>경력 우회</span></div>
+      </div>
+    </div>
+    <div class="panel-sec">
+      <h4>이번 주 행동</h4>
+      <div class="p-row"><span class="chkbox" aria-hidden="true"></span>SQLD 접수하기<span class="dday num">D-5</span></div>
+      <div class="p-row"><span class="chkbox" aria-hidden="true"></span>ERD 재설계 마무리<span class="dday num">D-3</span></div>
+      <div class="p-row"><span class="chkbox on" aria-hidden="true"></span><s style="color:var(--faint)">API 프로젝트 검증 제출</s><span class="dday ok">완료</span></div>
+    </div>
+    <div class="panel-sec">
+      <h4>다가오는 일정</h4>
+      <div class="p-row">SQLD 접수 시작<span class="dday num">7. 14.</span></div>
+      <div class="p-row">KDT 과정 마감<span class="dday num">7. 15.</span></div>
+      <div class="p-row">정보처리기사 접수<span class="dday num">7. 21.</span></div>
+      <div class="p-row">목표 공고 마감<span class="dday num">7. 31.</span></div>
+    </div>
+  </aside>
+</div>
+
+<nav class="flow-nav" aria-label="프로토타입 흐름">
+  <span class="lbl">흐름 8/10 · 경로 보고서</span>
+  <a href="conversation.html">← 이전</a>
+  <a class="next" href="agent-result.html">실행 보고서 →</a>
+</nav>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-goto]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var btn = document.querySelector('.tabs [data-panel="' + a.dataset.goto + '"]');
+      if (btn) { btn.click(); btn.scrollIntoView({ block: 'center' }); }
+    });
+  });
+});
+</script>
+</body>
+</html>

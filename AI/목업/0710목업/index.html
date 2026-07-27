@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>잡퀘스트 — 공고를 읽는 것에서, 준비를 끝내는 것까지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body class="v5">
+
+<!-- 헤더 -->
+<header class="lp-wrap lp-head">
+  <a class="lp-logo" href="index.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg>
+    잡퀘스트
+  </a>
+  <nav class="lp-nav"><a href="#preview">분석 예시</a><a href="#how">작동 방식</a></nav>
+  <div class="lp-auth">
+    <a href="login.html" style="color:var(--sub)">로그인</a>
+    <a class="b5 b5-pri b5-sm" href="login.html">시작하기</a>
+  </div>
+</header>
+
+<!-- 히어로: 좌 카피+입력 / 우 제품 그래픽 -->
+<section class="lp-hero">
+  <div class="lp-wrap lp-hero-in">
+    <div>
+      <p class="lp-kicker">AI 채용공고 분석 · 준비 경로 설계</p>
+      <h1>공고를 읽는 것에서,<br>준비를 끝내는 것까지.</h1>
+      <p class="sub">잡퀘스트는 채용공고를 문장 단위로 분석해 지금의 나와 비교하고, 부족한 부분을 순서 있는 준비 경로로 바꿉니다. 결과물을 제출할 때마다 적합도가 다시 계산됩니다.</p>
+      <div class="lp-inputrow">
+        <input type="url" value="https://careers.cloudwave.kr/jobs/backend-engineer-2026" readonly aria-label="채용공고 URL">
+        <a class="b5 b5-pri b5-lg" href="new.html" style="flex:none">공고 분석</a>
+      </div>
+      <div class="lp-trust">
+        <span><span class="ck">✓</span> 가입 없이 1건 무료</span>
+        <span><span class="ck">✓</span> 평균 47초</span>
+        <span><span class="ck">✓</span> 판정마다 근거 기록</span>
+      </div>
+    </div>
+
+    <!-- 제품 그래픽: 공고 → 판정 → 경로 -->
+    <div class="lp-gfx" aria-label="채용공고가 준비 경로로 바뀌는 과정">
+      <div class="gfx-doc">
+        <p class="gd-co">CLOUDWAVE Inc. · 채용공고 제2026-114호</p>
+        <p class="gd-t">백엔드 엔지니어 (Java/Spring)</p>
+        <p class="gd-lbl">자격 요건</p>
+        <p>Java, <span class="mk-u">Spring Boot</span><span class="mk-tag">필수</span> 기반 서버 개발 경력 <span class="mk-u warn">3년 이상</span><span class="mk-tag warn">경력 조건</span></p>
+        <p><span class="mk-u">JPA</span> 등 ORM 사용 경험과 <span class="mk-u">MySQL</span> 운영 경험</p>
+        <p class="gd-lbl">우대 사항</p>
+        <p><span class="mk-u">AWS 환경 배포·운영 경험</span><span class="mk-tag">우대</span>, 대용량 트래픽 처리</p>
+      </div>
+      <div class="gfx-link" aria-hidden="true"></div>
+      <div class="gfx-judge">
+        <p class="gfx-h">내 경험과 대조 — 근거 기준 판정</p>
+        <div class="gj-row"><span class="gj-mk ok">✓</span>Java · Spring 기초<span class="who">전공 + 팀 프로젝트</span></div>
+        <div class="gj-row"><span class="gj-mk ok">✓</span>성능 개선 경험<span class="who num">1.2s → 180ms</span></div>
+        <div class="gj-row"><span class="gj-mk no">✕</span>배포 · 운영 경험<span class="who">근거 없음</span></div>
+        <div class="gj-row"><span class="gj-mk tri">△</span>경력 3년<span class="who">우회 경로 설계</span></div>
+      </div>
+      <div class="gfx-link r" aria-hidden="true"></div>
+      <div class="gfx-path">
+        <p class="gfx-h">생성된 준비 경로 · 적합도 <b class="num" style="color:var(--brand)">62 → 85</b></p>
+        <ul class="p5">
+          <li class="done"><span class="pd"></span>API 프로젝트 완성<span class="pm">완료 · +9</span></li>
+          <li class="hot"><span class="pd"></span>DB 설계 실습<span class="pm">진행 중 · +8</span></li>
+          <li><span class="pd"></span>AWS 배포 경험<span class="pm">+12</span></li>
+          <li class="flag"><span class="pd"></span>목표 공고 재도전<span class="pm">예상 85</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 실제 분석 예시 (하늘색 밴드) -->
+<section class="lp-preview" id="preview">
+  <div class="lp-wrap">
+    <h2 class="lp-sec-h">공고 원문, 내 역량, 준비 경로가<br>한 화면에서 연결됩니다</h2>
+    <p class="lp-sec-s">잡퀘스트는 추천 목록을 주는 서비스가 아닙니다. 공고의 어떤 문장이, 어떤 근거로 판정됐고, 그 격차가 어떤 순서로 준비되는지를 하나의 기록으로 보여줍니다.</p>
+
+    <div class="lp-board">
+      <div class="lp-board-head">
+        <b>클라우드웨이브 · 백엔드 엔지니어</b> 분석 결과 예시
+        <span style="margin-left:auto;color:var(--success-deep);font-weight:600">검토 완료 · 47초</span>
+      </div>
+      <div class="lp-board-grid">
+        <div>
+          <p class="lp-col-h"><span class="n num">1</span>공고 원문 분석</p>
+          <p class="serifline">Java, <span class="mk-u">Spring Boot</span> 기반 서버 개발 경력 <span class="mk-u warn">3년 이상</span></p>
+          <p class="serifline"><span class="mk-u">JPA</span> 등 ORM 사용 경험과 <span class="mk-u">MySQL</span> 운영 경험</p>
+          <p class="serifline"><span class="mk-u">AWS 환경 배포·운영 경험</span> 우대</p>
+          <p class="small mt12">필수 5개 · 우대 4개 · 경력 조건 1개를 문장에서 추출</p>
+        </div>
+        <div>
+          <p class="lp-col-h"><span class="n num">2</span>내 역량과 대조</p>
+          <div class="gj-row"><span class="gj-mk ok">✓</span>Java · Spring 기초</div>
+          <p class="small" style="margin:-2px 0 6px 29px">근거 — <span class="lp-ev">이력서 · 학력</span> <span class="lp-ev">GitHub 커밋 214건</span></p>
+          <div class="gj-row"><span class="gj-mk no">✕</span>배포 · 운영 경험</div>
+          <p class="small" style="margin:-2px 0 6px 29px">배포 URL · 인프라 문서 없음 → 퀘스트로 전환</p>
+          <div class="gj-row"><span class="gj-mk tri">△</span>DB 설계 · SQL 심화</div>
+          <p class="small" style="margin:-2px 0 0 29px">기본 사용 확인 · ERD 설계 근거 부족</p>
+        </div>
+        <div>
+          <p class="lp-col-h"><span class="n num">3</span>준비 경로 생성</p>
+          <ul class="p5">
+            <li class="done"><span class="pd"></span>API 프로젝트<span class="pm">+9</span></li>
+            <li class="hot"><span class="pd"></span>DB 설계 실습<span class="pm">+8</span></li>
+            <li><span class="pd"></span>SQLD 취득<span class="pm">접수 D-5</span></li>
+            <li><span class="pd"></span>AWS 배포<span class="pm">+12</span></li>
+            <li class="flag"><span class="pd"></span>목표 공고 재도전</li>
+          </ul>
+          <p class="small mt12">경력 부족 시 신입 대체 공고 4건을 함께 제안</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 작동 방식 (지그재그 4단계) -->
+<section class="lp-how" id="how">
+  <div class="lp-wrap">
+    <h2 class="lp-sec-h">추천이 아니라, 검토와 기록으로 움직입니다</h2>
+    <p class="lp-sec-s">모든 판정에는 근거가 남습니다. 문서의 어느 문장에서, 어떤 커밋에서, 어떤 답변에서 판단했는지 확인할 수 있습니다.</p>
+
+    <div class="lp-step" style="margin-top:24px">
+      <span class="no num">01</span>
+      <div>
+        <h3>공고를 분석한다</h3>
+        <p>URL 하나로 필수 기술, 우대사항, 경력 조건을 문장 단위로 추출하고 분석 표시를 남깁니다.</p>
+      </div>
+      <div class="lp-frag">
+        <p class="serifline" style="font-family:var(--serif);font-size:13.5px;line-height:2;color:#334155">Java, <span class="mk-u">Spring Boot</span> 기반 서버 개발 경력 <span class="mk-u warn">3년 이상</span></p>
+        <p class="small mt8">필수 · 우대 · 경력 조건이 원문 위에 표시됩니다</p>
+      </div>
+    </div>
+
+    <div class="lp-step alt">
+      <span class="no num">02</span>
+      <div>
+        <h3>나와 비교한다</h3>
+        <p>이력서 · GitHub · 답변에서 근거를 찾아 충족 · 부분 충족 · 부족을 판정합니다. 근거가 없으면 확인 질문을 드립니다.</p>
+      </div>
+      <div class="lp-frag">
+        <div class="gj-row"><span class="gj-mk ok">✓</span>성능 개선 경험<span class="who num">1.2s → 180ms</span></div>
+        <div class="gj-row"><span class="gj-mk no">✕</span>배포 · 운영 경험<span class="who">근거 없음</span></div>
+        <p class="small mt8">근거 — <span class="lp-ev">GitHub 커밋</span> <span class="lp-ev">이력서 문장</span> <span class="lp-ev">면담 답변</span></p>
+      </div>
+    </div>
+
+    <div class="lp-step">
+      <span class="no num">03</span>
+      <div>
+        <h3>준비 경로를 만든다</h3>
+        <p>격차는 선행 관계가 있는 준비 퀘스트가 됩니다. 자격증 일정, 기업 맞춤 과제, 우회 가능한 신입 공고까지 하나의 경로에 담습니다.</p>
+      </div>
+      <div class="lp-frag">
+        <ul class="p5">
+          <li class="done"><span class="pd"></span>체크포인트 1 — API 프로젝트<span class="pm">완료</span></li>
+          <li class="hot"><span class="pd"></span>체크포인트 2 — DB 설계<span class="pm">진행 중</span></li>
+          <li><span class="pd"></span>체크포인트 4 — 배포 경험<span class="pm">선행: 2</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="lp-step alt">
+      <span class="no num">04</span>
+      <div>
+        <h3>결과를 검증하고 다시 계산한다</h3>
+        <p>GitHub · 배포 링크 · 문서를 제출하면 공고 기준으로 재검토하고, 성장 폭과 남은 격차를 기록으로 남깁니다.</p>
+      </div>
+      <div class="lp-frag">
+        <div class="lp-delta"><span class="f num">58</span><span style="color:var(--faint)">→</span><span class="t num">72</span><span class="u num">+14</span></div>
+        <p class="small mt8">해결 — 성과 정량화 · 남음 — 배포 설명, 협업 근거</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 최종 CTA -->
+<div class="lp-wrap">
+  <div class="lp-cta">
+    <div>
+      <h2>오늘 가장 가고 싶은 공고부터.</h2>
+      <p>3분이면 첫 준비 경로가 생깁니다.</p>
+    </div>
+    <a class="b5 b5-lg" href="new.html">공고 분석 시작</a>
+  </div>
+</div>
+
+<!-- 푸터 -->
+<footer class="lp-wrap lp-foot">
+  <span>© 2026 JobQuest Inc. · 서울특별시 강남구 테헤란로 427</span>
+  <a href="new.html">공고 분석</a><a href="result.html">준비 경로</a><a href="#">이용약관</a><a href="#">개인정보처리방침</a>
+</footer>
+
+<nav class="flow-nav" aria-label="프로토타입 흐름">
+  <span class="lbl">흐름 1/10 · 랜딩</span>
+  <a class="next" href="login.html">로그인 →</a>
+</nav>
+</body>
+</html>

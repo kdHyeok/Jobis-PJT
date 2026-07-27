@@ -1,0 +1,18 @@
+{
+  "userId": 1,
+  "jobPostingInput": {
+    "sourceType": "url",
+    "value": "https://example.com/jobs/1"
+  },
+  "selectedExperienceIds": [
+    3,
+    7,
+    9
+  ],
+  "preparationPeriodWeeks": 16,
+  "availableHoursPerWeek": 20,
+  "options": {
+    "includeAlternatives": true
+  },
+  "analysisId": null
+}

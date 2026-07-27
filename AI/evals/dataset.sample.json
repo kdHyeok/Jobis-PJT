@@ -1,0 +1,47 @@
+{
+  "_comment": "평가 시드셋(설계 18.2). 공고는 샘플 텍스트(실제 기업 공고 아님), 이력서는 user1 페르소나 더미. 정보 없는 라벨은 null. 규모 확대 시 이 형식을 그대로 늘린다.",
+  "cases": [
+    {
+      "caseId": "backend-clear-match",
+      "jobPosting": {
+        "sourceType": "text",
+        "value": "[백엔드 개발자 채용] (샘플)\n주요업무\n- Java, Spring Boot 기반 커머스 REST API 설계 및 개발\n- MySQL 데이터 모델링 및 쿼리 최적화\n- 대용량 트래픽 처리를 위한 캐시(Redis) 적용\n자격요건\n- Java/Spring Boot 기반 웹 백엔드 개발 경험\n- RDBMS(MySQL 등) 설계 및 SQL 활용 능력\n- Git 기반 협업 경험\n우대사항\n- AWS(EC2, RDS) 배포 경험\n- Docker 컨테이너 환경 개발 경험\n- 대용량 트래픽/성능 최적화 경험\n도메인: 이커머스, 물류"
+      },
+      "resume": { "sourceType": "file", "value": "tests/docs/user1/이력서_김도현_백엔드.docx" },
+      "constraints": { "preparationPeriodWeeks": 16, "availableHoursPerWeek": 20 },
+      "labels": {
+        "requiredRequirements": [
+          "Java/Spring Boot 기반 웹 백엔드 개발 경험",
+          "RDBMS(MySQL 등) 설계 및 SQL 활용 능력",
+          "Git 기반 협업 경험"
+        ],
+        "preferredRequirements": [
+          "AWS(EC2, RDS) 배포 경험",
+          "Docker 컨테이너 환경 개발 경험",
+          "대용량 트래픽/성능 최적화 경험"
+        ]
+      }
+    },
+    {
+      "caseId": "data-eng-gap-heavy",
+      "jobPosting": {
+        "sourceType": "text",
+        "value": "[데이터 엔지니어 채용] (샘플)\n주요업무\n- Python 기반 대용량 데이터 수집·정제 파이프라인 개발\n- Spark 기반 분산 데이터 처리\n- Airflow 로 배치 워크플로 오케스트레이션\n자격요건\n- Python 데이터 처리 개발 경험\n- SQL 활용 능력\n- ETL 파이프라인 설계 경험\n우대사항\n- Apache Spark 대규모 처리 경험\n- Airflow 등 워크플로 오케스트레이션 경험\n- 클라우드(AWS/GCP) 데이터 인프라 경험\n도메인: 데이터 플랫폼"
+      },
+      "resume": { "sourceType": "file", "value": "tests/docs/user1/이력서_김도현_백엔드.docx" },
+      "constraints": { "preparationPeriodWeeks": 12, "availableHoursPerWeek": 15 },
+      "labels": {
+        "requiredRequirements": [
+          "Python 데이터 처리 개발 경험",
+          "SQL 활용 능력",
+          "ETL 파이프라인 설계 경험"
+        ],
+        "preferredRequirements": [
+          "Apache Spark 대규모 처리 경험",
+          "Airflow 등 워크플로 오케스트레이션 경험",
+          "클라우드(AWS/GCP) 데이터 인프라 경험"
+        ]
+      }
+    }
+  ]
+}

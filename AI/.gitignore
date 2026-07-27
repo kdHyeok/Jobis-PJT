@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 환경변수/비밀키 (CLAUDE.md 6장: 절대 커밋 금지)
+.env
+.env.*
+!.env.example
+
+# 로컬 산출물/캐시
+*.log
+.vectorstore/
+data/local/
+
+# MS Office 임시 잠금 파일 (문서 열려 있을 때 생성)
+~$*
