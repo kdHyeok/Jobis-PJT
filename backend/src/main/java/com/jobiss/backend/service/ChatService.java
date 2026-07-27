@@ -160,6 +160,8 @@ public class ChatService {
         List<Map<String, Object>> attachments = new ArrayList<>();
         addAttachment(attachments, "resume", req.resumeText());
         addAttachment(attachments, "job_posting", req.postingText());
+        // 빈 섹션 보완 입력 — AI 쪽에서 기존 이력서에 덧붙인다(교체 아님).
+        addAttachment(attachments, "resume_extra", req.resumeExtraText());
         body.put("attachments", attachments);
         return body;
     }

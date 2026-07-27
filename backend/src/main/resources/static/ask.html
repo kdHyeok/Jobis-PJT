@@ -56,6 +56,27 @@
 .ask-bubble{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 15px;
   font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word;max-width:calc(100% - 46px)}
 .ask-msg.me .ask-bubble{background:var(--brand-soft);border-color:transparent}
+.ask-msg .body{display:flex;flex-direction:column;min-width:0;max-width:calc(100% - 46px)}
+.ask-msg .body .ask-bubble{max-width:100%}
+.ask-time{font-size:10.5px;color:var(--faint);margin-top:3px;padding:0 4px}
+.ask-msg.me .ask-time{text-align:right}
+/* 이력서 보완 카드 — 빈 섹션 입력 or 바로 분석 */
+.ask-fill{max-width:760px;margin:0 auto;background:var(--surface);border:1px dashed var(--line);
+  border-radius:13px;padding:13px 15px}
+.ask-fill .f-k{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.03em;margin-bottom:8px}
+.ask-fill .f-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.ask-fill .f-chips button{background:var(--surface-2);border:1px solid var(--line);border-radius:16px;
+  padding:6px 12px;font-size:12px;color:var(--ink-2);cursor:pointer}
+.ask-fill .f-chips button.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
+.ask-fill textarea{width:100%;background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+  border-radius:9px;padding:9px 11px;font:12.5px/1.5 inherit;resize:vertical;display:none}
+.ask-fill textarea.show{display:block}
+.ask-fill .f-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.ask-fill .f-acts button{border:0;border-radius:9px;padding:9px 14px;font-weight:700;font-size:12.5px;cursor:pointer}
+.ask-fill .f-go{background:var(--brand);color:var(--on-brand)}
+.ask-fill .f-add{background:transparent;color:var(--ink-2);border:1px solid var(--line) !important;display:none}
+.ask-fill .f-add.show{display:inline-block}
+.ask-fill.done{opacity:.65;pointer-events:none}
 .ask-meta{max-width:760px;margin:0 auto;font-size:11.5px;color:var(--faint);padding-left:41px}
 .ask-note{max-width:760px;margin:0 auto;font-size:12.5px;color:var(--muted);
   background:var(--surface-2);border-radius:10px;padding:9px 12px}
@@ -253,11 +274,20 @@
     var out = esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong class="hl">$1</strong>');
     return highlight(out);
   }
-  function bubble(role, text){
+  function fmtTime(when){
+    var d = when ? new Date(when) : new Date();
+    if (isNaN(d)) return '';
+    var now = new Date();
+    var hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (d.toDateString() === now.toDateString()) return hm;
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hm;
+  }
+  function bubble(role, text, when){
     var el = document.createElement('div');
     el.className = 'ask-msg' + (role === 'me' ? ' me' : '');
     el.innerHTML = '<div class="who">' + (role === 'me' ? '나' : '✦') + '</div>' +
-                   '<div class="ask-bubble">' + (role === 'me' ? esc(text) : md(text)) + '</div>';
+                   '<div class="body"><div class="ask-bubble">' + (role === 'me' ? esc(text) : md(text)) + '</div>' +
+                   '<div class="ask-time">' + fmtTime(when) + '</div></div>';
     thread.appendChild(el);
     scrollDown();
     return el;
@@ -421,7 +451,7 @@
     try {
       var msgs = await JB.api('/api/chat/conversations/' + id) || [];
       msgs.forEach(function(m){
-        bubble(m.role === 'USER' ? 'me' : 'ai', m.content);
+        bubble(m.role === 'USER' ? 'me' : 'ai', m.content, m.createdAt);
         if (m.role !== 'USER' && (m.agents || []).length){
           meta('담당 ' + m.agents.map(function(d){ return AGENT_KO[d] || d; }).join(' · '));
         }
@@ -525,6 +555,56 @@
     }
   }
 
+  /** 이력서 정리 뒤: 빈 섹션 보완 입력 or 바로 분석. 입력해도, 안 해도 분석으로 이어진다. */
+  var SECTION_KO = { skills:'기술 스택', projects:'프로젝트', experiences:'경력',
+                     education:'학력', certifications:'자격증', languages:'어학' };
+  function fillCard(profile){
+    var empty = Object.keys(SECTION_KO).filter(function(k){ return !(profile[k] || []).length; });
+    var el = document.createElement('div');
+    el.className = 'ask-fill';
+    el.innerHTML =
+      '<div class="f-k">이력서에 더 넣을 내용이 있나요?</div>' +
+      (empty.length
+        ? '<div class="f-chips">' + empty.map(function(k){
+            return '<button data-sec="' + k + '">' + SECTION_KO[k] + ' +</button>';
+          }).join('') + '</div>'
+        : '') +
+      '<textarea rows="3" placeholder="예) 학력: 한국대학교 컴퓨터공학과 졸업(2024)"></textarea>' +
+      '<div class="f-acts">' +
+        '<button class="f-add">입력 반영하고 분석 진행</button>' +
+        '<button class="f-go">이대로 분석 진행하기</button>' +
+      '</div>';
+    thread.appendChild(el);
+    scrollDown();
+
+    var ta = el.querySelector('textarea');
+    var addBtn = el.querySelector('.f-add');
+    el.querySelectorAll('[data-sec]').forEach(function(b){
+      b.addEventListener('click', function(){
+        b.classList.toggle('on');
+        ta.classList.add('show');
+        addBtn.classList.add('show');
+        var tag = '[' + SECTION_KO[b.dataset.sec] + '] ';
+        if (ta.value.indexOf(tag) === -1) ta.value += (ta.value ? '\n' : '') + tag;
+        ta.focus();
+      });
+    });
+    ta.addEventListener('input', function(){
+      addBtn.classList.toggle('show', !!ta.value.trim());
+    });
+    addBtn.addEventListener('click', async function(){
+      var text = (ta.value || '').trim();
+      if (!text) return;
+      el.classList.add('done');
+      await send({ resumeExtraText: text, message: '추가 정보 반영해서 지원 가능성 진단해줘',
+                   label: '추가 정보 반영 + 분석 요청' });
+    });
+    el.querySelector('.f-go').addEventListener('click', async function(){
+      el.classList.add('done');
+      await send({ message: '이대로 지원 가능성 진단해줘' });
+    });
+  }
+
   var busy = false;
 
   /**
@@ -538,9 +618,10 @@
       conversationId: conversationId,
       message: payload.message || '',
       resumeText: payload.resumeText || '',
-      postingText: payload.postingText || ''
+      postingText: payload.postingText || '',
+      resumeExtraText: payload.resumeExtraText || ''
     };
-    if (!body.message && !body.resumeText && !body.postingText) return;
+    if (!body.message && !body.resumeText && !body.postingText && !body.resumeExtraText) return;
 
     busy = true;
     sendBtn.disabled = true;
@@ -570,6 +651,10 @@
       var who = (res.dispatched || []).map(function(d){ return AGENT_KO[d] || d; }).join(' · ');
       if (who) meta('담당 ' + who);
 
+      // 이력서를 정리해 보여준 턴 — 빈 섹션 보완 or 바로 분석 카드를 붙인다.
+      if ((res.dispatched || []).indexOf('resume_diagnosis') !== -1 && (res.context || {}).profile){
+        fillCard(res.context.profile);
+      }
       // 에이전트가 자료를 요청했으면 **그때** 입력 카드를 만든다.
       pending = null;
       (res.askedFor || []).forEach(function(q){

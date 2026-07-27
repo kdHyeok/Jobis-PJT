@@ -10,10 +10,11 @@ public record ChatAskRequest(
         Long conversationId,    // 없으면 새 대화 생성
         String message,
         String resumeText,      // 이력서 원문(선택). 파일은 /api/evidences/parse-file 로 텍스트를 얻어 넣는다
-        String postingText      // 공고 원문 또는 URL(선택)
+        String postingText,     // 공고 원문 또는 URL(선택)
+        String resumeExtraText  // 기존 이력서에 덧붙일 추가 정보(빈 섹션 보완 입력 등, 선택)
 ) {
     public boolean isEmpty() {
-        return blank(message) && blank(resumeText) && blank(postingText);
+        return blank(message) && blank(resumeText) && blank(postingText) && blank(resumeExtraText);
     }
 
     private static boolean blank(String s) {
