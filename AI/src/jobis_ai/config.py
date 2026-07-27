@@ -31,9 +31,12 @@ def _load_env_once() -> None:
 class Settings:
     """실행에 필요한 설정 묶음. 값의 출처는 오직 환경변수/.env."""
 
-    llm_provider: str          # "anthropic" | "openai" (GMS 경유, 2026-07-20부터 기본)
+    llm_provider: str          # "openai"(GMS 경유) | "anthropic"(API 키) | "claude_code"(로컬 Claude 구독)
     anthropic_api_key: str
     anthropic_model: str
+    claude_cli: str            # Claude Code CLI 명령 (기본 "claude", 예: "wsl claude")
+    claude_code_model: str        # claude_code 고급 티어 모델 별칭 (sonnet 등)
+    claude_code_model_light: str  # claude_code 경량 티어 모델 별칭 (haiku 등)
     llm_base_url: str          # GMS 경유 챗 엔드포인트 base URL (llm_provider="openai" 일 때)
     llm_model: str             # GMS 로 호출할 모델명 — 고급 티어(추출·생성)
     llm_model_light: str       # 경량 티어 모델명 — 분류·이진판정·요약
@@ -50,6 +53,10 @@ class Settings:
     def has_llm_key(self) -> bool:
         if self.llm_provider == "openai":
             return bool(self.gms_key)
+        if self.llm_provider == "claude_code":
+            # 키가 아니라 이 머신의 Claude Code CLI 로그인 세션을 쓴다 — 여기서 검사할 키가 없다.
+            # 로그인이 없으면 첫 호출이 실패하고 run_structured 가 경고로 남긴다.
+            return True
         return bool(self.anthropic_api_key)
 
     @property
@@ -68,6 +75,9 @@ def get_settings() -> Settings:
         llm_provider=os.getenv("LLM_PROVIDER", "anthropic"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
         anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+        claude_cli=os.getenv("CLAUDE_CLI", "claude"),
+        claude_code_model=os.getenv("CLAUDE_CODE_MODEL", "sonnet"),
+        claude_code_model_light=os.getenv("CLAUDE_CODE_MODEL_LIGHT", "haiku"),
         llm_base_url=os.getenv(
             "LLM_BASE_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
         ),

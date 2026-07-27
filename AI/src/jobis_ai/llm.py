@@ -57,6 +57,16 @@ def get_llm(tier: str = "default") -> Any:
             kwargs["max_tokens"] = settings.max_output_tokens
         return ChatOpenAI(**kwargs)
 
+    if settings.llm_provider == "claude_code":
+        # 이 머신에 로그인된 Claude Code CLI(구독 시트)로 호출한다 — API 키·토큰 비용 없음.
+        # 개발 반복용. 서버 배포에는 openai(GMS)나 anthropic(API 키)을 쓴다.
+        from jobis_ai.claude_code_llm import ClaudeCodeChat
+
+        return ClaudeCodeChat(
+            model=settings.claude_code_model_light if tier == "light" else settings.claude_code_model,
+            cli=settings.claude_cli,
+        )
+
     if settings.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
