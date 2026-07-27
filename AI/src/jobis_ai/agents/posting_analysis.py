@@ -69,34 +69,40 @@ def _closing(facts: dict) -> tuple[str, list[dict]]:
     return text, warnings
 
 
-# 공고 원문의 연차 표기 — 사다리 키(junior 등) 대신 사용자에게 보여줄 근거.
+# 공고 원문의 연차 표기 — 파싱이 yearsEvidence 를 못 남긴 옛 캐시용 폴백 추출.
 _YEARS_MENTION = re.compile(r"(신입|경력\s*무관|(?:경력\s*)?\d+\s*년(?:\s*이상|\s*이하)?)")
 
 
 def _seniority_line(posting: dict) -> str:
-    """사다리 키를 한글 라벨로, 가능하면 공고 원문 표기를 근거로 붙인다."""
+    """요구 연차 줄 — **공고가 한 말(yearsEvidence)을 그대로** 우선한다.
+
+    사다리 라벨은 숫자 근거가 없을 때(키워드만 있는 공고)의 폴백이다. "경력 2년 이상"
+    공고에 라벨 "주니어 신입"을 붙이면 공고에 없는 단어("신입")가 판정처럼 나간다 —
+    실측에서 사용자 혼란을 일으킨 문제.
+    """
+
+    evidence = str(posting.get("yearsEvidence") or "").strip()
+    if not evidence:
+        # 옛 캐시(yearsEvidence 없던 시절 파싱)면 원문 항목에서 표기를 찾아본다.
+        texts = (
+            [r.get("text", "") for r in posting.get("requiredRequirements", [])]
+            + [r.get("text", "") for r in posting.get("preferredRequirements", [])]
+            + [posting.get("jobTitle", "")]
+            + [str(c) for c in posting.get("rawChunks", [])]
+        )
+        for text in texts:
+            m = _YEARS_MENTION.search(str(text))
+            if m:
+                evidence = m.group(1)
+                break
+
+    if evidence:
+        return f"**요구 연차** {evidence} (공고 표기 그대로)"
 
     key = posting.get("seniority") or ""
     if not key:
         return ""
-    label = SENIORITY_KO.get(key, key)
-
-    texts = (
-        [r.get("text", "") for r in posting.get("requiredRequirements", [])]
-        + [r.get("text", "") for r in posting.get("preferredRequirements", [])]
-        + [posting.get("jobTitle", "")]
-        + [str(c) for c in posting.get("rawChunks", [])]
-    )
-    evidence = ""
-    for text in texts:
-        m = _YEARS_MENTION.search(str(text))
-        if m:
-            evidence = m.group(1)
-            break
-
-    if evidence:
-        return f"**요구 연차** {label} 수준(공고 표기: {evidence})"
-    return f"**요구 연차** {label} 수준"
+    return f"**요구 연차** {SENIORITY_KO.get(key, key)} 수준(공고 키워드 기준)"
 
 
 def _fmt_reqs(reqs: list[dict]) -> str:

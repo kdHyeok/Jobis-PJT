@@ -155,8 +155,24 @@ def test_chat_forbidden_ack_is_dropped(monkeypatch):
     assert "합격 가능성" not in res.reply
 
 
-def test_posting_analysis_seniority_is_labeled_with_evidence():
-    """연차는 사다리 키(junior) 원문 노출 대신 한글 라벨 + 공고 표기 근거로 서술한다."""
+def test_posting_analysis_seniority_shows_posting_wording():
+    """연차 표기는 공고가 한 말(yearsEvidence)을 그대로 — 사다리 라벨("주니어 신입")은
+    공고에 없는 단어("신입")를 만들 수 있어 숫자 근거가 있으면 쓰지 않는다."""
+
+    from jobis_ai.agents.posting_analysis import _seniority_line
+
+    line = _seniority_line({
+        "jobTitle": "백엔드 개발자",
+        "seniority": "junior",
+        "minYears": 2,
+        "yearsEvidence": "경력 2년 이상",
+    })
+    assert "경력 2년 이상" in line
+    assert "junior" not in line and "신입" not in line
+
+
+def test_posting_analysis_seniority_evidence_fallback_from_text():
+    """옛 캐시(yearsEvidence 없음)면 원문 항목에서 표기를 찾아 쓴다."""
 
     from jobis_ai.agents.posting_analysis import _seniority_line
 
@@ -165,17 +181,17 @@ def test_posting_analysis_seniority_is_labeled_with_evidence():
         "seniority": "junior",
         "requiredRequirements": [{"text": "Python 실무 경험 2년 이상"}],
     })
-    assert "junior" not in line
-    assert "주니어" in line
-    assert "공고 표기: 2년 이상" in line   # 원문 표기가 근거로 붙는다
+    assert "2년 이상" in line and "신입" not in line
 
 
 def test_posting_analysis_seniority_without_evidence():
+    """숫자 근거가 아예 없으면(키워드만) 사다리 라벨을 키워드 기준으로 표기한다."""
+
     from jobis_ai.agents.posting_analysis import _seniority_line
 
     line = _seniority_line({"jobTitle": "백엔드", "seniority": "senior",
                             "requiredRequirements": [{"text": "Kubernetes 운영"}]})
-    assert "시니어" in line and "공고 표기" not in line
+    assert "시니어" in line and "키워드 기준" in line
 
 
 def test_preference_intake_conversation_loop():

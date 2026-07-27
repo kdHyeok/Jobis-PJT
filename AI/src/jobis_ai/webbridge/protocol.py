@@ -114,7 +114,9 @@ def job_items(posting: dict, hint: Optional[dict] = None) -> dict:
     return {
         "company": posting.get("companyName") or hint.get("company") or "",
         "role": posting.get("jobTitle") or posting.get("roleCategory") or hint.get("role") or "",
-        "career": hint.get("career") or SENIORITY_KO.get(seniority, seniority),
+        # 사람이 읽는 표기 우선순위: 웹이 이미 가진 문구 > 공고 원문 표기 > 사다리 라벨.
+        # 사다리 라벨("주니어 신입")은 공고에 없는 단어를 만들 수 있어 최후순위다.
+        "career": hint.get("career") or posting.get("yearsEvidence") or SENIORITY_KO.get(seniority, seniority),
         "stack": list(posting.get("techStack") or []),
         "required": [r.get("text", "") for r in (posting.get("requiredRequirements") or []) if r.get("text")],
         "preferred": [r.get("text", "") for r in (posting.get("preferredRequirements") or []) if r.get("text")],

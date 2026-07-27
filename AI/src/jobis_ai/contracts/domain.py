@@ -25,6 +25,12 @@ class NormalizedJobPosting(BaseModel):
     companyName: str = ""
     roleCategory: str = ""
     seniority: str = ""
+    # 요구 최소 경력 연차(원문에 숫자가 있을 때만, rule_extractor 산출). None = 근거 없음.
+    # seniority 사다리는 이 값을 5칸으로 뭉갠 손실 요약이다 — 판정·표기는 이 원본을 우선한다
+    # (0년과 2년이 같은 junior 칸에 들어가 "신입이 '2년 이상' 공고를 충족" 오판이 났던 원인).
+    minYears: int | None = None
+    # minYears 를 뽑은 원문 조각 ("경력 2년 이상") — 화면 표기는 공고가 한 말을 그대로 쓴다.
+    yearsEvidence: str = ""
     requiredRequirements: list[Requirement] = Field(default_factory=list)
     preferredRequirements: list[Requirement] = Field(default_factory=list)
     techStack: list[str] = Field(default_factory=list)

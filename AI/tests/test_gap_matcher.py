@@ -176,6 +176,64 @@ def test_role_relevance_computed_from_seniority_match():
     assert basis["techSkill"] is None
 
 
+def _seniority_req(min_years=None, evidence="", seniority="junior"):
+    req = {"requirementId": "sr-1", "text": f"요구 연차: {evidence or seniority}",
+           "type": "required", "kind": "seniority", "seniority": seniority}
+    if min_years is not None:
+        req["minYears"] = min_years
+        req["yearsEvidence"] = evidence
+    return req
+
+
+def _profile_with_tenure(tenure_summary: str):
+    base = _profile()
+    base["experiences"] = [{"id": "e1", "company": "회사", "role": "백엔드 개발",
+                            "period": "", "summary": f"{tenure_summary} 근무"}]
+    return base
+
+
+def test_seniority_fresh_grad_does_not_meet_min_years():
+    """'경력 2년 이상' 공고를 경력 0년이 충족하던 오판(사다리 칸 충돌) 회귀 방지.
+
+    0년과 2년이 같은 junior 칸에 들어가 칸 비교로는 met 이 나왔다 — 숫자가 있으면
+    숫자로 판정한다.
+    """
+
+    report = get_gap_matcher().match(
+        [_seniority_req(min_years=2, evidence="경력 2년 이상")],
+        _profile(),   # 경력 항목 없음 → 0개월 확정
+    )
+    m = report.matches[0]
+    assert m.status == "not_met"
+    assert "경력 2년 이상" in m.reason      # 판정 사유도 공고의 말 그대로
+    assert "신입" not in m.reason           # 공고에 없는 단어를 만들지 않는다
+
+
+def test_seniority_numeric_met_and_partial():
+    met = get_gap_matcher().match(
+        [_seniority_req(min_years=2, evidence="경력 2년 이상")],
+        _profile_with_tenure("3년 2개월"),
+    ).matches[0]
+    assert met.status == "met"
+
+    partial = get_gap_matcher().match(
+        [_seniority_req(min_years=2, evidence="경력 2년 이상")],
+        _profile_with_tenure("1년 6개월"),
+    ).matches[0]
+    assert partial.status == "partially_met"
+    assert "개월" in partial.reason          # 부족분을 숫자로 말한다
+
+
+def test_seniority_keyword_only_falls_back_to_ladder():
+    """공고가 숫자 없이 키워드("시니어")만 말하면 기존 사다리 비교를 유지한다."""
+
+    report = get_gap_matcher().match(
+        [_seniority_req(seniority="senior")],
+        _profile_with_tenure("3년"),         # 3년 → mid, 요구 senior → 미달
+    )
+    assert report.matches[0].status in ("partially_met", "not_met")
+
+
 def test_domain_and_role_stay_none_without_matching_requirements():
     """해당 종류 요구사항이 아예 없으면 여전히 None 이다 — 근거 없으면 숫자를 만들지 않는다."""
     report = get_gap_matcher().match(
@@ -251,3 +309,33 @@ def test_empty_requirements_yields_empty_report():
     report = get_gap_matcher().match([], _profile(skills=["Java"]))
     assert report.matches == []
     assert to_gap_payload(report)["gaps"] == []
+
+
+# --- 비교 요구사항 조립: 연차 줄 중복 판정 방지 -------------------------------
+def test_pure_years_line_is_owned_by_seniority_requirement():
+    """순수 연차 줄은 텍스트 매칭 목록에서 빠지고 합성 seniority 요건이 단독 담당한다.
+
+    같은 제약이 두 경로에서 다른 결론(텍스트: 충족 / 연차 룰: 미충족)으로 판정되면
+    리포트가 자기모순이 된다 — 실측(신입 × '경력 2년 이상')에서 확인된 문제.
+    """
+
+    from jobis_ai.graph.nodes import _build_comparison_requirements
+
+    posting = {
+        "seniority": "junior", "minYears": 2, "yearsEvidence": "경력 2년 이상",
+        "techStack": ["React", "Python"],
+        "requiredRequirements": [
+            {"requirementId": "r1", "text": "프론트엔드 개발 경력 2년 이상", "type": "required"},
+            {"requirementId": "r2", "text": "Python 경력 2년 이상", "type": "required"},
+            {"requirementId": "r3", "text": "React 기반 SPA 개발 경험", "type": "required"},
+        ],
+        "preferredRequirements": [],
+        "domainKeywords": [],
+    }
+    reqs = _build_comparison_requirements(posting)
+    texts = [r.get("text", "") for r in reqs]
+    assert "프론트엔드 개발 경력 2년 이상" not in texts    # 순수 연차 줄 → 제외
+    assert "Python 경력 2년 이상" in texts                # 기술 토큰 있는 줄 → 유지
+    assert "React 기반 SPA 개발 경험" in texts
+    sen = [r for r in reqs if r.get("kind") == "seniority"]
+    assert len(sen) == 1 and sen[0]["minYears"] == 2      # 연차는 합성 요건이 담당

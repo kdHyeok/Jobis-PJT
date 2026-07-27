@@ -322,6 +322,10 @@ def _apply_rule_extraction(
     # 직군·연차: LLM 추정이 아니라 taxonomy 룰이 결정한다(§3.1).
     posting.roleCategory = roles.classify_role(posting.jobTitle, text)
     posting.seniority = roles.classify_seniority(posting.jobTitle, text, years=rules.minYears)
+    # 숫자 원본을 보존한다 — 사다리 칸은 손실 요약이라 판정(연차 대 연차)과 표기(원문)는
+    # 이 값을 우선한다.
+    posting.minYears = rules.minYears
+    posting.yearsEvidence = rules.yearsEvidence
 
     if not posting.roleCategory:
         warnings.append({
@@ -795,13 +799,18 @@ def _seniority_requirement(posting: dict) -> list[dict]:
     seniority = str(posting.get("seniority", "")).strip()
     if not seniority:
         return []
-    label = SENIORITY_KO.get(seniority, seniority)
+    # 표기는 공고가 한 말(yearsEvidence)을 그대로 — 사다리 라벨("주니어 신입")은 공고에
+    # 없는 단어("신입")를 만들어낼 수 있어 숫자 근거가 없을 때만 쓴다.
+    evidence = str(posting.get("yearsEvidence") or "").strip()
+    label = evidence or SENIORITY_KO.get(seniority, seniority)
     return [{
         "requirementId": "seniority-1",
         "text": f"요구 연차: {label}",
         "type": "required",
         "kind": "seniority",
         "seniority": seniority,
+        "minYears": posting.get("minYears"),
+        "yearsEvidence": evidence,
         "roleCategory": str(posting.get("roleCategory", "")),
     }]
 
@@ -817,6 +826,22 @@ def _build_comparison_requirements(posting: dict) -> list[dict]:
     base = list(posting.get("requiredRequirements", [])) + list(
         posting.get("preferredRequirements", [])
     )
+    # 순수 연차 줄("프론트엔드 개발 경력 2년 이상")은 텍스트 매칭에서 뺀다 — 같은 제약이
+    # 두 번 판정되면(텍스트 의미판정 "경험 있음→충족" vs 연차 룰 "2년 미달→미충족")
+    # 리포트가 자기모순이 된다. 이 제약은 합성 seniority 요건이 단독으로 담당한다.
+    # 단, 연차 표기가 있어도 기술 토큰이 함께 있는 줄("Python 경력 2년 이상")은
+    # 기술 요건이기도 하므로 남긴다.
+    evidence = str(posting.get("yearsEvidence") or "").strip()
+    if evidence:
+        tech = [t.lower() for t in (posting.get("techStack") or [])]
+
+        def _is_pure_years_line(text: str) -> bool:
+            if evidence not in text:
+                return False
+            rest = text.replace(evidence, " ").lower()
+            return not any(t in rest for t in tech)
+
+        base = [r for r in base if not _is_pure_years_line(str(r.get("text", "")))]
     base += _tech_stack_requirements(posting, base)
     base += _domain_keyword_requirements(posting)
     base += _seniority_requirement(posting)
