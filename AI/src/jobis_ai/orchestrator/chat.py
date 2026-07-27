@@ -25,6 +25,7 @@ from jobis_ai.orchestrator.session import append_history, get_session_store
 _ATTACHMENT_ACK = {
     "resume": "이력서를 받았어요.",
     "job_posting": "공고를 받았어요.",
+    "resume_extra": "추가 정보를 이력서에 반영했어요.",
 }
 
 
@@ -38,6 +39,15 @@ def _store_attachments(request: ChatRequest, session_id: str) -> list[str]:
         if att.kind == "resume":
             # 이력서가 갱신되면 이전 이력서로 만든 파생 자산은 무효다.
             store.update(session_id, {"resume": payload, "profile": None, "analysis": None})
+        elif att.kind == "resume_extra":
+            # 추가 정보는 기존 이력서에 **덧붙인다** — 교체하면 몇 줄이 전체를 지운다.
+            # 정보가 늘었으니 프로필·분석 파생 자산은 다시 만든다.
+            existing = (store.get(session_id).get("resume") or {}).get("value", "")
+            merged = (existing + "\n\n[추가 입력]\n" + att.value).strip()
+            store.update(session_id, {
+                "resume": {"sourceType": "text", "value": merged},
+                "profile": None, "analysis": None,
+            })
         else:
             store.update(session_id, {"job_posting": payload, "analysis": None})
         acks.append(_ATTACHMENT_ACK[att.kind])

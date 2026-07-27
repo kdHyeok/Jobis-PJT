@@ -120,7 +120,7 @@ def _asset_state(session: dict[str, Any]) -> str:
     parts = []
     submitted = session.get("_submittedThisTurn") or []
     if submitted:
-        kind_ko = {"resume": "이력서", "job_posting": "공고"}
+        kind_ko = {"resume": "이력서", "job_posting": "공고", "resume_extra": "이력서 추가 정보"}
         parts.append("이번 턴 제출 자료: " + ", ".join(kind_ko.get(k, k) for k in submitted))
     has_resume = bool(session.get("resume") or session.get("profile"))
     parts.append(f"이력서: {'있음' if has_resume else '없음'}")

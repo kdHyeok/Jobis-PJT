@@ -55,9 +55,13 @@ AnalysisStatus = Literal["completed", "need_more_info", "failed"]
 # 기존 /analyze 계약은 그대로 유지하고, 대화 경로는 별도 계약으로 연다.
 # ---------------------------------------------------------------------------
 class ChatAttachment(BaseModel):
-    """대화에 첨부되는 세션 자산 (이력서 또는 목표 공고)."""
+    """대화에 첨부되는 세션 자산 (이력서 또는 목표 공고).
 
-    kind: Literal["resume", "job_posting"]
+    resume_extra 는 **기존 이력서에 덧붙이는** 추가 정보다(빈 섹션 보완 입력 등) —
+    resume 처럼 통째로 교체하면 방금 준 몇 줄이 이력서 전체를 지워버린다.
+    """
+
+    kind: Literal["resume", "job_posting", "resume_extra"]
     sourceType: SourceType
     value: str
 

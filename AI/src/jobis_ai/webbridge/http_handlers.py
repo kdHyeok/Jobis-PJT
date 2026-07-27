@@ -179,7 +179,7 @@ def chat_turn(body: dict[str, Any]) -> dict[str, Any]:
     for att in body.get("attachments") or []:
         kind = str(att.get("kind") or "").strip()
         value = str(att.get("value") or "")
-        if kind in ("resume", "job_posting") and value.strip():
+        if kind in ("resume", "job_posting", "resume_extra") and value.strip():
             attachments.append(ChatAttachment(
                 kind=kind,  # type: ignore[arg-type]
                 sourceType=SourceType(str(att.get("sourceType") or "text")),
