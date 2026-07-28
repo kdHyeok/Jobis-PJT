@@ -54,7 +54,10 @@ class TraceRecorder:
             "label": label,
             "detail": detail or {},
         }
-        self.events.append(event)
+        # token(스트리밍 델타)은 실시간 중계 전용 — 이벤트 목록에 쌓으면 답변 하나에
+        # 수십~수백 건이 남아 관찰 UI 를 덮는다. sink 로만 흘리고 기록하지 않는다.
+        if kind != "token":
+            self.events.append(event)
         if self._sink is not None:
             try:
                 self._sink(event)

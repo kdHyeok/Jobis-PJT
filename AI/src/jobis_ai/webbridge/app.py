@@ -166,6 +166,14 @@ async def chat_stream(body: dict):
     def _sink(event: dict) -> None:
         kind = event.get("kind")
         detail = event.get("detail") or {}
+        if kind == "token":
+            # 표현 계층 토큰 스트리밍(run_streaming_text) — 답변이 생기는 대로 화면에 흐른다.
+            # 최종 문장은 done 의 reply 가 정본이다(금지표현 검증 통과본으로 교체될 수 있다).
+            text = str(detail.get("text") or "")
+            if text:
+                events.put({"type": "delta", "text": text,
+                            "agent": str(detail.get("node") or "")})
+            return
         if kind == "agent_start":
             agent = str(detail.get("agent") or "")
             if agent:

@@ -9,6 +9,20 @@ from operator import add
 from typing import Annotated, Optional, TypedDict
 
 
+def merge_dicts(a: Optional[dict], b: Optional[dict]) -> dict:
+    """dict 병합 리듀서 — 병렬 분기(파싱 ∥ 프로필 빌드)가 같은 스텝에서 다른 키를
+    갱신해도 충돌하지 않게 한다. 노드는 기존 값을 복사해 반환하므로 병합=교체와 동치."""
+
+    return {**(a or {}), **(b or {})}
+
+
+def last_value(a, b):
+    """마지막 값 리듀서 — status 처럼 표시용 스칼라가 병렬 스텝에서 두 번 갱신돼도
+    에러 대신 나중 값을 취한다(진행 표시는 어느 쪽이든 무방)."""
+
+    return b if b is not None else a
+
+
 class Status:
     """진행 상태 코드 (설계 17.1). 프론트 진행 표시/에이전트 시각화에 사용."""
 
@@ -62,9 +76,9 @@ class GraphState(TypedDict, total=False):
     sources: Annotated[list[dict], add]
     toolLog: Annotated[list[dict], add]
     warnings: Annotated[list[dict], add]
-    retryCount: dict[str, int]        # { nodeName: count }
-    nodeFailed: dict[str, bool]       # { nodeName: 생성 실패 여부 } — 오케스트라의 노드별 재지시 판단용
-    status: str                       # 현재 진행 단계 코드
+    retryCount: Annotated[dict, merge_dicts]    # { nodeName: count }
+    nodeFailed: Annotated[dict, merge_dicts]    # { nodeName: 생성 실패 여부 } — 오케스트라의 노드별 재지시 판단용
+    status: Annotated[str, last_value]          # 현재 진행 단계 코드
     isComplete: bool
 
     # --- 조립 결과 (assemble_output 산출; 설계 상태 스키마의 구현 확장) ---

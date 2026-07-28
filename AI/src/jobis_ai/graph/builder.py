@@ -27,7 +27,9 @@ def build_graph():
     # --- 노드 등록 (설계 13.3) ---
     g.add_node("parse_job_posting", nodes.parse_job_posting)
     g.add_node("build_user_profile", nodes.build_user_profile)
-    g.add_node("check_profile_completeness", nodes.check_profile_completeness)
+    # defer=True: 병렬 분기(파싱 ∥ 프로필 빌드)의 **합류 지점** — 두 분기가 재시도 루프까지
+    # 전부 끝난 뒤에 한 번만 실행된다. defer 없이는 먼저 끝난 분기가 이 노드를 조기 실행한다.
+    g.add_node("check_profile_completeness", nodes.check_profile_completeness, defer=True)
     g.add_node("check_sufficiency", nodes.check_sufficiency)
     g.add_node("ask_user", nodes.ask_user)
     g.add_node("analyze_gap", nodes.analyze_gap)
@@ -39,14 +41,17 @@ def build_graph():
     # --- 엣지 (설계 13.5) ---
     # 각 에이전트 뒤에 "산출물 검증 라우터"를 둔다: 생성 실패면 다음 에이전트로 넘어가지 않고
     # 같은 에이전트에게 다시 지시(재시도 예산 소진 시에만 진행). (설계 16.2)
+    # 공고 파싱과 프로필 빌드는 상호 독립 — 팬아웃으로 **병렬 실행**한다 (LLM 직렬 2회 → 1회분 단축).
+    # 각 분기는 자기 재시도 루프만 돌고, 성공하면 "inputs_ready" 신호로 합류 지점에 모인다.
     g.add_edge(START, "parse_job_posting")
+    g.add_edge(START, "build_user_profile")
     g.add_conditional_edges(
         "parse_job_posting", nodes.route_after_parse,
-        {"parse_job_posting": "parse_job_posting", "build_user_profile": "build_user_profile"},
+        {"parse_job_posting": "parse_job_posting", "inputs_ready": "check_profile_completeness"},
     )
     g.add_conditional_edges(
         "build_user_profile", nodes.route_after_profile,
-        {"build_user_profile": "build_user_profile", "check_profile_completeness": "check_profile_completeness"},
+        {"build_user_profile": "build_user_profile", "inputs_ready": "check_profile_completeness"},
     )
     g.add_edge("check_profile_completeness", "check_sufficiency")
 

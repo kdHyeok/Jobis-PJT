@@ -122,16 +122,32 @@ def test_chat_infeasible_choice_falls_back_to_conversation(monkeypatch):
     assert res.reply.strip()
 
 
-def test_chat_precondition_agent_is_inserted(monkeypatch):
-    """전제 자산이 없으면 생산자를 앞에 끼운다 — 자소서 요청에 적합도 분석이 선행된다."""
+def test_chat_heavy_precondition_asks_consent(monkeypatch):
+    """무거운 생산자(fit_analysis)가 자동 삽입될 상황 — 말없이 시작하지 않고 먼저 묻는다.
+
+    수십 초·LLM 여러 회짜리 파이프라인은 note 로 알리며 시작하는 게 아니라,
+    실행 전에 동의를 받는다(동의 게이트). 동의하면 다음 턴 플래너가 명시적으로 고른다.
+    """
 
     stub_planner(monkeypatch, ["coverletter_draft"])
     res = handle_chat(ChatRequest(
         sessionId="s9", message="자소서 써줘",
         attachments=[_resume_attachment(), _posting_attachment()],
     ))
+    assert res.dispatched == []                       # 아직 아무것도 실행하지 않았다
+    assert "진행할까요" in res.reply                   # 먼저 묻는다
+    assert any(q.get("field") == "confirm_pipeline" for q in res.followUpQuestions)
+
+
+def test_chat_explicit_heavy_producer_runs_without_gate(monkeypatch):
+    """플래너가 fit_analysis 를 명시적으로 골랐으면(동의 턴) 게이트 없이 그대로 실행한다."""
+
+    stub_planner(monkeypatch, ["fit_analysis", "coverletter_draft"])
+    res = handle_chat(ChatRequest(
+        sessionId="s9b", message="응 진행해줘",
+        attachments=[_resume_attachment(), _posting_attachment()],
+    ))
     assert res.dispatched[0] == "fit_analysis"
-    assert "이해했어요" in res.reply          # 계획이 달라졌음을 사용자에게 알린다
 
 
 def test_chat_planner_ack_is_visible(monkeypatch):

@@ -20,7 +20,7 @@ from jobis_ai import trace
 from jobis_ai.agents import get_agent_registry
 from jobis_ai.agents.fit_analysis import DEFAULT_HOURS, DEFAULT_WEEKS
 from jobis_ai.contracts.api import AnalyzeOptions, AnalyzeRequest, ChatRequest, JobPostingInput
-from jobis_ai.orchestrator.chat import _store_attachments
+from jobis_ai.orchestrator.chat import store_attachments
 from jobis_ai.orchestrator.planner import CONFIDENCE_THRESHOLD, plan_agents, safe_ack
 from jobis_ai.orchestrator.router import FALLBACK_AGENT, Dispatch, validate_plan
 from jobis_ai.orchestrator.session import append_history, get_session_store
@@ -65,7 +65,7 @@ class StepRun:
 
     # -- ① 시작: 첨부 저장 + 플래너/폴백 + 검증기 ------------------------------
     def start(self) -> dict:
-        acks = _store_attachments(self._request, self.session_id)
+        acks = store_attachments(self._request, self.session_id)
         if acks:
             self.replies.extend(acks)
         # 발화 원문을 세션에 실어 대화형 에이전트가 읽게 한다 (chat.handle_chat 과 동일).

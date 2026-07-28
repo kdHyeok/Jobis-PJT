@@ -33,16 +33,11 @@ ROADMAP = {"roadmap": {"roadmap": []}}
     (["application_plan"], {**ANALYSIS}, ("application_plan",)),
     (["coverletter_draft"], {**RESUME, **POSTING, **ANALYSIS}, ("coverletter_draft",)),
     (["roadmap_manager"], {**ROADMAP}, ("roadmap_manager",)),
-    # 전제 자동 삽입 — 결측 자산의 생산자를 앞에 끼운다(선언된 produces 로부터 유도)
-    (["coverletter_draft"], {**RESUME, **POSTING}, ("fit_analysis", "coverletter_draft")),
-    (["interview_prep"], {**RESUME, **POSTING}, ("fit_analysis", "interview_prep")),
-    (["application_plan"], {**RESUME, **POSTING}, ("fit_analysis", "application_plan")),
-    # 이미 선택된 생산자는 중복 삽입하지 않는다
+    # 무거운 생산자(fit_analysis)의 자동 삽입은 실행하지 않고 **동의 게이트**로 묻는다 —
+    # 아래 test_validate_plan_heavy_producer_asks_consent 에서 검증.
+    # 명시 선택된 생산자는 게이트 없이 그대로 실행하고, 중복 삽입하지 않는다
     (["fit_analysis", "coverletter_draft"], {**RESUME, **POSTING},
      ("fit_analysis", "coverletter_draft")),
-    # 두 목표가 같은 전제를 공유해도 생산자는 1회만
-    (["coverletter_draft", "interview_prep"], {**RESUME, **POSTING},
-     ("fit_analysis", "coverletter_draft", "interview_prep")),
     # 중복 선택은 1회로 접힌다
     (["fit_analysis", "fit_analysis"], {**RESUME, **POSTING}, ("fit_analysis",)),
     # 실행 가능한 것만 남기고, 못 할 것은 뺀다 — 무엇으로 바꿀지는 검증기가 정하지 않는다
@@ -65,7 +60,23 @@ def test_validate_plan_note_only_when_sequence_changed():
     """가시화 문구는 계획이 달라졌을 때만 — 매 턴 '이해했어요'가 붙으면 기계적으로 읽힌다."""
 
     assert validate_plan(["fit_analysis"], {**RESUME, **POSTING}).note == ""
-    assert validate_plan(["coverletter_draft"], {**RESUME, **POSTING}).note
+    # 자산 결측으로 강등된 실행(공고 정리만 남음)에는 바뀐 이유를 말한다
+    assert validate_plan(["fit_analysis", "posting_analysis"], {**POSTING}).note
+
+
+def test_validate_plan_heavy_producer_asks_consent():
+    """무거운 생산자(fit_analysis)가 **자동 삽입**될 때는 말없이 시작하지 않고 먼저 묻는다.
+
+    "자소서 써줘" → 수십 초짜리 판정 파이프라인이 note 한 줄로 시작되던 것을,
+    실행 전 동의 게이트(ask)로 바꾼다. 명시 선택이면 게이트 없이 그대로 실행.
+    """
+
+    for goal in ("coverletter_draft", "interview_prep", "application_plan"):
+        d = validate_plan([goal], {**RESUME, **POSTING})
+        assert d.agents == () and d.ask            # 실행하지 않고 묻는다
+    # 사용자가(플래너가) fit_analysis 를 명시하면 게이트 없이 실행
+    d = validate_plan(["fit_analysis", "coverletter_draft"], {**RESUME, **POSTING})
+    assert d.agents == ("fit_analysis", "coverletter_draft") and d.ask == ""
 
 
 def test_validate_plan_drops_unknown_agent():

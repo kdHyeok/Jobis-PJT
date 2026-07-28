@@ -20,6 +20,7 @@ LangGraph checkpointer(그래프 실행 중단점)와는 별개 — 이건 "세�
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sqlite3
@@ -78,12 +79,15 @@ class MemorySessionStore:
 
     def get(self, session_id: str) -> dict[str, Any]:
         with self._lock:
-            return dict(self._sessions.get(session_id) or {})
+            # 깊은 복사 — 얕은 복사는 중첩 dict/list 를 공유해 "복사본 규약"(받은 dict 를
+            # 고쳐도 저장되지 않는다)이 사실상 깨지고, SQLite 구현(JSON 왕복)과 동작이 달라진다.
+            return copy.deepcopy(self._sessions.get(session_id) or {})
 
     def update(self, session_id: str, updates: dict[str, Any]) -> None:
         _reject_unknown(updates)
         with self._lock:
-            self._sessions.setdefault(session_id, {}).update(updates)
+            # 쓰기도 깊은 복사 — 호출자가 넘긴 dict 를 이후에 고쳐도 저장분이 안 바뀐다(SQLite 와 동일).
+            self._sessions.setdefault(session_id, {}).update(copy.deepcopy(updates))
 
     def clear(self, session_id: str) -> None:
         with self._lock:

@@ -28,9 +28,16 @@ def ensure_profile(session: dict[str, Any]) -> tuple[dict, list[dict]]:
 
     # 같은 대화에서 프로필을 두 번 빌드하지 않도록 세션에 캐시한다(LLM 호출 절약).
     session["profile"] = profile          # 이번 턴 안에서 뒤 단계가 바로 쓰도록
-    session_id = session.get("_sessionId")
-    if session_id:
-        from jobis_ai.orchestrator.session import get_session_store
+    staged = session.get("_stagedUpdates")
+    if isinstance(staged, dict):
+        # write-back 턴(chat.handle_chat) 안 — 저장은 턴 끝에 한 번, 여기서는 스테이징만.
+        # 직접 store.update 를 하면 턴 끝 write-back 의 profile=None(첨부 무효화 표식)이
+        # 방금 만든 캐시를 도로 덮어쓴다.
+        staged["profile"] = profile
+    else:
+        session_id = session.get("_sessionId")
+        if session_id:
+            from jobis_ai.orchestrator.session import get_session_store
 
-        get_session_store().update(str(session_id), {"profile": profile})
+            get_session_store().update(str(session_id), {"profile": profile})
     return profile, warnings

@@ -58,14 +58,17 @@ class AgentPlan(BaseModel):
         "적합도·합격 가능성 등 판단·예측·조언은 절대 넣지 않는다(금지표현 검증에서 버려진다)."))
 
 
+# 시스템 프롬프트는 **완전 정적**이다 — 실행 가능 여부(동적)는 [세션 자산 상태]로 옮겼다.
+# 매 턴 동일한 접두부여야 provider 프롬프트 캐싱(OpenAI prefix cache / Anthropic
+# cache_control)이 걸려 지연·비용이 준다. 여기에 세션 의존 값을 넣지 말 것.
 _PLANNER_SYSTEM_TEMPLATE = """너는 취업 지원 서비스의 오케스트레이터 플래너다.
 사용자 발화와 지금 상태를 함께 보고, 이번 턴에 실행할 에이전트를 실행 순서대로 agents 에 담는다.
 
-에이전트 목록 (지금 실행 가능 여부 포함):
+에이전트 목록:
 {manifest}
 
 판단 원칙:
-- **지금 실행 가능한 에이전트만 고른다.** "실행 불가"로 표시된 것은 고르지 않는다.
+- **지금 실행 가능한 에이전트만 고른다.** 실행 가능 여부는 [세션 자산 상태]에 있다.
 - 사용자가 원하는 것을 바로 못 한다면, **지금 가진 자산으로 사용자에게 도움이 되는 일을 먼저
   하는 에이전트**를 고른다. 부족한 자료는 그 에이전트가 결과를 들고 대화로 직접 요청한다.
 - [세션 자산 상태]에 "이번 턴 제출 자료"가 있으면, 이 발화에서 판정을 명시적으로 요청하지
@@ -76,6 +79,9 @@ _PLANNER_SYSTEM_TEMPLATE = """너는 취업 지원 서비스의 오케스트레�
 - fit_analysis(무거운 판정)는 사용자가 정리 결과를 본 뒤 진단을 요청·동의한 턴에 고른다.
   직전 턴에 시스템이 "진단해볼까요?"라고 물었고 사용자가 동의("응", "해줘", "진단해줘")하면
   fit_analysis 다 — 이때는 resume_diagnosis 를 다시 고르지 않는다(이미 정리를 보여줬다).
+- 직전 턴에 시스템이 "~에는 먼저 적합도 분석이 필요해요. 진행할까요?"라고 물었고 사용자가
+  동의하면, fit_analysis 와 원래 요청했던 에이전트를 **순서대로 함께** agents 에 담는다
+  (예: ["fit_analysis", "coverletter_draft"]).
 - 적합도·합격 가능성·조언·추천을 스스로 판단하거나 답하지 않는다 — 그것은 에이전트의 일이다.
 - 발화가 짧거나 지시어("그거 해줘", "응", "이어서")면 [최근 대화] 맥락으로 해석한다.
   직전 턴에서 시스템이 물은 것에 대한 답이면 그 흐름을 잇는 에이전트를 고른다.
@@ -87,23 +93,18 @@ _PLANNER_SYSTEM_TEMPLATE = """너는 취업 지원 서비스의 오케스트레�
   적합도·합격 가능성 등 판단·예측·조언은 절대 넣지 않는다."""
 
 
-def _build_manifest(session: dict[str, Any]) -> str:
-    """레지스트리 + 지금 실행 가능 여부로 플래너용 목록을 만든다.
+def _build_manifest() -> str:
+    """레지스트리에서 **정적** 에이전트 목록을 만든다 (설명만, 실행 가능 여부 없음).
 
-    실행 가능 여부를 프롬프트에 실으므로, "이 상황이면 저 에이전트" 같은 대체 규칙을 코드에
-    둘 필요가 없다 — 플래너가 상태를 알고 고른다. 에이전트 추가 시 이 함수는 그대로다.
+    실행 가능 여부(동적)는 _asset_state() 가 사용자 메시지 쪽에 싣는다 — 시스템 프롬프트를
+    매 턴 동일하게 유지해 provider 프롬프트 캐싱이 걸리게 하기 위해서다. 에이전트 추가 시
+    이 함수는 그대로다.
     """
 
     from jobis_ai.agents import get_agent_registry
-    from jobis_ai.orchestrator.router import agent_feasibility, asset_label
 
-    feasibility = agent_feasibility(session)
-    lines = []
-    for spec in get_agent_registry().values():
-        missing = feasibility.get(spec.name)
-        state = "실행 가능" if missing is None else f"실행 불가 — {asset_label(missing)} 없음"
-        lines.append(f"- {spec.name}: {spec.description} [{state}]")
-    return "\n".join(lines)
+    return "\n".join(f"- {spec.name}: {spec.description}"
+                     for spec in get_agent_registry().values())
 
 
 _ASSET_LABEL = {
@@ -136,10 +137,19 @@ def _asset_state(session: dict[str, Any]) -> str:
     else:
         parts.append("수집된 공고 선호: 없음")
 
-    # 실행 가능한 이름을 **다시 한 번 나열**한다 — 목록 안의 [실행 불가] 표시만으로는
-    # 모델이 못 할 일을 고르는 사례가 실측됐다(그때는 검증기가 막고 대화로 돌아간다).
-    feasible = [name for name, missing in agent_feasibility(session).items() if missing is None]
-    return " / ".join(parts) + f"\n지금 실행 가능한 에이전트: {', '.join(feasible)}"
+    # 실행 가능/불가를 여기(동적 블록)에 싣는다 — 시스템 프롬프트는 정적으로 유지(캐싱).
+    # 가능한 이름을 명시 나열하는 이유: 상태 서술만으로는 모델이 못 할 일을 고르는 사례가
+    # 실측됐다(그때는 검증기가 막고 대화로 돌아간다).
+    from jobis_ai.orchestrator.router import asset_label
+
+    feasibility = agent_feasibility(session)
+    feasible = [name for name, missing in feasibility.items() if missing is None]
+    blocked = [f"{name}({asset_label(missing)} 없음)"
+               for name, missing in feasibility.items() if missing is not None]
+    lines = [" / ".join(parts), f"지금 실행 가능한 에이전트: {', '.join(feasible)}"]
+    if blocked:
+        lines.append(f"실행 불가: {', '.join(blocked)}")
+    return "\n".join(lines)
 
 
 def _history_block(session: dict[str, Any]) -> str:
@@ -178,7 +188,8 @@ def plan_agents(message: str, session: dict[str, Any]) -> tuple[AgentPlan | None
     if not (message or "").strip():
         return None, []
 
-    system = _PLANNER_SYSTEM_TEMPLATE.format(manifest=_build_manifest(session))
+    # 시스템 프롬프트는 세션과 무관하게 매 턴 동일하다(정적) — provider 프롬프트 캐싱 대상.
+    system = _PLANNER_SYSTEM_TEMPLATE.format(manifest=_build_manifest())
     user_content = (
         f"[최근 대화]\n{_history_block(session)}\n\n"
         f"[세션 자산 상태]\n{_asset_state(session)}\n\n[사용자 발화]\n{message}"
@@ -186,3 +197,55 @@ def plan_agents(message: str, session: dict[str, Any]) -> tuple[AgentPlan | None
     # 에이전트 선택은 고급 모델 유지 — 경량(gpt-5-nano) 실측에서 정확도 100%→48.8%로
     # 붕괴(과잉 선택·오되묻기). 스키마 제한·검증기로도 못 막는 판단 품질 차이다 (0724 실측).
     return run_structured(AgentPlan, system, user_content, node="agent_planner")
+
+
+class ReplanDecision(BaseModel):
+    """에이전트 실행 결과를 본 뒤의 재계획 — 계속/중단/수정 셋 중 하나.
+
+    판단 필드는 없다. 남은 시퀀스를 이어갈지에 대한 제어 신호뿐이다.
+    """
+
+    action: Literal["continue", "stop", "replace"] = Field(default="continue", description=(
+        "continue: 남은 에이전트를 예정대로 실행. "
+        "stop: 방금 결과로 이번 턴을 끝내는 게 낫다(뒤 에이전트가 무의미해졌다). "
+        "replace: 남은 시퀀스를 agents 로 교체한다."))
+    agents: list[AgentName] = Field(default_factory=list, description=(
+        "action 이 replace 일 때만 채운다 — 남은 턴에 실행할 에이전트, 실행 순서대로."))
+    reason: str = Field(default="", description="이 결정을 내린 근거 한 문장 (관찰용, 사용자 비노출).")
+
+
+_REPLAN_SYSTEM = """너는 취업 지원 서비스의 오케스트레이터 플래너다. 계획된 에이전트 시퀀스를
+실행하는 중이고, 방금 하나가 끝났다. 그 결과를 보고 남은 시퀀스를 이어갈지 정한다.
+
+- 결과가 예정대로면 continue. 대부분 continue 다.
+- 방금 결과가 남은 에이전트의 전제를 무너뜨렸으면(예: 공고 본문이 사실상 비어 정리가 무의미,
+  분석이 자료 부족으로 미완) stop — 뒤를 돌려도 빈 근거 위에서 돈다.
+- 남은 시퀀스보다 나은 순서·구성이 명백할 때만 replace 를 쓴다. 확신 없으면 continue.
+- 적합도·합격 가능성을 판단하지 않는다. 제어 신호만 낸다."""
+
+
+def replan_after(executed: str, outcome_summary: dict[str, Any],
+                 remaining: list[str], session: dict[str, Any]) -> ReplanDecision | None:
+    """에이전트 하나 실행 후 경량 재계획 — "결과를 보고 다음을 다시 정하는 루프"의 본체.
+
+    다중 에이전트 시퀀스에서만 호출된다(단일 에이전트 턴 지연을 늘리지 않기 위해).
+    제어 신호 분류라 경량 모델이면 충분하다. LLM 미설정·실패면 None — 호출부는 continue 로
+    간주한다(재계획이 안 되는 환경에서 기존 동작 그대로).
+    """
+
+    import json
+
+    payload = {
+        "userMessage": str(session.get("last_message") or ""),
+        "executedAgent": executed,
+        "outcome": outcome_summary,
+        "remainingAgents": remaining,
+    }
+    decision, warnings = run_structured(
+        ReplanDecision, _REPLAN_SYSTEM, json.dumps(payload, ensure_ascii=False),
+        node="replan", tier="light",
+    )
+    # 미설정(개발 모드)·호출 실패 모두 None — 경고를 밖으로 올리지 않는 이유는
+    # 재계획이 부가 기능이라 실패가 턴 결과를 오염시키면 안 되기 때문이다.
+    del warnings
+    return decision

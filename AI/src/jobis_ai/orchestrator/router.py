@@ -30,6 +30,11 @@ class Dispatch:
     agents: tuple[str, ...] = ()
     # 실행 시퀀스가 플래너의 선택과 달라졌을 때만 쓰는 가시화 문구.
     note: str = ""
+    # 동의 게이트 — 비어 있지 않으면 이번 턴에는 실행하지 않고 이 질문만 한다.
+    # 무거운 생산자(fit_analysis 등)가 **자동 삽입**될 때, 수십 초·LLM 여러 회짜리
+    # 파이프라인을 말없이 시작하는 대신 먼저 묻는다. 사용자가 동의하면 다음 턴에
+    # 플래너가 그 생산자를 명시적으로 고르므로 게이트에 다시 걸리지 않는다.
+    ask: str = ""
 
 
 _AGENT_LABEL = {
@@ -103,6 +108,9 @@ def _plan_agent(spec: Any, assets: set[str], plan: list[str],
     for asset in spec.preconditions:
         if asset in trial_assets:
             continue
+        # 같은 자산의 생산자가 둘 이상 등록되면 **레지스트리 등록 순서가 곧 선택 정책**이 된다.
+        # 현재는 자산마다 생산자가 유일해 문제가 없지만, 두 번째 생산자를 등록할 때는
+        # 여기 선택 규칙(우선순위 필드 등)을 함께 정해야 한다.
         producer = next((s for s in registry.values() if asset in s.produces), None)
         if producer is None or producer.name in trial_plan:
             return asset
@@ -167,6 +175,19 @@ def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any]) 
 
     if not plan:
         return Dispatch((FALLBACK_AGENT,))
+
+    # 동의 게이트 — 플래너가 고르지 않은 **무거운** 생산자가 자동 삽입됐으면 실행하지 않고
+    # 먼저 묻는다. note 로 알리고 이미 도는 것과, 시작 전에 묻는 것은 UX·비용이 다르다.
+    requested = set(agents)
+    inserted_heavy = [n for n in plan
+                      if n not in requested and getattr(registry[n], "heavy", False)]
+    if inserted_heavy:
+        goals = [n for n in plan if n in requested]
+        goal_label = " · ".join(agent_label(n) for n in goals) or "요청하신 작업"
+        heavy_label = " · ".join(agent_label(n) for n in inserted_heavy)
+        return Dispatch((), ask=(
+            f"{goal_label}에는 먼저 {heavy_label}이 필요해요. "
+            f"시간이 조금 걸리는 작업인데(수십 초), 바로 진행할까요?"))
 
     labels = " → ".join(agent_label(n) for n in plan)
     if dropped:

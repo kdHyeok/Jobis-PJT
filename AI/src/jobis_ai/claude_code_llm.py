@@ -59,8 +59,39 @@ class ClaudeCodeChat:
     def with_structured_output(self, schema: type, **_ignored: Any) -> "_Structured":
         return _Structured(self, schema)
 
-    # 구조화 없이 부르는 경로는 현재 없다(모든 호출이 run_structured 경유).
-    # 필요해지면 invoke() 를 추가하되, 반드시 검증 계층을 붙인다.
+    def invoke(self, messages: list[tuple[str, str]]) -> "_TextResult":
+        """구조화 없는 텍스트 생성 — run_streaming_text(표현 계층)의 비스트리밍 폴백 경로.
+
+        CLI 는 토큰 스트리밍을 지원하지 않으므로 완성본을 한 번에 돌려준다. 검증 계층은
+        호출부가 완성본에 대해 수행한다(금지표현 사후 검증 — career_chat 등).
+        """
+
+        system = "\n\n".join(m[1] for m in messages if m[0] == "system")
+        human = "\n\n".join(m[1] for m in messages if m[0] != "system")
+        prompt = f"{system}\n\n---\n[입력]\n{human}"
+
+        out = subprocess.run(
+            [*self.cli, "-p", prompt, "--output-format", "json",
+             "--model", self.model, "--max-turns", "1", "--strict-mcp-config"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
+            cwd=tempfile.gettempdir(),
+        )
+        if out.returncode != 0:
+            raise RuntimeError(
+                f"claude CLI 종료 코드 {out.returncode}: {(out.stderr or out.stdout)[:300]}"
+            )
+        wrapper = json.loads(out.stdout)
+        if wrapper.get("is_error"):
+            raise RuntimeError(f"claude CLI 오류 응답: {str(wrapper.get('result'))[:300]}")
+        return _TextResult(str(wrapper.get("result") or ""))
+
+
+class _TextResult:
+    """invoke() 반환 — LangChain 메시지의 .content 계약만 흉내낸다."""
+
+    def __init__(self, content: str) -> None:
+        self.content = content
 
 
 class _Structured:

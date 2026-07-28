@@ -119,12 +119,14 @@ def _should_retry_node(state: GraphState, node: str) -> bool:
 
 
 # --- 에이전트별 산출물 검증 라우터 (다음 에이전트 호출 전에 검증) ---
+# parse ∥ profile 은 병렬 분기다(builder 팬아웃). 성공 시 "inputs_ready" 로 합류 지점
+# (check_profile_completeness, defer)에 신호만 보낸다 — 서로의 다음 노드를 지정하지 않는다.
 def route_after_parse(state: GraphState) -> str:
-    return "parse_job_posting" if _should_retry_node(state, "parse_job_posting") else "build_user_profile"
+    return "parse_job_posting" if _should_retry_node(state, "parse_job_posting") else "inputs_ready"
 
 
 def route_after_profile(state: GraphState) -> str:
-    return "build_user_profile" if _should_retry_node(state, "build_user_profile") else "check_profile_completeness"
+    return "build_user_profile" if _should_retry_node(state, "build_user_profile") else "inputs_ready"
 
 
 def _fit_grade(state: GraphState) -> str:

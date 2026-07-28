@@ -37,6 +37,9 @@ class AgentSpec:
     entry: Callable[[dict], AgentResult]
     # 실행 성공 시 세션에 생기는 자산 — 플래너 검증기가 전제 자동 삽입을 추론하는 근거.
     produces: tuple[str, ...] = ()
+    # 무거운 파이프라인(LLM 여러 회·수십 초) 여부. 검증기가 이 에이전트를 **자동 삽입**할 때는
+    # 말없이 시작하지 않고 사용자에게 먼저 묻는다(동의 게이트). 명시 선택이면 그대로 실행.
+    heavy: bool = False
 
 
 def get_agent_registry() -> dict[str, AgentSpec]:
@@ -62,6 +65,7 @@ def get_agent_registry() -> dict[str, AgentSpec]:
             preconditions=("resume", "job_posting"),
             entry=fit_analysis.run,
             produces=("analysis", "roadmap"),
+            heavy=True,
         ),
         AgentSpec(
             name="posting_analysis",

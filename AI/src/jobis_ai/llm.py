@@ -49,7 +49,9 @@ def get_llm(tier: str = "default") -> Any:
             api_key=settings.gms_key,
             base_url=settings.llm_base_url,
             timeout=60,
-            max_retries=2,
+            # 재시도는 structured.py 한 계층에서만 한다. 클라이언트까지 재시도하면
+            # 3회 × 클라이언트 2회 = 최악 9회 네트워크 시도로 실패 시 지연이 폭주한다.
+            max_retries=0,
         )
         if settings.temperature is not None:
             kwargs["temperature"] = settings.temperature
@@ -75,7 +77,9 @@ def get_llm(tier: str = "default") -> Any:
             model=settings.anthropic_model,
             api_key=settings.anthropic_api_key,
             timeout=60,
-            max_retries=2,
+            # 재시도는 structured.py 한 계층에서만 한다. 클라이언트까지 재시도하면
+            # 3회 × 클라이언트 2회 = 최악 9회 네트워크 시도로 실패 시 지연이 폭주한다.
+            max_retries=0,
         )
         # 일부 최신 모델(opus-4-8 등)은 temperature 파라미터를 받지 않는다.
         # 명시적으로 설정된 경우에만 전달한다.
