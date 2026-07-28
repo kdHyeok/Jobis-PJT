@@ -27,13 +27,13 @@ pipeline {
             '-e MYSQL_PASSWORD=ci-only-password ' +
             '-e MYSQL_ROOT_PASSWORD=ci-only-root-password'
           ) { db ->
-            docker.image('eclipse-temurin:17-jdk').inside(
-              "--link ${db.id}:mysql " +
-              '-e DB_URL=jdbc:mysql://mysql:3306/jobiss?useSSL=false\\&allowPublicKeyRetrieval=true\\&serverTimezone=UTC ' +
-              '-e DB_USERNAME=jobis_ci ' +
-              '-e DB_PASSWORD=ci-only-password ' +
-              '-e JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
-            ) {
+            docker.image('eclipse-temurin:17-jdk').inside("--link ${db.id}:mysql") {
+              withEnv([
+                'DB_URL=jdbc:mysql://mysql:3306/jobiss?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC',
+                'DB_USERNAME=jobis_ci',
+                'DB_PASSWORD=ci-only-password',
+                'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+              ]) {
               sh '''
                 # MySQL 기동 대기
                 bash -c 'for i in $(seq 1 30); do (echo > /dev/tcp/mysql/3306) 2>/dev/null && exit 0; sleep 2; done; echo "MySQL not ready"; exit 1'
@@ -44,6 +44,7 @@ pipeline {
                 test -n "$jar" || { echo "실행 가능한 JAR 없음"; exit 1; }
                 cp "$jar" backend.jar
               '''
+              }
             }
           }
         }
