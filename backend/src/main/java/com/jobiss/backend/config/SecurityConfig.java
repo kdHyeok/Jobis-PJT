@@ -1,6 +1,7 @@
 package com.jobiss.backend.config;
 
 import com.jobiss.backend.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,6 +30,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // SSE(SseEmitter) 완료 시 Tomcat 이 같은 요청을 ASYNC 디스패치로 한 번 더
+                        // 필터 체인에 통과시킨다. JWT 필터는 원 요청에서만 인증을 세팅하므로 여기서
+                        // 거부되면 스트림이 종료 신호 없이 끊기고, 브라우저는 네트워크 오류로 처리해
+                        // 폴백(/api/chat)으로 같은 턴을 한 번 더 돌린다. 원 요청(REQUEST)에서 이미
+                        // 인가를 통과한 재디스패치라 허용해도 안전하다.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         // 정적 프론트(목업) — 로그인 전에도 페이지 자체는 열 수 있어야 함
                         .requestMatchers("/", "/*.html", "/*.css", "/*.js", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/chat-app/**", "/ws/**").permitAll()   // 채팅 목업 + STOMP 핸드셰이크

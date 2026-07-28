@@ -586,7 +586,14 @@
       var dec = new TextDecoder();
       var buf = '', done = null;
       while (true){
-        var chunk = await reader.read();
+        var chunk;
+        try { chunk = await reader.read(); }
+        catch (readErr){
+          // 연결이 험하게 끊겨도 done 을 이미 받았으면 그게 정답이다.
+          // 여기서 폴백으로 넘어가면 같은 턴이 서버에서 한 번 더 돈다(시간·비용 2배).
+          if (done) break;
+          throw readErr;
+        }
         if (chunk.done) break;
         buf += dec.decode(chunk.value, { stream: true });
         var lines = buf.split('\n');

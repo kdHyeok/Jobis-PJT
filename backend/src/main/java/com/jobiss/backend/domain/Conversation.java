@@ -56,8 +56,14 @@ public class Conversation {
         }
     }
 
-    /** 세션 키 — AI 쪽 대화 맥락은 이 값으로 격리된다. */
+    /** 세션 키 — AI 쪽 대화 맥락은 이 값으로 격리된다.
+     *
+     * id 만 쓰면 DB 를 초기화했을 때 새 대화가 AI 세션 저장소(sqlite)에 남아 있는
+     * 옛 "conv-{같은 id}" 맥락을 그대로 물려받는다 — 남의 공고·이력서가 새 대화에
+     * 섞여 나온다. 생성 시각을 섞어 DB 리셋을 넘어 유일하게 만든다. */
     public String sessionId() {
-        return "conv-" + id;
+        long stamp = createdAt == null ? 0
+                : createdAt.toEpochSecond(java.time.ZoneOffset.UTC);
+        return "conv-" + id + "-" + stamp;
     }
 }
