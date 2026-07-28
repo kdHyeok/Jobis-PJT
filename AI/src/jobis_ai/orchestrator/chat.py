@@ -18,6 +18,7 @@ from __future__ import annotations
 from jobis_ai import trace
 from jobis_ai.agents import get_agent_registry
 from jobis_ai.contracts.api import ChatRequest, ChatResponse
+from jobis_ai.orchestrator.attachment_kind import resolve_kind
 from jobis_ai.orchestrator.planner import CONFIDENCE_THRESHOLD, plan_agents, safe_ack
 from jobis_ai.orchestrator.router import FALLBACK_AGENT, Dispatch, validate_plan
 from jobis_ai.orchestrator.session import append_history, get_session_store
@@ -28,18 +29,41 @@ _ATTACHMENT_ACK = {
     "resume_extra": "추가 정보를 이력서에 반영했어요.",
 }
 
+# 프론트의 kind 를 내용으로 바로잡았을 때 — 무엇이 왜 바뀌었는지 사용자에게 말한다.
+_ATTACHMENT_ACK_CORRECTED = {
+    "resume": "붙여주신 내용이 공고가 아니라 이력서로 보여서, 이력서로 등록했어요.",
+    "job_posting": "붙여주신 내용이 이력서가 아니라 채용 공고로 보여서, 공고로 등록했어요.",
+}
 
-def _store_attachments(request: ChatRequest, session_id: str) -> list[str]:
-    """첨부를 세션 자산으로 저장하고 확인 문구 목록을 돌려준다."""
+
+def _store_attachments(request: ChatRequest,
+                       session_id: str) -> tuple[list[str], list[str], list[dict]]:
+    """첨부를 세션 자산으로 저장하고 (확인 문구, 저장된 kind, 경고) 를 돌려준다.
+
+    프론트는 "직전에 요청한 자료"의 슬롯으로 다음 붙여넣기를 그대로 보내므로,
+    공고를 기다리는 중에 이력서를 붙여넣으면 job_posting 으로 온다. 저장 전에
+    내용을 보고(resolve_kind) 명백히 반대 종류면 바로잡는다.
+    """
 
     store = get_session_store()
     acks: list[str] = []
+    kinds: list[str] = []
+    warnings: list[dict] = []
     for att in request.attachments:
+        kind = att.kind
+        # URL 은 내용이 아니라 주소라 판정이 성립하지 않는다 — 텍스트만 검증.
+        if kind in ("resume", "job_posting") and att.sourceType.value == "text":
+            kind, kind_warnings = resolve_kind(kind, att.value)
+            warnings.extend(kind_warnings)
+            if kind != att.kind:
+                trace.emit("attachment_kind", "첨부 종류를 내용으로 바로잡음", {
+                    "claimed": att.kind, "resolved": kind, "chars": len(att.value),
+                })
         payload = {"sourceType": att.sourceType.value, "value": att.value}
-        if att.kind == "resume":
+        if kind == "resume":
             # 이력서가 갱신되면 이전 이력서로 만든 파생 자산은 무효다.
             store.update(session_id, {"resume": payload, "profile": None, "analysis": None})
-        elif att.kind == "resume_extra":
+        elif kind == "resume_extra":
             # 추가 정보는 기존 이력서에 **덧붙인다** — 교체하면 몇 줄이 전체를 지운다.
             # 정보가 늘었으니 프로필·분석 파생 자산은 다시 만든다.
             existing = (store.get(session_id).get("resume") or {}).get("value", "")
@@ -50,8 +74,10 @@ def _store_attachments(request: ChatRequest, session_id: str) -> list[str]:
             })
         else:
             store.update(session_id, {"job_posting": payload, "analysis": None})
-        acks.append(_ATTACHMENT_ACK[att.kind])
-    return acks
+        acks.append(_ATTACHMENT_ACK[kind] if kind == att.kind
+                    else _ATTACHMENT_ACK_CORRECTED[kind])
+        kinds.append(kind)
+    return acks, kinds, warnings
 
 
 def _load_session(session_id: str) -> dict:
@@ -70,7 +96,7 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
     """대화 한 턴을 처리한다."""
 
     session_id = request.sessionId
-    acks = _store_attachments(request, session_id)
+    acks, stored_kinds, attach_warnings = _store_attachments(request, session_id)
     session = _load_session(session_id)
 
     # 메시지 없이 첨부만 온 턴 — **멈추지 않는다.** 자료를 준 것 자체가 "이걸로 이어가 달라"는
@@ -87,11 +113,12 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
     session = _load_session(session_id)
     # 이번 턴에 무엇이 제출됐는지 — 플래너의 그라운딩 입력(자산이 아니라 사본에만 붙는 표식).
     # 이게 없으면 첨부만 온 턴의 합성 발화("자료로 이어서…")만 보고 플래너가 이력서 제출과
-    # 공고 제출을 구분하지 못한다.
-    session["_submittedThisTurn"] = [att.kind for att in request.attachments]
+    # 공고 제출을 구분하지 못한다. 프론트의 kind 가 아니라 **바로잡힌 kind** 를 준다.
+    session["_submittedThisTurn"] = stored_kinds
 
     # 1) 플래너 — LLM 이 발화·상태를 보고 에이전트를 직접 고른다(자율 추론).
     plan, warnings = plan_agents(request.message, session)
+    warnings = attach_warnings + warnings
 
     ack = safe_ack(plan)   # 플래너의 이해 확인 문장 — 검증 통과 시 결정론 note 대신 쓴다
     if plan is not None:
