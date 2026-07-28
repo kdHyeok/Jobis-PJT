@@ -1,0 +1,17 @@
+# 커리어 코치 Agent (Prototype 1.0.0) — 의존성
+# 기준: Python 3.11 / 설치: pip install -r requirements.txt
+# ※ 이 파일이 개발 환경의 단일 출처. AGENTS §0·§8 참조.
+
+# 데이터 계약 (task 01)
+pydantic==2.13.4
+
+# 오케스트레이션 + LLM (task 02~)
+langgraph==1.2.9
+langchain==1.3.14
+langchain-openai==1.4.1
+
+# 이력서 파싱 (task 03)
+python-docx==1.2.0
+
+# 환경변수(.env) 로드 — GMS_KEY 등 (task 02~)
+python-dotenv==1.2.2
