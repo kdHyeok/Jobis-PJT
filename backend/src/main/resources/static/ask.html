@@ -603,7 +603,7 @@
           if (line.indexOf('data:') !== 0) continue;
           var ev;
           try { ev = JSON.parse(line.slice(5)); } catch(_){ continue; }
-          if (ev.type === 'progress') onProgress && onProgress(ev);
+          if (ev.type === 'progress' || ev.type === 'delta') onProgress && onProgress(ev);
           else if (ev.type === 'done') done = ev.response;
           else if (ev.type === 'error') throw new Error(ev.message || '처리 실패');
         }
@@ -694,8 +694,16 @@
     thinking.querySelector('.ask-bubble').innerHTML =
       '<div class="ask-progress"><span class="sp"></span><span class="pt">생각하는 중…</span></div>';
     var progressText = thinking.querySelector('.pt');
+    var streamed = '';   // 토큰 스트리밍 누적 — done 의 reply(검증 통과본)가 최종본이다.
     try {
       var res = await askStream(body, function(ev){
+        if (ev.type === 'delta' && ev.text){
+          // 답변이 생기는 대로 흘려 보여준다. 진행 스피너는 첫 델타에서 본문으로 바뀐다.
+          streamed += ev.text;
+          thinking.querySelector('.ask-bubble').innerHTML = md(streamed);
+          scrollDown();
+          return;
+        }
         // 진행 이벤트 — 에이전트 라벨과 노드가 남긴 문구만 보여준다(지어내지 않는다).
         if (progressText && ev.label){
           progressText.textContent = ev.message ? (ev.label + ' — ' + ev.message) : (ev.label + ' 진행 중…');
