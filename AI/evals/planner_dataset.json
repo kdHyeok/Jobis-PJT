@@ -1,0 +1,58 @@
+{
+  "description": "플래너 평가셋 — 발화 × 세션 자산 → 기대 최종 실행 시퀀스(validate_plan 통과 후). expectAsk=true 면 실행 없이 되묻기가 정답.",
+  "cases": [
+    { "caseId": "fit-basic", "message": "이 공고 나 되나?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-paraphrase-1", "message": "삼성전자 백엔드 공고에 지원하면 승산 있을까?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-paraphrase-2", "message": "내가 이 자리에 적합한지 분석해줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-paraphrase-3", "message": "이 공고랑 내 이력서 매칭 좀 봐줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-paraphrase-4", "message": "서류 통과 가능성 봐줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-paraphrase-5", "message": "이 공고 요구사항 중에 내가 못 채우는 게 뭐야?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-no-judgment-bait", "message": "합격 가능성 몇 퍼센트야?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
+    { "caseId": "fit-missing-posting-degrade", "message": "이 공고 나 되나?", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
+    { "caseId": "fit-missing-resume-degrade", "message": "이 공고 나 되나?", "assets": ["job_posting"], "expectedAgents": ["posting_analysis"], "expectAsk": false },
+    { "caseId": "fit-missing-both", "message": "이 공고 나 되나?", "assets": [], "expectedAgents": [], "expectAsk": true },
+    { "caseId": "posting-analysis-direct", "message": "이 공고 분석해줘. 뭘 준비해야 돼?", "assets": ["job_posting"], "expectedAgents": ["posting_analysis"], "expectAsk": false },
+
+    { "caseId": "recommend-basic", "message": "내 이력서로 갈 수 있는 곳 추천해줘", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
+    { "caseId": "recommend-paraphrase-1", "message": "나한테 맞는 공고 좀 찾아줘", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
+    { "caseId": "recommend-paraphrase-2", "message": "어디 지원하면 좋을까?", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
+    { "caseId": "recommend-paraphrase-3", "message": "이력서 기반으로 갈만한 회사 리스트업 해줘", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
+    { "caseId": "recommend-terse", "message": "공고 추천", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
+    { "caseId": "recommend-missing-resume", "message": "나한테 맞는 공고 추천해줘", "assets": [], "expectedAgents": ["preference_intake"], "expectAsk": false },
+    { "caseId": "preference-open", "message": "이력서는 없는데 공고 추천받고 싶어", "assets": [], "expectedAgents": ["preference_intake"], "expectAsk": false },
+    { "caseId": "preference-followup", "message": "핀테크 쪽 백엔드로 가고 싶어요", "assets": ["preferences"], "expectedAgents": ["preference_intake"], "expectAsk": false },
+
+    { "caseId": "resume-basic", "message": "내 이력서 좀 봐줘", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
+    { "caseId": "resume-paraphrase-1", "message": "이력서에서 부족한 부분 진단해줘", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
+    { "caseId": "resume-paraphrase-2", "message": "이력서 피드백 부탁해", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
+    { "caseId": "resume-paraphrase-3", "message": "제 이력서 강점이 뭔가요?", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
+    { "caseId": "resume-missing", "message": "내 이력서 진단해줘", "assets": [], "expectedAgents": [], "expectAsk": true },
+
+    { "caseId": "coverletter-with-analysis", "message": "자소서 써줘", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft"], "expectAsk": false },
+    { "caseId": "coverletter-auto-prereq", "message": "자소서 초안 부탁해", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "coverletter_draft"], "expectAsk": false },
+    { "caseId": "coverletter-paraphrase", "message": "이 회사 지원서 초안 작성해줘", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft"], "expectAsk": false },
+    { "caseId": "coverletter-motivation", "message": "지원 동기 문단 초안 잡아줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "coverletter_draft"], "expectAsk": false },
+    { "caseId": "coverletter-rewrite", "message": "자소서 다시 써줘", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft"], "expectAsk": false },
+    { "caseId": "coverletter-missing-posting", "message": "자소서 써줘", "assets": ["resume"], "expectedAgents": [], "expectAsk": true },
+
+    { "caseId": "interview-with-analysis", "message": "면접 예상 질문 뽑아줘", "assets": ["analysis"], "expectedAgents": ["interview_prep"], "expectAsk": false },
+    { "caseId": "interview-auto-prereq", "message": "면접 준비 도와줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "interview_prep"], "expectAsk": false },
+    { "caseId": "interview-followup", "message": "예상 꼬리질문도 뽑아줘", "assets": ["analysis"], "expectedAgents": ["interview_prep"], "expectAsk": false },
+    { "caseId": "interview-missing", "message": "면접 준비 도와줘", "assets": ["resume"], "expectedAgents": [], "expectAsk": true },
+
+    { "caseId": "roadmap-basic", "message": "로드맵 어디까지 했지?", "assets": ["roadmap"], "expectedAgents": ["roadmap_manager"], "expectAsk": false },
+    { "caseId": "roadmap-paraphrase", "message": "준비 일정 보여줘", "assets": ["roadmap"], "expectedAgents": ["roadmap_manager"], "expectAsk": false },
+    { "caseId": "roadmap-with-all-assets", "message": "부족한 부분 보완 로드맵 보여줘", "assets": ["resume", "job_posting", "analysis", "roadmap"], "expectedAgents": ["roadmap_manager"], "expectAsk": false },
+    { "caseId": "roadmap-missing", "message": "내 로드맵 보여줘", "assets": [], "expectedAgents": [], "expectAsk": true },
+
+    { "caseId": "multi-fit-then-coverletter", "message": "적합도 분석하고 자소서까지 써줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "coverletter_draft"], "expectAsk": false },
+    { "caseId": "multi-fit-then-interview", "message": "분석 후에 면접 질문도 준비해줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "interview_prep"], "expectAsk": false },
+    { "caseId": "multi-coverletter-and-interview", "message": "자소서랑 면접 질문 둘 다 부탁해", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft", "interview_prep"], "expectAsk": false },
+
+    { "caseId": "greeting-chat", "message": "안녕하세요", "assets": ["resume", "job_posting"], "expectedAgents": ["career_chat"], "expectAsk": false },
+    { "caseId": "offtopic-chat", "message": "오늘 날씨 어때?", "assets": ["resume"], "expectedAgents": ["career_chat"], "expectAsk": false },
+    { "caseId": "thanks-chat", "message": "고마워", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["career_chat"], "expectAsk": false },
+    { "caseId": "vent-chat", "message": "취업 너무 어렵다", "assets": [], "expectedAgents": ["career_chat"], "expectAsk": false },
+    { "caseId": "general-question-chat", "message": "포트폴리오가 그렇게 중요한가요?", "assets": [], "expectedAgents": ["career_chat"], "expectAsk": false }
+  ]
+}

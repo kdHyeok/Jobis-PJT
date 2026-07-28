@@ -1,0 +1,455 @@
+{
+  "mode": "폴백(결정론)",
+  "summary": {
+    "cases": 41,
+    "sequence_accuracy": 0.7805,
+    "ask_accuracy": 0.8293,
+    "llm_failed": 0
+  },
+  "cases": [
+    {
+      "caseId": "fit-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-paraphrase-1",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-paraphrase-2",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-paraphrase-3",
+      "correct": false,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-paraphrase-4",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-paraphrase-5",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-no-judgment-bait",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis"
+      ],
+      "actual": [
+        "fit_analysis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-missing-posting",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "fit-missing-resume",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "recommend-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "recommend-paraphrase-1",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "recommend-paraphrase-2",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "recommend-paraphrase-3",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "recommend-terse",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "job_recommend"
+      ],
+      "actual": [
+        "job_recommend"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "recommend-missing-resume",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "resume-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "resume-paraphrase-1",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "resume-paraphrase-2",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": [
+        "resume_diagnosis"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "resume-paraphrase-3",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "resume_diagnosis"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "resume-missing",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "coverletter-with-analysis",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "coverletter-auto-prereq",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "actual": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "coverletter-paraphrase",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "coverletter-motivation",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "coverletter-rewrite",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "coverletter-missing-posting",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "interview-with-analysis",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "interview_prep"
+      ],
+      "actual": [
+        "interview_prep"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "interview-auto-prereq",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "actual": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "interview-followup",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "interview_prep"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "interview-missing",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "roadmap-basic",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "roadmap_manager"
+      ],
+      "actual": [
+        "roadmap_manager"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "roadmap-paraphrase",
+      "correct": false,
+      "ask_match": false,
+      "expected": [
+        "roadmap_manager"
+      ],
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "roadmap-with-all-assets",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "roadmap_manager"
+      ],
+      "actual": [
+        "roadmap_manager"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "roadmap-missing",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "multi-fit-then-coverletter",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "actual": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "multi-fit-then-interview",
+      "correct": true,
+      "ask_match": true,
+      "expected": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "actual": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "multi-coverletter-and-interview",
+      "correct": false,
+      "ask_match": true,
+      "expected": [
+        "coverletter_draft",
+        "interview_prep"
+      ],
+      "actual": [
+        "coverletter_draft"
+      ],
+      "path": "fallback"
+    },
+    {
+      "caseId": "unclear-greeting",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "unclear-offtopic",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "unclear-thanks",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    },
+    {
+      "caseId": "unclear-vent",
+      "correct": true,
+      "ask_match": true,
+      "expected": "ASK",
+      "actual": "ASK",
+      "path": "fallback"
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+<meta charset="utf-8">
+<title>JOBIS AI — RAG 공고 검색·보강 (시각자료 1장)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+
+<style>
+  :root{
+    --bg-deck:#14181B; --paper:#FFFFFF; --panel:#F6F8F7; --panel-2:#ECF0EE;
+    --line:#DCE2E0; --line-soft:#E9EDEB;
+    --ink:#101616; --ink-2:#47534F; --ink-3:#79857F;
+    --emb:#06705F;   --emb-bg:#E1F1EE;    /* 임베딩 검색 */
+    --web:#0E6FA8;   --web-bg:#E1EEF7;    /* 웹 검색 보강 */
+    --me:#5636A8;    --me-bg:#EDE8F9;
+    --out:#A05C00;   --out-bg:#FBF1E2;
+    --edge:#8B9994;
+    --font-sans:"Pretendard Variable",Pretendard,Inter,"Segoe UI","Malgun Gothic",-apple-system,sans-serif;
+    --font-mono:"JetBrains Mono","Cascadia Code","SF Mono",ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--bg-deck);}
+  body{margin:0;font-family:var(--font-sans);color:var(--ink);-webkit-font-smoothing:antialiased;word-break:keep-all;}
+
+  .howto{max-width:1600px;margin:0 auto;padding:18px 10px 2px;color:#9FB0AA;font-size:13px;display:flex;gap:22px;flex-wrap:wrap;}
+  .howto b{color:#E7EEEB;font-weight:600;}
+  .howto kbd{font-family:var(--font-mono);font-size:12px;color:#DDE6E2;background:#232A2E;border:1px solid #333C41;border-radius:5px;padding:2px 6px;}
+
+  .deck{display:flex;justify-content:center;padding:16px 8px 60px;}
+  .slide{position:relative;width:1600px;height:900px;background:var(--paper);
+    padding:58px 76px 66px;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 18px 46px rgba(0,0,0,.42);}
+  .s-head{display:flex;align-items:baseline;gap:18px;}
+  .s-idx{font-family:var(--font-mono);font-size:15px;font-weight:600;letter-spacing:.1em;color:var(--emb);}
+  .s-title{font-size:40px;font-weight:800;letter-spacing:-.025em;margin:0;}
+  .s-sub{font-size:19px;color:var(--ink-2);margin:13px 0 0;line-height:1.5;}
+  .s-sub b{color:var(--ink);font-weight:700;}
+  .s-rule{height:4px;width:64px;background:var(--ink);margin:20px 0 0;}
+  .body{flex:1 1 auto;min-height:0;display:flex;align-items:center;}
+  .s-foot{position:absolute;left:76px;right:76px;bottom:26px;display:flex;justify-content:space-between;
+    align-items:center;font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--line-soft);padding-top:12px;}
+  .s-foot .brand{font-family:var(--font-mono);letter-spacing:.08em;}
+
+  .ic{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+  .ic-soft{stroke-opacity:.45;}
+  .ic-fill{fill:currentColor;stroke:none;}
+
+  .stage{display:flex;align-items:center;gap:0;width:100%;}
+  .arrow{flex:0 0 62px;display:flex;align-items:center;justify-content:center;color:var(--edge);}
+  .arrow svg{width:52px;height:52px;}
+  .arrow.opt svg{color:var(--web);}
+
+  /* 입력 */
+  .src{flex:0 0 210px;display:flex;flex-direction:column;gap:14px;}
+  .src-chip{display:flex;align-items:center;gap:12px;border:1.5px solid var(--me);background:var(--me-bg);
+    border-radius:15px;padding:16px 18px;font-size:18px;font-weight:800;color:var(--me);}
+  .src-chip svg{width:30px;height:30px;flex:0 0 auto;}
+  .src-note{font-size:14px;font-weight:600;color:var(--ink-3);text-align:center;line-height:1.5;
+    border:1.5px dashed var(--ink-3);border-radius:13px;padding:12px 14px;}
+
+  /* 단계 카드 */
+  .step{flex:1 1 0;border:1.5px solid;border-radius:20px;padding:22px 24px;position:relative;
+    display:flex;flex-direction:column;gap:14px;height:420px;}
+  .step.emb{border-color:var(--emb);background:var(--emb-bg);}
+  .step.web{border-color:var(--web);background:var(--web-bg);}
+  .step .stepno{position:absolute;top:-14px;left:24px;font-family:var(--font-mono);font-size:13px;
+    font-weight:700;color:#fff;border-radius:999px;padding:5px 13px;}
+  .step.emb .stepno{background:var(--emb);}
+  .step.web .stepno{background:var(--web);}
+  .step .opt-tag{position:absolute;top:-14px;right:24px;font-family:var(--font-mono);font-size:12px;
+    font-weight:700;color:var(--web);background:#fff;border:1.5px solid var(--web);border-radius:999px;padding:4px 11px;}
+  .step-head{display:flex;align-items:center;gap:13px;}
+  .step-head .si{width:52px;height:52px;border-radius:13px;background:#fff;display:grid;place-items:center;flex:0 0 auto;}
+  .step.emb .step-head .si{border:1px solid var(--emb);color:var(--emb);}
+  .step.web .step-head .si{border:1px solid var(--web);color:var(--web);}
+  .step-head .si svg{width:32px;height:32px;}
+  .step .sname{font-size:24px;font-weight:800;letter-spacing:-.02em;}
+  .step.emb .sname{color:var(--emb);} .step.web .sname{color:var(--web);}
+  .step .sdesc{font-size:15.5px;font-weight:600;color:var(--ink-2);line-height:1.55;}
+  .step .sdesc b{color:var(--ink);}
+
+  /* 벡터 유사도 미니 시각 */
+  .vecs{display:flex;flex-direction:column;gap:9px;margin-top:2px;}
+  .vrow{display:flex;align-items:center;gap:11px;}
+  .vrow .vlabel{flex:0 0 118px;font-size:14.5px;font-weight:700;color:var(--ink-2);}
+  .vbar{flex:1 1 auto;height:16px;border-radius:8px;background:#fff;border:1px solid rgba(0,0,0,.08);overflow:hidden;}
+  .vbar span{display:block;height:100%;background:var(--emb);border-radius:8px;}
+  .vrow .vpct{flex:0 0 44px;text-align:right;font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--emb);}
+
+  /* 웹검색 보강 리스트 */
+  .weblist{display:flex;flex-direction:column;gap:10px;margin-top:2px;}
+  .webitem{display:flex;align-items:center;gap:11px;font-size:15.5px;font-weight:600;color:var(--ink-2);
+    background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:11px;padding:12px 15px;}
+  .webitem .wk{flex:0 0 26px;height:26px;border-radius:7px;background:var(--web-bg);color:var(--web);
+    display:grid;place-items:center;}
+  .webitem .wk svg{width:16px;height:16px;}
+  .step .foot-note{margin-top:auto;font-size:14px;font-weight:700;color:var(--ink-2);
+    padding-top:12px;border-top:1px dashed rgba(0,0,0,.14);}
+  .step.web .foot-note{color:var(--web);}
+
+  /* 결과 */
+  .result{flex:0 0 240px;display:flex;align-items:center;}
+  .out-card{width:100%;background:var(--out-bg);border:1.5px solid var(--out);border-radius:18px;padding:22px 20px;
+    display:flex;flex-direction:column;gap:12px;}
+  .out-card .ohead{font-size:16px;font-weight:800;color:var(--out);letter-spacing:-.01em;}
+  .out-job{background:#fff;border:1px solid var(--line);border-radius:11px;padding:12px 14px;}
+  .out-job .oj1{font-size:16px;font-weight:800;color:var(--ink);}
+  .out-job .oj2{font-size:13px;font-weight:600;color:var(--ink-3);margin-top:3px;}
+  .out-card .oreal{font-size:13px;font-weight:700;color:var(--out);text-align:center;margin-top:2px;}
+
+  .keyline{margin-top:16px;display:flex;align-items:center;justify-content:center;
+    background:var(--ink);color:#fff;border-radius:14px;padding:17px 26px;font-size:19px;font-weight:700;text-align:center;}
+  .keyline .hl-e{color:#7FD3C4;} .keyline .hl-w{color:#7FC0E8;}
+
+  @page{size:1600px 900px;margin:0;}
+  @media print{html,body{background:#fff;}.howto{display:none;}.deck{padding:0;}.slide{box-shadow:none;}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-user" viewBox="0 0 48 48">
+    <circle class="ic" cx="24" cy="16" r="7"/>
+    <path class="ic" d="M11,40c0-7,6-11,13-11s13,4,13,11"/>
+  </symbol>
+  <symbol id="i-gap" viewBox="0 0 48 48">
+    <path class="ic ic-soft" d="M5,40h38"/>
+    <rect class="ic" x="10" y="12" width="9" height="28" rx="1.5"/>
+    <rect class="ic ic-fill" x="28" y="26" width="9" height="14" rx="1.5"/>
+    <path class="ic" d="M23,15h11 M23,15l4,-3 M23,15l4,3"/>
+  </symbol>
+  <symbol id="i-vector" viewBox="0 0 48 48">
+    <circle class="ic-fill" cx="12" cy="14" r="3"/>
+    <circle class="ic-fill" cx="34" cy="10" r="3"/>
+    <circle class="ic-fill" cx="38" cy="30" r="3"/>
+    <circle class="ic-fill" cx="16" cy="34" r="3"/>
+    <circle class="ic" cx="24" cy="22" r="4"/>
+    <path class="ic ic-soft" d="M20.5,20L14,15 M27.5,20.5L32,12 M27,24.5L35,29 M20.5,25L17,31"/>
+  </symbol>
+  <symbol id="i-web" viewBox="0 0 48 48">
+    <circle class="ic" cx="21" cy="21" r="13"/>
+    <path class="ic ic-soft" d="M8,21h26 M21,8c4,3.5 4,22 0,26 M21,8c-4,3.5 -4,22 0,26"/>
+    <path class="ic" d="M31,31l9,9"/>
+  </symbol>
+  <symbol id="i-doc" viewBox="0 0 48 48">
+    <path class="ic" d="M14,5h13l9,9v29a2,2 0 0 1 -2,2H14a2,2 0 0 1 -2,-2V7a2,2 0 0 1 2,-2z"/>
+    <path class="ic ic-soft" d="M27,5v9h9 M18,24h12 M18,30h12 M18,36h7"/>
+  </symbol>
+</defs></svg>
+
+<div class="howto">
+  <span><b>PPT에 넣는 법</b></span>
+  <span>브라우저에서 <kbd>Ctrl</kbd>+<kbd>P</kbd> → <b>PDF로 저장</b> → 배경 그래픽 켜기 → 16:9 1페이지</span>
+</div>
+
+<div class="deck">
+<section class="slide">
+  <div class="s-head"><span class="s-idx">RAG</span><h2 class="s-title">유사·대체 공고 검색 — 임베딩 + 웹 보강</h2></div>
+  <p class="s-sub"><b>임베딩 유사도</b>로 관련·대체 공고를 찾고, <b>필요할 때만 웹 검색</b>으로 데이터를 보강한다.</p>
+  <div class="s-rule"></div>
+
+  <div class="body">
+    <div class="stage">
+
+      <!-- 입력 -->
+      <div class="src">
+        <div class="src-chip"><svg><use href="#i-user"/></svg>내 프로필</div>
+        <div class="src-chip"><svg><use href="#i-gap"/></svg>갭 · 강점</div>
+        <div class="src-note">"이 공고는 무리" 일 때<br>도달 가능한 공고 탐색</div>
+      </div>
+
+      <div class="arrow"><svg viewBox="0 0 52 52"><path d="M6,26H40" stroke="var(--edge)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M34,18 44,26 34,34" fill="none" stroke="var(--edge)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- ① 임베딩 유사도 검색 -->
+      <div class="step emb">
+        <span class="stepno">① 임베딩 유사도 검색</span>
+        <div class="step-head">
+          <div class="si"><svg><use href="#i-vector"/></svg></div>
+          <div class="sname">벡터 검색</div>
+        </div>
+        <div class="sdesc">프로필·요구사항을 <b>벡터로 변환</b>해<br>공고 DB에서 <b>의미가 가까운 공고</b>를 찾는다</div>
+        <div class="vecs">
+          <div class="vrow"><span class="vlabel">프론트엔드 A</span><span class="vbar"><span style="width:88%"></span></span><span class="vpct">.88</span></div>
+          <div class="vrow"><span class="vlabel">웹 퍼블리셔 B</span><span class="vbar"><span style="width:76%"></span></span><span class="vpct">.76</span></div>
+          <div class="vrow"><span class="vlabel">주니어 개발 C</span><span class="vbar"><span style="width:64%"></span></span><span class="vpct">.64</span></div>
+        </div>
+        <div class="foot-note">→ 문자열이 달라도 <b>의미</b>로 매칭</div>
+      </div>
+
+      <div class="arrow opt"><svg viewBox="0 0 52 52"><path d="M6,26H40" stroke="var(--web)" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="5 4"/><path d="M34,18 44,26 34,34" fill="none" stroke="var(--web)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- ② 웹 검색 보강 -->
+      <div class="step web">
+        <span class="stepno">② 웹 검색 보강</span>
+        <span class="opt-tag">필요할 때만</span>
+        <div class="step-head">
+          <div class="si"><svg><use href="#i-web"/></svg></div>
+          <div class="sname">웹 검색 툴</div>
+        </div>
+        <div class="sdesc">DB에 <b>부족·오래된 정보</b>가 있으면<br>웹에서 <b>최신 공고·기업 정보</b>를 끌어와 채운다</div>
+        <div class="weblist">
+          <div class="webitem"><span class="wk"><svg><use href="#i-web"/></svg></span>최신 채용 공고 검색</div>
+          <div class="webitem"><span class="wk"><svg><use href="#i-doc"/></svg></span>모집 요강 · 마감일 보강</div>
+          <div class="webitem"><span class="wk"><svg><use href="#i-user"/></svg></span>기업 규모 · 도메인 확인</div>
+        </div>
+        <div class="foot-note">→ 근거 있는 <b>실존 공고</b>만 · 지어내지 않음</div>
+      </div>
+
+      <div class="arrow"><svg viewBox="0 0 52 52"><path d="M6,26H40" stroke="var(--edge)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M34,18 44,26 34,34" fill="none" stroke="var(--edge)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- 결과 -->
+      <div class="result">
+        <div class="out-card">
+          <div class="ohead">추천 · 대체 공고</div>
+          <div class="out-job"><div class="oj1">프론트엔드 A</div><div class="oj2">유사도 .88 · 갭 2개 ↓</div></div>
+          <div class="out-job"><div class="oj1">웹 퍼블리셔 B</div><div class="oj2">징검다리 · 지금 지원 가능</div></div>
+          <div class="oreal">✓ 실제 존재하는 공고에 연결</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="keyline">
+    <span class="hl-e">임베딩</span>으로 의미가 가까운 공고를 찾고 · 모자라면 <span class="hl-w">웹 검색</span>으로 보강 — 지어내지 않는 <b>근거 기반 추천</b>
+  </div>
+
+  <div class="s-foot"><span class="brand">JOBIS AI · RAG RETRIEVAL</span><span>임베딩 + 웹 검색 보강</span></div>
+</section>
+</div>
