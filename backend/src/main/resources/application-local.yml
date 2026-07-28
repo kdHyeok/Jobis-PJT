@@ -1,0 +1,3 @@
+spring:
+  config:
+    import: "optional:file:./.env[.properties][encoding=utf-8]"

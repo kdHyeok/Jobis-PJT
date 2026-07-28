@@ -10,5 +10,6 @@ node_modules/
 .vscode/
 *.iml
 
-# local override (개인 설정)
-**/application-local.yml
+# local secrets (개인 로컬 개발값 — 절대 커밋 금지)
+**/.env
+!**/.env.example

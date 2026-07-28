@@ -16,31 +16,54 @@ MySQL에 접속해서 데이터베이스만 만든다. (테이블은 실행 시 
 CREATE DATABASE jobiss CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-기본 접속 정보 (`src/main/resources/application.yml`)
+## 2. 로컬 환경 파일 준비 (.env)
 
-| 항목 | 값 |
-|---|---|
-| url | `localhost:3306/jobiss` |
-| username | `root` |
-| password | `ssafy` |
-
-다르면 환경변수로 덮어쓴다.
+DB 접속 정보와 JWT 시크릿은 코드에 기본값이 없으므로 `.env` 파일로 주입한다.
+`backend` 폴더에서 예시 파일을 복사한 뒤 본인 로컬 값을 채운다.
 
 ```bash
-# 예시
-set DB_USERNAME=root
-set DB_PASSWORD=본인비밀번호
+# Windows PowerShell: Copy-Item .env.example .env
+cp .env.example .env
 ```
 
-## 2. 실행
+```dotenv
+DB_URL=jdbc:mysql://localhost:3306/jobiss?serverTimezone=UTC&characterEncoding=UTF-8
+DB_USERNAME=root
+DB_PASSWORD=본인비밀번호
+JWT_SECRET=32자_이상의_임의_문자열
+```
+
+> **주의: `JWT_SECRET`은 반드시 32자(256비트) 이상이어야 한다.** 짧으면 서버 시작 시
+> `WeakKeyException`으로 실행이 실패한다.
+
+임의의 JWT 시크릿 생성 방법 — 아래 명령 출력값을 복사해서 `JWT_SECRET=` 뒤에 붙여넣는다.
+
+Windows PowerShell:
+
+```powershell
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+```
+
+macOS/Linux:
 
 ```bash
-gradlew.bat bootRun     # macOS/Linux: ./gradlew bootRun
+openssl rand -base64 48
+```
+
+> `.env`는 Git에서 무시된다. 저장소·메신저·이슈에 절대 올리지 않는다.
+> 운영 환경에서는 `.env`를 배포하지 않고 systemd `EnvironmentFile`로 주입한다.
+
+## 3. 실행
+
+`local` 프로필로 실행해야 `.env`를 읽는다.
+
+```bash
+gradlew.bat bootRun --args="--spring.profiles.active=local"     # macOS/Linux: ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
 → `http://localhost:8080`
 
-## 3. 접속
+## 4. 접속
 
 ```text
 http://localhost:8080/login.html
