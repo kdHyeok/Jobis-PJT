@@ -135,7 +135,7 @@ public class SavedRoadmapService {
         } catch (Exception ignore) {
             // 맥락 파싱 실패해도 질문은 가능(가짜 AI가 일반 답변)
         }
-        return new AskResponse(callAgentAsk(req.routeId(), company, topGap, req.question()));
+        return new AskResponse(callAgentAsk(userId, req.routeId(), company, topGap, req.question()));
     }
 
     private static SavedRoadmapResponse toResponse(SavedRoadmap s) {
@@ -223,11 +223,17 @@ public class SavedRoadmapService {
         }
     }
 
-    /** 가짜 AI HTTP /roadmap-ask 호출 → 답변 텍스트. */
-    private String callAgentAsk(String routeKind, String company, String topGap, String question) {
+    /**
+     * AI HTTP /roadmap-ask 호출 → 답변 텍스트.
+     * userId 를 함께 보내면 AI 가 그 사용자 세션(분석·로드맵 자산)을 맥락으로 삼아
+     * 오케스트레이터가 담당 에이전트를 고른다.
+     */
+    private String callAgentAsk(Long userId, String routeKind, String company, String topGap,
+                                String question) {
         String respBody;
         try {
             Map<String, Object> body = new LinkedHashMap<>();
+            body.put("userId", userId);
             body.put("routeKind", routeKind);
             body.put("company", company);
             body.put("topGap", topGap);

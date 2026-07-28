@@ -1,6 +1,7 @@
 package com.jobiss.backend.security;
 
 import com.jobiss.backend.repository.AnalysisRunRepository;
+import com.jobiss.backend.repository.UserRepository;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -34,10 +35,13 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private final JwtTokenProvider tokenProvider;
     private final AnalysisRunRepository runRepository;
+    private final UserRepository userRepository;
 
-    public StompAuthChannelInterceptor(JwtTokenProvider tokenProvider, AnalysisRunRepository runRepository) {
+    public StompAuthChannelInterceptor(JwtTokenProvider tokenProvider, AnalysisRunRepository runRepository,
+                                       UserRepository userRepository) {
         this.tokenProvider = tokenProvider;
         this.runRepository = runRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -62,11 +66,20 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         return message;
     }
 
+    /**
+     * 토큰 → userId. 서명이 맞아도 **그 사용자가 실제로 있어야** 통과시킨다.
+     * 계정이 사라진 토큰으로 실시간 채널을 열면, 연결은 되지만 이후 동작이 알 수 없는 이유로
+     * 실패한다(HTTP 필터와 같은 이유로 존재 확인을 넣는다).
+     */
     private Long resolveUserId(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return null;
         }
-        return tokenProvider.parseUserId(authorizationHeader.substring(7));
+        Long userId = tokenProvider.parseUserId(authorizationHeader.substring(7));
+        if (userId == null || !userRepository.existsById(userId)) {
+            return null;
+        }
+        return userId;
     }
 
     /**
