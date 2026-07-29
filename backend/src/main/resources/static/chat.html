@@ -361,7 +361,8 @@
 (function () {
   if (!JB.requireAuth()) return;
 
-  var WS_URL = 'ws://' + location.host + '/ws';
+  // https 페이지에서 ws://는 Mixed Content로 차단되므로 페이지 프로토콜에 맞춘다
+  var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
   var thread = document.getElementById('thread');
   var scroll = document.getElementById('scroll');
   var field = document.getElementById('field');
