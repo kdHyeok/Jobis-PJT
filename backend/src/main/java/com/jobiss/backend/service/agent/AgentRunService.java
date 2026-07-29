@@ -13,6 +13,7 @@ import com.jobiss.backend.repository.AnalysisRunRepository;
 import com.jobiss.backend.repository.EvidenceRepository;
 import com.jobiss.backend.repository.JobPostingRepository;
 import com.jobiss.backend.repository.UserRepository;
+import com.jobiss.backend.service.ConversationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,17 +39,31 @@ public class AgentRunService {
     private final EvidenceRepository evidenceRepository;
     private final AnalysisRunRepository runRepository;
     private final FakeAgentClient agentClient;
+    private final ConversationService conversationService;
     private final ObjectMapper om;
 
     public AgentRunService(UserRepository userRepository, JobPostingRepository jobPostingRepository,
                            EvidenceRepository evidenceRepository, AnalysisRunRepository runRepository,
-                           FakeAgentClient agentClient, ObjectMapper om) {
+                           FakeAgentClient agentClient, ConversationService conversationService,
+                           ObjectMapper om) {
         this.userRepository = userRepository;
         this.jobPostingRepository = jobPostingRepository;
         this.evidenceRepository = evidenceRepository;
         this.runRepository = runRepository;
         this.agentClient = agentClient;
+        this.conversationService = conversationService;
         this.om = om;
+    }
+
+    /** 로그인한 사용자(userId)로 (샘플)공고 분석: 생성 후 즉시 시작(개발/데모 경로). */
+    @Transactional
+    public String startAgentRun(Long userId, String jobPostingCode, List<Long> evidenceIds) {
+        User user = findUser(userId);
+        JobPosting job = jobPostingRepository.findByCode(jobPostingCode)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "JOB_NOT_FOUND", "공고를 찾을 수 없습니다."));
+        AnalysisRun run = createRun(user, job, evidenceIds, null);
+        beginNow(run);
+        return run.getAnalysisId();
     }
 
     /**
@@ -56,7 +71,7 @@ public class AgentRunService {
      * 실제 AI 세션은 브라우저가 구독을 마친 뒤 beginSession()으로 시작한다(JOB_CONTEXT 등 초기 신호 유실 방지).
      */
     @Transactional
-    public String createCustomRun(Long userId, CustomAnalysisRequest req) {
+    public Map<String, String> createCustomRun(Long userId, CustomAnalysisRequest req) {
         User user = findUser(userId);
         JobPosting job = jobPostingRepository.save(JobPosting.builder()
                 .user(user)
@@ -64,7 +79,20 @@ public class AgentRunService {
                 .rawText(req.content())          // 원문 그대로 (파싱은 AI 몫)
                 .build());
         AnalysisRun run = createRun(user, job, req.evidenceIds(), req.parentAnalysisId());
-        return run.getAnalysisId();
+        // 분석은 언제나 어떤 대화 안에서 일어난다. 대화 밖(새 분석 화면)에서 시작했으면 대화를 만들어 담는다.
+        var conversation = conversationService.attachAnalysis(
+                userId, req.conversationId(), run.getAnalysisId(), conversationTitle(req.content()));
+        run.attachConversation(conversation);
+        // 화면이 그 대화로 자리를 옮길 수 있게 id를 함께 돌려준다
+        return Map.of("analysisId", run.getAnalysisId(),
+                "conversationId", conversation.getConversationId());
+    }
+
+    /** 대화 밖에서 시작한 분석의 대화 제목 — 아직 회사·직무를 모르므로 원문 앞머리로 둔다. */
+    private static String conversationTitle(String content) {
+        String t = content == null ? "" : content.replaceAll("\\s+", " ").trim();
+        if (t.isEmpty()) return "새 분석";
+        return "공고 분석 · " + (t.length() > 40 ? t.substring(0, 40) : t);
     }
 
     /** 브라우저가 구독을 마친 뒤 호출. 소유권 확인 후 AI 세션 시작(멱등: FakeAgentClient가 중복 방어). */
@@ -107,8 +135,7 @@ public class AgentRunService {
     /** Run의 공고·자료로 START를 구성해 AI 세션을 연다. */
     private void beginNow(AnalysisRun run) {
         List<Evidence> evidences = new ArrayList<>(run.getEvidences());
-        String startJson = buildStartJson(run.getAnalysisId(), run.getUser().getId(),
-                run.getJobPosting(), evidences);
+        String startJson = buildStartJson(run.getAnalysisId(), run.getJobPosting(), evidences);
         agentClient.startSession(run.getAnalysisId(), startJson);
     }
 
@@ -126,12 +153,15 @@ public class AgentRunService {
         };
     }
 
-    /**
-     * START 메시지. userId 를 함께 보내는 이유는 AI 가 **사용자 단위 세션**에 자산을 쌓기 때문이다 —
-     * 분석이 끝난 뒤 대화(/api/chat)에서 "자소서 써줘"·"면접 질문 뽑아줘"로 바로 이어갈 수 있다.
-     */
-    private String buildStartJson(String analysisId, Long userId, JobPosting job,
-                                  List<Evidence> evidences) {
+    /** 개발용(인증 없이): 데모 사용자로 시작. DevController가 사용. */
+    @Transactional
+    public String startDemoRun(String jobPostingCode, List<Long> evidenceIds) {
+        User demo = userRepository.findByEmail("junyoung.park@gmail.com")
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NO_DEMO_USER", "데모 사용자가 없습니다."));
+        return startAgentRun(demo.getId(), jobPostingCode, evidenceIds);
+    }
+
+    private String buildStartJson(String analysisId, JobPosting job, List<Evidence> evidences) {
         Map<String, Object> jp = new LinkedHashMap<>();
         jp.put("company", job.getCompany());
         jp.put("role", job.getRole());
@@ -149,7 +179,6 @@ public class AgentRunService {
         Map<String, Object> start = new LinkedHashMap<>();
         start.put("type", "START");
         start.put("analysisId", analysisId);
-        start.put("userId", userId);
         start.put("jobPosting", jp);
         start.put("evidences", evs);
         return om.writeValueAsString(start);

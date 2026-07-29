@@ -58,6 +58,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
         홈
       </a>
+      <a class="side-nav" onclick="location.href='chat.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.4-4.2A8 8 0 1 1 21 12z"/></svg>
+        새 대화
+      </a>
       <a class="side-nav" onclick="location.href='storage.html'">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         커리어 저장소
@@ -150,7 +154,7 @@
         (rm.goalLink ? '<div class="rm-goal-link">'+esc(rm.goalLink)+'</div>' : '') +
         '<div class="rm-acts">' +
           '<button class="rep-btn" data-rep="'+it.id+'"'+(it.representative?' disabled':'')+'>'+(it.representative?'대표 ✓':'대표로 지정')+'</button>' +
-          '<a href="roadmap.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">로드맵 열기 →</a>' +
+          '<a href="'+JB.roadmapHref(rm, it.analysisId, it.routeId)+'">'+(rm.staged ? '단계별로 진행 →' : '로드맵 열기 →')+'</a>' +
           (orphan
             ? '<span class="rm-act-off" title="원본 분석이 삭제돼 열 수 없어요">분석 열기</span>'
             : '<a href="chat.html?id='+encodeURIComponent(it.analysisId)+'&route='+encodeURIComponent(it.routeId)+'">분석 열기</a>') +

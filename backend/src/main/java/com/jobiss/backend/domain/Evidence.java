@@ -49,13 +49,16 @@ public class Evidence {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private EvidenceStatus status;
+    // status 제거: "부족/충족"은 evidence 속성이 아니라 분석 결과에 산다.
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json")
     private String payload;
+
+    /** 이 조각이 나온 이력서 원문(V6). null이면 직접 추가한 조각.
+     *  느슨한 참조(FK 없음) — 원문을 지워도 조각은 커리어 증거로 남아야 한다. */
+    @Column(name = "resume_document_id")
+    private Long resumeDocumentId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -63,12 +66,12 @@ public class Evidence {
 
     @Builder
     private Evidence(User user, EvidenceKind kind, String label, String description,
-                     EvidenceStatus status, String payload) {
+                     String payload, Long resumeDocumentId) {
         this.user = user;
         this.kind = kind;
         this.label = label;
         this.description = description;
-        this.status = status;
         this.payload = payload;
+        this.resumeDocumentId = resumeDocumentId;
     }
 }

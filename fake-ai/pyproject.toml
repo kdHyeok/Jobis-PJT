@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "standalone-codex-oauth-adapter"
+version = "0.1.0"
+description = "Reusable standalone Codex OAuth adapter with CLI and local OpenAI/Ollama-compatible server."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.104,<1",
+    "jsonschema>=4.23,<5",
+    "uvicorn>=0.24,<1",
+]
+
+[project.scripts]
+codex-oauth = "codex_oauth_adapter.cli:main"
+codex-openai-server = "codex_oauth_adapter.server:main"
+codex-ollama-server = "codex_oauth_adapter.server:main"
+
+[tool.setuptools]
+packages = ["codex_oauth_adapter"]

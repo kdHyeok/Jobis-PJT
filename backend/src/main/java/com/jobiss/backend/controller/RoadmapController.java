@@ -6,6 +6,7 @@ import com.jobiss.backend.dto.roadmap.GenerateRoadmapRequest;
 import com.jobiss.backend.dto.roadmap.ReassessRequest;
 import com.jobiss.backend.dto.roadmap.RoadmapDetailResponse;
 import com.jobiss.backend.dto.roadmap.SavedRoadmapResponse;
+import com.jobiss.backend.dto.roadmap.StageDetailResponse;
 import com.jobiss.backend.dto.roadmap.StepProgressResponse;
 import com.jobiss.backend.service.SavedRoadmapService;
 import jakarta.validation.Valid;
@@ -50,6 +51,14 @@ public class RoadmapController {
     public RoadmapDetailResponse one(@AuthenticationPrincipal Long userId,
                                      @RequestParam String analysisId, @RequestParam String routeId) {
         return savedRoadmapService.getOne(userId, analysisId, routeId);
+    }
+
+    /** 단계형 로드맵의 한 단계 상세(열람 시·lazy·캐시) — GET /api/roadmaps/stage-detail?analysisId=&routeId=&stageNo=N */
+    @GetMapping("/stage-detail")
+    public StageDetailResponse stageDetail(@AuthenticationPrincipal Long userId,
+                                           @RequestParam String analysisId, @RequestParam String routeId,
+                                           @RequestParam int stageNo) {
+        return savedRoadmapService.stageDetail(userId, analysisId, routeId, stageNo);
     }
 
     /** 스텝 산출물 링크 제출 → 가짜 AI 재진단 → 진행 상태 저장. */

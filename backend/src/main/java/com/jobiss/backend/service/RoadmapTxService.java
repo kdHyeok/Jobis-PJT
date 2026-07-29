@@ -4,9 +4,13 @@ import com.jobiss.backend.domain.AnalysisRun;
 import com.jobiss.backend.domain.JobPosting;
 import com.jobiss.backend.domain.RoadmapStepProgress;
 import com.jobiss.backend.domain.RoadmapStepStatus;
+import com.jobiss.backend.domain.AnalysisResult;
+import com.jobiss.backend.domain.RoadmapStageDetail;
 import com.jobiss.backend.domain.SavedRoadmap;
 import com.jobiss.backend.exception.ApiException;
+import com.jobiss.backend.repository.AnalysisResultRepository;
 import com.jobiss.backend.repository.AnalysisRunRepository;
+import com.jobiss.backend.repository.RoadmapStageDetailRepository;
 import com.jobiss.backend.repository.RoadmapStepProgressRepository;
 import com.jobiss.backend.repository.SavedRoadmapRepository;
 import org.springframework.http.HttpStatus;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 로드맵 생성의 DB 경계(짧은 트랜잭션). 외부 AI HTTP 호출은 이 트랜잭션 밖에서 일어나야
@@ -25,12 +30,18 @@ public class RoadmapTxService {
     private final AnalysisRunRepository runRepository;
     private final SavedRoadmapRepository savedRepository;
     private final RoadmapStepProgressRepository progressRepository;
+    private final AnalysisResultRepository resultRepository;
+    private final RoadmapStageDetailRepository stageDetailRepository;
 
     public RoadmapTxService(AnalysisRunRepository runRepository, SavedRoadmapRepository savedRepository,
-                            RoadmapStepProgressRepository progressRepository) {
+                            RoadmapStepProgressRepository progressRepository,
+                            AnalysisResultRepository resultRepository,
+                            RoadmapStageDetailRepository stageDetailRepository) {
         this.runRepository = runRepository;
         this.savedRepository = savedRepository;
         this.progressRepository = progressRepository;
+        this.resultRepository = resultRepository;
+        this.stageDetailRepository = stageDetailRepository;
     }
 
     /** 분석 소유권 확인 + AI 호출 맥락(회사·직무·목표맥락)을 트랜잭션 안에서 추출(LAZY 연관 로딩). */
@@ -137,6 +148,41 @@ public class RoadmapTxService {
     private static String cap(String s, int n) {
         if (s == null) return null;
         return s.length() > n ? s.substring(0, n) : s;
+    }
+
+    // ── 단계형(staged) 로드맵 ─────────────────────────────────────────
+
+    /** staged 개요 생성용 맥락 — 회사·직무 + 분석 결과 JSON(격차·판정). AI 호출은 트랜잭션 밖에서. */
+    @Transactional(readOnly = true)
+    public StagedContext loadStaged(Long userId, String analysisId) {
+        AnalysisRun run = runRepository.findByAnalysisId(analysisId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "RUN_NOT_FOUND", "분석을 찾을 수 없습니다."));
+        if (!run.getUser().getId().equals(userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "접근 권한이 없습니다.");
+        }
+        JobPosting job = run.getJobPosting();
+        String resultJson = resultRepository.findByRunId(run.getId())
+                .map(AnalysisResult::getResult).orElse(null);
+        return new StagedContext(job.getCompany(), job.getRole(), resultJson);
+    }
+
+    /** 단계 상세 캐시 조회. */
+    @Transactional(readOnly = true)
+    public Optional<RoadmapStageDetail> findDetail(Long savedRoadmapId, int stageNo) {
+        return stageDetailRepository.findBySavedRoadmapIdAndStageNo(savedRoadmapId, stageNo);
+    }
+
+    /** 단계 상세 캐시 저장(있으면 교체). 짧은 쓰기 트랜잭션. */
+    @Transactional
+    public RoadmapStageDetail saveDetail(Long savedRoadmapId, int stageNo, String detailJson) {
+        return stageDetailRepository.findBySavedRoadmapIdAndStageNo(savedRoadmapId, stageNo)
+                .map(existing -> { existing.updateDetail(detailJson); return stageDetailRepository.save(existing); })
+                .orElseGet(() -> stageDetailRepository.save(RoadmapStageDetail.builder()
+                        .savedRoadmapId(savedRoadmapId).stageNo(stageNo).detailJson(detailJson).build()));
+    }
+
+    /** staged 개요 생성 맥락 스냅샷(트랜잭션 밖으로 안전하게 전달). */
+    public record StagedContext(String company, String role, String resultJson) {
     }
 
     /** AI 호출에 넘길 맥락 스냅샷(트랜잭션 밖으로 안전하게 전달). */

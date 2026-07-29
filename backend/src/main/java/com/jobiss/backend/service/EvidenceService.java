@@ -1,7 +1,6 @@
 package com.jobiss.backend.service;
 
 import com.jobiss.backend.domain.Evidence;
-import com.jobiss.backend.domain.EvidenceStatus;
 import com.jobiss.backend.domain.User;
 import com.jobiss.backend.dto.evidence.EvidenceCreateRequest;
 import com.jobiss.backend.dto.evidence.EvidenceResponse;
@@ -39,7 +38,6 @@ public class EvidenceService {
                 .kind(req.kind())
                 .label(req.label())
                 .description(req.description())
-                .status(EvidenceStatus.PENDING)   // 새 자료는 분석 대기
                 .build();
         evidenceRepository.save(evidence);
         return EvidenceResponse.from(evidence);

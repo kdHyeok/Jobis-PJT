@@ -172,14 +172,10 @@
 
   function refresh(){
     var jobOk = hasJobInput();
-    // 저장소가 아예 빈 신규 사용자는 자료 선택 없이도 시작할 수 있다 —
-    // 그 경우 에이전트가 대화 중에 이력서를 요청한다(REQUEST_RESUME).
-    var noStorage = evidences.length === 0;
-    var ready = jobOk && (selected.size>0 || noStorage);
+    var ready = jobOk && selected.size>0;
     document.getElementById('startBtn').disabled = !ready;
     var info = document.getElementById('barInfo');
     if (!jobOk) info.innerHTML = '공고를 입력하세요';
-    else if (noStorage) info.innerHTML = '저장소가 비어 있어요 — 분석 중에 이력서를 요청할게요';
     else if (selected.size===0) info.innerHTML = '자료를 1개 이상 선택하세요';
     else info.innerHTML = '자료 <b>'+selected.size+'</b>건으로 분석 준비 완료';
     var sa = document.getElementById('selAll');
@@ -192,7 +188,7 @@
     clearErr();
     var content = await collectContent();
     if (!content) { showErr('공고 URL이나 원문을 입력하세요.'); return; }
-    if (selected.size===0 && evidences.length>0) { showErr('자료를 1개 이상 선택하세요.'); return; }
+    if (selected.size===0) { showErr('자료를 1개 이상 선택하세요.'); return; }
     var btn = this; btn.disabled = true; btn.textContent = '세션 여는 중…';
     try {
       var res = await JB.api('/api/analyses/agent-custom', {
@@ -202,7 +198,10 @@
       var selEv = evidences.filter(function(e){ return selected.has(e.id); })
                     .map(function(e){ return { kind:e.kind, label:e.label }; });
       try { sessionStorage.setItem('jobis.analysisMeta', JSON.stringify({ id: res.analysisId, evidences: selEv })); } catch(_){}
-      location.href = 'chat.html?id=' + encodeURIComponent(res.analysisId);
+      // 여기서 시작한 분석도 서버가 대화 한 칸에 담아준다 — 목록의 단위는 언제나 대화다
+      location.href = res.conversationId
+        ? 'chat.html?c=' + encodeURIComponent(res.conversationId)
+        : 'chat.html?id=' + encodeURIComponent(res.analysisId);
     } catch(err){
       showErr('분석을 시작하지 못했어요: ' + err.message);
       btn.disabled = false; btn.textContent = '분석 시작 →';

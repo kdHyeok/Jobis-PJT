@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.O.B.I.S — 로드맵 진행 (목업)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+<script src="theme.js"></script>
+<script src="auth.js"></script>
+<script src="live-run.js"></script>
+<script src="roadmap-stages.mock.js"></script>
+<style>
+/* 페이지 전용 스타일 — 기존 토큰(var(--*))만 사용 */
+.rs-mock-pill{font-size:11px;font-weight:800;color:var(--warn);background:var(--warn-soft);border-radius:20px;padding:3px 10px;vertical-align:middle;margin-left:8px}
+/* 단계 레일 */
+.rs-rail{display:flex;flex-wrap:wrap;gap:8px}
+.rs-stage{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface-2)}
+.rs-stage .n{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;font-size:10.5px;font-weight:800;background:var(--line-2);color:var(--muted);flex:0 0 auto}
+.rs-stage.now{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-ink)}
+.rs-stage.now .n{background:var(--brand);color:var(--on-brand,#fff)}
+.rs-stage.done{color:var(--ok)}
+.rs-stage.done .n{background:var(--ok-soft);color:var(--ok)}
+.rs-stage.skipped{border-style:dashed;color:var(--muted)}
+.rs-stage.locked{opacity:.55}
+.rs-stage .st{font-size:10.5px;font-weight:700;color:var(--faint);margin-left:2px}
+/* 배지 */
+.rs-badge{font-size:11px;font-weight:800;border-radius:20px;padding:3px 10px;border:1px solid transparent}
+.rs-badge.ok{background:var(--ok-soft);color:var(--ok)}
+.rs-badge.warn{background:var(--warn-soft);color:var(--warn)}
+.rs-badge.bad{background:var(--bad-soft);color:var(--bad)}
+.rs-badge.mut{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+.rs-badge.brand{background:var(--brand-soft);color:var(--brand-ink)}
+/* 공고 근거 배지 — 이 단계가 공고의 어느 요건에서 왔는지 (원문 인용) */
+.rs-evi{display:flex;gap:9px;align-items:flex-start;background:var(--surface-2);border:1px solid var(--line-2);border-left:3px solid var(--brand);border-radius:9px;padding:9px 12px;margin:10px 0 2px}
+.rs-evi .tp{font-size:10.5px;font-weight:800;color:var(--brand-ink);background:var(--brand-soft);border-radius:6px;padding:3px 8px;flex:0 0 auto;margin-top:1px}
+.rs-evi .q{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.rs-evi .q::before{content:'공고 원문 · '}
+.rs-evi .q::before{color:var(--faint);font-size:11px;font-weight:700}
+/* 현재 단계 */
+.rs-kv{font-size:13px;color:var(--ink-2);margin:4px 0}
+.rs-kv b{color:var(--ink)}
+.rs-why{font-size:12.5px;color:var(--muted);line-height:1.55;margin:6px 0 2px}
+.rs-files{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
+.rs-file{font-size:12px;font-weight:600;font-family:ui-monospace,Consolas,monospace;border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:4px 9px;color:var(--ink-2)}
+.rs-checks{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.rs-checks li{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-2)}
+.rs-checks .m{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-weight:800;flex:0 0 auto;background:var(--surface-2);border:1px solid var(--line);color:var(--faint)}
+.rs-checks li.ok .m{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.rs-checks li.no .m{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+.rs-checks li.no{color:var(--ink)}
+/* 학습 카드 */
+.rs-lessons{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.rs-lesson{display:flex;align-items:center;gap:10px;border:1px solid var(--line-2);border-radius:9px;padding:9px 12px;font-size:13px}
+.rs-lesson .m{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;flex:0 0 auto;background:var(--surface-2);border:1px solid var(--line);color:var(--faint)}
+.rs-lesson.done .m{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.rs-lesson .t{flex:1;color:var(--ink-2)}.rs-lesson .t b{color:var(--ink);font-weight:700}
+.rs-lesson .d{font-size:12px;color:var(--muted)}
+.rs-learn-acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.rs-ext-note{font-size:11.5px;color:var(--faint)}
+/* 버튼·폼 */
+.rs-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:9px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer}
+.rs-btn:hover{background:var(--line-2)}
+.rs-btn.pri{background:var(--brand);color:var(--on-brand,#fff);border-color:var(--brand)}
+.rs-btn.pri:hover{background:var(--brand-2)}
+.rs-btn:disabled{opacity:.5;cursor:default}
+.rs-form{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.rs-form label{font-size:12px;font-weight:700;color:var(--muted)}
+.rs-form input,.rs-form textarea{width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;color:var(--ink);outline:none}
+.rs-form input:focus,.rs-form textarea:focus{border-color:var(--brand)}
+.rs-form textarea{resize:vertical;min-height:52px}
+/* 검수 */
+.rs-reviews{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.rs-review{display:flex;align-items:center;gap:9px;font-size:12.5px;border:1px solid var(--line-2);border-radius:9px;padding:8px 11px}
+.rs-review .src{font-size:10.5px;font-weight:800;color:var(--faint);letter-spacing:.03em;width:86px;flex:0 0 auto}
+.rs-review .lb{flex:1;color:var(--ink-2)}
+.rs-feedback{margin-top:10px;font-size:12.5px;color:var(--ink-2);background:var(--bad-soft);border-radius:9px;padding:10px 12px;line-height:1.5}
+.rs-lockmsg{font-size:13px;color:var(--muted)}
+/* 시험 */
+.rs-test-note{font-size:12px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);border-radius:9px;padding:9px 12px;line-height:1.5;margin-bottom:10px}
+.rs-q{border:1px solid var(--line-2);border-radius:11px;padding:12px 14px;margin-top:9px}
+.rs-q .qt{font-size:13px;font-weight:700;color:var(--ink);white-space:pre-line;margin-bottom:8px}
+.rs-q .qt .no{color:var(--brand);margin-right:6px}
+.rs-q .opts{display:flex;flex-direction:column;gap:6px}
+.rs-q .opts label{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);font-weight:500;cursor:pointer}
+.rs-q.wrong{border-color:var(--bad)}
+.rs-q .wrong-tag{font-size:11px;font-weight:800;color:var(--bad);margin-left:6px}
+/* 완료 패널 */
+.rs-done-panel{border:1px solid var(--ok);background:var(--ok-soft);border-radius:13px;padding:16px 18px;margin-top:14px}
+.rs-done-panel h3{margin:0 0 6px;font-size:15px;font-weight:800;color:var(--ok)}
+.rs-done-panel p{margin:0 0 10px;font-size:13px;color:var(--ink-2);line-height:1.55}
+.rs-next-learn{list-style:none;margin:8px 0 12px;padding:0;display:flex;gap:6px;flex-wrap:wrap}
+.rs-next-learn li{font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:4px 11px;color:var(--ink-2)}
+/* 포트폴리오 */
+.rs-pf{display:flex;flex-direction:column;gap:6px}
+.rs-pf-row{display:flex;align-items:center;gap:10px;font-size:13px;border:1px solid var(--line-2);border-radius:9px;padding:9px 12px}
+.rs-pf-row .lb{flex:1;color:var(--ink-2)}
+.rs-pf-row .note{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* 시나리오 스위처 */
+.rs-sc{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:4px}
+.rs-sc button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 0;font-size:12px;font-weight:800;color:var(--ink-2);cursor:pointer}
+.rs-sc button:hover{background:var(--line-2)}
+.rs-sc button.on{background:var(--brand);color:var(--on-brand,#fff);border-color:var(--brand)}
+.rs-sc-label{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.45;min-height:30px}
+/* ── 시작 방식 게이트 · 진단 뷰 ── */
+.rs-gate{display:flex;flex-direction:column;gap:10px}
+.rs-gate-opt{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--line);border-radius:13px;padding:15px 17px;background:var(--surface-2);cursor:pointer;text-align:left;font:inherit;color:var(--ink)}
+.rs-gate-opt:hover{border-color:var(--brand)}
+.rs-gate-opt.rec{border-color:var(--brand);background:var(--brand-soft)}
+.rs-gate-opt .ic{font-size:20px;flex:0 0 auto;margin-top:1px}
+.rs-gate-opt .t{font-size:14px;font-weight:800}
+.rs-gate-opt .t .rs-badge{margin-left:7px}
+.rs-gate-opt .d{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.rs-aq{border:1px solid var(--line-2);border-radius:12px;padding:13px 15px;margin-top:10px}
+.rs-aq .src{font-size:11.5px;color:var(--brand-ink);background:var(--brand-soft);border-radius:7px;padding:4px 9px;display:inline-block;margin-bottom:8px}
+.rs-aq .qt{font-size:13px;font-weight:700;color:var(--ink);white-space:pre-line;line-height:1.55}
+.rs-aq .fmt{font-size:10.5px;font-weight:800;color:var(--faint);margin-left:6px}
+.rs-aq textarea{width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;color:var(--ink);min-height:60px;margin-top:9px;resize:vertical}
+.rs-aq textarea:focus{border-color:var(--brand);outline:none}
+.rs-aq .dk{margin-top:7px;border:1px dashed var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.rs-aq .dk.on{border-style:solid;border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.rs-verdict{border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:12px;padding:14px 16px;background:var(--surface-2);margin-top:10px}
+.rs-verdict .v{font-size:14px;font-weight:800;line-height:1.5}
+.rs-verdict .vn{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.55}
+.rs-area-row{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;border:1px solid var(--line-2);border-radius:9px;padding:9px 12px;margin-top:6px}
+.rs-area-row .a{font-weight:700;color:var(--ink);width:150px;flex:0 0 auto}
+.rs-area-row .n{color:var(--muted);flex:1;line-height:1.45}
+.rs-airule{display:flex;gap:9px;align-items:center;font-size:12.5px;color:var(--ink-2);padding:5px 0}
+.rs-airule .no{width:18px;height:18px;border-radius:6px;background:var(--brand-soft);color:var(--brand-ink);display:grid;place-items:center;font-size:10.5px;font-weight:800;flex:0 0 auto}
+/* ── 학습 모듈 뷰 ── */
+.rs-mod-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.rs-mod-head .bk{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
+.rs-mod-head .bk:hover{background:var(--line-2)}
+.rs-prog{flex:1;min-width:140px;height:6px;background:var(--line-2);border-radius:20px;overflow:hidden}
+.rs-prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:20px;transition:width .4s}
+.rs-prog-tx{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rs-lesson-nav{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+.rs-lesson-nav button{border:1px solid var(--line);background:var(--surface-2);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.rs-lesson-nav button.on{background:var(--brand);color:var(--on-brand,#fff);border-color:var(--brand)}
+.rs-lesson-nav button.done::after{content:' ✓';color:inherit}
+.rs-sec-label{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.05em;text-transform:uppercase;margin:16px 0 6px}
+.rs-keypoints{display:flex;flex-direction:column;gap:6px}
+.rs-keypoints .kp{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-2);border-radius:9px;padding:8px 11px;line-height:1.5}
+.rs-keypoints .kp b{color:var(--brand-ink);margin-right:6px}
+.rs-code{background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:13px 15px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.6;color:var(--ink);white-space:pre;margin:0}
+.rs-code-label{font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:6px;font-family:ui-monospace,Consolas,monospace}
+.rs-flow{background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:13px 15px;overflow-x:auto;font-size:13px;line-height:1.85;color:var(--ink);white-space:pre-wrap;margin:0}
+.rs-steps{margin:0;padding-left:20px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:5px}
+.rs-challenge{font-size:13px;color:var(--ink-2);background:var(--warn-soft);border-radius:9px;padding:10px 12px;line-height:1.55}
+.rs-feedback-ok{margin-top:8px;font-size:12.5px;color:var(--ok);font-weight:700}
+.rs-feedback-no{margin-top:8px;font-size:12.5px;color:var(--bad);font-weight:700}
+.rs-tutor{margin-top:8px;font-size:12.5px;color:var(--ink-2);background:var(--brand-soft);border-radius:9px;padding:10px 12px;line-height:1.55;display:none}
+</style>
+</head>
+<body>
+<div class="app stg">
+  <!-- ============ 사이드바 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
+      <span class="nm">J.O.B.<span>I.S</span></span>
+    </div>
+    <div class="side-scroll">
+      <a class="side-nav" href="home.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+        홈
+      </a>
+      <a class="side-nav" href="roadmaps.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+        로드맵 저장소
+      </a>
+      <div class="side-card" style="margin-top:14px" id="scenarioCard">
+        <h4>목업 시나리오</h4>
+        <div class="rs-sc" id="scButtons"></div>
+        <div class="rs-sc-label" id="scLabel"></div>
+      </div>
+      <div class="side-card">
+        <h4>안내</h4>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5">
+          실제 AI·백엔드 없이 상태 흐름만 확인하는 목업이에요. 검수·시험 결과는 mock 데이터입니다.
+        </div>
+      </div>
+    </div>
+    <div class="userchip">
+      <div class="av">목</div>
+      <div><div class="u-name">목업 사용자</div><div class="u-mail">mock@jobiss.dev</div></div>
+    </div>
+  </aside>
+
+  <!-- ============ 메인 ============ -->
+  <main class="stg-main">
+    <div class="stg-scroll">
+      <div class="stg-inner">
+
+        <!-- ── 뷰 A: 로드맵 ── -->
+        <div id="roadmapView">
+          <h1 class="stg-h">로드맵 진행 <span class="rs-mock-pill">목업 · 검수·시험 결과는 mock</span></h1>
+          <p class="stg-sub" id="goalLine"></p>
+
+          <div class="stg-card">
+            <div class="sc-h"><span>🗺 전체 로드맵</span><span id="modeBadge"></span><span class="n" id="railCount"></span></div>
+            <div class="rs-rail" id="rail"></div>
+          </div>
+
+          <div class="stg-card" id="gateCard" style="display:none"></div>
+
+          <div class="stg-card" id="stageCard"></div>
+          <div class="stg-card" id="learnCard"></div>
+          <div class="stg-card" id="artifactCard"></div>
+          <div class="stg-card" id="testCard"></div>
+          <div id="stageCompleteMount"></div>
+
+          <div class="stg-card" id="aiRulesCard" style="display:none">
+            <div class="sc-h"><span>🤝 AI와 함께 학습하는 규칙</span></div>
+            <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">AI 사용을 금지하지 않아요. 다만 완성 코드를 바로 받으면 같은 상태로 돌아가요 — 이 순서를 권장해요.</div>
+            <div id="aiRulesList"></div>
+          </div>
+
+          <div class="stg-card" id="pfCard">
+            <div class="sc-h"><span>📁 포트폴리오 및 지원 준비</span></div>
+            <div class="rs-pf" id="pfList"></div>
+          </div>
+
+          <div id="finalMount"></div>
+        </div>
+
+        <!-- ── 뷰 C: 시작점 진단 ── -->
+        <div id="assessView" style="display:none">
+          <div class="rs-mod-head">
+            <button class="bk" id="assessBack">← 돌아가기</button>
+            <h1 class="stg-h" style="margin:0;font-size:18px">시작점 진단</h1>
+          </div>
+          <div class="rs-test-note" style="margin-top:10px">
+            이 진단은 평가나 시험이 아니라, <b>이미 아는 단계를 건너뛰고 알맞은 시작점을 찾기 위한 확인</b>이에요.
+            모르는 문항은 <b>"모르겠어요"</b>를 눌러주세요 — 솔직할수록 로드맵이 정확해져요. 검색·AI 없이 지금 기억으로 답하는 걸 권장해요. (채점은 mock)
+          </div>
+          <div class="stg-card" id="assessBody"></div>
+        </div>
+
+        <!-- ── 뷰 B: 학습 모듈 ── -->
+        <div id="moduleView" style="display:none">
+          <div class="rs-mod-head">
+            <button class="bk" id="modBack">← 로드맵으로</button>
+            <h1 class="stg-h" id="modStageTitle" style="margin:0;font-size:18px"></h1>
+            <div class="rs-prog"><i id="modProgBar"></i></div>
+            <span class="rs-prog-tx" id="modProgTx"></span>
+          </div>
+          <div class="rs-lesson-nav" id="modNav"></div>
+          <div class="stg-card" id="modBody"></div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  var STAGE_LABEL = { LOCKED:['잠김','mut'], READY:['시작 가능','brand'], IN_PROGRESS:['진행 중','warn'], COMPLETED:['완료','ok'], SKIPPED:['건너뜀','mut'], OPTIONAL:['선택','mut'] };
+  var ART_LABEL = { LOCKED:['잠김','mut'], NOT_SUBMITTED:['미제출','mut'], REVIEWING:['검토 중','warn'], REVISION_REQUIRED:['수정 필요','bad'], PASSED:['검수 완료','ok'] };
+  var TEST_LABEL = { LOCKED:['잠김','mut'], READY:['시작 가능','brand'], IN_PROGRESS:['진행 중','warn'], FAILED:['미통과','bad'], PASSED:['시험 완료','ok'] };
+  var REVIEW_TONE = { PASS:'ok', FAIL:'bad', RUNNING:'warn', PENDING:'mut' };
+  var PF_LABEL = { NOT_STARTED:['시작 전','mut'], IN_PROGRESS:['진행 중','warn'], COMPLETED:['완료','ok'] };
+  function badge(map, status){ var v = map[status] || [status,'mut']; return '<span class="rs-badge '+v[1]+'">'+esc(v[0])+'</span>'; }
+
+  /* 모듈 뷰 로컬 상태 (진행·완료는 RSMock 이 소유) */
+  var mod = { open:false, lessonIdx: 0, answered: null };
+
+  function eviHtml(st){
+    if(!st.evidence) return '';
+    return '<div class="rs-evi"><span class="tp">'+esc(st.evidence.type)+'</span>' +
+      '<span class="q">'+esc(st.evidence.quote)+'</span></div>';
+  }
+
+  /* ---------- 뷰 A: 로드맵 ---------- */
+
+  function renderGoal(s){
+    document.getElementById('goalLine').innerHTML =
+      '목표 공고 <b style="color:var(--ink)">'+esc(s.goal.posting)+'</b> · '+esc(s.goal.track)+' <span style="color:var(--faint)">|</span> ' +
+      '대표 프로젝트 <b style="color:var(--ink)">'+esc(s.goal.project)+'</b> — '+esc(s.goal.projectDesc)+'<br>' +
+      '<span style="color:var(--muted)">'+esc(s.goal.userState)+'</span>';
+  }
+
+  function renderRail(s){
+    var done = s.stages.filter(function(x){ return x.status==='COMPLETED'; }).length;
+    document.getElementById('railCount').textContent = done + '/' + s.stages.length + ' 완료';
+    // 시작 방식 배지 — 사용자 입력 기준(빠른 시작) vs 진단 확인 기준
+    var mb = document.getElementById('modeBadge');
+    mb.innerHTML = s.assess.mode === 'QUICK' ? '<span class="rs-badge warn" title="이력서·자기평가만 근거로 배치됨 — 진단으로 더 정확해질 수 있어요">사용자 입력 기준</span>'
+      : s.assess.mode === 'ASSESSED' ? '<span class="rs-badge ok" title="시작점 진단으로 확인된 배치예요">진단 확인 기준</span>' : '';
+    document.getElementById('rail').innerHTML = s.stages.map(function(st){
+      var cls = st.status==='COMPLETED' ? 'done' : st.status==='SKIPPED' ? 'skipped' :
+        (st.no===s.currentStage && st.status==='IN_PROGRESS' ? 'now' : (st.status==='LOCKED' ? 'locked' : ''));
+      var mark = st.status==='COMPLETED' ? '✓' : st.status==='SKIPPED' ? '⤼' : st.no;
+      var lb = STAGE_LABEL[st.status] ? STAGE_LABEL[st.status][0] : st.status;
+      var tip = st.status==='SKIPPED' ? (s.skipReasons[st.no] || '') : '';
+      return '<span class="rs-stage '+cls+'" data-stage="'+st.no+'" title="'+esc(tip)+'"><span class="n">'+mark+'</span>'+esc(st.title)+'<span class="st">'+esc(lb)+'</span></span>';
+    }).join('');
+    // 단계 막대 클릭 → 그 단계로 이동해 학습 모듈 열기(건너뛴 0단계도 복습 가능)
+    document.getElementById('rail').querySelectorAll('.rs-stage').forEach(function(el){
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', function(){
+        var no = parseInt(el.getAttribute('data-stage'), 10);
+        if (isNaN(no)) return;
+        ensureDetailThenOpen(no);   // 라이브면 상세 lazy 로드 후 열기
+      });
+    });
+  }
+
+  /* 시작 방식 게이트 — 진단 전(PENDING)에는 단계 카드 대신 이것만 보인다 */
+  function renderGate(s){
+    var el = document.getElementById('gateCard');
+    if (s.assess.mode !== 'PENDING'){ el.style.display='none'; return; }
+    el.style.display='';
+    el.innerHTML = '<div class="sc-h"><span>🚪 어떤 방식으로 시작할까요?</span></div>' +
+      '<div class="rs-gate">' +
+      '<button class="rs-gate-opt rec" id="gateAssess"><span class="ic">🔍</span><span>' +
+      '<div class="t">진단 후 정확하게 시작하기 <span class="rs-badge brand">추천</span></div>' +
+      '<div class="d">간단한 문제·과제(6문항, 약 10분)로 현재 수준을 확인하고, 이미 아는 단계를 건너뛰어요. 모르는 건 "모르겠어요"로 넘겨도 돼요.</div>' +
+      '</span></button>' +
+      '<button class="rs-gate-opt" id="gateQuick"><span class="ic">⚡</span><span>' +
+      '<div class="t">빠르게 시작하기</div>' +
+      '<div class="d">이력서와 입력한 경험을 기준으로 즉시 로드맵을 시작해요. 결과에는 "사용자 입력 기준"으로 표시되고, 난이도가 맞지 않을 수 있어요.</div>' +
+      '</span></button>' +
+      '</div>';
+    document.getElementById('gateAssess').addEventListener('click', openAssess);
+    document.getElementById('gateQuick').addEventListener('click', function(){ RSMock.chooseQuick(); });
+  }
+
+  function renderAiRules(s){
+    var el = document.getElementById('aiRulesCard');
+    if (s.assess.mode === 'PENDING' || s.showFinal){ el.style.display='none'; return; }
+    el.style.display='';
+    document.getElementById('aiRulesList').innerHTML = RSMock.aiRules().map(function(r, i){
+      return '<div class="rs-airule"><span class="no">'+(i+1)+'</span><span>'+esc(r)+'</span></div>';
+    }).join('');
+  }
+
+  function renderStage(s){
+    var el = document.getElementById('stageCard');
+    if (s.showFinal || s.assess.mode === 'PENDING'){ el.style.display='none'; return; }
+    el.style.display='';
+    var d = RSMock.stageData(s.currentStage);
+    var stStatus = s.stages[s.currentStage].status;
+    el.innerHTML = '<div class="sc-h"><span>📌 현재 단계 — '+d.no+'단계 · '+esc(d.title)+'</span>'+badge(STAGE_LABEL, stStatus)+'</div>' +
+      '<div class="rs-why">'+esc(d.why)+'</div>' +
+      eviHtml(d) +
+      '<div class="rs-kv" style="margin-top:8px"><b>목표</b> — '+esc(d.goal)+'</div>' +
+      '<div class="rs-kv"><b>결과물</b> — '+esc(d.artifact[0])+' <span style="color:var(--muted)">· '+esc(d.artifact[1])+'</span></div>' +
+      (d.files ? '<div class="rs-kv" style="margin-top:8px"><b>필수 제출 파일</b></div><div class="rs-files">'+d.files.map(function(f){ return '<span class="rs-file">'+esc(f)+'</span>'; }).join('')+'</div>' : '') +
+      '<div class="rs-kv" style="margin-top:8px"><b>완료 조건</b></div>' +
+      '<ul class="rs-checks">'+d.criteria.map(function(c,i){
+        var v = s.artifact.checks[i];
+        var cls = v===true ? 'ok' : (v===false ? 'no' : '');
+        var m = v===true ? '✓' : (v===false ? '✗' : '·');
+        return '<li class="'+cls+'"><span class="m">'+m+'</span><span>'+esc(c)+'</span></li>';
+      }).join('')+'</ul>';
+  }
+
+  function renderLearn(s){
+    var el = document.getElementById('learnCard');
+    if (s.showFinal || s.assess.mode === 'PENDING'){ el.style.display='none'; return; }
+    el.style.display='';
+    var d = RSMock.stageData(s.currentStage);
+    var doneSet = s.learning.done;
+    var doneAll = RSMock.isLearningDone();
+    var head = '<div class="sc-h"><span>📚 단계 학습 모듈</span>' +
+      '<span class="rs-badge '+(doneAll?'ok':'warn')+'">'+(s.learning.externalDone ? '외부 학습 완료' : doneSet.length+'/'+d.lessons.length+' 완료')+'</span></div>';
+    var rows = d.lessons.map(function(l, i){
+      var isDone = s.learning.externalDone || doneSet.indexOf(i) >= 0;
+      return '<div class="rs-lesson'+(isDone?' done':'')+'"><span class="m">'+(isDone?'✓':(i+1))+'</span>' +
+        '<span class="t"><b>'+esc(l[0])+'</b> <span class="d">'+esc(l[1])+'</span></span></div>';
+    }).join('');
+    var acts = '<div class="rs-learn-acts">' +
+      '<button class="rs-btn pri" id="btnOpenModule">학습 모듈 열기</button>' +
+      (!doneAll ? '<button class="rs-btn" id="btnExtDone">외부에서 이미 학습했어요</button><span class="rs-ext-note">이미 아는 내용이면 학습을 건너뛰고 결과물로 진행할 수 있어요.</span>' : '') +
+      '</div>';
+    el.innerHTML = head + '<div class="rs-lessons">'+rows+'</div>' + acts;
+    var b1 = document.getElementById('btnOpenModule');
+    if (b1) b1.addEventListener('click', function(){ ensureDetailThenOpen(s.currentStage); });
+    var b2 = document.getElementById('btnExtDone');
+    if (b2) b2.addEventListener('click', function(){ RSMock.markExternalDone(); });
+  }
+
+  function renderArtifact(s){
+    var el = document.getElementById('artifactCard');
+    if (s.showFinal || s.assess.mode === 'PENDING'){ el.style.display='none'; return; }
+    el.style.display='';
+    var a = s.artifact;
+    var head = '<div class="sc-h"><span>📤 결과물 제출</span>'+badge(ART_LABEL, a.status)+'</div>';
+    var body = '';
+
+    if (a.status === 'LOCKED'){
+      body = '<div class="rs-lockmsg">🔒 학습 모듈을 완료하면 결과물 제출이 열려요.</div>';
+    } else if (a.status === 'NOT_SUBMITTED' || a.status === 'REVISION_REQUIRED'){
+      var sub = a.submission || {};
+      body += (a.feedback ? '<div class="rs-feedback">'+esc(a.feedback)+'</div>' : '');
+      body += '<div class="rs-form">' +
+        '<div><label>GitHub 또는 결과물 URL</label><input id="fUrl" placeholder="https://github.com/..." value="'+esc(sub.url||'')+'"></div>' +
+        '<div><label>제출 설명</label><textarea id="fDesc" placeholder="무엇을 만들었는지 간단히 적어주세요">'+esc(sub.desc||'')+'</textarea></div>' +
+        '<div><label>AI를 활용한 부분</label><textarea id="fAi" placeholder="예) 클래스 구조 초안을 AI로 정리">'+esc(sub.aiPart||'')+'</textarea></div>' +
+        '<div><label>본인이 직접 작성하거나 수정한 부분</label><textarea id="fMy" placeholder="예) 검증 로직은 직접 작성">'+esc(sub.myPart||'')+'</textarea></div>' +
+        '<div><button class="rs-btn pri" id="btnSubmit">'+(a.status==='REVISION_REQUIRED'?'수정 후 다시 제출하기':'결과물 제출하기')+'</button></div>' +
+        '</div>';
+    } else if (a.submission){
+      body += '<div class="rs-kv"><b>제출 링크</b> — <span style="font-family:ui-monospace,Consolas,monospace;font-size:12.5px">'+esc(a.submission.url)+'</span></div>' +
+        '<div class="rs-kv" style="color:var(--muted)">AI 활용: '+esc(a.submission.aiPart)+' · 직접 작성: '+esc(a.submission.myPart)+'</div>';
+    }
+
+    if (a.status !== 'LOCKED'){
+      body += '<div class="rs-reviews">' + a.reviews.map(function(r){
+        return '<div class="rs-review"><span class="src">'+esc(r.source)+'</span><span class="lb">'+esc(r.label)+'</span>' +
+          '<span class="rs-badge '+(REVIEW_TONE[r.result]||'mut')+'">'+esc(r.text)+'</span></div>';
+      }).join('') + '</div>';
+    }
+
+    el.innerHTML = head + body;
+    var btn = document.getElementById('btnSubmit');
+    if (btn) btn.addEventListener('click', function(){
+      RSMock.submitArtifact({
+        url: document.getElementById('fUrl').value || 'https://github.com/mock-user/game-wallet',
+        desc: document.getElementById('fDesc').value,
+        aiPart: document.getElementById('fAi').value,
+        myPart: document.getElementById('fMy').value
+      });
+    });
+  }
+
+  function renderTest(s){
+    var el = document.getElementById('testCard');
+    if (s.showFinal || s.assess.mode === 'PENDING'){ el.style.display='none'; return; }
+    el.style.display='';
+    var d = RSMock.stageData(s.currentStage);
+    var t = s.test;
+    var head = '<div class="sc-h"><span>📝 단계 확인 시험</span>'+badge(TEST_LABEL, t.status)+'</div>';
+    var note = '<div class="rs-test-note">이 시험은 다음 로드맵 단계로 이동하기 위한 확인 과정입니다. 기업이나 외부 기관이 인정하는 자격 또는 실무 역량 인증이 아닙니다. 더 어려운 단계에서 막히지 않도록 현재 이해도를 확인하는 목적이에요.</div>';
+    var body = '';
+
+    if (t.status === 'LOCKED'){
+      body = '<div class="rs-lockmsg">🔒 결과물 검수가 완료되면 시험이 열려요.</div>';
+    } else if (t.status === 'READY'){
+      body = '<div style="font-size:13px;color:var(--ink-2);margin-bottom:10px">결과물 검수가 완료됐어요. 준비되면 시험을 시작하세요. (객관식 '+d.questions.length+' + 서술형 1)</div>' +
+        '<button class="rs-btn pri" id="btnStart">시험 시작</button>';
+    } else if (t.status === 'IN_PROGRESS'){
+      body = d.questions.map(function(q, i){
+        return '<div class="rs-q"><div class="qt"><span class="no">Q'+(i+1)+'</span>'+esc(q[0])+'</div><div class="opts">'+q[1].map(function(o, j){
+          return '<label><input type="radio" name="q'+i+'" value="'+j+'"> <span>'+esc(o)+'</span></label>';
+        }).join('')+'</div></div>';
+      }).join('') +
+      '<div class="rs-q"><div class="qt"><span class="no">Q'+(d.questions.length+1)+'</span>'+esc(RSMock.essayQuestion)+'</div>' +
+      '<textarea data-essay style="width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;color:var(--ink);min-height:64px" placeholder="짧게 서술해 주세요"></textarea></div>' +
+      '<div style="margin-top:12px"><button class="rs-btn pri" id="btnSubmitTest">답안 제출</button></div>';
+    } else if (t.status === 'FAILED'){
+      body = '<div style="font-size:13px;color:var(--ink-2);margin-bottom:6px">이번 시험을 통과하지 못했어요. 아래 문항을 보완해서 다시 풀 수 있어요.</div>' +
+        d.questions.map(function(q, i){
+          var wrong = t.wrong.indexOf(i) >= 0;
+          return '<div class="rs-q'+(wrong?' wrong':'')+'"><div class="qt"><span class="no">Q'+(i+1)+'</span>'+esc(q[0])+(wrong?'<span class="wrong-tag">보완 필요</span>':'')+'</div></div>';
+        }).join('') +
+        '<div style="margin-top:12px"><button class="rs-btn pri" id="btnRetry">다시 풀기</button></div>';
+    } else if (t.status === 'PASSED'){
+      body = '<div style="font-size:13px;color:var(--ok);font-weight:700">단계 확인 시험 완료 ✓</div>';
+    }
+
+    el.innerHTML = head + note + body;
+    var b1 = document.getElementById('btnStart');    if (b1) b1.addEventListener('click', function(){ RSMock.startTest(); });
+    var b3 = document.getElementById('btnRetry');    if (b3) b3.addEventListener('click', function(){ RSMock.retryTest(); });
+    var b2 = document.getElementById('btnSubmitTest');
+    if (b2) b2.addEventListener('click', function(){
+      var answers = {};
+      el.querySelectorAll('input[type=radio]:checked').forEach(function(r){ answers[r.name] = r.value; });
+      var ta = el.querySelector('textarea[data-essay]'); if (ta) answers.essay = ta.value;
+      RSMock.submitTest(answers);
+    });
+  }
+
+  function renderStageComplete(s){
+    var mt = document.getElementById('stageCompleteMount');
+    if (!s.showStageComplete){ mt.innerHTML=''; return; }
+    var d = RSMock.stageData(s.currentStage);
+    var nx = RSMock.stageData(s.currentStage + 1);
+    mt.innerHTML = '<div class="rs-done-panel">' +
+      '<h3>'+d.no+'단계를 완료했습니다.</h3>' +
+      '<p>'+esc(d.artifact[0])+' 결과물과 단계 확인 시험을 완료했습니다.' +
+      (nx ? ' 다음 단계인 '+esc(nx.title)+'를 시작할 수 있습니다.' : '') + '</p>' +
+      (nx ? '<div class="rs-kv"><b>다음 단계</b> — '+nx.no+'단계 · '+esc(nx.title)+'</div>' +
+        '<ul class="rs-next-learn">'+d.next.map(function(l){ return '<li>'+esc(l)+'</li>'; }).join('')+'</ul>' +
+        '<button class="rs-btn pri" id="btnNext">다음 단계 시작하기</button>' : '') +
+      '</div>';
+    var b = document.getElementById('btnNext');
+    if (b) b.addEventListener('click', function(){ RSMock.nextStage(); });
+  }
+
+  function renderPortfolio(s){
+    document.getElementById('pfCard').style.display = s.assess.mode === 'PENDING' ? 'none' : '';
+    document.getElementById('pfList').innerHTML = s.portfolio.map(function(p){
+      return '<div class="rs-pf-row"><span class="lb">'+esc(p.label)+'</span>' +
+        (p.note ? '<span class="note">'+esc(p.note)+'</span>' : '') +
+        badge(PF_LABEL, p.status) + '</div>';
+    }).join('');
+  }
+
+  function renderFinal(s){
+    var mt = document.getElementById('finalMount');
+    if (!s.showFinal){ mt.innerHTML=''; return; }
+    mt.innerHTML = '<div class="rs-done-panel">' +
+      '<h3>지원 준비가 완료되었습니다.</h3>' +
+      '<p>목표 공고에 맞는 프로젝트 결과물과 포트폴리오 문서를 완성했습니다. 이 상태는 취업, 서류 전형 또는 면접 통과를 보장하지 않습니다.</p>' +
+      '<ul class="rs-checks">'+s.finalItems.map(function(it){
+        return '<li class="ok"><span class="m">✓</span><span>'+esc(it)+'</span></li>';
+      }).join('')+'</ul></div>';
+  }
+
+  function renderScenarioBar(s){
+    if (window.__staged) { var card = document.getElementById('scenarioCard'); if (card) card.style.display = 'none'; return; }   // 라이브(실분석)에선 데모 시나리오 숨김
+    var wrap = document.getElementById('scButtons');
+    wrap.innerHTML = RSMock.scenarios.map(function(sc){
+      return '<button data-sc="'+sc.key+'" class="'+(sc.key===s.scenario?'on':'')+'">'+sc.key+'</button>';
+    }).join('');
+    wrap.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ closeModule(); closeAssess(); RSMock.load(b.getAttribute('data-sc')); });
+    });
+    var curSc = RSMock.scenarios.filter(function(x){ return x.key===s.scenario; })[0];
+    document.getElementById('scLabel').textContent = s.scenario + ' — ' + (curSc ? curSc.label : '');
+  }
+
+  /* ---------- 뷰 C: 시작점 진단 ---------- */
+  var assessOpen = false;
+
+  function openAssess(){
+    assessOpen = true;
+    renderAssessQuestions();
+    document.getElementById('roadmapView').style.display = 'none';
+    document.getElementById('assessView').style.display = '';
+    window.scrollTo(0, 0);
+  }
+  function closeAssess(){
+    assessOpen = false;
+    document.getElementById('assessView').style.display = 'none';
+    document.getElementById('roadmapView').style.display = '';
+  }
+
+  function renderAssessQuestions(){
+    var qs = RSMock.assessment().questions;
+    var el = document.getElementById('assessBody');
+    el.innerHTML = qs.map(function(q, i){
+      return '<div class="rs-aq" data-q="'+q.id+'">' +
+        '<div class="src">'+esc(q.source)+'</div>' +
+        '<div class="qt"><span style="color:var(--brand)">Q'+(i+1)+'</span> · '+esc(q.area)+'<span class="fmt">'+esc(q.format)+'</span><br>'+esc(q.text)+'</div>' +
+        (q.code ? '<pre class="rs-code" style="margin-top:9px">'+esc(q.code)+'</pre>' : '') +
+        '<textarea placeholder="지금 기억으로 답해주세요"></textarea>' +
+        '<button class="dk" type="button">모르겠어요</button>' +
+        '</div>';
+    }).join('') +
+    '<div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+    '<button class="rs-btn pri" id="assessSubmit">진단 제출</button>' +
+    '<span style="font-size:12px;color:var(--faint)">"모르겠어요"도 정확한 답이에요 — 로드맵이 그만큼 정확해져요.</span></div>';
+
+    el.querySelectorAll('.rs-aq .dk').forEach(function(b){
+      b.addEventListener('click', function(){
+        var box = b.closest('.rs-aq'); var ta = box.querySelector('textarea');
+        var on = b.classList.toggle('on');
+        if (on){ ta.value = '모르겠습니다'; ta.disabled = true; } else { ta.value = ''; ta.disabled = false; }
+      });
+    });
+    document.getElementById('assessSubmit').addEventListener('click', function(){
+      var answers = {};
+      el.querySelectorAll('.rs-aq').forEach(function(box){
+        answers[box.getAttribute('data-q')] = box.querySelector('textarea').value;
+      });
+      RSMock.applyAssessment(answers);
+      renderAssessResult();
+    });
+  }
+
+  function renderAssessResult(){
+    var r = RSMock.assessment().result;
+    var VD = { PASS:['통과','ok'], PARTIAL:['일부 보완','warn'], NEED:['도움 필요','bad'] };
+    var el = document.getElementById('assessBody');
+    el.innerHTML =
+      '<div class="rs-verdict"><div class="v">'+esc(r.verdict)+'</div><div class="vn">'+esc(r.verdictNote)+'</div></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-top:12px">' +
+      '<span class="rs-badge mut">진단 신뢰도 · '+esc(r.confidence)+'</span>' +
+      '<span style="font-size:12px;color:var(--faint)">'+esc(r.confidenceNote)+'</span></div>' +
+      '<div class="rs-sec-label">영역별 확인 결과</div>' +
+      r.areas.map(function(a){
+        var v = VD[a.verdict] || [a.verdict,'mut'];
+        return '<div class="rs-area-row"><span class="a">'+esc(a.area)+'</span><span class="n">'+esc(a.note)+'</span>' +
+          '<span class="rs-badge '+v[1]+'">'+esc(v[0])+'</span></div>';
+      }).join('') +
+      '<div class="rs-sec-label">로드맵 배치</div>' +
+      '<div class="rs-area-row"><span class="a">0단계 건너뜀</span><span class="n">'+esc(r.plan.skip[0].reason)+'</span><span class="rs-badge mut">건너뜀</span></div>' +
+      '<div class="rs-area-row"><span class="a">'+r.plan.start.no+'단계부터 시작</span><span class="n">'+esc(r.plan.start.reason)+'</span><span class="rs-badge brand">시작점</span></div>' +
+      '<div style="margin-top:14px;display:flex;gap:8px">' +
+      '<button class="rs-btn pri" id="assessGo">이 시작점으로 진행</button>' +
+      '<button class="rs-btn" id="assessRetry">다시 진단하기</button></div>';
+    document.getElementById('assessGo').addEventListener('click', closeAssess);
+    document.getElementById('assessRetry').addEventListener('click', renderAssessQuestions);
+  }
+
+  document.getElementById('assessBack').addEventListener('click', closeAssess);
+
+  /* ---------- 뷰 B: 학습 모듈 ---------- */
+
+  function openModule(s){
+    mod.open = true; mod.lessonIdx = 0; mod.answered = null;
+    // 완료 안 된 첫 레슨으로
+    var d = RSMock.stageData(s.currentStage);
+    for (var i = 0; i < d.lessons.length; i++){
+      if (s.learning.done.indexOf(i) < 0){ mod.lessonIdx = i; break; }
+    }
+    renderModule(RSMock.getState());
+    document.getElementById('roadmapView').style.display = 'none';
+    document.getElementById('moduleView').style.display = '';
+    window.scrollTo(0, 0);
+  }
+  function closeModule(){
+    mod.open = false;
+    document.getElementById('moduleView').style.display = 'none';
+    document.getElementById('roadmapView').style.display = '';
+  }
+
+  // 레슨 예제 렌더 — kind(code/shell/flow)에 맞게. 생성 데이터={kind,label,content}, 목업 폴백={label,code}.
+  function exampleHtml(ex){
+    if (!ex) return '';
+    var kind = ex.kind || 'code';
+    var content = ex.content != null ? ex.content : (ex.code || '');
+    var secLabel = kind === 'shell' ? '명령어' : (kind === 'flow' ? '흐름 · 구조' : '실행 예제');
+    var block = kind === 'flow'
+      ? '<div class="rs-flow">' + esc(content) + '</div>'
+      : '<pre class="rs-code">' + esc(content) + '</pre>';
+    return '<div class="rs-sec-label">' + esc(secLabel) + '</div>' +
+      (ex.label ? '<div class="rs-code-label">' + esc(ex.label) + '</div>' : '') + block;
+  }
+
+  function renderModule(s){
+    if (!mod.open) return;
+    var d = RSMock.stageData(s.currentStage);
+    var doneSet = s.learning.done;
+    var detail = RSMock.lessonDetail(s.currentStage, mod.lessonIdx);
+    var isDone = doneSet.indexOf(mod.lessonIdx) >= 0;
+
+    document.getElementById('modStageTitle').textContent = d.no + '단계 · ' + d.title;
+    document.getElementById('modProgBar').style.width = (doneSet.length / d.lessons.length * 100) + '%';
+    document.getElementById('modProgTx').textContent = doneSet.length + '/' + d.lessons.length + ' 완료';
+
+    document.getElementById('modNav').innerHTML = d.lessons.map(function(l, i){
+      var cls = (i === mod.lessonIdx ? 'on' : '') + (doneSet.indexOf(i) >= 0 ? ' done' : '');
+      return '<button data-l="'+i+'" class="'+cls+'">'+esc(l[0])+'</button>';
+    }).join('');
+    document.getElementById('modNav').querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ mod.lessonIdx = parseInt(b.getAttribute('data-l'), 10); mod.answered = null; renderModule(RSMock.getState()); });
+    });
+
+    var q = detail.question;
+    var body =
+      '<div class="rs-badge brand" style="display:inline-block">필수 학습 · 레슨 '+(mod.lessonIdx+1)+'/'+d.lessons.length+(isDone?' · 완료 ✓':'')+'</div>' +
+      '<h2 style="margin:10px 0 4px;font-size:17px;font-weight:800">'+esc(detail.title)+'</h2>' +
+      '<div class="rs-why">'+esc(detail.goal)+'</div>' +
+      '<div class="rs-sec-label">핵심 개념</div>' +
+      '<div class="rs-kv" style="line-height:1.6">'+esc(detail.concept)+'</div>' +
+      '<div class="rs-keypoints" style="margin-top:8px">'+detail.points.map(function(p, i){
+        return '<div class="kp"><b>핵심 '+(i+1)+'</b>'+esc(p)+'</div>';
+      }).join('')+'</div>' +
+      exampleHtml(detail.example) +
+      '<div class="rs-sec-label">안내를 보며 따라 하기</div>' +
+      '<ol class="rs-steps">'+detail.guided.map(function(g){ return '<li>'+esc(g)+'</li>'; }).join('')+'</ol>' +
+      '<div class="rs-sec-label">혼자 해보는 변형 과제</div>' +
+      '<div class="rs-challenge">'+esc(detail.challenge)+'</div>' +
+      '<div class="rs-sec-label">이해 확인</div>' +
+      '<div class="rs-q" style="margin-top:0"><div class="qt">'+esc(q[0])+'</div><div class="opts">'+q[1].map(function(o, j){
+        return '<label><input type="radio" name="modq" value="'+j+'"> <span>'+esc(o)+'</span></label>';
+      }).join('')+'</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="rs-btn pri" id="modCheck">확인</button>' +
+      '<button class="rs-btn" id="modTutor">🤖 AI 튜터에게 질문 (mock)</button>' +
+      '</div>' +
+      '<div id="modFeedback"></div>' +
+      '<div class="rs-tutor" id="modTutorBox">이 레슨의 핵심은 "'+esc(detail.title)+'"이(가) 어떤 문제를 해결하는지예요. 예제의 값을 하나 바꿔 실행 결과를 비교해보면 개념이 더 분명해져요. 그래도 막히면 변형 과제를 더 작은 단계로 쪼개보세요. (실제 AI 응답은 목업 범위 밖)</div>' +
+      '</div>';
+
+    var el = document.getElementById('modBody');
+    el.innerHTML = body;
+
+    document.getElementById('modTutor').addEventListener('click', function(){
+      var box = document.getElementById('modTutorBox');
+      box.style.display = box.style.display === 'none' || !box.style.display ? 'block' : 'none';
+    });
+    document.getElementById('modCheck').addEventListener('click', function(){
+      var sel = el.querySelector('input[name=modq]:checked');
+      var fb = document.getElementById('modFeedback');
+      if (!sel){ fb.innerHTML = '<div class="rs-feedback-no">선택지를 골라주세요.</div>'; return; }
+      if (parseInt(sel.value, 10) === q[2]){
+        RSMock.completeLesson(mod.lessonIdx);
+        var st = RSMock.getState();
+        var allDone = RSMock.isLearningDone();
+        fb.innerHTML = '<div class="rs-feedback-ok">이해 확인 통과 — 레슨 완료로 기록했어요.</div>' +
+          '<div style="margin-top:8px">' +
+          (allDone
+            ? '<button class="rs-btn pri" id="modFinish">학습 완료 — 로드맵으로 돌아가기</button>'
+            : '<button class="rs-btn pri" id="modNext">다음 레슨으로</button>') +
+          '</div>';
+        var bn = document.getElementById('modNext');
+        if (bn) bn.addEventListener('click', function(){
+          var d2 = RSMock.stageData(st.currentStage);
+          for (var i = 0; i < d2.lessons.length; i++){
+            if (st.learning.done.indexOf(i) < 0){ mod.lessonIdx = i; break; }
+          }
+          renderModule(RSMock.getState());
+        });
+        var bf = document.getElementById('modFinish');
+        if (bf) bf.addEventListener('click', closeModule);
+      } else {
+        fb.innerHTML = '<div class="rs-feedback-no">다시 생각해보세요. 개념 설명과 핵심 포인트를 확인한 뒤 다시 골라도 돼요.</div>';
+      }
+    });
+  }
+
+  document.getElementById('modBack').addEventListener('click', closeModule);
+
+  /* ---------- 전체 렌더 ---------- */
+  function render(s){
+    renderGoal(s); renderRail(s); renderGate(s); renderStage(s); renderLearn(s); renderArtifact(s);
+    renderTest(s); renderStageComplete(s); renderAiRules(s); renderPortfolio(s); renderFinal(s);
+    renderScenarioBar(s);
+    if (mod.open) renderModule(s);
+  }
+
+  /* 분석에서 넘어온 경우(?id=&route=) — 어느 로드맵에서 왔는지 표시하고 "분석으로 돌아가기"를 건다.
+     ★현재는 목업이라 단계 콘텐츠는 mock 고정. 실제 연동 시 이 id/route로 GET /api/roadmap-stages 호출. */
+  (function linkFromAnalysis(){
+    var q = new URLSearchParams(location.search);
+    var id = q.get('id'), route = q.get('route');
+    if (!id) return;
+    var sub = document.querySelector('.stg-sub');
+    if (sub) sub.insertAdjacentHTML('afterend',
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-8px 0 14px">' +
+      '<a href="chat.html?id='+encodeURIComponent(id)+(route?'&route='+encodeURIComponent(route):'')+'" ' +
+      'style="font-size:12.5px;font-weight:700;color:var(--brand-ink);text-decoration:none">← 분석으로 돌아가기</a>' +
+      '<span class="rs-badge mut">이 분석의 로드맵 · 단계 진행</span></div>');
+  })();
+
+  RSMock.subscribe(render);
+
+  // 라이브(?id=&route=): 백엔드에서 이 분석의 단계형 개요를 받아 렌더. 단계 상세는 열람 시 lazy(GET /stage-detail·캐시).
+  // 파라미터 없으면 정적 staged-sample.json(데모)로 폴백.
+  (function boot(){
+    var q = new URLSearchParams(location.search);
+    var liveId = q.get('id'), liveRoute = q.get('route');
+    if (liveId && liveRoute && window.JB && JB.api) {
+      JB.api('/api/roadmaps/one?analysisId=' + encodeURIComponent(liveId) + '&routeId=' + encodeURIComponent(liveRoute))
+        .then(function (res) {
+          // GET /one 의 roadmap 은 @JsonRawValue라 이미 파싱된 객체(문자열 아님). 문자열로 오면 방어적으로 파싱.
+          var outline = res.roadmap;
+          if (typeof outline === 'string') { try { outline = JSON.parse(outline); } catch (e) { outline = null; } }
+          if (outline && RSMock.useGenerated(outline)) {
+            window.__staged = { id: liveId, route: liveRoute };
+            markLiveBadge();
+            RSMock.startLive();   // 모든 단계 클릭 가능, 0단계 현재
+          } else {
+            // 개요를 못 해석 → 정적 데모로 숨기지 말고 이유를 화면에 드러낸다(단계형이 아닐 수 있음).
+            showBootError('개요를 해석하지 못했어요. 저장된 로드맵이 단계형이 아닐 수 있어요 — 분석 화면에서 "로드맵 생성"을 다시 눌러보세요.');
+          }
+        })
+        .catch(function (e) { showBootError(e && e.message ? e.message : String(e)); });
+    } else {
+      loadStaticDemo();
+    }
+  })();
+
+  function loadStaticDemo(){
+    fetch('staged-sample.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && RSMock.useGenerated && RSMock.useGenerated(data)) markLiveBadge();
+        RSMock.load('P');   // 진단 전(시작 방식 선택)
+      })
+      .catch(function () { RSMock.load('P'); });
+  }
+  function markLiveBadge(){
+    var sub = document.querySelector('.stg-sub');
+    if (sub && !document.querySelector('.rs-realbadge'))
+      sub.insertAdjacentHTML('beforeend', ' <span class="rs-badge ok rs-realbadge" style="margin-left:6px">이 분석으로 생성된 커리큘럼</span>');
+  }
+  // 라이브 개요 로드 실패 시 — 정적 데모로 숨기지 않고 이유를 화면에 표시(디버깅).
+  function showBootError(msg){
+    var host = document.querySelector('.stg-sub');
+    var html = '<div id="bootErr" style="margin:10px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font-size:13px;line-height:1.65">' +
+      '<b>이 분석의 단계형 로드맵을 불러오지 못했어요.</b><br>' +
+      '<span style="color:var(--muted)">' + esc(msg || '') + '</span><br>' +
+      '분석 화면에서 <b>"산출물 만들고 지원" 경로 → "로드맵 생성"</b>을 (다시) 누른 뒤 <b>"단계별로 진행하기"</b>로 오세요. 백엔드·가짜 AI가 켜져 있어야 합니다.</div>';
+    if (host) host.insertAdjacentHTML('afterend', html); else document.body.insertAdjacentHTML('afterbegin', html);
+  }
+
+  // 단계 열기 — 라이브면 그 단계 상세를 먼저 lazy 로드(캐시되면 즉시), 정적/이미로드면 바로 연다.
+  function ensureDetailThenOpen(no){
+    if (!window.__staged || RSMock.isStageLoaded(no)) {
+      RSMock.gotoStage(no); openModule(RSMock.getState()); return;
+    }
+    showStageLoading(no);
+    var lv = window.__staged;
+    JB.api('/api/roadmaps/stage-detail?analysisId=' + encodeURIComponent(lv.id) + '&routeId=' + encodeURIComponent(lv.route) + '&stageNo=' + no)
+      .then(function (res) {
+        RSMock.applyStageDetail(no, JSON.parse(res.detailJson));
+        hideStageLoading();
+        RSMock.gotoStage(no); openModule(RSMock.getState());
+      })
+      .catch(function (e) { hideStageLoading(); alert('단계 학습 내용을 불러오지 못했어요: ' + (e && e.message ? e.message : e)); });
+  }
+  function showStageLoading(no){
+    var el = document.getElementById('stageLoading');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'stageLoading';
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 28px;max-width:340px;text-align:center;color:var(--ink)">' +
+      '<div style="font-weight:800;margin-bottom:8px">단계 학습 내용을 만들고 있어요</div>' +
+      '<div style="color:var(--muted);font-size:13px;line-height:1.6">AI가 이 단계의 레슨·예제·시험을 생성 중입니다.<br>처음 한 번만, 1~2분 정도 걸려요.</div>' +
+      '<div style="margin-top:14px;font-size:12px;color:var(--muted)">' + no + '단계 생성 중…</div></div>';
+    el.style.display = 'flex';
+  }
+  function hideStageLoading(){ var el = document.getElementById('stageLoading'); if (el) el.style.display = 'none'; }
+})();
+</script>
+</body>
+</html>

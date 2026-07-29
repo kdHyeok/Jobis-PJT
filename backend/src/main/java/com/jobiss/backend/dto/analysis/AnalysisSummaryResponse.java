@@ -11,7 +11,8 @@ public record AnalysisSummaryResponse(
         String role,
         String status,
         String createdAt,
-        String parentAnalysisId
+        String parentAnalysisId,
+        String conversationId    // 이 분석이 들어 있는 대화 — 눌렀을 때 대화째로 열기 위해
 ) {
     public static AnalysisSummaryResponse from(AnalysisRun run) {
         var job = run.getJobPosting();
@@ -22,6 +23,7 @@ public record AnalysisSummaryResponse(
                 job.getRole(),
                 run.getStatus().name(),
                 run.getCreatedAt() == null ? null : run.getCreatedAt().toString(),
-                run.getParentAnalysisId());
+                run.getParentAnalysisId(),
+                run.getConversation() == null ? null : run.getConversation().getConversationId());
     }
 }

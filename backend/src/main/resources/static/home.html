@@ -163,15 +163,19 @@
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
       <span class="nm">J.O.B.<span>I.S</span></span>
     </div>
-    <button class="new-btn" onclick="location.href='new.html'">
+    <button class="new-btn" onclick="location.href='chat.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      새 분석 시작
+      새 대화
     </button>
     <div class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-      <input placeholder="분석 검색">
+      <input placeholder="대화 검색">
     </div>
     <div class="side-scroll">
+      <a class="side-nav" onclick="location.href='new.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
+        공고 골라 분석
+      </a>
       <a class="side-nav" onclick="location.href='storage.html'">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         커리어 저장소
@@ -180,8 +184,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
         로드맵 저장소
       </a>
-      <div class="side-label">최근 분석</div>
-      <div id="recentList"><div class="side-empty">아직 분석이 없어요.<br>새 분석을 시작해보세요.</div></div>
+      <div class="side-label">최근 대화</div>
+      <div id="recentList"><div class="side-empty">아직 대화가 없어요.<br>무엇이든 말을 걸어보세요.</div></div>
     </div>
     <div class="userchip">
       <div class="av" id="sideAv">?</div>
@@ -195,7 +199,7 @@
     <div class="home-scroll">
       <div class="home-inner">
         <div class="home-badge">✦ AI CAREER AGENT</div>
-        <h1 class="home-hi">안녕하세요, <span class="hl" id="hiName"></span>님</h1>
+        <h1 class="home-hi">안녕하세요, <span class="hl" id="hiName">박준영</span>님</h1>
         <p class="home-sub">가고 싶은 공고를 고르면, 내 자료와 대조해서 <b>지금 무엇을 준비해야 할지</b><br>대화로 알려드릴게요.</p>
 
         <div id="repRoadmap" class="home-rep" style="display:none"></div>
@@ -222,11 +226,11 @@
         </div>
 
         <form class="home-composer" id="quickForm">
-          <span style="color:var(--muted)"><i class="i i-bulb"></i></span>
-          <input id="quickInput" placeholder="JOBIS에게 물어보기 — 무엇이든 물어보거나, 공고를 붙여넣으세요" aria-label="JOBIS에게 물어보기">
-          <button class="go" type="submit">보내기 →</button>
+          <span style="color:var(--muted)"><i class="i i-link"></i></span>
+          <input id="quickInput" placeholder="공고를 붙여넣거나, 무엇을 준비하고 싶은지 적어보세요…" aria-label="공고 붙여넣기 또는 대화로 시작">
+          <button class="go" type="submit">시작 →</button>
         </form>
-        <div class="home-hint">질문이면 바로 답해드리고, 공고 URL·원문이면 분석 화면으로 이어져요</div>
+        <div class="home-hint">무엇을 넣든 대화로 시작해요 — 공고면 그 대화 안에서 바로 분석해요</div>
       </div>
     </div>
   </main>
@@ -246,8 +250,8 @@
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-  // 최근 분석 목록
-  JB.loadSessions(document.getElementById('recentList'));
+  // 최근 대화 목록
+  JB.loadConversations(document.getElementById('recentList'));
 
   // 대표 로드맵 — 지정돼 있으면 홈에 크게 보여준다("저장→저장소→대표→홈"의 종착점)
   JB.api('/api/roadmaps').then(function(list){
@@ -265,35 +269,20 @@
         (rep.goalLabel?'<span class="rep-b goal">↳ '+esc(rep.goalLabel)+'에서</span>':'') + '</div>' +
       (steps?'<div class="rep-steps">'+steps+'</div>':'') +
       '<div class="rep-acts">' +
-        '<a class="pri" href="roadmap.html?id='+encodeURIComponent(rep.analysisId)+'&route='+encodeURIComponent(rep.routeId)+'">로드맵 열기 →</a>' +
+        '<a class="pri" href="'+JB.roadmapHref(rm, rep.analysisId, rep.routeId)+'">'+(rm.staged ? '단계별로 진행 →' : '로드맵 열기 →')+'</a>' +
         '<a class="line" href="roadmaps.html">로드맵 저장소</a>' +
       '</div>';
     box.style.display = '';
   }).catch(function(){});
 
-  /**
-   * 입력이 "공고"인지 "질문"인지 가른다.
-   * 공고면 분석 화면(new.html)으로, 질문이면 대화 화면(ask.html)으로 보낸다.
-   * 판단은 보수적으로 — URL 이거나, 길고 공고 특유의 표지어가 있을 때만 공고로 본다.
-   * (애매하면 질문으로 보낸다. 대화에서 "이 공고 분석해줘"로 이어갈 수 있으니 되돌리기 쉽다.)
-   */
-  var JOB_MARKERS = /(자격\s*요건|지원\s*자격|우대\s*사항|담당\s*업무|주요\s*업무|모집\s*부문|직무\s*내용|채용)/;
-  function looksLikeJobPosting(v){
-    if (/^https?:\/\//i.test(v)) return true;
-    return v.length >= 200 && JOB_MARKERS.test(v);
-  }
-
+  /* 무엇을 넣든 새 대화로 시작한다 — 공고든 질문이든 대화 안에서 이어진다.
+     (공고면 대화가 곧바로 "이 공고로 분석 시작"을 제안한다) */
   document.getElementById('quickForm').addEventListener('submit', function(e){
     e.preventDefault();
     var v = document.getElementById('quickInput').value.trim();
     if (!v) return;
-    if (looksLikeJobPosting(v)){
-      try { sessionStorage.setItem('jobis.quickJob', v); } catch(_){}
-      location.href = 'new.html';
-    } else {
-      try { sessionStorage.setItem('jobis.firstAsk', v); } catch(_){}
-      location.href = 'ask.html';
-    }
+    try { sessionStorage.setItem('jobis.chatSeed', v); } catch(_){}
+    location.href = 'chat.html';
   });
 })();
 </script>

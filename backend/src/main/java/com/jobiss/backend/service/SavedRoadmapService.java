@@ -9,6 +9,7 @@ import com.jobiss.backend.dto.roadmap.GenerateRoadmapRequest;
 import com.jobiss.backend.dto.roadmap.ReassessRequest;
 import com.jobiss.backend.dto.roadmap.RoadmapDetailResponse;
 import com.jobiss.backend.dto.roadmap.SavedRoadmapResponse;
+import com.jobiss.backend.dto.roadmap.StageDetailResponse;
 import com.jobiss.backend.dto.roadmap.StepProgressResponse;
 import com.jobiss.backend.exception.ApiException;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,8 +66,15 @@ public class SavedRoadmapService {
         }
         // 1) 읽기 트랜잭션: 소유권 확인 + AI 호출 맥락
         RoadmapTxService.RoadmapContext ctx = txService.load(userId, req.analysisId(), req.routeId());
-        // 2) 트랜잭션 밖: 가짜 AI 로드맵 생성
-        String roadmapJson = callAgentRoadmap(ctx.company(), ctx.role(), ctx.routeKind(), ctx.goalCompany());
+        // 2) 트랜잭션 밖: 가짜 AI 로드맵 생성.
+        //    보강 경로(reinforce) = 단계형(staged) 개요(상세는 열람 시 lazy). 즉시 지원(as_is) = 기존 평면 로드맵.
+        String roadmapJson;
+        if ("reinforce".equals(req.routeId())) {
+            RoadmapTxService.StagedContext sc = txService.loadStaged(userId, req.analysisId());
+            roadmapJson = callAgentRoadmapStages(assembleStagedInput(sc));
+        } else {
+            roadmapJson = callAgentRoadmap(ctx.company(), ctx.role(), ctx.routeKind(), ctx.goalCompany());
+        }
         // 3) 쓰기 트랜잭션: 저장(같은 조합이면 교체)
         SavedRoadmap saved = txService.upsert(userId, req.analysisId(), req.routeId(), ctx.goalLabel(), roadmapJson);
         return toResponse(saved);
@@ -84,6 +92,38 @@ public class SavedRoadmapService {
                 .map(SavedRoadmapService::toProgressResponse).toList();
         return new RoadmapDetailResponse(s.getId(), s.getAnalysisId(), s.getRouteId(),
                 s.getGoalLabel(), s.getRoadmapJson(), s.isRepresentative(), progress);
+    }
+
+    /**
+     * 단계형 로드맵의 한 단계 상세(레슨·예제·결과물·시험) — 그 단계를 열 때 호출.
+     * 캐시(roadmap_stage_details)에 있으면 즉시, 없으면 개요에서 goal+stage 뽑아 가짜 AI 생성 후 캐시.
+     */
+    public StageDetailResponse stageDetail(Long userId, String analysisId, String routeId, int stageNo) {
+        SavedRoadmap saved = txService.findOne(userId, analysisId, routeId);   // 소유권 확인 + 개요 로드
+        var cached = txService.findDetail(saved.getId(), stageNo);
+        if (cached.isPresent()) {
+            return new StageDetailResponse(stageNo, cached.get().getDetailJson());
+        }
+        JsonNode outline;
+        try {
+            outline = om.readTree(saved.getRoadmapJson());
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "ROADMAP_PARSE_FAILED", "저장된 로드맵을 해석하지 못했어요.");
+        }
+        JsonNode goal = outline.path("goal");
+        JsonNode stage = null;
+        JsonNode stages = outline.path("stages");
+        if (stages.isArray()) {
+            for (JsonNode s : stages) {
+                if (s.path("no").asInt(-1) == stageNo) { stage = s; break; }
+            }
+        }
+        if (stage == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "STAGE_NOT_FOUND", "로드맵에 해당 단계가 없어요.");
+        }
+        String detailJson = callAgentStageDetail(goal, stage);   // 트랜잭션 밖: 느린 AI 호출
+        txService.saveDetail(saved.getId(), stageNo, detailJson);
+        return new StageDetailResponse(stageNo, detailJson);
     }
 
     /**
@@ -135,7 +175,7 @@ public class SavedRoadmapService {
         } catch (Exception ignore) {
             // 맥락 파싱 실패해도 질문은 가능(가짜 AI가 일반 답변)
         }
-        return new AskResponse(callAgentAsk(userId, req.routeId(), company, topGap, req.question()));
+        return new AskResponse(callAgentAsk(req.routeId(), company, topGap, req.question()));
     }
 
     private static SavedRoadmapResponse toResponse(SavedRoadmap s) {
@@ -154,7 +194,7 @@ public class SavedRoadmapService {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(agentHttpUrl + "/roadmap"))
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(150))   // 진짜 Claude 호출이라 길게
                     .header("Content-Type", "application/json; charset=utf-8")
                     .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(body), StandardCharsets.UTF_8))
                     .build();
@@ -172,6 +212,85 @@ public class SavedRoadmapService {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_UNREACHABLE",
                     "AI 서버에 연결하지 못했어요. (가짜 AI 서버가 켜져 있나요?)");
         }
+    }
+
+    /** 가짜 AI HTTP /roadmap-stages 호출 → 단계형 개요 JSON(그대로 저장). */
+    private String callAgentRoadmapStages(Map<String, Object> input) {
+        return postAgent("/roadmap-stages", input, 90, "AI_STAGED_FAILED", "AI 단계형 로드맵 생성 실패");
+    }
+
+    /** 가짜 AI HTTP /roadmap-stage-detail 호출 → 단계 상세 JSON. (뼈대+레슨상세라 길게 대기) */
+    private String callAgentStageDetail(JsonNode goal, JsonNode stage) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("goal", goal);
+        body.put("stage", stage);
+        return postAgent("/roadmap-stage-detail", body, 260, "AI_STAGE_DETAIL_FAILED", "AI 단계 상세 생성 실패");
+    }
+
+    /** 공통 POST(가짜 AI). timeoutSec 만큼 대기 — 진짜 Claude 호출이라 길다. */
+    private String postAgent(String path, Object body, int timeoutSec, String failCode, String failMsg) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(agentHttpUrl + path))
+                    .timeout(Duration.ofSeconds(timeoutSec))
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() / 100 != 2) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, failCode, failMsg + "(" + response.statusCode() + ")");
+            }
+            return response.body();
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "AI_UNREACHABLE",
+                    "AI 서버에 연결하지 못했어요. (가짜 AI 서버가 켜져 있나요?)");
+        }
+    }
+
+    /** 분석 결과(격차·판정)에서 staged 개요 입력을 조립한다. gap.requirement 가 곧 공고 요건. */
+    private Map<String, Object> assembleStagedInput(RoadmapTxService.StagedContext sc) {
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("company", sc.company() == null ? "" : sc.company());
+        input.put("role", sc.role() == null ? "" : sc.role());
+        List<Map<String, Object>> gaps = new java.util.ArrayList<>();
+        List<Map<String, Object>> requirements = new java.util.ArrayList<>();
+        String userState = "";
+        try {
+            JsonNode root = om.readTree(sc.resultJson() == null ? "{}" : sc.resultJson());
+            userState = root.path("readiness").path("judge")
+                    .asString(root.path("decision").path("headline").asString(""));
+            JsonNode gapsNode = root.path("gaps");
+            if (gapsNode.isArray()) {
+                for (JsonNode g : gapsNode) {
+                    String requirement = g.path("requirement").asString("");
+                    if (requirement.isBlank()) continue;
+                    Map<String, Object> gap = new LinkedHashMap<>();
+                    gap.put("requirement", requirement);
+                    gap.put("mark", g.path("mark").asString(""));
+                    gap.put("fix", g.path("fix").asString(g.path("evidence").asString("")));
+                    gaps.add(gap);
+                    Map<String, Object> reqm = new LinkedHashMap<>();
+                    reqm.put("type", requirement.startsWith("우대") ? "우대" : "필수");
+                    reqm.put("quote", requirement);
+                    requirements.add(reqm);
+                }
+            }
+        } catch (Exception ignore) {
+            // 결과 파싱 실패해도 개요는 회사·직무만으로 생성 가능(가짜 AI가 기본값 처리)
+        }
+        // 지망 트랙(현재 미포착) — 직무·요건 텍스트로 가볍게 추정.
+        String hay = (sc.role() == null ? "" : sc.role()) + " " + requirements;
+        String track = "";
+        if (hay.matches("(?s).*(백엔드|Spring|Java|서버|API).*")) track = "Java/Spring 백엔드 중심";
+        else if (hay.matches("(?s).*(프론트|React|Next|Vue|CSS).*")) track = "프론트엔드 중심";
+        input.put("track", track);
+        input.put("requirements", requirements);
+        input.put("gaps", gaps);
+        input.put("userState", userState);
+        return input;
     }
 
     /** 저장된 로드맵 JSON에서 stepNo 스텝 노드를 찾는다(재진단 맥락). */
@@ -203,7 +322,7 @@ public class SavedRoadmapService {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(agentHttpUrl + "/reassess"))
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(150))   // 진짜 Claude 호출이라 길게
                     .header("Content-Type", "application/json; charset=utf-8")
                     .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(body), StandardCharsets.UTF_8))
                     .build();
@@ -223,17 +342,11 @@ public class SavedRoadmapService {
         }
     }
 
-    /**
-     * AI HTTP /roadmap-ask 호출 → 답변 텍스트.
-     * userId 를 함께 보내면 AI 가 그 사용자 세션(분석·로드맵 자산)을 맥락으로 삼아
-     * 오케스트레이터가 담당 에이전트를 고른다.
-     */
-    private String callAgentAsk(Long userId, String routeKind, String company, String topGap,
-                                String question) {
+    /** 가짜 AI HTTP /roadmap-ask 호출 → 답변 텍스트. */
+    private String callAgentAsk(String routeKind, String company, String topGap, String question) {
         String respBody;
         try {
             Map<String, Object> body = new LinkedHashMap<>();
-            body.put("userId", userId);
             body.put("routeKind", routeKind);
             body.put("company", company);
             body.put("topGap", topGap);
@@ -241,7 +354,7 @@ public class SavedRoadmapService {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(agentHttpUrl + "/roadmap-ask"))
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(150))   // 진짜 Claude 호출이라 길게
                     .header("Content-Type", "application/json; charset=utf-8")
                     .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(body), StandardCharsets.UTF_8))
                     .build();

@@ -28,15 +28,15 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
-        if (userRepository.existsByEmail(req.email())) {
+        String email = req.email().trim().toLowerCase();   // 소문자 정규화(Postgres 대소문자 구분 대비)
+        if (userRepository.existsByEmail(email)) {
             throw new ApiException(HttpStatus.CONFLICT, "EMAIL_TAKEN", "이미 사용 중인 이메일입니다.");
         }
         User user = User.builder()
-                .email(req.email())
+                .email(email)
                 .passwordHash(passwordEncoder.encode(req.password()))   // 절대 평문 저장 안 함
                 .name(req.name())
-                .completeness(0)
-                .build();
+                .build();                                                // status 는 기본 ACTIVE
         userRepository.save(user);
         String token = tokenProvider.createToken(user.getId());
         return new AuthResponse(token, UserResponse.from(user));
@@ -44,7 +44,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
-        User user = userRepository.findByEmail(req.email())
+        User user = userRepository.findByEmail(req.email().trim().toLowerCase())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
                         "이메일 또는 비밀번호가 올바르지 않습니다."));
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {

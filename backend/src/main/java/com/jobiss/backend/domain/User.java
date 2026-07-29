@@ -38,14 +38,13 @@ public class User {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "job_title", length = 100)
-    private String jobTitle;
-
-    @Column(length = 50)
+    /** 계정 상태: ACTIVE | WITHDRAWN | SUSPENDED */
+    @Column(nullable = false, length = 20)
     private String status;
 
-    @Column(nullable = false)
-    private int completeness;
+    /** 탈퇴 시각(soft delete). null이면 활성. */
+    @Column(name = "withdrawn_at")
+    private LocalDateTime withdrawnAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -56,12 +55,16 @@ public class User {
     private LocalDateTime updatedAt;
 
     @Builder
-    private User(String email, String passwordHash, String name, String jobTitle, String status, int completeness) {
+    private User(String email, String passwordHash, String name, String status) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.name = name;
-        this.jobTitle = jobTitle;
-        this.status = status;
-        this.completeness = completeness;
+        this.status = (status == null || status.isBlank()) ? "ACTIVE" : status;
+    }
+
+    /** 탈퇴(soft delete) — 로그인 차단 + 탈퇴 시각 기록. 개인정보 파기는 별도 배치. */
+    public void withdraw() {
+        this.status = "WITHDRAWN";
+        this.withdrawnAt = LocalDateTime.now();
     }
 }
