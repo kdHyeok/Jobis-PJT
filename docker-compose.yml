@@ -1,0 +1,50 @@
+# JOBIS 전체 스택 — 로컬 개발/검증용 (선택사항)
+#
+#   docker compose up -d --build
+#   → http://localhost:8080/login.html
+#
+# 운영 서버와 포트가 겹칠 때는:  BACKEND_PORT=18080 FAKE_AI_PORT=18000 docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: jobiss
+      POSTGRES_USER: jobis
+      POSTGRES_PASSWORD: dev-only-password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobis -d jobiss"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  fake-ai:
+    build: ./fake-ai
+    environment:
+      LLM_DISABLED: "1"          # 로컬 기본: 실제 LLM 호출 없음 (큐레이팅 시나리오만)
+    ports:
+      - "${FAKE_AI_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      fake-ai:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/jobiss
+      DB_USERNAME: jobis
+      DB_PASSWORD: dev-only-password
+      JWT_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      AGENT_WS_URL: ws://fake-ai:8000
+      AGENT_HTTP_URL: http://fake-ai:8000
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

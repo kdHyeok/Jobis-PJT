@@ -94,6 +94,32 @@ pipeline {
       }
     }
 
+    // 도커 전환 2단계: 배포 이미지를 CI에서 빌드해 쌓아둔다 (ops/DOCKER.md 참고).
+    // Jenkins가 호스트 도커 데몬을 쓰므로(DooD) 빌드된 이미지는 곧바로 배포 서버에 존재한다.
+    // 아직 컨테이너로 서비스하지는 않는다 — 기존 jar/systemd 배포(아래 스테이지)와 병행.
+    stage('Docker images: build') {
+      when { branch 'master' }
+      agent any
+      steps {
+        sh '''
+          docker build -t "jobis-backend:$GIT_COMMIT" backend
+          docker build -t "jobis-fake-ai:$GIT_COMMIT" fake-ai
+
+          # 오래된 이미지 태그 정리: 최근 3개만 유지.
+          # 내용이 같은 이미지는 CreatedAt이 동일해 정렬이 태그 문자열로 갈리므로,
+          # 방금 빌드한 $GIT_COMMIT 태그는 나이와 무관하게 절대 지우지 않는다 (deploy-jobis의 링크 보호와 동일한 원칙)
+          for img in jobis-backend jobis-fake-ai; do
+            docker images --format '{{.CreatedAt}}\t{{.Tag}}' "$img" \
+              | grep -v '<none>' | sort -r | awk -F'\t' 'NR>3{print $2}' \
+              | while read -r tag; do
+                  [ "$tag" = "$GIT_COMMIT" ] && continue
+                  docker image rm "$img:$tag" || true
+                done
+          done
+        '''
+      }
+    }
+
     stage('Deploy production') {
       when { branch 'master' }
       agent any
