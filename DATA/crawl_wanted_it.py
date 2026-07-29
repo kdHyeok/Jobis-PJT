@@ -50,6 +50,11 @@ FIELDS = (
 
 DETAIL_SECTIONS = ("주요업무", "담당업무")
 QUALIFICATION_SECTIONS = ("자격요건", "지원자격")
+# 실측(2026-07-30): need_ocr=O 11건 중 10건이 담당업무·자격요건 라벨을 모두 갖췄는데도
+# 300자 미만이라는 이유만으로 탈락해 있었다(실제 길이 117~282자, 전부 완결된 내용).
+# 라벨 존재가 글자수보다 신뢰도 높은 완결성 신호이므로 기준을 낮춘다. 라벨 없이 짧은
+# 경우(예: 117자)는 여전히 걸러진다.
+MIN_TEXT_LENGTH = 100
 
 
 def get(url: str) -> str:
@@ -67,10 +72,14 @@ def job_text_and_metadata(raw: str) -> tuple[str, dict[str, str | None]]:
     text = raw[start + len("포지션 상세") :] if start >= 0 else raw
 
     # 공고 본문 뒤에 붙는 기술 스택·태그·지원 안내와 법적 고지는 저장하지 않는다.
-    cutoffs = [text.find(marker) for marker in ("상세 정보 더 보기", "유의사항", "주의사항")]
-    cutoffs = [position for position in cutoffs if position >= 0]
-    if cutoffs:
-        text = text[: min(cutoffs)]
+    # 실측(2026-07-30): "유의사항"/"주의사항"은 "[지원 시 주의사항]"처럼 본문 안의
+    # 정당한 섹션 제목으로도 흔히 쓰여서, 그 위치에서 잘라버리면 뒤에 나오는 진짜
+    # 주요업무·자격요건·우대사항까지 통째로 날아간다(실제로 117자에서 끊겨 자격요건
+    # 이하가 전부 소실된 사례 확인). "상세 정보 더 보기"는 원티드가 상세 UI 뒤에
+    # 붙이는 고정 문구라 훨씬 신뢰할 수 있는 경계선이라 이것만 쓴다.
+    cutoff = text.find("상세 정보 더 보기")
+    if cutoff >= 0:
+        text = text[:cutoff]
 
     text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
     deadline_match = re.search(r"마감일\s*(상시채용|\d{4}\.\d{2}\.\d{2})", raw)
@@ -114,11 +123,13 @@ def record(item: dict) -> tuple[dict | None, dict | None]:
         "collected_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     if (
-        len(detail_text) >= 300
+        len(detail_text) >= MIN_TEXT_LENGTH
         and any(value in compact for value in DETAIL_SECTIONS)
         and any(value in compact for value in QUALIFICATION_SECTIONS)
     ):
         return {**base, "detail_text": detail_text, "image_urls": [], "need_ocr": "X"}, None
+    # 라벨이 없거나 100자 미만이라 위에서 못 건진 경우, 여전히 300자 미만이면 OCR 대상으로
+    # 남겨 이미지에서라도 건질 기회를 준다(기준을 낮추기 전과 동일한 안전망 — 새 데이터 손실 없음).
     image_urls = detail_image_urls(page, url)
     if image_urls and len(detail_text) < 300:
         return None, {**base, "detail_text": "", "image_urls": image_urls, "need_ocr": "O"}

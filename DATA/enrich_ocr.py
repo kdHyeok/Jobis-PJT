@@ -23,8 +23,11 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import ssl
 import time
 from pathlib import Path
+from urllib.error import URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from crawl_jobkorea_it import (
@@ -123,6 +126,8 @@ def get_engine(use_gpu: bool, prefer: str = "auto"):
             print("[ocr] PaddleOCR 모델 로딩 중... (처음엔 모델 다운로드로 시간이 걸립니다)", flush=True)
             # 모델명을 지정하면 lang이 무시되므로 검출·인식 모델을 모두 한국어용으로 명시.
             # enable_mkldnn=False: paddlepaddle 3.x CPU(oneDNN) 버그 회피.
+            # cpu_threads 제한: 전체 코어를 다 물면 장시간 풀로드로 WSL이 불안정해질 수
+            # 있어(실측: 연속 세션 끊김), 시스템에 여유를 남긴다. 속도 손해는 소폭.
             ocr = PaddleOCR(
                 use_doc_orientation_classify=False,
                 use_doc_unwarping=False,
@@ -130,6 +135,7 @@ def get_engine(use_gpu: bool, prefer: str = "auto"):
                 text_detection_model_name="PP-OCRv5_mobile_det",
                 text_recognition_model_name="korean_PP-OCRv5_mobile_rec",
                 enable_mkldnn=False,
+                cpu_threads=6,
             )
             # CPU 환경에 따라 추론 단계에서 죽는 버그가 있어 예열로 미리 확인한다.
             ocr.predict(np.full((64, 256, 3), 255, dtype=np.uint8))
@@ -155,22 +161,53 @@ def get_engine(use_gpu: bool, prefer: str = "auto"):
     return _engine
 
 
+PADDLE_MIN_SCORE = 0.6  # ocr_eval/run_experiment.py V4 실험 챔피언 값(30표본 검증 완료, V1 대비 CER 전 지표 개선)
+
+# 참고(2026-07-29): 팀원의 "한국어+영어 이중 인식" 아이디어를 우리 방식대로 시도해봤으나
+# (라틴 비율 높은 줄만 영어 전용 모델로 재확인), 사고 없이 안전하게 만들면 트리거가
+# 거의 안 걸려 효과가 오차범위 안이었다(회귀 4건 실측: 15.18% -> 15.31%, 개선 없음).
+# 반대로 기준을 느슨히 하면 한글+영어 혼합 줄까지 건드려 이미 잘 읽은 한글을 지워버려
+# 오히려 악화됐다(22.94%). 실익 없이 매 공고 추가 추론 비용만 늘어 채택하지 않았다.
+
+
 def read_chunk(chunk, use_gpu: bool, prefer: str) -> list[str]:
     """이미지 조각 하나를 현재 엔진으로 읽어 줄 단위 텍스트를 돌려준다."""
     kind, engine = get_engine(use_gpu, prefer)
     if kind == "paddle":
         texts: list[str] = []
         for res in engine.predict(chunk):
-            texts.extend(str(t) for t in res["rec_texts"])
+            rec_texts = res["rec_texts"]
+            rec_scores = res.get("rec_scores") or [1.0] * len(rec_texts)
+            # 확신도 낮은 인식(아이콘·장식을 글자로 오인)은 버린다 — 잡음 삽입 감소.
+            texts.extend(
+                str(t) for t, score in zip(rec_texts, rec_scores) if score >= PADDLE_MIN_SCORE
+            )
         return texts
     # EasyOCR. paragraph=True: 가까운 글자를 문단으로 묶어 읽기 순서를 살린다.
     return [str(t) for t in engine.readtext(chunk, detail=0, paragraph=True)]
 
 
 def fetch_bytes(url: str, referer: str = "https://www.jobkorea.co.kr/", timeout: int = 40) -> bytes:
+    # 실측(2026-07-30): 공백·한글이 URL에 그대로 들어있는 이미지 링크(회사가 파일명에
+    # 원문 그대로 올린 경우, 예: ".../2_Sol_del_Devops Engineer_260624_예서_.png",
+    # ".../채용공고_기업부설연구소_개발자.png")가 InvalidURL/UnicodeEncodeError로 실패했다.
+    # safe에 이미 인코딩된 문자(:/?&=%)는 이중 인코딩되지 않게 남겨둔다.
+    url = quote(url, safe=":/?&=%")
     request = Request(url, headers={"User-Agent": USER_AGENT, "Referer": referer})
-    with urlopen(request, timeout=timeout) as response:
-        return response.read()
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.read()
+    except URLError as exc:
+        # 실측(2026-07-30): 오래된 회사 자체 호스팅 서버(예: old.crea-m.com, 원본 HTML에
+        # https로 박혀있음)가 HTTPS 인증서만 깨져 있고 HTTP는 정상 응답하는 경우가 있다
+        # ("서버가 죽었다"로 오판하기 쉬우나 실제로는 살아있음). https 요청이 인증서
+        # 오류로 실패하면 같은 URL을 http로 한 번만 재시도한다.
+        if url.startswith("https://") and isinstance(exc.reason, ssl.SSLCertVerificationError):
+            http_url = "http://" + url[len("https://"):]
+            http_request = Request(http_url, headers={"User-Agent": USER_AGENT, "Referer": referer})
+            with urlopen(http_request, timeout=timeout) as response:
+                return response.read()
+        raise
 
 
 def decode_image(data: bytes):
@@ -338,7 +375,11 @@ def main() -> int:
     parser.add_argument("--delay", type=float, default=0.5, help="이미지 요청 간격(초)")
     parser.add_argument("--checkpoint-every", type=int, default=10,
                         help="이 수만큼 채택될 때마다 중간 저장")
-    parser.add_argument("--min-chars", type=int, default=400,
+    # 실측(2026-07-30): work24 공고 하나가 담당업무·자격요건·우대사항·복리후생까지
+    # 다 있고 신호단어 10개(기준 3개)를 넉넉히 통과했는데도, 공백제거 393자가 400자
+    # 문턱을 못 넘어 탈락했다. 신호단어 개수가 이미 충분히 신뢰할 수 있는 완결성
+    # 판단 기준이라, 글자수 문턱은 여유를 두어 낮춘다.
+    parser.add_argument("--min-chars", type=int, default=350,
                         help="OCR 결과 채택 최소 글자 수(공백 제외)")
     parser.add_argument("--slice-height", type=int, default=2000,
                         help="이보다 세로가 길면 잘라서 OCR")
@@ -408,6 +449,8 @@ def main() -> int:
             failed.add(pid)
             print(f"[ocr] {tried}/{len(targets)} pid={pid} status=error error={type(exc).__name__}",
                   flush=True)
+        # 하루 중 언제든 중단될 수 있어, 실패 목록도 매 건마다 저장한다(재시작 시 중복 재시도 방지).
+        save_failed(sidecar, failed)
 
     save(rows, out_json, out_db)
     save_failed(sidecar, failed)
