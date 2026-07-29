@@ -172,4 +172,28 @@ fi
 rm -f -- "$UPLOADED_BACKEND" "$UPLOADED_FAKE_AI"
 trap - ERR
 
+# ── 오래된 릴리스 자동 정리: 최근 KEEP_RELEASES개만 유지 ──
+# 안전장치: 현재 심볼릭 링크가 가리키는 릴리스는 나이와 무관하게 절대 지우지 않는다
+# (롤백 상태에서 링크가 옛 릴리스를 가리키고 있어도 운영 파일이 삭제되지 않도록)
+readonly KEEP_RELEASES=3
+cleanup_old_releases() {
+  local active_backend active_fake_ai name
+  active_backend="$(readlink -f "$BACKEND_CURRENT" 2>/dev/null || true)"
+  active_fake_ai="$(readlink -f "$FAKE_AI_CURRENT" 2>/dev/null || true)"
+
+  ls -1t "$BACKEND_RELEASE_DIR" 2>/dev/null | tail -n +$((KEEP_RELEASES + 1)) | while read -r name; do
+    [[ "$BACKEND_RELEASE_DIR/$name" == "$active_backend" ]] && continue
+    rm -f -- "$BACKEND_RELEASE_DIR/$name"
+    echo "  cleaned old backend release: $name"
+  done
+
+  ls -1t "$FAKE_AI_RELEASE_DIR" 2>/dev/null | tail -n +$((KEEP_RELEASES + 1)) | while read -r name; do
+    [[ "$FAKE_AI_RELEASE_DIR/$name" == "$active_fake_ai" ]] && continue
+    rm -rf -- "$FAKE_AI_RELEASE_DIR/$name"
+    echo "  cleaned old fake-ai release: $name"
+  done
+}
+# 정리 실패가 배포 성공 판정을 바꾸면 안 되므로 오류는 무시한다
+cleanup_old_releases || echo "release cleanup skipped (non-fatal)" >&2
+
 echo "Deployment completed successfully: $RELEASE_SHA"
