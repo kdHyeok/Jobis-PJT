@@ -4,8 +4,9 @@
 //   master push(병합)   : CI 통과 후 운영 서버 자동 배포
 //
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
-// 필요 플러그인: Docker Pipeline, SSH Agent, JUnit
-// 필요 Jenkins 설정: DEPLOY_HOST 전역 환경변수, 'jobis-deploy-ssh' SSH 자격증명
+// 필요 플러그인: Docker Pipeline, SSH Agent, JUnit, GitLab
+// 필요 Jenkins 설정: DEPLOY_HOST 전역 환경변수, 'jobis-deploy-ssh' SSH 자격증명,
+//                    GitLab 연결 'ssafy-gitlab' (Manage Jenkins → System → GitLab)
 
 pipeline {
   agent none
@@ -13,6 +14,7 @@ pipeline {
   options {
     disableConcurrentBuilds()
     timeout(time: 30, unit: 'MINUTES')
+    gitLabConnection('ssafy-gitlab')   // 빌드 상태를 GitLab 커밋/MR에 보고
   }
 
   stages {
@@ -20,6 +22,7 @@ pipeline {
     stage('Backend: test & package') {
       agent any
       steps {
+        updateGitlabCommitStatus name: 'jenkins', state: 'running'
         script {
           docker.image('mysql:8.0').withRun(
             '-e MYSQL_DATABASE=jobiss ' +
@@ -106,5 +109,11 @@ pipeline {
         }
       }
     }
+  }
+
+  post {
+    success  { updateGitlabCommitStatus name: 'jenkins', state: 'success' }
+    failure  { updateGitlabCommitStatus name: 'jenkins', state: 'failed' }
+    aborted  { updateGitlabCommitStatus name: 'jenkins', state: 'canceled' }
   }
 }
