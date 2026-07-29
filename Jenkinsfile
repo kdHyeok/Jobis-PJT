@@ -94,6 +94,14 @@ pipeline {
       }
     }
 
+    stage('RAG: static validation') {
+      agent {
+        docker { image 'python:3.11-slim' }
+      }
+      steps {
+        sh '''
+          python -m compileall -q RAG
+          python -m unittest discover -s RAG/tests -v
     // 도커 전환 2단계: 배포 이미지를 CI에서 빌드해 쌓아둔다 (ops/DOCKER.md 참고).
     // Jenkins가 호스트 도커 데몬을 쓰므로(DooD) 빌드된 이미지는 곧바로 배포 서버에 존재한다.
     // 아직 컨테이너로 서비스하지는 않는다 — 기존 jar/systemd 배포(아래 스테이지)와 병행.

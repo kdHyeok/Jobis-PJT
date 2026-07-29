@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>jobrag 데이터 탐색기</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:  #fcfcfb;
+    --page:       #f9f9f7;
+    --text-1:     #0b0b0b;
+    --text-2:     #52514e;
+    --text-muted: #898781;
+    --grid:       #e1e0d9;
+    --axis:       #c3c2b7;
+    --border:     rgba(11,11,11,0.10);
+    --series-1:   #2a78d6;
+    --warn:       #fab219;
+    --crit:       #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d; --text-1: #ffffff; --text-2: #c3c2b7;
+      --text-muted: #898781; --grid: #2c2c2a; --axis: #383835;
+      --border: rgba(255,255,255,0.10); --series-1: #3987e5;
+      --warn: #fab219; --crit: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --page: #0d0d0d; --text-1: #ffffff; --text-2: #c3c2b7;
+    --text-muted: #898781; --grid: #2c2c2a; --axis: #383835;
+    --border: rgba(255,255,255,0.10); --series-1: #3987e5;
+    --warn: #fab219; --crit: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    background: var(--page); color: var(--text-1);
+    margin: 0; padding: 24px; font-size: 14px;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--text-2); font-size: 13px; margin-bottom: 20px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin-bottom: 20px; }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .tile .v { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .l { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tile.warn .v { color: var(--warn); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: var(--text-1); }
+
+  .bar-row { display: flex; align-items: center; height: 22px; margin-bottom: 4px; position: relative; }
+  .bar-label { width: 110px; flex-shrink: 0; font-size: 12px; color: var(--text-2);
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; }
+  .bar-track { flex: 1; height: 12px; position: relative; }
+  .bar-fill { height: 12px; border-radius: 4px; background: var(--series-1); transition: opacity .1s; }
+  .bar-fill:hover { opacity: 0.75; cursor: default; }
+  .bar-value { font-size: 11px; color: var(--text-muted); margin-left: 8px; width: 34px;
+               font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .tooltip {
+    position: absolute; background: var(--text-1); color: var(--surface-1);
+    font-size: 11px; padding: 3px 7px; border-radius: 4px; pointer-events: none;
+    white-space: nowrap; z-index: 10; opacity: 0; transition: opacity .1s;
+  }
+
+  #filter { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+            background: var(--surface-1); color: var(--text-1); font-size: 13px; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 6px 8px;
+       border-bottom: 1px solid var(--grid); position: sticky; top: 0; background: var(--surface-1); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  tr:hover td { background: var(--page); }
+  .pill { display: inline-block; background: var(--page); border: 1px solid var(--border);
+          border-radius: 4px; padding: 1px 6px; margin: 1px; font-size: 11px; color: var(--text-2); }
+  .flag { color: var(--crit); font-weight: 600; }
+  .tablewrap { max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  a { color: var(--series-1); }
+  .count { color: var(--text-muted); font-size: 12px; margin: 8px 0; }
+</style>
+</head>
+<body>
+  <h1>jobrag 데이터 탐색기</h1>
+  <div class="sub">현재 인덱스된 공고 분포 — 검색 결과가 왜 그렇게 나오는지(데이터가 있는지/없는지) 확인용</div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid">
+    <div class="card"><h2>기술 스택 상위 15</h2><div id="chart-tech"></div></div>
+    <div class="card"><h2>지역(시도) 분포</h2><div id="chart-region"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card"><h2>경력 구간 분포</h2><div id="chart-exp"></div></div>
+    <div class="card"><h2>소스별 건수</h2><div id="chart-source"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>전체 공고 (회사·기술·지역·경력으로 필터)</h2>
+    <input id="filter" placeholder="예: React, 서울, 신입, 무한정보기술 ..." />
+    <div class="count" id="count"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>회사</th><th>제목</th><th>소스</th><th>지역</th><th>경력</th><th>기술</th><th>상태</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+function tile(v, l, warn) {
+  const d = document.createElement('div');
+  d.className = 'tile' + (warn ? ' warn' : '');
+  d.innerHTML = `<div class="v">${v}</div><div class="l">${l}</div>`;
+  return d;
+}
+
+function barChart(container, data, opts) {
+  opts = opts || {};
+  const max = Math.max(...data.map(d => d.count), 1);
+  container.innerHTML = '';
+  data.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    const pct = (d.count / max * 100).toFixed(1);
+    row.innerHTML = `
+      <div class="bar-label" title="${escapeHtml(d.label)}">${escapeHtml(d.label)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div class="bar-value">${d.count}</div>`;
+    container.appendChild(row);
+  });
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML;
+}
+
+let ALL_POSTINGS = [];
+
+function renderTable(filter) {
+  const f = (filter || '').trim().toLowerCase();
+  const rows = ALL_POSTINGS.filter(p => {
+    if (!f) return true;
+    const hay = [p.company, p.title, ...(p.regions||[]), ...(p.tech||[]),
+                 p.exp_min === null ? '경력무관' : (p.exp_min === 0 ? '신입' : p.exp_min+'년')]
+      .join(' ').toLowerCase();
+    return hay.includes(f);
+  });
+  document.getElementById('count').textContent = `${rows.length} / ${ALL_POSTINGS.length}건`;
+  document.getElementById('tbody').innerHTML = rows.map(p => {
+    const exp = p.exp_min === null ? '무관' : (p.exp_min === 0 ? '신입' : p.exp_min + '년+');
+    const loc = (p.regions||[]).filter(r => r.includes(' ')).slice(0,2).join(', ')
+              || (p.regions||[])[0] || '<span class="flag">미상</span>';
+    const tech = (p.tech||[]).slice(0,6).map(t => `<span class="pill">${escapeHtml(t)}</span>`).join('');
+    const status = !p.is_active ? '<span class="flag">비활성</span>'
+                 : p.needs_review ? '<span class="flag">검토필요</span>' : '정상';
+    return `<tr>
+      <td>${escapeHtml(p.company)}</td>
+      <td><a href="${p.url}" target="_blank" rel="noopener">${escapeHtml((p.title||'').slice(0,40))}</a></td>
+      <td>${escapeHtml(p.source)}</td>
+      <td>${loc}</td>
+      <td>${exp}</td>
+      <td>${tech || '<span class="flag">없음</span>'}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function main() {
+  const [ov, postings] = await Promise.all([
+    fetch('/api/overview').then(r => r.json()),
+    fetch('/api/postings').then(r => r.json()),
+  ]);
+  ALL_POSTINGS = postings;
+
+  const tiles = document.getElementById('tiles');
+  tiles.appendChild(tile(ov.active, `활성 공고 (전체 ${ov.total})`));
+  tiles.appendChild(tile(ov.chunks, '청크 수'));
+  tiles.appendChild(tile(`${ov.embedded}/${ov.chunks}`, '임베딩 완료'));
+  tiles.appendChild(tile(`${ov.chunk_tokens_avg}`, `평균 청크 토큰 (최대 ${ov.chunk_tokens_max})`));
+  tiles.appendChild(tile(ov.no_tech, '기술 미상 공고', ov.no_tech > 0));
+  tiles.appendChild(tile(ov.no_region, '지역 미상 공고', ov.no_region > 0));
+  tiles.appendChild(tile(ov.needs_review, '검토 필요', ov.needs_review > 0));
+
+  barChart(document.getElementById('chart-tech'), ov.tech);
+  barChart(document.getElementById('chart-region'), ov.regions);
+  barChart(document.getElementById('chart-exp'), ov.exp);
+  barChart(document.getElementById('chart-source'), ov.sources);
+
+  renderTable('');
+  document.getElementById('filter').addEventListener('input', e => renderTable(e.target.value));
+}
+main();
+</script>
+</body>
+</html>

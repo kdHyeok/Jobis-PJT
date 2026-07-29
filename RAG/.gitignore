@@ -1,0 +1,7 @@
+.env
+.venv/
+.claude/settings.local.json
+__pycache__/
+*.pyc
+logs/
+chunks.jsonl

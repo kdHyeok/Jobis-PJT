@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>RagAdapter.search 테스트</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7; --text-1: #0b0b0b; --text-2: #52514e;
+    --text-muted: #898781; --border: rgba(11,11,11,0.10); --series-1: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d; --text-1: #fff; --text-2: #c3c2b7;
+      --text-muted: #898781; --border: rgba(255,255,255,0.10); --series-1: #3987e5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Malgun Gothic", sans-serif; max-width: 900px; margin: 40px auto; padding: 0 16px;
+         background: var(--page); color: var(--text-1); }
+  h1 { font-size: 20px; }
+  .note { color: var(--text-muted); font-size: 13px; margin: 0 0 20px; }
+  .role-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .role-row input[type=text] { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+                                background: var(--surface-1); color: var(--text-1); }
+  .role-row select { padding: 8px; border: 1px solid var(--border); border-radius: 6px;
+                      background: var(--surface-1); color: var(--text-1); }
+  .role-row button.rm { padding: 6px 10px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1);
+                         border-radius: 6px; cursor: pointer; }
+  #add-role, #go { margin-top: 8px; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  #add-role { background: var(--surface-1); color: var(--text-1); border: 1px solid var(--border); }
+  #go { background: var(--series-1); color: white; margin-left: 8px; }
+  #go:disabled { background: #999; cursor: default; }
+  .topk { display: flex; align-items: center; gap: 8px; margin: 14px 0; font-size: 13px; color: var(--text-2); }
+  .topk input { width: 60px; padding: 6px; border: 1px solid var(--border); border-radius: 6px;
+                background: var(--surface-1); color: var(--text-1); }
+  #meta { color: var(--text-2); font-size: 13px; margin: 16px 0 8px; }
+  #meta b { color: var(--text-1); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface-1); }
+  .card .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px;
+                 background: rgba(42,120,214,0.14); color: var(--series-1); margin-bottom: 6px; }
+  .card .title { font-weight: 600; font-size: 14px; }
+  .card .sub { color: var(--text-2); font-size: 12.5px; margin: 4px 0; }
+  .card .skills { color: var(--text-muted); font-size: 12px; }
+  .card .reason { color: var(--text-2); font-size: 12px; margin: 6px 0; border-top: 1px dashed var(--border); padding-top: 6px; }
+  .card .sim { font-family: monospace; color: var(--text-1); }
+  .card a { color: var(--series-1); font-size: 12px; }
+  .err { background: #fee; color: #a00; padding: 10px; border-radius: 6px; white-space: pre-wrap; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>RagAdapter.search 테스트</h1>
+<p class="note">find_alternatives 훅 — rag-alternative-search-io.md 계약대로 subRoles(1~6개) + top_k -&gt; 공고 리스트. 재순위(rerank)는 이 경로에서 항상 OFF.</p>
+
+<div id="roles"></div>
+<button id="add-role" type="button">+ subRole 추가</button>
+
+<div class="topk">
+  <label for="topk">top_k (직군당 개수)</label>
+  <input id="topk" type="number" value="3" min="1" max="10">
+  <button id="go">검색</button>
+</div>
+
+<div id="meta"></div>
+<div id="out"></div>
+
+<script>
+const ROLE_CATEGORIES = ["backend","frontend","fullstack","mobile","devops","sre",
+  "data_engineer","data_scientist","ml_engineer","data_analyst","qa","security"];
+
+const rolesEl = document.getElementById('roles');
+
+function addRow(query, role) {
+  const row = document.createElement('div');
+  row.className = 'role-row';
+  row.innerHTML = `
+    <input type="text" class="q" placeholder="예: 백엔드 인턴" value="${query || ''}">
+    <select class="rc">${ROLE_CATEGORIES.map(r => `<option value="${r}"${r===role?' selected':''}>${r}</option>`).join('')}</select>
+    <button class="rm" type="button">삭제</button>`;
+  row.querySelector('.rm').onclick = () => row.remove();
+  rolesEl.appendChild(row);
+}
+
+addRow('백엔드 인턴', 'backend');
+addRow('풀스택 주니어 신입', 'fullstack');
+
+document.getElementById('add-role').onclick = () => {
+  if (rolesEl.children.length >= 6) return;
+  addRow('', 'backend');
+};
+
+document.getElementById('go').onclick = async () => {
+  const rows = [...rolesEl.querySelectorAll('.role-row')];
+  const sub_roles = rows.map(r => ({
+    query: r.querySelector('.q').value.trim(),
+    roleCategory: r.querySelector('.rc').value,
+  })).filter(sr => sr.query);
+  const top_k = parseInt(document.getElementById('topk').value, 10) || 3;
+
+  const go = document.getElementById('go');
+  const meta = document.getElementById('meta');
+  const out = document.getElementById('out');
+  go.disabled = true;
+  meta.textContent = '검색 중...';
+  out.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/rag-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sub_roles, top_k }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      meta.textContent = '';
+      out.innerHTML = `<div class="err">${data.error || res.status}</div>`;
+      return;
+    }
+    meta.innerHTML = `subRole ${sub_roles.length}개 -> <b>${data.results.length}</b>건 반환 · rerank: <b>${data.reranked}</b> · ${data.elapsed_ms}ms`;
+    out.innerHTML = `<div class="cards">${data.results.map(cardHtml).join('') || '<p class="note">결과 없음</p>'}</div>`;
+  } catch (e) {
+    meta.textContent = '';
+    out.innerHTML = `<div class="err">${e}</div>`;
+  } finally {
+    go.disabled = false;
+  }
+};
+
+function cardHtml(h) {
+  const skills = h.requiredSkills ? h.requiredSkills.slice(0, 6).join(', ') : (h.text || '').slice(0, 80);
+  const sim = (h.similarity === null || h.similarity === undefined) ? '없음(기술매치만)' : h.similarity;
+  return `<div class="card">
+    <span class="badge">${h.roleCategory}</span>
+    <div class="title">${escapeHtml(h.title)}</div>
+    <div class="sub">${escapeHtml(h.companyName)} · ${h.seniority}</div>
+    <div class="skills">${escapeHtml(skills)}</div>
+    <div class="reason">유사도: <span class="sim">${sim}</span><br>근거: ${escapeHtml(h.reason || '')}</div>
+    <div class="sub"><code>${h.jobPostingId}</code></div>
+    <a href="${h.url}" target="_blank" rel="noopener">공고 링크</a>
+  </div>`;
+}
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>

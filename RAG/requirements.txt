@@ -1,0 +1,8 @@
+sentence-transformers
+psycopg[binary]
+pgvector
+python-dotenv
+transformers
+rank_bm25
+numpy
+requests

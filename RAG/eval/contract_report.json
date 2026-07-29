@@ -1,0 +1,19 @@
+{
+  "tier": 0,
+  "status": "incomplete",
+  "all_passed": false,
+  "checks": [
+    {
+      "name": "latency",
+      "p50": 1.141,
+      "p95": 49.867,
+      "max": 49.867,
+      "n_measurements": 15
+    },
+    {
+      "name": "contract_adapter",
+      "passed": null,
+      "note": "no search_fn provided -skipping contract checks. 명세서 계약 어댑터(입력A/B -> postings+score+match_reason) 미구현"
+    }
+  ]
+}

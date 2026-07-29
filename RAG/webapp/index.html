@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>jobrag 테스트</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7; --text-1: #0b0b0b; --text-2: #52514e;
+    --text-muted: #898781; --grid: #e1e0d9; --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6; --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d; --text-1: #fff; --text-2: #c3c2b7;
+      --text-muted: #898781; --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5; --good: #0ca30c; --warn: #fab219; --crit: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --page: #0d0d0d; --text-1: #fff; --text-2: #c3c2b7;
+    --text-muted: #898781; --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --good: #0ca30c; --warn: #fab219; --crit: #e66767;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Malgun Gothic", sans-serif; max-width: 980px; margin: 40px auto; padding: 0 16px;
+         background: var(--page); color: var(--text-1); }
+  h1 { font-size: 20px; }
+  h2.section { font-size: 15px; margin: 36px 0 12px; padding-top: 20px; border-top: 1px solid var(--grid); }
+  #q { width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid var(--border); border-radius: 6px;
+       background: var(--surface-1); color: var(--text-1); }
+  #go, #eval-run { margin-top: 8px; padding: 8px 16px; border: none; background: var(--series-1); color: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  #go:disabled, #eval-run:disabled { background: #999; cursor: default; }
+  #meta { color: var(--text-2); font-size: 13px; margin: 10px 0; }
+  #answer { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 14px 0 0; white-space: pre-wrap; line-height: 1.5; }
+  .basis-line { font-size: 12px; color: var(--text-muted); margin: 6px 0 14px; padding: 0 2px; }
+  .basis-line b { color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .basis-line .conf-높음 { color: var(--good); font-weight: 600; }
+  .basis-line .conf-보통 { color: #8a5a00; font-weight: 600; }
+  .basis-line .conf-낮음 { color: var(--crit); font-weight: 600; }
+  .err { background: #fee; color: #a00; padding: 10px; border-radius: 6px; }
+  .hit { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 8px 0; background: var(--surface-1); }
+  .hit .title { font-weight: 600; }
+  .hit .cond { color: var(--text-2); font-size: 13px; margin: 4px 0; }
+  .hit .scores { color: var(--text-muted); font-size: 11px; font-family: monospace; }
+  .relax { border-left: 4px solid var(--warn); }
+  a { color: var(--series-1); }
+  #examples button { margin: 2px 4px 2px 0; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); border-radius: 4px; cursor: pointer; }
+
+  /* --- 성능 대시보드 --- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 8px; margin-bottom: 16px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .tile .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .tile .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .tile.good .v { color: var(--good); }
+  .tile.warn .v { color: var(--warn); }
+  .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 800px) { .dgrid { grid-template-columns: 1fr; } }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { font-size: 12px; font-weight: 600; margin: 0 0 10px; color: var(--text-1); }
+  .bar-row { display: flex; align-items: center; height: 20px; margin-bottom: 4px; }
+  .bar-label { width: 130px; flex-shrink: 0; font-size: 11px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 6px; }
+  .bar-track { flex: 1; height: 10px; }
+  .bar-fill { height: 10px; border-radius: 4px; background: var(--series-1); }
+  .bar-fill.b2 { background: var(--good); }
+  .bar-value { font-size: 10px; color: var(--text-muted); margin-left: 6px; width: 46px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .legend { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .legend span { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+  .note { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .basis-line .conf-보통 { color: var(--warn); }
+  }
+  :root[data-theme="dark"] .basis-line .conf-보통 { color: var(--warn); }
+</style>
+</head>
+<body>
+  <h1>jobrag 검색 + 응답 생성 테스트</h1>
+  <input id="q" placeholder="예: 서울 강남에서 스프링부트 하는 3년차 백엔드 개발자" />
+  <div id="examples"></div>
+  <button id="go">검색</button>
+  <div id="meta"></div>
+  <div id="out"></div>
+
+  <h2 class="section">파이프라인 성능 대시보드</h2>
+  <button id="eval-run">v4 평가 다시 측정</button>
+  <span id="eval-status" class="note"></span>
+  <div id="eval-body"></div>
+
+<script>
+const EXAMPLES = [
+  "서울 강남 스프링부트 3년차 백엔드",
+  "판교 신입 프론트엔드 리액트",
+  "대구에서 쿠버네티스 다루는 시니어",
+  "경력무관 AI 엔지니어",
+];
+const exBox = document.getElementById('examples');
+EXAMPLES.forEach(ex => {
+  const b = document.createElement('button');
+  b.textContent = ex;
+  b.onclick = () => { document.getElementById('q').value = ex; run(); };
+  exBox.appendChild(b);
+});
+
+const qEl = document.getElementById('q');
+const goEl = document.getElementById('go');
+const metaEl = document.getElementById('meta');
+const outEl = document.getElementById('out');
+
+async function run() {
+  const query = qEl.value.trim();
+  if (!query) return;
+  goEl.disabled = true;
+  metaEl.textContent = '검색 중...';
+  outEl.innerHTML = '';
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/api/search', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.status);
+
+    metaEl.textContent =
+      `파싱: ${data.parsed} · 재순위: ${data.reranked ? 'ON' : 'OFF'}(${data.reranker_backend}) ` +
+      `· 완화: ${data.relaxed.length ? data.relaxed.join(',') : '없음'} · ${data.elapsed_ms}ms`;
+
+    let html = '';
+    if (data.generate_error) {
+      html += `<div class="err">응답 생성 실패: ${escapeHtml(data.generate_error)}</div>`;
+    } else if (data.answer) {
+      html += `<div id="answer">${escapeHtml(data.answer)}</div>`;
+      html += `<div class="basis-line">${judgmentBasisLine(data.hits)}</div>`;
+    }
+
+    html += data.hits.map(h => {
+      const exp = h.exp_min === null ? '경력무관' : `${h.exp_min}년+`;
+      const loc = (h.regions || []).slice(0, 2).join(', ') || '지역미상';
+      const tech = (h.tech || []).slice(0, 6).join(', ') || '-';
+      const scores = [
+        h.dense_rank ? `D#${h.dense_rank}(${h.dense_score})` : null,
+        h.bm25_rank ? `B#${h.bm25_rank}(${h.bm25_score})` : null,
+        h.rerank_score !== null ? `CE(${h.rerank_score.toFixed(3)})` : null,
+        `rrf=${h.rrf.toFixed(5)}`,
+      ].filter(Boolean).join(' ');
+      return `<div class="hit ${h.exact ? '' : 'relax'}">
+        <div class="title">${escapeHtml(h.company)} — ${escapeHtml(h.title)}</div>
+        <div class="cond">${exp} · ${escapeHtml(loc)} · ${escapeHtml(tech)}</div>
+        <div class="scores">${scores}</div>
+        <a href="${h.url}" target="_blank" rel="noopener">공고 링크</a>
+      </div>`;
+    }).join('');
+
+    outEl.innerHTML = html || '<p>결과 없음</p>';
+  } catch (e) {
+    metaEl.textContent = '';
+    outEl.innerHTML = `<div class="err">오류: ${escapeHtml(String(e.message || e))}</div>`;
+  } finally {
+    goEl.disabled = false;
+  }
+}
+
+// CE 신뢰도 버킷 — 서버(webapp/server.py _confidence)와 동일 기준.
+// 골든셋 500라벨 실측 중앙값(Correct 0.863 / Ambiguous 0.162 / Incorrect 0.071)에서 나온 경계.
+function confidenceLabel(score) {
+  if (score === null || score === undefined) return null;
+  if (score >= 0.5) return '높음';
+  if (score >= 0.15) return '보통';
+  return '낮음';
+}
+
+// 최종 응답(GMS 답변)에 붙는 한 줄 판정 근거 — 실제로 화면에 노출된 결과(data.hits)
+// 기준으로, LLM이 아니라 서버가 계산한 수치를 그대로 보여준다(환각 방지).
+function judgmentBasisLine(hits) {
+  if (!hits || !hits.length) return '판정 근거: 표시할 결과 없음';
+  const scored = hits.filter(h => h.rerank_score !== null && h.rerank_score !== undefined);
+  const exactN = hits.filter(h => h.exact).length;
+  const relaxN = hits.length - exactN;
+  const parts = [`표시된 ${hits.length}건 중 정확매치 <b>${exactN}</b>건`];
+  if (relaxN > 0) parts[0] += ` · 완화 <b>${relaxN}</b>건`;
+
+  if (scored.length) {
+    const scores = scored.map(h => h.rerank_score);
+    const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(3);
+    const min = Math.min(...scores).toFixed(3), max = Math.max(...scores).toFixed(3);
+    const counts = {'높음': 0, '보통': 0, '낮음': 0};
+    scored.forEach(h => counts[confidenceLabel(h.rerank_score)]++);
+    const confStr = ['높음', '보통', '낮음'].filter(k => counts[k] > 0)
+      .map(k => `<span class="conf-${k}">${k} ${counts[k]}</span>`).join(' · ');
+    parts.push(`CE 유사도 평균 <b>${avg}</b>(범위 ${min}~${max})`);
+    parts.push(`신뢰도 ${confStr}`);
+  } else {
+    const rrfs = hits.map(h => h.rrf);
+    parts.push(`RRF 점수 범위 <b>${Math.min(...rrfs).toFixed(4)}~${Math.max(...rrfs).toFixed(4)}</b>(재순위 미적용)`);
+  }
+  return '판정 근거: ' + parts.join(' · ');
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+goEl.onclick = run;
+qEl.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+// ---------- 성능 대시보드 ----------
+function tile(value, label, cls) {
+  const d = document.createElement('div');
+  d.className = 'tile' + (cls ? ' ' + cls : '');
+  d.innerHTML = `<div class="v">${value}</div><div class="l">${label}</div>`;
+  return d;
+}
+
+function barChart(container, data, opts) {
+  opts = opts || {};
+  const max = Math.max(...data.map(d => d.value), opts.max || 0, 0.001);
+  container.innerHTML = '';
+  data.forEach(d => {
+    const pct = Math.min(100, d.value / max * 100).toFixed(1);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-label" title="${escapeHtml(d.label)}">${escapeHtml(d.label)}</div>
+      <div class="bar-track"><div class="bar-fill ${d.cls||''}" style="width:${pct}%"></div></div>
+      <div class="bar-value">${d.display ?? d.value}</div>`;
+    container.appendChild(row);
+  });
+}
+
+function renderEval(rep) {
+  const body = document.getElementById('eval-body');
+  body.innerHTML = '';
+
+  if (!rep.headline || !rep.macro_average) {
+    const error = document.createElement('div');
+    error.className = 'note';
+    error.textContent = '지원하지 않는 이전 평가 리포트 형식입니다. v4 평가를 다시 측정하세요.';
+    body.appendChild(error);
+    return;
+  }
+
+  const headline = rep.headline;
+  const scores = headline.scores || {};
+  const tiles = document.createElement('div');
+  tiles.className = 'tiles';
+  tiles.appendChild(tile(escapeHtml(headline.best_arm || '-'), '최고 검색 arm', 'good'));
+  Object.entries(scores).forEach(([arm, score]) => {
+    tiles.appendChild(tile(`${score}`, `${escapeHtml(arm)} · ${escapeHtml(headline.metric)}`,
+      arm === headline.best_arm ? 'good' : ''));
+  });
+  body.appendChild(tiles);
+
+  if (rep.gate_failed && rep.gate_failed.length) {
+    const n = document.createElement('div');
+    n.className = 'note';
+    n.textContent = `주의: 실패한 평가 게이트 — ${rep.gate_failed.join(', ')}`;
+    body.appendChild(n);
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'dgrid';
+  body.appendChild(grid);
+
+  const c1 = document.createElement('div');
+  c1.className = 'card';
+  c1.innerHTML = '<h3>검색 arm별 정규화 nDCG@3</h3><div id="chart-arm"></div>';
+  grid.appendChild(c1);
+  barChart(c1.querySelector('#chart-arm'),
+    Object.entries(scores).map(([arm, score]) => ({
+      label: arm, value: score, display: score,
+      cls: arm === headline.best_arm ? 'b2' : '',
+    })));
+
+  const c2 = document.createElement('div');
+  c2.className = 'card';
+  c2.innerHTML = '<h3>검색 arm별 원시 nDCG@3</h3><div id="chart-raw"></div>';
+  grid.appendChild(c2);
+  barChart(c2.querySelector('#chart-raw'),
+    Object.entries(rep.macro_average).map(([arm, metrics]) => ({
+      label: arm, value: metrics.ndcg3, display: metrics.ndcg3,
+    })), {max: 1});
+
+  const c3 = document.createElement('div');
+  c3.className = 'card';
+  c3.innerHTML = '<h3>쌍대 부트스트랩 비교</h3><div id="compare-list" class="note"></div>';
+  grid.appendChild(c3);
+  const comparisons = Object.entries(rep.comparisons || {}).map(([name, value]) => {
+    const ci = value.ci_95 || [];
+    return `${name}: Δ=${value.mean_delta} · 95% CI [${ci.join(', ')}] · ${value.significant ? '유의' : '비유의'}`;
+  });
+  c3.querySelector('#compare-list').textContent = comparisons.join('\n') || '비교 결과 없음';
+
+  const c4 = document.createElement('div');
+  c4.className = 'card';
+  c4.innerHTML = '<h3>축별 최고 arm</h3><div id="axis-list" class="note"></div>';
+  grid.appendChild(c4);
+  const axes = Object.entries(rep.by_axis || {}).map(([axis, values]) => {
+    const arms = Object.entries(values).filter(([name]) => name !== 'n');
+    const best = arms.sort((a, b) => b[1] - a[1])[0] || ['-', '-'];
+    return `${axis} (n=${values.n ?? '?'}): ${best[0]} · ${best[1]}`;
+  });
+  c4.querySelector('#axis-list').textContent = axes.join('\n') || '축별 결과 없음';
+
+  const meta = document.createElement('div');
+  meta.className = 'note';
+  meta.textContent = `생성 시각: ${rep.generated_at} · 지표: ${headline.metric} · ${headline.definition}`;
+  body.appendChild(meta);
+}
+
+async function loadEval() {
+  const status = document.getElementById('eval-status');
+  try {
+    const res = await fetch('/api/eval');
+    if (!res.ok) {
+      const d = await res.json();
+      status.textContent = d.error || '데이터 없음';
+      return;
+    }
+    renderEval(await res.json());
+    status.textContent = '';
+  } catch (e) {
+    status.textContent = '로드 실패: ' + (e.message || e);
+  }
+}
+
+document.getElementById('eval-run').onclick = async () => {
+  const btn = document.getElementById('eval-run');
+  const status = document.getElementById('eval-status');
+  btn.disabled = true;
+  status.textContent = 'v4 게이트 확인 및 재측정 중...';
+  try {
+    const res = await fetch('/api/eval/run', {method: 'POST'});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.status);
+    renderEval(data);
+    status.textContent = '완료';
+  } catch (e) {
+    status.textContent = '실패: ' + (e.message || e);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+loadEval();
+</script>
+</body>
+</html>
