@@ -1,0 +1,5 @@
+node_modules/
+.venv/
+fake-ai.tar.gz
+test/
+.env
