@@ -18,6 +18,9 @@ const PORT = 8000;
 const STAGE_MS = 10000;   // 진행 신호 간격(ms)
 const ANSWER_TIMEOUT_MS = 180000;   // 질문 답변 대기 한도(ms) — 초과 시 안전 종료(무한 대기 방지)
 const RESULT = JSON.parse(fs.readFileSync(path.join(__dirname, 'result.json'), 'utf8')); // 일반 결과(폴백)
+/* 실제 LLM(claude -p) 어댑터 — 큐레이팅 시나리오에 없는 입력의 폴백.
+   실패하면 null을 돌려주므로, 호출부는 기존 안전 실패 경로로 되돌아간다. */
+const llm = require('./llm.js');
 
 const sessions = new Map();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -32,13 +35,65 @@ const httpServer = http.createServer((req, res) => {
       let payload;
       try { payload = JSON.parse(body); }
       catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
-      const fragments = extractEvidence(payload.sourceType || 'TEXT', payload.content || '');
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ fragments }));
-      console.log(`  [HTTP] /extract → 조각 ${fragments.length}개`);
+      (async () => {
+        const content = payload.content || '';
+        // 전량 Claude — 이력서를 실제로 읽어 조각낸다. 실패할 때만 룰 스캔 폴백(빈손 방지, 데모 픽스처 아님).
+        let via = 'LLM';
+        let fragments = await llm.extractEvidence(content);
+        if (!fragments || !fragments.length) { fragments = genericExtract(String(content)); via = '룰 폴백'; }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ fragments }));
+        console.log(`  [HTTP] /extract → 조각 ${fragments.length}개 (${via})`);
+      })();
     });
     return;
   }
+  /* 대화 진입 — 공고가 아닌 자유 입력으로 시작했을 때 무엇을 하려는지 분류하고 안내한다.
+     공고면 곧바로 분석 흐름으로 넘어가도록 웹에 알린다. */
+  if (req.method === 'POST' && req.url === '/intent') {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
+      (async () => {
+        const text = String(payload.text || '');
+        let out = await llm.classifyIntent(text);   // 전량 Claude
+        if (!out) {   // LLM 실패 시 안전한 기본값 — 공고 입력을 요청
+          out = { intent: 'QUESTION', askFor: 'JOB_POSTING_URL',
+            reply: '입력을 이해하지 못했어요. 목표하는 채용공고의 주소나 원문을 알려주시면 분석을 시작할게요.' };
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(out));
+        console.log(`  [HTTP] /intent → ${out.intent}`);
+      })();
+    });
+    return;
+  }
+
+  /* 자유 대화 — 공고 분석 전에도 채팅으로 시작할 수 있게. 대화 기록을 통째로 받아 다음 답을 만든다. */
+  if (req.method === 'POST' && req.url === '/chat') {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
+      (async () => {
+        const msgs = Array.isArray(payload.messages) ? payload.messages : [];
+        let out = await llm.chat(msgs, payload.context || {});   // 전량 Claude
+        if (!out) out = { reply: '지금은 답을 정리하지 못했어요. 잠시 후 다시 말씀해 주세요.', action: 'NONE', actionLabel: '' };
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(out));
+        console.log(`  [HTTP] /chat → ${msgs.length}턴 · action=${out.action}`);
+      })();
+    });
+    return;
+  }
+
   if (req.method === 'POST' && req.url === '/roadmap') {
     let body = '';
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
@@ -47,14 +102,20 @@ const httpServer = http.createServer((req, res) => {
       let payload;
       try { payload = JSON.parse(body); }
       catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
-      const roadmap = generateRoadmap(payload);
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify(roadmap));
-      console.log(`  [HTTP] /roadmap → ${payload.company} / ${payload.routeKind}${payload.goalCompany ? ' → ' + payload.goalCompany : ''}`);
+      (async () => {
+        // 전량 Claude — 공고 맞춤 로드맵. 실패할 때만 룰 폴백.
+        let via = 'LLM';
+        let roadmap = await llm.generateRoadmap(payload.company || '이 공고', payload.role || '', payload.routeKind);
+        if (!roadmap) { roadmap = generateRoadmap(payload); via = '룰 폴백'; }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(roadmap));
+        console.log(`  [HTTP] /roadmap → ${payload.company} / ${payload.routeKind} (${via})`);
+      })();
     });
     return;
   }
-  if (req.method === 'POST' && req.url === '/reassess') {
+  // 지연 생성 ①: 개요만 — rail·전체 지도용(빠름). 단계 상세는 열람 시 /roadmap-stage-detail 로.
+  if (req.method === 'POST' && req.url === '/roadmap-stages') {
     let body = '';
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
     req.on('data', (c) => (body += c));
@@ -62,7 +123,48 @@ const httpServer = http.createServer((req, res) => {
       let payload;
       try { payload = JSON.parse(body); }
       catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
-      const verdict = generateReassess(payload);
+      (async () => {
+        const t0 = Date.now();
+        const outline = await llm.generateStagedRoadmap(payload);   // 개요만(빠름)
+        if (!outline) { res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'STAGED_FAILED', message: '단계형 로드맵 개요 생성에 실패했어요.' })); return; }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(outline));
+        console.log(`  [HTTP] /roadmap-stages(개요) → ${payload.company || '?'} : ${outline.stages.length}단계 ${Math.round((Date.now() - t0) / 1000)}s`);
+      })();
+    });
+    return;
+  }
+  // 지연 생성 ②: 한 단계 상세 — 그 단계를 열 때 호출(백엔드가 캐시). body={goal, stage}.
+  if (req.method === 'POST' && req.url === '/roadmap-stage-detail') {
+    let body = '';
+    req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
+      (async () => {
+        const t0 = Date.now();
+        const detail = await llm.generateStageDetail(payload.goal, payload.stage);   // 뼈대+레슨상세
+        if (!detail) { res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'STAGE_DETAIL_FAILED', message: '단계 상세 생성에 실패했어요.' })); return; }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(detail));
+        const no = payload.stage && payload.stage.no;
+        console.log(`  [HTTP] /roadmap-stage-detail → 단계 ${no} : 레슨 ${detail.lessons.length} ${Math.round((Date.now() - t0) / 1000)}s`);
+      })();
+    });
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/reassess') {
+    let body = '';
+    req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
+    req.on('data', (c) => (body += c));
+    req.on('end', async () => {
+      let payload;
+      try { payload = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
+      let verdict = await llm.reassess(payload.step, payload.url);   // 전량 Claude
+      if (!verdict) verdict = generateReassess(payload);            // 실패 시 룰 폴백
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(verdict));
       const st = (payload.step && (payload.step.no || payload.step.title)) || '?';
@@ -74,11 +176,12 @@ const httpServer = http.createServer((req, res) => {
     let body = '';
     req.setEncoding('utf8');   // 멀티바이트(한글)가 청크 경계에 걸쳐 깨지지 않게
     req.on('data', (c) => (body += c));
-    req.on('end', () => {
+    req.on('end', async () => {
       let payload;
       try { payload = JSON.parse(body); }
       catch (e) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ error: 'INVALID_JSON', message: '요청 본문이 올바른 JSON이 아니에요.' })); return; }
-      const out = generateAsk(payload);
+      let out = await llm.roadmapAsk(payload.question, payload.topGap, payload.company);   // 전량 Claude
+      if (!out) out = generateAsk(payload);                                                // 실패 시 룰 폴백
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(out));
       console.log(`  [HTTP] /roadmap-ask → "${String(payload.question || '').slice(0, 30)}"`);
@@ -153,34 +256,36 @@ async function runAnalysis(ws, start) {
   const session = { ws, resolveAnswer: null };
   sessions.set(id, session);
   const rawJob = (start.jobPosting && start.jobPosting.rawText) || '';
-  const sc = pickScenario(rawJob);
-  if (!sc) {
-    await sleep(1200);
+  const evidences = Array.isArray(start.evidences) ? start.evidences : [];
+  console.log(`\n▶ 분석 시작  analysisId=${id}  (provider=${llm.PROVIDER_NAME})`);
+
+  // 0) 공고 분석가 — 실제 Claude 파싱
+  sendAgentProgress(ws, id, 'parse_job_posting', null, 8);
+  const ctx = await llm.parseJobPosting(rawJob);
+  if (!ctx) {
     send(ws, { type: 'ERROR', analysisId: id, code: 'UNSUPPORTED_SCENARIO',
-      message: '현재 데모에서 지원하지 않는 공고예요. 지원되는 데모 공고를 선택하거나 공고 원문을 붙여넣어 주세요.',
-      recoverable: true, actions: ['공고 원문 붙여넣기', '지원되는 데모 공고 선택'] });
-    console.log(`\n▶ 분석 거절(미지원 시나리오)  analysisId=${id}`);
+      message: '이 입력에서는 채용공고를 읽지 못했어요. 공고 원문을 붙여넣거나 다른 공고로 다시 시도해 주세요.',
+      recoverable: true, actions: ['공고 원문 붙여넣기', '다른 공고로 재시도'] });
+    console.log(`  ▶ 분석 거절(공고 파싱 실패)  analysisId=${id}`);
     sessions.delete(id);
     return;
   }
-  console.log(`\n▶ 분석 시작  analysisId=${id}  (시나리오=${sc.name})`);
-
-  // 0) 공고 분석가 — 파싱 후 JOB_CONTEXT (웹은 원문만 넘겼고, 구조화는 여기서)
-  sendAgentProgress(ws, id, 'parse_job_posting', null, 8);
-  await sleep(1500);
-  const ctx = sc.ctx;
-  console.log(`  · 공고 파악: ${ctx.company} / ${ctx.role} / 요구스택 ${ctx.stack.length}개`);
+  console.log(`  · 공고 파악: ${ctx.company} / ${ctx.role} / 요구스택 ${(ctx.stack || []).length}개`);
   send(ws, { type: 'JOB_CONTEXT', analysisId: id, company: ctx.company, role: ctx.role, career: ctx.career, stack: ctx.stack });
 
-  // 1) 이력 정리 → 정보 점검 (핸드오프 순서 = 진짜 그래프와 동일)
-  await sleep(STAGE_MS);
+  // 1) 이력 정리 — 실제 Claude 프로필 (스트림에 한마디)
   sendAgentProgress(ws, id, 'build_user_profile', 'parse_job_posting', 24);
-  await sleep(STAGE_MS);
-  sendAgentProgress(ws, id, 'check_sufficiency', 'build_user_profile', 38);
+  const profile = await llm.buildProfile(evidences);
+  if (profile && profile.note) {
+    send(ws, { type: 'AGENT_MESSAGE', analysisId: id, agent: 'build_user_profile',
+      agentName: AGENTS.build_user_profile.name, text: profile.note });
+  }
 
-  // 질문 — 하나씩 (답하면 다음 질문) · 질문 담당(ask_user) 명의
-  const questions = sc.questions;
-  if (questions.length) sendAgentProgress(ws, id, 'ask_user', 'check_sufficiency', 44);
+  // 2) 정보 점검 → 확인 질문 (실제 Claude가 공고·자료 보고 생성, 실패 시 질문 없이 진행)
+  sendAgentProgress(ws, id, 'check_sufficiency', 'build_user_profile', 40);
+  const questions = (await llm.generateQuestions(ctx, evidences)) || [];
+  const askedAnswers = [];   // 분석에 넘길 {q, a}
+  if (questions.length) sendAgentProgress(ws, id, 'ask_user', 'check_sufficiency', 46);
   for (const q of questions) {
     await sleep(700);
     send(ws, { type: 'QUESTION', analysisId: id, agent: 'ask_user', agentName: AGENTS.ask_user.name,
@@ -195,31 +300,58 @@ async function runAnalysis(ws, start) {
       return;
     }
     console.log('  ✎ 답변:', answer);
+    askedAnswers.push({ q: q.text, a: String(answer) });
     await sleep(500);
+    /* 저장 힌트가 있는 질문이면, 답을 채워 넣어 웹에 함께 알린다.
+       저장 여부는 사용자가 결정한다(웹이 확인 카드를 띄움) — AI가 저장소를 직접 바꾸지 않는다. */
+    let saveHint = null;
+    const okToSave = q.saveHint && (!q.saveHint.onlyWhen || q.saveHint.onlyWhen.includes(String(answer).trim()));
+    if (okToSave && typeof answer === 'string' && answer.trim()) {
+      saveHint = {
+        kind: q.saveHint.kind,
+        label: String(q.saveHint.label).replace('{answer}', answer.trim()),
+        description: q.saveHint.description || '',
+      };
+    }
     send(ws, { type: 'AGENT_MESSAGE', analysisId: id, agent: 'ask_user', agentName: AGENTS.ask_user.name,
-      text: q.followup || `"${answer}" 확인했어요. 반영할게요.`, interrupted: false });
+      text: q.followup || `"${answer}" 확인했어요. 반영할게요.`, interrupted: false, saveHint });
   }
 
-  // 2) 답변 반영 후 판정~조립 — 갭 분석 → 로드맵 → (대체공고 있으면) 경로 탐색 → 검증 → 리포트
-  await sleep(STAGE_MS);
-  sendAgentProgress(ws, id, 'analyze_gap', questions.length ? 'ask_user' : 'check_sufficiency', 58);
-  await sleep(STAGE_MS);
-  sendAgentProgress(ws, id, 'plan_roadmap', 'analyze_gap', 72);
+  // 3) 갭 분석 — 실제 Claude (계약 형태로 반환)
+  sendAgentProgress(ws, id, 'analyze_gap', questions.length ? 'ask_user' : 'check_sufficiency', 60);
+  const result = await llm.analyze(ctx, evidences, askedAnswers);
+  if (!result) {
+    send(ws, { type: 'ERROR', analysisId: id, code: 'ANALYSIS_FAILED',
+      message: '분석 결과를 만들지 못했어요. 잠시 후 다시 시도해 주세요.',
+      recoverable: true, actions: ['다시 시도', '새 분석 시작'] });
+    console.log(`  ▶ 분석 실패(LLM)  analysisId=${id}`);
+    sessions.delete(id);
+    return;
+  }
+
+  // 4) 로드맵 (analyze 결과에 포함됨) — 진행 신호
+  await sleep(300);
+  sendAgentProgress(ws, id, 'plan_roadmap', 'analyze_gap', 74);
   let prev = 'plan_roadmap';
-  if (sc.result && sc.result.alternatives && sc.result.alternatives.length) {   // 진짜 그래프의 조건부 라우팅처럼
-    await sleep(STAGE_MS);
-    sendAgentProgress(ws, id, 'find_alternatives', prev, 84);
+  if (result.alternatives && result.alternatives.length) {   // 조건부 라우팅
+    await sleep(300);
+    sendAgentProgress(ws, id, 'find_alternatives', prev, 82);
     prev = 'find_alternatives';
   }
-  await sleep(STAGE_MS);
-  sendAgentProgress(ws, id, 'verify_result', prev, 92);
-  await sleep(700);
-  sendAgentProgress(ws, id, 'assemble_output', 'verify_result', 97);
 
-  // 완료 → 결과
-  await sleep(600);
-  send(ws, { type: 'DONE', analysisId: id, result: sc.result });
-  console.log('✔ 완료\n');
+  // 5) 검증 — 실제 Claude 자기검증 (결과 JSON은 안 바꾸고 코멘트만 스트림)
+  sendAgentProgress(ws, id, 'verify_result', prev, 90);
+  const verify = await llm.verifyResult(ctx, result);
+  if (verify && verify.note) {
+    send(ws, { type: 'AGENT_MESSAGE', analysisId: id, agent: 'verify_result',
+      agentName: AGENTS.verify_result.name, text: verify.note });
+  }
+
+  // 6) 조립 → 완료
+  sendAgentProgress(ws, id, 'assemble_output', 'verify_result', 97);
+  await sleep(400);
+  send(ws, { type: 'DONE', analysisId: id, result });
+  console.log(`✔ 완료 (provider=${llm.PROVIDER_NAME})\n`);
   sessions.delete(id);
 }
 
@@ -234,6 +366,184 @@ function waitForAnswer(session, ms) {
    시연 큐레이팅 — 하서진 이력서 × ㈜쉴드원 보안 솔루션 엔지니어(EDR)
    이 두 입력이 들어오면 실제처럼 앞뒤 맞는 신호를 낸다.
    ============================================================ */
+/* ════════════════════════════════════════════════════════════
+   팀 공식 시나리오(백엔드) — 네이버웹툰(최종 목표) → 이스트게임즈(디딤돌)
+   근거는 전부 공고 원문(A등급) 인용: C:\jobiss-journal\DEMO-INPUTS.md 🆕 섹션.
+   ════════════════════════════════════════════════════════════ */
+function isNaverWebtoon(raw) {
+  const s = String(raw || '');
+  return /30005124/.test(s) || /네이버\s*웹툰|NAVER\s*WEBTOON|recruit\.navercorp/i.test(s);
+}
+function isEstgames(raw) {
+  const s = String(raw || '');
+  return /107360/.test(s) || /이스트게임즈|ESTgames|estfamily/i.test(s);
+}
+
+const NAVER_CONTEXT = {
+  company: '네이버웹툰',
+  role: '백엔드 서버 개발 (경력)',
+  career: '경력 2년 이상 4년 이하',
+  stack: ['Java', 'Kotlin', 'Spring Boot', 'Nginx', 'Tomcat', 'Redis', 'Spring Batch', 'Kafka', 'RDB', '대용량 트래픽 최적화'],
+};
+const NAVER_QUESTIONS = [
+  { questionId: 'n1', field: 'work_exp',
+    text: 'Java/Kotlin·Spring Boot 기반 웹 서버 개발 "실무" 경력이 있으신가요? (교육·팀 프로젝트 제외)',
+    options: ['없음 (교육·프로젝트 단계)', '1년 미만', '2년 이상'],
+    followup: '실무 경력 여부는 이 공고의 필수 조건이라 판정에 그대로 반영돼요.' },
+  { questionId: 'n2', field: 'want_bridge',
+    text: '이 공고를 최종 목표로 두고, 지금 지원 가능한 공고부터 경력을 쌓는 경로도 함께 볼까요?',
+    options: ['네, 함께 볼래요', '이 공고만 볼래요'],
+    followup: '목표로 두는 판단과 지금 시작할 수 있는 관련 공고를 함께 정리할게요.' },
+];
+const NAVER_RESULT = {
+  readiness: { now: 34, goal: 80, topGap: 'Java/Kotlin·Spring Boot 실무 경력', judge: '기술 방향은 일치 · 필수 실무 경력(2~4년)은 프로젝트로 대체되지 않음' },
+  decision: {
+    status: 'MID_TERM_TARGET', label: '중기 목표',
+    headline: '지금 직접 지원보다, 실무 경력을 쌓은 뒤 도전할 중기 목표로 두는 게 현실적이에요.',
+    reasons: [
+      '공고가 "2년 이상 4년 이하의 Java/Kotlin & Spring Boot 기반 웹 서버 개발 실무 경험"을 필수로 명시했어요.',
+      '현재 자료는 교육·팀 프로젝트 단계라 해당 실무 경력을 확인하지 못했어요.',
+      '실무 경력 요건은 개인 프로젝트를 늘려도 대체되지 않는 조건이에요.',
+    ],
+    hardConstraints: [
+      { requirement: 'Java/Kotlin & Spring Boot 실무 2년 이상 4년 이하', current: '실무 경력 없음(교육·프로젝트 단계)', substitutableByProject: false },
+    ],
+    nextTarget: '신입 지원이 가능한 Java/Spring 백엔드 직무에서 실무 경력 시작하기',
+    recheckCondition: 'Spring Boot 실무 경력 2년 도달 시 이 공고(또는 유사 공고) 재분석',
+  },
+  roadmap: [
+    { no: 1, title: '신입 가능한 백엔드 직무 진입', meta: '게임·콘텐츠 웹 서비스 등에서 Java/Spring 실무 시작', delta: '+20', status: 'active' },
+    { no: 2, title: '실무에서 요구 스택 축적', meta: 'REST API·RDB·Redis·Kafka·대용량 처리 경험', delta: '+18', status: 'locked' },
+    { no: 3, title: '재도전 준비', meta: '실무 2년 시점에 성능 개선 사례를 정리해 재분석', delta: '+8', status: 'locked' },
+  ],
+  gaps: [
+    { requirement: 'Java/Kotlin & Spring Boot 실무 2~4년', mark: 'no', fix: '신입 가능 직무에서 실무 경력 시작' },
+    { requirement: 'RESTful API 설계/구현', mark: 'tri', fix: '교육 경험 있음 — 실무·프로젝트 증거로 보강' },
+    { requirement: 'RDB 기반 시스템 구현', mark: 'tri', fix: 'MySQL 학습 경험을 실무 수준으로' },
+    { requirement: '웹 인프라 이해(Nginx·Tomcat·Redis·Spring Batch·Kafka)', mark: 'tri', fix: '단계적으로 학습·실무 적용' },
+    { requirement: '대용량 트래픽 성능 최적화', mark: 'no', fix: '실무 환경에서 축적' },
+  ],
+  artifact: { title: '디딤돌 직무에서의 실무 결과물' },
+  routes: [
+    {
+      id: 'as_is', kind: 'as_is', title: '지금 자료로 바로 지원',
+      summary: '교육·프로젝트 경험을 정리해 곧바로 지원하는 경로예요.',
+      confirmed: ['Java/Spring 교육 이력', '팀 프로젝트 경험'],
+      missing: ['실무 경력 2~4년'],
+      hardRisk: true, effort: 'low', deliverable: null,
+      benefits: ['가장 빠름'],
+      risks: ['필수 실무 경력(2~4년) 조건과 정면 충돌'],
+      relatedPostings: [],
+    },
+    {
+      id: 'parallel', kind: 'parallel', title: '디딤돌 공고에서 실무 경력 쌓기',
+      summary: '신입 지원이 가능한 관련 공고에서 실무를 시작해, 이 공고를 중기 목표로 준비하는 경로예요.',
+      confirmed: ['Java/Spring 교육 이력', '정보보호 전공 배경'],
+      missing: ['실무 경력'],
+      hardRisk: false, effort: 'high', deliverable: null,
+      benefits: ['필수 조건(실무 경력)을 실제로 채우는 유일한 경로', '요구 스택(결제·Redis·Kafka)을 실무로 접함'],
+      risks: ['목표(네이버웹툰)까지 시간이 가장 김'],
+      relatedPostings: ['estgames'],
+    },
+  ],
+  alternatives: [
+    {
+      id: 'estgames', company: '이스트게임즈', role: '웹 개발자 (Java/Spring 백엔드 트랙)', career: '신입 또는 경력 3년↑',
+      label: '관련 공고', reason: '신입 지원 가능 · 담당업무에 "게임 내 결제 시스템 및 과금 서비스 개발" — 목표 공고의 우대(결제 연동)를 실무로 쌓을 수 있어요. Tomcat·Redis·Kafka 접점.',
+      rawText: '이스트게임즈(ESTgames) 웹 개발자 채용 — Java 및 Kotlin을 사용하는 Spring 프레임워크 기반의 백엔드. 담당업무: 게임 내 결제 시스템 및 과금 서비스 개발, 게임 관련 웹 서비스 개발. 신입 또는 경력 3년 이상. 포트폴리오 첨부 필수. (estfamily.career.greetinghr.com/ko/o/107360)',
+    },
+  ],
+};
+
+const ESTGAMES_CONTEXT = {
+  company: '이스트게임즈',
+  role: '웹 개발자 (Java/Spring 백엔드 트랙)',
+  career: '신입 또는 경력 3년 이상',
+  stack: ['Java', 'Kotlin', 'Spring Boot', 'MySQL', 'MSSQL', 'Tomcat', 'JPA(우대)', 'Redis·Kafka(우대)', 'TDD·CI/CD(우대)'],
+};
+const ESTGAMES_QUESTIONS = [
+  { questionId: 'e1', field: 'track',
+    text: '이 공고는 프론트엔드와 백엔드를 함께 모집해요. 어떤 분야를 중심으로 준비할까요?',
+    options: ['백엔드', '프론트엔드', '풀스택'],
+    followup: '선택한 분야를 기준으로 공고 요건을 대조할게요.' },
+  { questionId: 'e2', field: 'own_scope',
+    text: '식단 관리 서비스에서 "회원 관리와 식단 CRUD 구현에 참여"하셨는데, 직접 작성한 범위는 어디까지였나요?',
+    options: ['설계부터 구현까지 직접', '팀원·AI 도움을 받아 일부 구현', '주로 다른 부분을 담당'],
+    followup: '직접 구현 범위를 반영했어요. 로드맵 시작 단계를 정하는 데 사용할게요.' },
+  /* ★saveHint: 이 답변은 저장소에 남길 만한 "지속되는 사실"이라는 표시.
+     웹은 이 힌트를 받아 사용자에게 "저장할까요?" 확인 카드를 띄운다(자동 저장 아님 — 근거 정책상 동의 필요).
+     label 의 {answer} 는 사용자가 고른 답으로 치환된다. */
+  { questionId: 'e3', field: 'military',
+    text: '공고가 병역필 또는 면제를 요구해요. 병역 사항이 어떻게 되시나요?',
+    options: ['군필', '면제', '해당 없음', '미필'],
+    saveHint: { kind: 'CERT', label: '병역 · {answer}', description: '분석 중 확인한 정보' },
+    followup: '병역 정보를 확인했어요.' },
+];
+const ESTGAMES_RESULT = {
+  readiness: { now: 46, goal: 78, topGap: '독립 구현 증거(포트폴리오)', judge: '신입 지원 가능 · Java/Spring 기초는 확인 — 직접 구현한 결과물이 필요' },
+  decision: {
+    status: 'REINFORCE_FIRST', label: '보강 후 지원',
+    headline: '지원 자격은 충족해요. 다만 포트폴리오가 필수인 공고라, 직접 구현한 결과물을 만든 뒤 지원하는 게 현실적이에요.',
+    reasons: [
+      '공고가 "신입 또는 경력 3년 이상"이라 신입 지원이 가능해요.',
+      '공고가 "포트폴리오 첨부 필수(GitHub, 개인 프로젝트, 팀 프로젝트 등)"를 명시했어요.',
+      '현재 자료의 프로젝트는 참여 경험 위주라, 직접 구현 범위를 보여주는 결과물이 아직 얇아요.',
+    ],
+    hardConstraints: [],
+    nextTarget: null,
+    recheckCondition: 'GameHub 핵심 기능(이벤트·보상·구매) 완성 후 지원 자료 재점검',
+  },
+  roadmap: [
+    { no: 1, title: '기초 재활성화', meta: 'Java·SQL·HTTP·Git — 단계 학습 모듈로 복습', delta: '+8', status: 'active' },
+    { no: 2, title: 'Spring Boot API + GameHub 핵심', meta: '이벤트·보상·포인트·구매를 잇는 대표 프로젝트', delta: '+16', status: 'locked' },
+    { no: 3, title: '테스트·배포·포트폴리오', meta: '정합성 테스트·문서·이력서 항목으로 변환', delta: '+8', status: 'locked' },
+  ],
+  gaps: [
+    { requirement: '웹 프론트엔드·백엔드 기본 지식', mark: 'ok', evidence: 'SSAFY Java/Spring 교육 · 웹 프로젝트 참여' },
+    { requirement: 'General-purpose 언어 개발 경험', mark: 'ok', evidence: 'Java·Python 학습, C 경험' },
+    { requirement: 'CS 기본(자료구조·알고리즘·네트워크)', mark: 'tri', fix: '진단상 흐려짐 — 단계 학습으로 복습' },
+    { requirement: 'Database 기본 지식', mark: 'tri', fix: 'JOIN·집계 SQL 복습 필요' },
+    { requirement: 'Git 등 버전 관리 사용 경험', mark: 'ok', evidence: '팀 프로젝트에서 사용' },
+    { requirement: '포트폴리오 첨부 필수', mark: 'no', fix: 'GameHub 완성으로 확보' },
+  ],
+  artifact: { title: 'GameHub — 게임 이벤트·보상·상점 서비스' },
+  routes: [
+    {
+      id: 'as_is', kind: 'as_is', title: '지금 자료로 바로 지원',
+      summary: '교육 이력과 참여 프로젝트를 정리해 곧바로 지원하는 경로예요.',
+      confirmed: ['신입 지원 자격', 'Java/Spring 교육 이력'],
+      missing: ['직접 구현 포트폴리오'],
+      hardRisk: false, effort: 'low', deliverable: null,
+      benefits: ['가장 빠름'],
+      risks: ['"포트폴리오 첨부 필수" 요건에서 불리 · 직접 구현 범위 설명이 어려움'],
+      relatedPostings: [],
+      applyGuide: {
+        matches: [
+          { requirement: '웹 개발 기본 지식', evidence: 'SSAFY Java/Spring 교육 과정', angle: '교육에서 다룬 범위를 구체적으로 서술' },
+          { requirement: '게임에 대한 관심', evidence: '(자료에서 미확인)', angle: '지원서에 관심 근거를 솔직하게 추가' },
+          { requirement: '포트폴리오', evidence: '참여 프로젝트 위주', angle: '본인 기여 범위를 사실대로 구분해 서술' },
+        ],
+        checklist: [
+          '프로젝트별로 "직접 한 부분"과 "참여한 부분"을 구분했는가',
+          '포트폴리오 링크가 실제로 열리는가',
+          'AI를 활용한 부분을 사실대로 표기했는가',
+        ],
+      },
+    },
+    {
+      id: 'reinforce', kind: 'reinforce', title: 'GameHub를 만들고 지원',
+      summary: '단계형 로드맵으로 GameHub를 완성해 "포트폴리오 필수" 요건을 채운 뒤 지원하는 경로예요.',
+      confirmed: ['신입 지원 자격', 'Java/Spring 교육 이력'],
+      missing: ['직접 구현 포트폴리오'],
+      hardRisk: false, effort: 'mid', deliverable: 'GameHub(이벤트·보상·포인트·구매) + 실행 문서',
+      benefits: ['공고의 담당업무(게임 이벤트·과금)와 직결되는 결과물', '단계 시험으로 이해까지 확인하며 진행'],
+      risks: ['준비 기간 필요'],
+      relatedPostings: [],
+    },
+  ],
+  alternatives: [],
+};
+
 function isShieldPosting(raw) {
   const s = String(raw || '');
   return /49480707/.test(s) || (/쉴드원/.test(s) && /보안/.test(s));
@@ -263,6 +573,8 @@ const SHIELD_QUESTIONS = [
     questionId: 'q3', field: 'cert',
     text: '정보보안기사 등 보안 자격증은 어떤 상태인가요?',
     options: ['보유', '준비 중', '없음'],
+    saveHint: { kind: 'CERT', label: '정보보안기사 · {answer}', description: '분석 중 확인한 정보',
+                onlyWhen: ['보유', '준비 중'] },   // "없음"은 저장 제안하지 않는다
     followup: '자격증 상태를 준비도에 반영했어요.',
   },
 ];
@@ -511,10 +823,29 @@ const HYUNDAI_RESULT = {
 
 // 공고 → 시나리오 선택 (시연 큐레이팅 우선, 아니면 일반 폴백)
 function pickScenario(rawJob) {
+  // 팀 공식(백엔드) 시나리오 — 네이버웹툰(목표) → 이스트게임즈(디딤돌)
+  if (isNaverWebtoon(rawJob)) return { name: 'naver', ctx: NAVER_CONTEXT, questions: NAVER_QUESTIONS, result: NAVER_RESULT };
+  if (isEstgames(rawJob)) return { name: 'estgames', ctx: ESTGAMES_CONTEXT, questions: ESTGAMES_QUESTIONS, result: ESTGAMES_RESULT };
+  // 보안 시나리오(개인 테스트용) 유지
   if (isShieldPosting(rawJob)) return { name: 'shield', ctx: SHIELD_CONTEXT, questions: SHIELD_QUESTIONS, result: SHIELD_RESULT };
   if (isDsntech(rawJob)) return { name: 'dsntech', ctx: DSNTECH_CONTEXT, questions: DSNTECH_QUESTIONS, result: DSNTECH_RESULT };
   if (isHyundai(rawJob)) return { name: 'hyundai', ctx: HYUNDAI_CONTEXT, questions: HYUNDAI_QUESTIONS, result: HYUNDAI_RESULT };
-  return null;   // 지원 시나리오(쉴드원·디에스앤텍·현대) 외 = 미지원 → runAnalysis가 안전하게 거절(UNSUPPORTED_SCENARIO)
+  return null;   // 지원 시나리오 외 = 미지원 → runAnalysis가 안전하게 거절(UNSUPPORTED_SCENARIO)
+}
+
+/**
+ * "회사 이름을 스친 질문"과 "공고를 통째로 붙여넣음"을 가른다.
+ * 큐레이팅 빠른 경로(LLM 스킵)는 후자일 때만 걸려야 한다 — 감지 함수가 회사 이름으로도 매치되기 때문에,
+ * "네이버 웹툰이라던가?" 같은 질문이 "공고 확인"으로 오인되면 안 된다.
+ * 프론트가 쓰는 기준(URL이거나 길다)과 같은 발상 + 공고번호/서식.
+ */
+function looksLikePosting(s) {
+  const t = String(s || '');
+  if (t.length > 200) return true;                                  // 공고 원문은 길다
+  if (/https?:\/\//i.test(t)) return true;                          // 링크
+  if (/(^|\D)\d{6,9}(\D|$)/.test(t)) return true;                   // 공고번호(30005124 등)
+  if (/(담당|필수|우대|자격|지원자격|모집|채용)\s*[:：]/.test(t)) return true;   // 공고 서식
+  return false;
 }
 
 /* ============================================================
@@ -525,6 +856,42 @@ function pickScenario(rawJob) {
 const HJ_STRENGTHS = ['정보보호 전공(세종대)', '0xARMOURY · MITRE ATT&CK', 'Python'];
 
 const CURATED_ROADMAPS = {
+  /* 이스트게임즈 — 단계형(학습→결과물→시험) 로드맵. 일정 대신 통과 조건 원칙이라 targetDate 없음.
+     상세 진행(모듈·검수·시험)은 roadmap-stages 페이지가 담당. 여기는 저장·목록·채팅 미리보기용 요약. */
+  estgames: {
+    reinforce: {
+      /* ★staged: 단계형 로드맵(학습 모듈→결과물 검수→단계 시험→해금).
+         웹은 이 플래그를 보고 상세 페이지를 roadmap-stages.html 로 연다.
+         플래그가 없으면 기존 roadmap.html(요건×증거 매트릭스형). */
+      staged: true,
+      title: '이스트게임즈 · 보강 후 지원 로드맵 (GameHub)',
+      topGap: '독립 구현 증거(포트폴리오)',
+      intro: '단계 학습과 GameHub 결과물로 "포트폴리오 첨부 필수" 요건을 채우는 준비 경로예요. 각 단계는 일정이 아니라 결과물 검수와 확인 시험을 통과해야 다음이 열려요.',
+      steps: [
+        { no: 1, title: 'Java 프로그래밍 기초', meta: '조건·반복·메서드 — GamePointCalculator' },
+        { no: 2, title: '객체지향과 컬렉션', meta: '캡슐화·Map — GameWallet' },
+        { no: 3, title: '웹과 프론트엔드 기초', meta: 'HTML·HTTP·JSON — 이벤트 안내 페이지' },
+        { no: 4, title: '데이터베이스와 SQL', meta: 'PK·JOIN·집계 — GameHub DB' },
+        { no: 5, title: 'Git·CS 기초', meta: '브랜치·네트워크 — 협업 기초 기록' },
+        { no: 6, title: 'Spring Boot REST API', meta: '계층·JPA — 게임 이벤트 API' },
+        { no: 7, title: 'GameHub 핵심 기능', meta: '보상·포인트·구매 — 공고 담당업무 직결' },
+        { no: 8, title: '데이터 정합성과 테스트', meta: '트랜잭션·롤백·중복 방지' },
+        { no: 9, title: '연동·배포·포트폴리오', meta: 'Docker·문서 — 지원 자료로 변환' },
+      ],
+      goalLink: null,
+    },
+    as_is: {
+      title: '이스트게임즈 · 지금 지원 준비 정리',
+      topGap: '직접 구현 범위 서술',
+      intro: '현재 자료를 사실대로 정리해 바로 지원하는 준비 경로예요. 프로젝트별 본인 기여 범위를 구분하는 것이 핵심이에요.',
+      steps: [
+        { no: 1, title: '프로젝트 기여 범위 구분', meta: '직접 한 부분 / 참여한 부분 / AI 활용 부분' },
+        { no: 2, title: '포트폴리오 링크 정리', meta: 'GitHub·팀 프로젝트 결과물 접근 확인' },
+        { no: 3, title: '지원서 작성 + 회고', meta: '요건별 매칭 서술' },
+      ],
+      goalLink: null,
+    },
+  },
   shield: {
     reinforce: {
       title: '㈜쉴드원 · 보강 후 지원 로드맵', topGap: 'EDR · 엔드포인트 실무',
@@ -691,6 +1058,8 @@ const CURATED_ROADMAPS = {
 
 function scenarioKey(company) {
   const c = String(company || '');
+  if (/이스트게임즈|ESTgames/i.test(c)) return 'estgames';
+  if (/네이버\s*웹툰|NAVER\s*WEBTOON/i.test(c)) return 'naver';
   if (/쉴드원/.test(c)) return 'shield';
   if (/디에스앤텍/.test(c)) return 'dsntech';
   if (/현대퓨처넷/.test(c)) return 'hyundai';
@@ -705,7 +1074,8 @@ function generateRoadmap(input) {
   if (curated) {
     return { title: curated.title, intro: curated.intro, topGap: curated.topGap,
       strengths: HJ_STRENGTHS, steps: curated.steps, goalLink: null,
-      targetDate: curated.targetDate || null, today: curated.today || null };
+      targetDate: curated.targetDate || null, today: curated.today || null,
+      staged: curated.staged === true };   // ★top-level 신규 필드는 여기 명시적으로 넣어야 전달된다
   }
   // 일반 폴백(시연 외) — 리치 필드 최소만
   const rk = routeKind === 'as_is' ? '지금 지원' : '보강 후 지원';
@@ -826,6 +1196,28 @@ function generateAsk(input) {
   return { question: q, answer: answer };
 }
 
+/* ── 새 페르소나(백엔드 취준생) 이력서 감지 → 큐레이팅된 15개 조각 ──
+   ★기존 보안 이력서와 마커(정보보호학과·KISIA)가 겹치므로 반드시 먼저 검사한다.
+   고유 감지키 = 식단 관리 / 냉장고 관리 (새 이력서에만 있음. 0xARMOURY는 새 이력서에 없음) */
+const BACKEND_MARKERS = /식단\s*관리|냉장고\s*관리/i;
+const BACKEND_FRAGMENTS = [
+  { kind: 'STACK', label: 'Java', description: '' },
+  { kind: 'STACK', label: 'Spring Boot', description: '' },
+  { kind: 'STACK', label: 'Python', description: '' },
+  { kind: 'STACK', label: 'MySQL', description: '' },
+  { kind: 'STACK', label: 'Vue', description: '' },
+  { kind: 'STACK', label: 'React', description: '' },
+  { kind: 'STACK', label: 'Git', description: '' },
+  { kind: 'PROJECT', label: '보안 플랫폼 구축 프로젝트', description: '팀 프로젝트로 참여' },
+  { kind: 'PROJECT', label: 'AI 파일 분석 서비스', description: 'AI API를 활용한 분석 기능 개발에 참여' },
+  { kind: 'PROJECT', label: '식단 관리 서비스', description: '회원 관리와 식단 CRUD 기능 구현에 참여' },
+  { kind: 'PROJECT', label: '냉장고 관리 서비스', description: '팀 프로젝트로 참여' },
+  { kind: 'EDU', label: '정보보호학과', description: '졸업 · 정보보호 전공' },
+  { kind: 'EDU', label: 'SSAFY Java/Spring 웹 개발 교육', description: '진행 중' },
+  { kind: 'EDU', label: 'KISIA AI 보안 교육 과정', description: '수료' },
+  { kind: 'EDU', label: 'C 언어·Java 기초', description: '학습 경험' },
+];
+
 // 하서진 이력서 감지 → 큐레이팅된 13개 조각
 const HASEOJIN_MARKERS = /하서진|0xARMOURY|정보보호학과|SSAFY\s*15\s*기|KISIA/i;
 const HASEOJIN_FRAGMENTS = [
@@ -844,12 +1236,22 @@ const HASEOJIN_FRAGMENTS = [
   { kind: 'EDU', label: 'SSAFY 15기', description: '웹 개발 학습 중' },
 ];
 
+/** 큐레이팅된 데모 이력서인가 — 이 경우엔 고정 조각을 쓰고 LLM을 타지 않는다(시연 재현성). */
+function isCuratedResume(content) {
+  const s = String(content || '');
+  return BACKEND_MARKERS.test(s) || HASEOJIN_MARKERS.test(s);
+}
+
 /* ── 저장소 자료 파편화 (원샷) ── */
 function extractEvidence(sourceType, content) {
-  if (HASEOJIN_MARKERS.test(String(content))) {
+  const s = String(content || '');
+  if (BACKEND_MARKERS.test(s)) {          // ★새 페르소나 먼저 (마커 일부가 보안 이력서와 겹침)
+    return BACKEND_FRAGMENTS.map((f) => ({ ...f }));
+  }
+  if (HASEOJIN_MARKERS.test(s)) {
     return HASEOJIN_FRAGMENTS.map((f) => ({ ...f }));
   }
-  return genericExtract(String(content || ''));
+  return genericExtract(s);
 }
 
 function genericExtract(content) {

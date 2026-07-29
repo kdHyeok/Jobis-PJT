@@ -11,40 +11,39 @@ import com.jobiss.backend.exception.ApiException;
 import com.jobiss.backend.repository.AnalysisRunRepository;
 import com.jobiss.backend.repository.FeedbackReportRepository;
 import com.jobiss.backend.repository.SubmissionRepository;
-import com.jobiss.backend.repository.AnalysisResultRepository;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.List;
 
-/**
- * 산출물 제출 → AI 검토 → 피드백 저장.
- * 고정 피드백 JSON(mock)을 돌려주던 경로는 제거했다 — 제출 링크·메모를 그 분석의 공고 요건과
- * 실제로 대조해 결과를 적재한다(SubmissionReviewClient).
- */
 @Service
 public class SubmissionService {
 
     private final AnalysisRunRepository runRepository;
     private final SubmissionRepository submissionRepository;
     private final FeedbackReportRepository feedbackReportRepository;
-    private final AnalysisResultRepository resultRepository;
-    private final SubmissionReviewClient reviewClient;
+    private final String mockFeedbackJson;
 
     public SubmissionService(AnalysisRunRepository runRepository, SubmissionRepository submissionRepository,
                              FeedbackReportRepository feedbackReportRepository,
-                             AnalysisResultRepository resultRepository,
-                             SubmissionReviewClient reviewClient) {
+                             @Value("classpath:mock/cloudwave-feedback.json") Resource feedbackResource) {
         this.runRepository = runRepository;
         this.submissionRepository = submissionRepository;
         this.feedbackReportRepository = feedbackReportRepository;
-        this.resultRepository = resultRepository;
-        this.reviewClient = reviewClient;
+        try (InputStream in = feedbackResource.getInputStream()) {
+            this.mockFeedbackJson = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("mock 피드백 JSON을 읽을 수 없습니다.", e);
+        }
     }
 
-    /** 산출물 제출 → AI 가 공고 요건과 대조 → 피드백 저장 → REVIEWED. */
+    /** 산출물 제출 → (Mock) 즉시 피드백 생성 → REVIEWED. */
     @Transactional
     public SubmissionResponse submit(Long userId, String analysisId, SubmissionCreateRequest req) {
         AnalysisRun run = runRepository.findByAnalysisId(analysisId)
@@ -62,15 +61,10 @@ public class SubmissionService {
                 .build();
         submissionRepository.save(submission);
 
-        // 이 분석의 공고 요건을 꺼내 제출물과 대조한다. 결과 JSON 을 그대로 저장한다.
-        List<String> requirements = resultRepository.findByRunId(run.getId())
-                .map(r -> reviewClient.requirementsOf(r.getResult()))
-                .orElse(List.of());
-        String reportJson = reviewClient.review(req.githubUrl(), req.deployUrl(), req.note(), requirements);
-
+        // Mock: 즉시 피드백 리포트 생성
         feedbackReportRepository.save(FeedbackReport.builder()
                 .submission(submission)
-                .report(reportJson)
+                .report(mockFeedbackJson)
                 .reviewedAt(LocalDateTime.now())
                 .build());
         submission.changeStatus(SubmissionStatus.REVIEWED);

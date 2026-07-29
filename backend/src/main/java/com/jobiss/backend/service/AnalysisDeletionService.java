@@ -74,7 +74,16 @@ public class AnalysisDeletionService {
             roadmaps = em.createNativeQuery("delete from saved_roadmaps where user_id = :uid and analysis_id in (:aids)")
                     .setParameter("uid", userId).setParameter("aids", aids).executeUpdate();
         }
+        // 대화 안의 분석 카드(V7)도 함께 — 남겨두면 대화에 빈 카드가 뜬다
+        em.createNativeQuery("delete from conversation_messages where analysis_id in (:aids)")
+                .setParameter("aids", aids).executeUpdate();
         int runsDeleted = execIds("delete from analysis_runs where id in (:ids)", runIds);
+        // 분석만 담고 있던 대화는 이제 빈 껍데기 — 목록에서 사라지는 게 맞다(지난 분석 백필분이 여기 해당).
+        em.createNativeQuery(
+                "delete from conversations where user_id = :uid " +
+                "and id not in (select conversation_id from conversation_messages) " +
+                "and id not in (select conversation_id from analysis_runs where conversation_id is not null)")
+                .setParameter("uid", userId).executeUpdate();
         // 사용자 입력 공고 중 더 이상 어떤 run도 참조하지 않는 것만 정리(공유 샘플 user_id NULL은 제외)
         int jobs = em.createNativeQuery(
                 "delete from job_postings where id in (:jids) and user_id = :uid " +

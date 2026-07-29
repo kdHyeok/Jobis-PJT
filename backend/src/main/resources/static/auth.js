@@ -33,13 +33,7 @@
       var t = JB.token();
       if (t) headers['Authorization'] = 'Bearer ' + t;
       var res = await fetch(path, Object.assign({}, opts, { headers: headers }));
-      // 401·403 모두 "인증 실패"로 다룬다. Spring Security 는 토큰이 없거나 만료된 요청에
-      // 401 이 아니라 403 을 준다(익명 사용자의 보호 리소스 접근). 403 을 일반 오류로 흘리면
-      // 페이지가 리다이렉트 없이 데이터만 조용히 못 불러와서, 예컨대 새 공고 분석 화면의
-      // "분석 시작" 버튼이 영구히 잠긴 것처럼 보인다.
-      if (res.status === 401 || res.status === 403) {
-        JB.logout(); location.href = 'login.html'; throw new Error('로그인이 필요합니다.');
-      }
+      if (res.status === 401) { JB.logout(); location.href = 'login.html'; throw new Error('로그인이 필요합니다.'); }
       if (!res.ok) {
         var msg = 'HTTP ' + res.status;
         try { var j = await res.json(); msg = JB.errMsg(j, msg); } catch (e) {}
@@ -73,47 +67,47 @@
       return fallback;
     },
 
-    /** 사이드바 "최근 분석" 목록 렌더. 대체 재분석 세션은 부모(원래 분석) 밑에 들여쓰기. */
-    loadSessions: async function (container, activeId) {
+    /** 로드맵 상세 페이지 주소. 단계형(staged) 로드맵은 학습·검수·시험이 있는 페이지로 보낸다.
+       staged 플래그는 AI가 로드맵과 함께 내려준다(없으면 기존 요건×증거 페이지). */
+    roadmapHref: function (roadmap, analysisId, routeId) {
+      var page = (roadmap && roadmap.staged === true) ? 'roadmap-stages.html' : 'roadmap.html';
+      return page + '?id=' + encodeURIComponent(analysisId) + '&route=' + encodeURIComponent(routeId);
+    },
+
+    /**
+     * 사이드바 "최근 대화" 목록 렌더.
+     * 목록의 단위는 대화다 — 분석은 대화 안에서 일어난 사건이므로 그 상태를 점 색으로만 얹는다.
+     * activeCid = 지금 열려 있는 대화(강조용).
+     */
+    loadConversations: async function (container, activeCid) {
       if (!container) return;
       try {
-        var list = await JB.api('/api/analyses');
+        var list = await JB.api('/api/conversations');
         if (!list || !list.length) {
-          container.innerHTML = '<div class="side-empty">아직 분석이 없어요.<br>새 분석을 시작해보세요.</div>';
+          container.innerHTML = '<div class="side-empty">아직 대화가 없어요.<br>무엇이든 말을 걸어보세요.</div>';
           return;
         }
-        var exists = {};
-        list.forEach(function (s) { exists[s.analysisId] = true; });
-        var childrenOf = {}, roots = [];
-        list.forEach(function (s) {
-          if (s.parentAnalysisId && exists[s.parentAnalysisId]) {
-            (childrenOf[s.parentAnalysisId] = childrenOf[s.parentAnalysisId] || []).push(s);
-          } else {
-            roots.push(s);   // 독립 분석, 또는 부모가 목록에 없으면 최상위로
-          }
-        });
-        function item(s, isChild) {
-          var title = (s.company || '분석') + (s.role ? ' · ' + s.role : '');
-          var active = s.analysisId === activeId ? ' active' : '';
-          var child = isChild ? ' child' : '';
-          var color = s.status === 'COMPLETED' ? 'var(--ok)' : (s.status === 'FAILED' ? 'var(--bad)' : 'var(--warn)');
-          return '<a class="session' + active + child + '" href="chat.html?id=' + encodeURIComponent(s.analysisId) + '">' +
+        container.innerHTML = list.map(function (c) {
+          // 분석이 없는 대화는 회색 점 — "아직 분석 전"이라는 뜻
+          var color = !c.analysisStatus ? 'var(--faint)'
+            : (c.analysisStatus === 'COMPLETED' ? 'var(--ok)'
+            : (c.analysisStatus === 'FAILED' ? 'var(--bad)' : 'var(--warn)'));
+          var active = c.conversationId === activeCid ? ' active' : '';
+          return '<a class="session' + active + '" href="chat.html?c=' + encodeURIComponent(c.conversationId) + '">' +
             '<span class="dot" style="background:' + color + '"></span>' +
-            '<span class="tx">' + JB.esc(title) + '</span>' +
-            '<button class="sess-menu" data-menu="' + JB.esc(s.analysisId) + '" title="더 보기" aria-label="더 보기">⋮</button></a>';
-        }
-        container.innerHTML = roots.map(function (r) {
-          return item(r, false) + (childrenOf[r.analysisId] || []).map(function (c) { return item(c, true); }).join('');
+            '<span class="tx">' + JB.esc(c.title || '새 대화') + '</span>' +
+            '<button class="sess-menu" data-cmenu="' + JB.esc(c.conversationId) + '"' +
+            (c.analysisId ? ' data-caid="' + JB.esc(c.analysisId) + '"' : '') +
+            ' title="더 보기" aria-label="더 보기">⋮</button></a>';
         }).join('');
-        // 각 세션의 케밥(⋮) → 메뉴(삭제) 열기
-        container.querySelectorAll('[data-menu]').forEach(function (b) {
+        container.querySelectorAll('[data-cmenu]').forEach(function (b) {
           b.addEventListener('click', function (e) {
             e.preventDefault(); e.stopPropagation();
-            var aid = b.getAttribute('data-menu');
-            JB.openSessionMenu(b, aid, function () {
-              var cur = new URLSearchParams(location.search).get('id');
-              if (cur && cur === aid && /chat\.html/.test(location.pathname)) location.href = 'home.html';
-              else JB.loadSessions(container, activeId);
+            var cid = b.getAttribute('data-cmenu');
+            JB.openConversationMenu(b, cid, b.getAttribute('data-caid'), function () {
+              var cur = new URLSearchParams(location.search).get('c');
+              if (cur && cur === cid && /chat\.html/.test(location.pathname)) location.href = 'chat.html';
+              else JB.loadConversations(container, activeCid);
             });
           });
         });
@@ -122,15 +116,18 @@
       }
     },
 
-    /** 세션 케밥(⋮) 메뉴 — 버튼 아래에 팝오버로 "삭제" 노출. onDeleted() 는 삭제 완료 콜백. */
-    openSessionMenu: function (btn, aid, onDeleted) {
+    /**
+     * 대화 케밥(⋮) → 삭제. 대화 안에 분석이 있으면 "분석까지" 지우는 선택지도 함께 준다
+     * (대화만 지우면 분석은 남는다 — 목록에서 안 보이게 되므로 여기서 정리할 길이 있어야 한다).
+     */
+    openConversationMenu: function (btn, cid, aid, onDeleted) {
       JB.closeSessionMenu();
       JB._ensureModalCss();
+      var trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
       var pop = document.createElement('div');
       pop.className = 'sess-menu-pop';
-      pop.innerHTML = '<button class="smi danger" data-act="del">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>' +
-        '삭제</button>';
+      pop.innerHTML = '<button class="smi danger" data-act="del">' + trash + '대화 삭제</button>' +
+        (aid ? '<button class="smi danger" data-act="delall">' + trash + '분석까지 삭제</button>' : '');
       document.body.appendChild(pop);
       btn.classList.add('open');
       var r = btn.getBoundingClientRect();
@@ -139,7 +136,17 @@
       var top = r.bottom + 4; if (top + h > window.innerHeight - 8) top = r.top - h - 4;
       pop.style.left = left + 'px'; pop.style.top = top + 'px';
       pop.querySelector('[data-act=del]').addEventListener('click', function (e) {
-        e.stopPropagation(); JB.closeSessionMenu(); JB.deleteAnalysisFlow(aid, onDeleted);
+        e.stopPropagation(); JB.closeSessionMenu(); JB.deleteConversationFlow(cid, onDeleted);
+      });
+      var all = pop.querySelector('[data-act=delall]');
+      if (all) all.addEventListener('click', function (e) {
+        e.stopPropagation(); JB.closeSessionMenu();
+        // 분석을 지우면 그 분석만 담고 있던 대화는 서버가 함께 정리한다
+        JB.deleteAnalysisFlow(aid, function () {
+          JB.api('/api/conversations/' + encodeURIComponent(cid), { method: 'DELETE' })
+            .catch(function () { /* 이미 함께 지워졌으면 정상 */ })
+            .then(function () { if (onDeleted) onDeleted(); });
+        });
       });
       JB._sessMenu = { pop: pop, btn: btn };
       setTimeout(function () {
@@ -147,6 +154,29 @@
         document.addEventListener('keydown', JB._sessMenuKey);
       }, 0);
     },
+
+    /** 대화 삭제 흐름 — 대화만 지우고, 그 안에서 만든 분석·로드맵은 남긴다(자기 삭제 흐름이 따로 있다). */
+    deleteConversationFlow: function (cid, onDeleted) {
+      JB.confirmModal({
+        title: '이 대화를 삭제할까요?', danger: true, confirmText: '삭제',
+        message: '주고받은 내용이 사라져요. 되돌릴 수 없어요.',
+        extraHtml: '<div class="jb-modal-note">이 대화에서 시작한 <b>분석과 저장한 로드맵은 남아요</b>. ' +
+          '분석을 지우려면 로드맵 저장소에서 따로 지워주세요.</div>',
+        onConfirm: async function (ov, close) {
+          var ok = ov.querySelector('[data-ok]');
+          ok.disabled = true; ok.textContent = '삭제 중…';
+          try {
+            await JB.api('/api/conversations/' + encodeURIComponent(cid), { method: 'DELETE' });
+            close();
+            if (onDeleted) onDeleted();
+          } catch (e) {
+            ok.disabled = false; ok.textContent = '삭제';
+            ov.querySelector('.jb-modal-msg').textContent = '삭제하지 못했어요: ' + e.message;
+          }
+        }
+      });
+    },
+
     closeSessionMenu: function () {
       var m = JB._sessMenu; if (!m) return;
       if (m.pop && m.pop.parentNode) m.pop.remove();

@@ -99,7 +99,7 @@ a{color:inherit;text-decoration:none}
   .app.lcol{grid-template-columns:0 1fr}
 }
 @media(min-width:821px){
-  .app.stg.lcol,.app.home.lcol{grid-template-columns:0 1fr}
+  .app.stg.lcol,.app.home.lcol,.app.talk.lcol{grid-template-columns:0 1fr}
 }
 @media(max-width:820px){           /* 원래 1열 + 사이드바 숨김 — 접기 자체가 무의미 */
   .edge-expand{display:none!important}
@@ -488,6 +488,21 @@ textarea.stg-input{min-height:130px}
 .stg-actions{display:flex;align-items:center;gap:12px;margin-top:12px}
 .stg-actions .hint{font-size:12px;color:var(--muted)}
 .ai-btn{display:inline-flex;align-items:center;gap:7px;background:var(--brand);color:var(--on-brand);border:0;border-radius:11px;padding:11px 18px;font-weight:700;font-size:13.5px;box-shadow:0 2px 8px rgba(91,75,227,.28)}
+/* 이력서 원문 보관 — 저장 버튼 + 보관 목록 */
+.rs-save-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:11px;padding:11px 16px;font-weight:700;font-size:13px;cursor:pointer}
+.rs-save-btn:hover{background:var(--line-2);color:var(--ink)}
+.rs-doc{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;background:var(--surface)}
+.rs-doc.on{border-color:var(--brand);background:var(--brand-soft)}
+.rs-doc-main{flex:1;min-width:0}
+.rs-doc-t{font-size:13.5px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-doc-now{font-size:10.5px;font-weight:800;color:var(--brand-ink);background:var(--surface);border-radius:20px;padding:2px 8px;margin-left:6px}
+.rs-doc-p{font-size:12.5px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5}
+.rs-doc-m{font-size:11.5px;color:var(--faint);margin-top:5px;font-variant-numeric:tabular-nums}
+.rs-doc-acts{display:flex;gap:6px;flex:0 0 auto;align-items:center}
+.rs-doc-acts .tbtn{border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.rs-doc-acts .tbtn:hover{background:var(--line-2);color:var(--ink)}
+.rs-doc-del{padding:7px 10px!important;color:var(--faint)!important;font-size:15px!important;line-height:1}
+.rs-doc-del:hover{color:var(--bad)!important;background:var(--bad-soft)!important}
 .ai-btn:hover:not(:disabled){background:var(--brand-2)}
 .ai-btn:disabled{background:var(--faint);box-shadow:none;cursor:not-allowed}
 .frag-group{margin-bottom:14px}
@@ -519,8 +534,8 @@ textarea.stg-input{min-height:130px}
 .toast.on{opacity:1}
 
 /* ---------- 로그인 후 빈 채팅 홈 ---------- */
-.app.home{grid-template-columns:264px 1fr}
-@media(max-width:820px){.app.home{grid-template-columns:1fr}}
+.app.home,.app.talk{grid-template-columns:264px 1fr}
+@media(max-width:820px){.app.home,.app.talk{grid-template-columns:1fr}}
 .home-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
 .home-scroll{flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:40px 24px}
 .home-inner{max-width:680px;margin:0 auto;width:100%;text-align:center}

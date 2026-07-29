@@ -1,7 +1,7 @@
 package com.jobiss.backend.config;
 
 import com.jobiss.backend.security.JwtAuthenticationFilter;
-import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,6 +14,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * 보안 설정. 세션 없이(STATELESS) JWT로만 인증.
+ * 공개: /health, /api/auth/**, GET /api/job-postings/samples. 나머지는 토큰 필요.
  */
 @Configuration
 public class SecurityConfig {
@@ -30,19 +31,23 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // SSE(SseEmitter) 완료 시 Tomcat 이 같은 요청을 ASYNC 디스패치로 한 번 더
-                        // 필터 체인에 통과시킨다. JWT 필터는 원 요청에서만 인증을 세팅하므로 여기서
-                        // 거부되면 스트림이 종료 신호 없이 끊기고, 브라우저는 네트워크 오류로 처리해
-                        // 폴백(/api/chat)으로 같은 턴을 한 번 더 돌린다. 원 요청(REQUEST)에서 이미
-                        // 인가를 통과한 재디스패치라 허용해도 안전하다.
-                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         // 정적 프론트(목업) — 로그인 전에도 페이지 자체는 열 수 있어야 함
                         .requestMatchers("/", "/*.html", "/*.css", "/*.js", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/chat-app/**", "/ws/**").permitAll()   // 채팅 목업 + STOMP 핸드셰이크
                         .requestMatchers("/img/**", "/vid/**").permitAll()       // 배경 이미지/영상 등 정적 미디어
                         .requestMatchers("/health", "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/job-postings/samples").permitAll()
+                        .requestMatchers("/api/dev/**").permitAll()   // DEV ONLY — 가짜 AI 트리거, 배포 전 제거
                         .anyRequest().authenticated()
                 )
+                // 인증 실패(토큰 없음·만료·무효)는 401 — 프론트가 401에서만 로그인으로 자동 이동한다.
+                // (기본값은 403이라, 토큰 만료가 "Forbidden" 이라는 혼란스러운 에러로만 떴다.)
+                // 권한 거부(남의 리소스 접근)는 서비스의 ApiException(FORBIDDEN)이 그대로 403으로 낸다 — 여기 영향 없음.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authEx) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"로그인이 필요합니다.\"}}");
+                }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

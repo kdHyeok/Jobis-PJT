@@ -50,6 +50,11 @@ public class AnalysisRun {
     @JoinColumn(name = "job_posting_id", nullable = false)
     private JobPosting jobPosting;
 
+    /** 이 분석이 태어난 대화. 대화 밖에서 만들어진 지난 분석은 null일 수 있다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id")
+    private Conversation conversation;
+
     /** 대체 공고 재분석이면 원래 분석의 analysisId(UUID). 독립 분석이면 null. */
     @Column(name = "parent_analysis_id", length = 36, updatable = false)
     private String parentAnalysisId;
@@ -84,13 +89,15 @@ public class AnalysisRun {
 
     @Builder
     private AnalysisRun(String analysisId, User user, JobPosting jobPosting, RunStatus status,
-                        AnalysisEngine engine, Set<Evidence> evidences, String parentAnalysisId) {
+                        AnalysisEngine engine, Set<Evidence> evidences, String parentAnalysisId,
+                        Conversation conversation) {
         this.analysisId = analysisId;
         this.user = user;
         this.jobPosting = jobPosting;
         this.status = status;
         this.engine = engine;
         this.parentAnalysisId = parentAnalysisId;
+        this.conversation = conversation;
         if (evidences != null) {
             this.evidences = evidences;
         }
@@ -104,5 +111,15 @@ public class AnalysisRun {
     /** 경로 비교에서 주 경로 선택(재선택 가능). */
     public void selectRoute(String routeId) {
         this.selectedRoute = routeId;
+    }
+
+    /** 분석이 태어난 대화를 연결한다. */
+    public void attachConversation(Conversation conversation) {
+        this.conversation = conversation;
+    }
+
+    /** 대화가 지워질 때 연결만 끊는다 — 분석 자체는 별도 삭제 흐름을 따른다. */
+    public void detachConversation() {
+        this.conversation = null;
     }
 }

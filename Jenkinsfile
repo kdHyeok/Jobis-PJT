@@ -21,22 +21,22 @@ pipeline {
       agent any
       steps {
         script {
-          docker.image('mysql:8.0').withRun(
-            '-e MYSQL_DATABASE=jobiss ' +
-            '-e MYSQL_USER=jobis_ci ' +
-            '-e MYSQL_PASSWORD=ci-only-password ' +
-            '-e MYSQL_ROOT_PASSWORD=ci-only-root-password'
+          // 운영 DB가 PostgreSQL이므로 CI도 동일한 DB로 테스트한다 (방언 불일치 방지)
+          docker.image('postgres:16').withRun(
+            '-e POSTGRES_DB=jobiss ' +
+            '-e POSTGRES_USER=jobis_ci ' +
+            '-e POSTGRES_PASSWORD=ci-only-password'
           ) { db ->
-            docker.image('eclipse-temurin:17-jdk').inside("--link ${db.id}:mysql") {
+            docker.image('eclipse-temurin:17-jdk').inside("--link ${db.id}:postgres") {
               withEnv([
-                'DB_URL=jdbc:mysql://mysql:3306/jobiss?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC',
+                'DB_URL=jdbc:postgresql://postgres:5432/jobiss',
                 'DB_USERNAME=jobis_ci',
                 'DB_PASSWORD=ci-only-password',
                 'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
               ]) {
               sh '''
-                # MySQL 기동 대기
-                bash -c 'for i in $(seq 1 30); do (echo > /dev/tcp/mysql/3306) 2>/dev/null && exit 0; sleep 2; done; echo "MySQL not ready"; exit 1'
+                # PostgreSQL 기동 대기
+                bash -c 'for i in $(seq 1 30); do (echo > /dev/tcp/postgres/5432) 2>/dev/null && exit 0; sleep 2; done; echo "PostgreSQL not ready"; exit 1'
                 cd backend
                 chmod +x gradlew
                 ./gradlew clean test bootJar --no-daemon
@@ -62,9 +62,14 @@ pipeline {
           cd fake-ai
           npm ci --omit=dev --ignore-scripts
           node --check server.js
+          node --check llm.js
+          node --check providers/index.js
+          node --check providers/codex.js
+          node --check providers/codex-sidecar.js
+          npm test
 
-          # 스모크 테스트: /extract 응답 확인
-          node server.js > /tmp/fake-ai.log 2>&1 &
+          # 스모크 테스트: CI에서는 실제 Claude/Codex를 호출하지 않고 /extract 계약만 확인
+          LLM_PROVIDER=claude LLM_DISABLED=1 node server.js > /tmp/fake-ai.log 2>&1 &
           pid=$!
           ready=false
           for i in $(seq 1 20); do
@@ -78,7 +83,9 @@ pipeline {
           kill "$pid" 2>/dev/null || true
           [ "$ready" = true ] || { cat /tmp/fake-ai.log; exit 1; }
 
-          tar -czf fake-ai.tar.gz package.json package-lock.json server.js result.json node_modules
+          tar -czf fake-ai.tar.gz \
+            package.json package-lock.json server.js llm.js result.json \
+            README.md NOTICE pyproject.toml uv.lock codex_oauth_adapter providers node_modules
         '''
         stash name: 'fake-ai-tar', includes: 'fake-ai/fake-ai.tar.gz'
       }

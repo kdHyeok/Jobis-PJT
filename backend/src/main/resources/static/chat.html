@@ -61,27 +61,17 @@
   .fail-btn{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 13px;cursor:pointer;color:var(--ink-2)}
   .fail-btn:hover{background:var(--surface-2)}
   .fail-btn.pri{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+  /* 답변 → 커리어 저장소 추가 확인 카드 (자동 저장 아님, 사용자 동의) */
+  .save-card .save-chip{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:9px 0 4px;
+    background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+  .save-card .save-chip b{font-size:13px;font-weight:800;color:var(--ink)}
+  .save-card .save-chip span{font-size:11.5px;color:var(--muted)}
+  .save-done{font-size:12.5px;color:var(--ok);font-weight:700;line-height:1.5}
+  .save-done b{color:var(--ink)}
+  .save-done a{color:var(--brand-ink);text-decoration:underline;font-weight:700;margin-left:4px}
+  .save-done.skip{color:var(--muted);font-weight:600}
+  .save-err{margin-top:8px;font-size:12px;color:var(--bad);font-weight:700}
   /* ── 에이전트 레일 — 어느 에이전트가 무슨 일을 하는지 스트리밍 (아이콘: AI팀 cards sprite) ── */
-  /* 이력서 요청 — 질문을 반복하지 않고 행동만 곁들이는 얇은 줄 */
-  .rsm-slim{display:flex;flex-direction:column;gap:8px;align-items:flex-start;
-    background:var(--brand-soft);border:1px solid #dfe1ff;border-radius:13px;padding:12px 14px}
-  .rsm-slim .rsm-file{background:#fff;border:1px dashed #b9bcd6;border-radius:10px;padding:9px 13px;
-    font-size:13px;font-weight:700;color:var(--brand-ink);cursor:pointer}
-  .rsm-slim .rsm-skip{background:transparent;border:1px solid #d7d9ea;border-radius:20px;
-    padding:7px 13px;font-size:12.5px;color:var(--muted);cursor:pointer}
-  .rsm-slim .rsm-note{font-size:12px;color:var(--muted)}
-  /* 위로 올려 읽는 중 새 메시지가 왔을 때만 뜨는 버튼. 강제 스크롤 대신 알림으로 둔다. */
-  .jump-btn{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;z-index:6;
-    background:var(--brand);color:var(--on-brand);border:0;border-radius:20px;
-    padding:8px 15px;font-size:12.5px;font-weight:800;cursor:pointer;
-    box-shadow:0 4px 14px rgba(0,0,0,.18)}
-  /* 오른쪽 패널의 공고 요구사항 — 필수/우대를 번호 목록으로 항목화한다. */
-  .jr-h{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.02em;margin:12px 0 5px}
-  .jr-list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
-  .jr-list li{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
-  .jr-list.req li::marker{color:var(--bad);font-weight:800}
-  .jr-list.pref li::marker{color:var(--brand);font-weight:800}
-  .stk.soft{background:var(--surface-2);color:var(--muted)}
   .agent-rail{display:flex;flex-direction:column;gap:11px}
   .agent-rail .ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .agent-rail .ic-soft{stroke-opacity:.42}
@@ -117,17 +107,30 @@
   /* 화자색이 이름·말풍선 테두리에도 스며들게 */
   .msg.agent-msg .name{color:color-mix(in srgb,var(--ac) 62%,var(--ink))}
   .msg.agent-msg .bubble{border-color:color-mix(in srgb,var(--ac) 42%,var(--line))}
-  .bubble strong.hl{font-weight:800;color:#dc2626}
-  .bubble em{font-style:normal}
-  .bubble em.hl-good{color:#16a34a;font-weight:700}
-  .bubble em.hl-warn{color:#d97706;font-weight:700}
-  .bubble em.hl-bad{color:#dc2626;font-weight:700}
-  .bubble em.hl-num{color:var(--brand-ink);font-weight:700}
   /* 독의 지나간 아바타·현재 에이전트도 각자 색 */
   .ar-done .av{color:var(--ac,var(--muted));border-color:color-mix(in srgb,var(--ac,#fff) 32%,transparent);
     background:color-mix(in srgb,var(--ac,#fff) 9%,transparent)}
   .ar-now .big{color:var(--ac,var(--brand-ink));border-color:color-mix(in srgb,var(--ac,#fff) 40%,transparent);
     background:color-mix(in srgb,var(--ac,#fff) 13%,transparent)}
+
+  /* ── 대화 모드 — 이 화면은 분석 전용이 아니라 "대화"다. 분석은 그 안에서 일어난다. ── */
+  .talk-empty{max-width:620px;margin:6vh auto 0;text-align:center}
+  .talk-empty h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px}
+  .talk-empty p{font-size:14px;color:var(--muted);line-height:1.65;margin:0 0 26px}
+  .talk-seeds{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .talk-seed{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:9px 16px;
+    font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:.12s}
+  .talk-seed:hover{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-ink)}
+  /* 말풍선 아래 다음 단계 버튼 */
+  .talk-act{display:inline-block;margin-top:11px;font-size:13px;font-weight:700;color:var(--brand-ink);
+    background:var(--brand-soft);border:0;border-radius:9px;padding:9px 15px;cursor:pointer;text-decoration:none}
+  .talk-act:hover{background:var(--line-2)}
+  .talk-act:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  .talk-err{margin-top:9px;font-size:12.5px;color:var(--bad);font-weight:700}
+  /* 대화 → 분석으로 넘어가는 경계. 대화가 사라지지 않고 위에 그대로 남는다는 걸 눈으로 보여준다. */
+  .talk-divider{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--faint);
+    font-size:11.5px;font-weight:700;letter-spacing:.02em}
+  .talk-divider::before,.talk-divider::after{content:'';flex:1;height:1px;background:var(--line)}
 </style>
 </head>
 <body>
@@ -229,22 +232,28 @@
 
     </defs>
 </svg>
-<div class="app">
+<div class="app" id="app">
+  <!-- 분석이 없는 동안엔 우측 인사이트를 접어둔다(대화만 하는 화면). 파싱 중에 정해야 깜빡임이 없다. -->
+  <script>if(!new URLSearchParams(location.search).get('id') && !new URLSearchParams(location.search).get('c')) document.getElementById('app').classList.add('rcol');</script>
   <!-- ============ 사이드바 ============ -->
   <aside class="sidebar">
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2.6 4L17 13H5"/></svg></span>
       <span class="nm">J.O.B.<span>I.S</span></span>
     </div>
-    <button class="new-btn" onclick="location.href='new.html'">
+    <button class="new-btn" onclick="location.href='chat.html'">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      새 분석 시작
+      새 대화
     </button>
     <div class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-      <input placeholder="분석 검색">
+      <input placeholder="대화 검색">
     </div>
     <div class="side-scroll">
+      <a class="side-nav" onclick="location.href='new.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
+        공고 골라 분석
+      </a>
       <a class="side-nav" onclick="location.href='storage.html'">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
         커리어 저장소
@@ -253,13 +262,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
         로드맵 저장소
       </a>
-      <div class="side-label">최근 분석</div>
+      <div class="side-label">최근 대화</div>
       <div id="recentList"><div class="side-empty">불러오는 중…</div></div>
-      <div class="side-card">
+      <!-- 분석이 시작되기 전에는 숨는다 — 대화만 하는 동안엔 보여줄 게 없다 -->
+      <div class="side-card" id="cardEvidence" style="display:none">
         <h4>이번 분석 자료</h4>
         <div id="evFiles"><div class="file-row" style="color:var(--faint)"><span class="nm">불러오는 중…</span></div></div>
       </div>
-      <div class="side-card">
+      <div class="side-card" id="cardStages" style="display:none">
         <h4>분석 단계</h4>
         <ul class="mini-stages" id="miniStages">
           <li class="active">공고 · 자료 대조</li>
@@ -278,13 +288,13 @@
   <!-- ============ 메인(채팅) ============ -->
   <main class="main">
     <div class="topbar">
-      <div class="model-pill"><span class="g" id="connDot"></span> J.O.B.I.S 분석 엔진 <span id="connTxt" style="color:var(--faint)">연결 중…</span></div>
+      <div class="model-pill"><span class="g" id="connDot"></span> J.O.B.I.S <span id="connTxt" style="color:var(--faint)">대화</span></div>
       <div>
-        <div class="title" id="topTitle">분석 세션</div>
-        <div class="sub" id="topSub">실시간 분석 세션</div>
+        <div class="title" id="topTitle">새 대화</div>
+        <div class="sub" id="topSub">무엇이든 물어보세요</div>
       </div>
       <div class="sp"></div>
-      <button class="dark-btn" onclick="location.href='new.html'">＋ 새 분석</button>
+      <button class="dark-btn" onclick="location.href='chat.html'">＋ 새 대화</button>
     </div>
 
     <div class="chat-scroll" id="scroll">
@@ -302,9 +312,9 @@
 
     <div class="composer-wrap">
       <div class="composer-inner">
-        <div class="assist-note" id="assistNote"><i class="i i-bulb"></i> 질문이 오면 선택지를 누르거나 직접 답할 수 있어요</div>
+        <div class="assist-note" id="assistNote"><i class="i i-bulb"></i> 공고를 붙여넣으면 이 대화 안에서 바로 분석을 시작해요</div>
         <div class="composer">
-          <div class="field" id="field" contenteditable="true" data-ph="답변을 입력하세요…"></div>
+          <div class="field" id="field" contenteditable="true" data-ph="무엇이든 물어보세요…"></div>
           <div class="toolrow">
             <button class="tbtn icon" title="첨부"><i class="i i-clip"></i></button>
             <button class="tbtn"><i class="i i-link"></i> 포트폴리오 링크</button>
@@ -322,13 +332,12 @@
       <div class="s">답변에 따라 실시간 갱신됩니다</div>
     </div>
     <div class="insight-scroll" id="insightScroll">
-      <!-- 내 이력 요약 — 분석 전에는 커리어 저장소 자료, 분석이 시작되면 AI 가 이력서에서
-           **파싱한 항목**(PROFILE_CONTEXT)으로 바뀐다. 무엇을 근거로 판정했는지 여기서 확인한다.
-           예전에는 목업 값(신입·프로젝트 3건 / Java·성능 개선)이 박혀 있어서, 자료를 넣지 않은
-           계정에도 남의 스펙이 보였다 — 값만 실데이터로 바꾸고 패널은 유지한다. -->
-      <div class="ipanel" id="mySpecPanel">
-        <div class="ih" id="mySpecHead">내 이력 요약</div>
-        <div id="mySpecBody" style="font-size:12px;color:var(--muted)">불러오는 중…</div>
+      <div class="ipanel">
+        <div class="ih">현재 스펙 요약</div>
+        <div class="spec-row"><span class="k">경력 수준</span><span class="v">신입 · 프로젝트 3건</span></div>
+        <div class="spec-row"><span class="k">강점</span><span class="v">Java · 성능 개선</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:9px">주요 스택</div>
+        <div class="stacks"><span class="stk">Java</span><span class="stk">Spring Boot</span><span class="stk">JPA</span><span class="stk">MySQL</span></div>
       </div>
       <div class="ipanel">
         <div class="ih">공고 준비도 <span class="n mut" id="fitDelta">분석 중</span></div>
@@ -358,10 +367,18 @@
   var field = document.getElementById('field');
   var send = document.getElementById('send');
 
-  // URL의 분석 id (새 분석 화면에서 이미 세션을 열고 넘어옴)
-  var analysisId = new URLSearchParams(location.search).get('id');
-  if (!analysisId) { location.href = 'new.html'; return; }
-  var openRoute = new URLSearchParams(location.search).get('route');   // 로드맵 저장소에서 특정 경로 상태로 열기
+  /* 이 화면의 단위는 "대화"다.
+       ?c=<대화id>     — 저장된 대화를 연다(보통의 경우)
+       ?id=<분석id>    — 지난 링크(로드맵 저장소·진행 표시줄). 그 분석이 든 대화로 옮겨 연다.
+       파라미터 없음   — 새 대화. 첫 마디를 보내야 목록에 생긴다(ChatGPT 와 같은 방식). */
+  var _p = new URLSearchParams(location.search);
+  var conversationId = _p.get('c');
+  var analysisId = _p.get('id');          // 이 대화 안에 올라와 있는 분석(없으면 null)
+  var openRoute = _p.get('route');        // 로드맵 저장소에서 특정 경로 상태로 열기
+  var app = document.getElementById('app');
+  var recentList = document.getElementById('recentList');
+  var talkBusy = false;                   // 대화 응답 대기 중
+  var analysisActive = false;             // 분석이 도는 중(끝나면 다시 자유 대화)
 
   var USER = JB.user() || {};
   var UNAME = USER.name || '사용자';
@@ -386,14 +403,15 @@
   document.getElementById('sideMail').textContent = USER.email || '';
   document.getElementById('logoutBtn').addEventListener('click', function(){ JB.logout(); location.href = 'login.html'; });
 
-  // ---------- 사이드바: 이번 분석 자료(새 분석 화면에서 넘어온 선택) ----------
+  // ---------- 사이드바: 이번 분석 자료 ----------
   var KIND_FI = { PROJECT:'PJ', GITHUB:'GH', PORTFOLIO:'PF', STACK:'ST', EDU:'ED', CERT:'CT' };
   var KIND_CLS = { PROJECT:'cv', GITHUB:'gh', PORTFOLIO:'pf', STACK:'jd', EDU:'jd', CERT:'pf' };
-  (function fillEvidenceFiles(){
+  function fillEvidenceFiles(evs){
     var box = document.getElementById('evFiles');
-    var meta = null;
-    try { meta = JSON.parse(sessionStorage.getItem('jobis.analysisMeta') || 'null'); } catch(e){}
-    var evs = (meta && meta.id === analysisId && Array.isArray(meta.evidences)) ? meta.evidences : null;
+    if (!evs){
+      try { var meta = JSON.parse(sessionStorage.getItem('jobis.analysisMeta') || 'null');
+            if (meta && meta.id === analysisId && Array.isArray(meta.evidences)) evs = meta.evidences; } catch(e){}
+    }
     if (!evs || !evs.length){
       box.innerHTML = '<div class="file-row" style="color:var(--faint)"><span class="nm">선택한 자료로 분석 중</span></div>';
       return;
@@ -403,101 +421,14 @@
       var cls = KIND_CLS[e.kind] || 'jd';
       return '<div class="file-row"><span class="fi '+cls+'">'+esc(fi)+'</span><span class="nm">'+esc(e.label)+'</span><span class="ck">✓</span></div>';
     }).join('');
-  })();
-
-  // ---------- 사이드바 최근 분석 목록 ----------
-  JB.loadSessions(document.getElementById('recentList'), analysisId);
-
-  // ---------- 공고 정보 + 라이브/복원 분기 ----------
-  // 완료된 분석이면 결과(로드맵)부터 복원, 아니면 실시간으로 시작.
-  JB.api('/api/analyses/' + encodeURIComponent(analysisId)).then(function(st){
-    var jp = st.jobPosting || {};
-    var title = (jp.company || '') + (jp.role ? ' · ' + jp.role : '');
-    if (title.trim()){
-      jobLabel = title;
-      document.getElementById('topTitle').textContent = title;
-      document.title = 'J.O.B.I.S — ' + (jp.company || '분석');
-    }
-    parentLabel = st.parentLabel || null;   // 대체 재분석이면 원래 공고명 (서버가 보관)
-    selectedRoute = st.selectedRoute || null;   // 고른 주 경로 id (서버가 보관 → 복원 시 표시)
-    if (st.status === 'COMPLETED') {
-      // 지난 분석 복원 — DB 에는 회사·직무·연차·스택만 저장돼 있다(요건 항목은 실시간 신호에만 있다).
-      fillJobReq({ company: jp.company, role: jp.role, career: jp.career, stack: jp.stack });
-      restore();                          // 지난 분석: 결과(로드맵)부터
-    } else if (st.status === 'FAILED') {
-      renderFailure({ message: '이전 분석이 완료되지 못했어요.', recoverable: true });   // 실패로 끝난 분석 — 실시간 재개 대신 복구 안내
-    } else {
-      boot();                             // 진행 중/새 분석: 실시간
-    }
-  }).catch(function(){
-    // 상태 조회 실패(삭제됐거나 권한 없음) — 실시간 세션을 새로 열지 말고 명확히 알린다.
-    systemNote('이 분석을 열 수 없어요. 삭제됐거나 접근 권한이 없어요.');
-    var ct = document.getElementById('connTxt');
-    ct.textContent = '열 수 없음'; ct.style.color = 'var(--bad)';
-  });
-  /**
-   * 자동 스크롤 — 사용자가 **맨 아래를 보고 있을 때만** 따라 내린다.
-   * 분석 중에는 진행·타이핑이 계속 들어오는데, 매번 강제로 내리면 위로 올려 읽던 내용이
-   * 튕겨 내려간다(사용자 스크롤 의도를 뺏는다). 위로 올린 상태면 붙잡지 않고,
-   * 그동안 온 새 메시지는 "맨 아래로" 버튼으로 알린다.
-   */
-  var stickToBottom = true;
-  function atBottom(){
-    return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 80;
   }
-  scroll.addEventListener('scroll', function(){
-    stickToBottom = atBottom();
-    if (stickToBottom) hideJumpBtn();
-  }, { passive: true });
-
-  var jumpBtn = null;
-  function showJumpBtn(){
-    if (jumpBtn) return;
-    jumpBtn = document.createElement('button');
-    jumpBtn.className = 'jump-btn';
-    jumpBtn.type = 'button';
-    jumpBtn.textContent = '↓ 새 메시지';
-    jumpBtn.addEventListener('click', function(){
-      stickToBottom = true;
-      scroll.scrollTop = scroll.scrollHeight;
-      hideJumpBtn();
-    });
-    scroll.parentNode.appendChild(jumpBtn);
-  }
-  function hideJumpBtn(){
-    if (jumpBtn){ jumpBtn.remove(); jumpBtn = null; }
-  }
-
-  /** force=true 면 사용자 위치와 무관하게 내린다(사용자가 직접 보낸 직후 등). */
-  function scrollDown(force){
-    if (force){ stickToBottom = true; hideJumpBtn(); }
-    if (stickToBottom) scroll.scrollTop = scroll.scrollHeight;
-    else showJumpBtn();
-  }
+  function scrollDown(){ scroll.scrollTop = scroll.scrollHeight; }
 
   // 화자 결정 — speaker(에이전트 key)가 있으면 그 에이전트 아이콘·역할명·고유색으로, 없으면 J.O.B.I.S.
   function whoHtml(speaker){
     var a = speaker && AGENT_META[speaker];
     if(a) return { av:'<div class="who ai agent"><svg><use href="#'+a.icon+'"/></svg></div>', name:a.name, color:a.color };
     return { av:'<div class="who ai">✦</div>', name:'J.O.B.I.S', color:null };
-  }
-  /* AI 답변 강조 — 서식만 입힌다, 문구는 전부 AI 가 쓴 것. (ask.html 과 같은 룰) */
-  var HL_RULES = [
-    { re: /(적합도\s*[상]|충족되었|충족됩니다|충족했|강점)/g,          cls: 'hl-good' },
-    { re: /(부분\s*충족|부분적으로\s*충족|보완)/g,                    cls: 'hl-warn' },
-    { re: /(미충족|불충족|부족(?:합니다|한|해요)?|찾지\s*못해|확인되지\s*않)/g, cls: 'hl-bad' },
-    { re: /(충족)/g,                                                   cls: 'hl-good' },
-    { re: /(\d+(?:[.,]\d+)?\s*(?:년|개월|주|건|개|시간|%)(?:\s*이상|\s*이하)?)/g, cls: 'hl-num' },
-  ];
-  function mdHl(text){
-    var out = esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong class="hl">$1</strong>');
-    return out.split(/(<[^>]+>)/g).map(function(part){
-      if (part.charAt(0) === '<') return part;
-      HL_RULES.forEach(function(rule){
-        part = part.replace(rule.re, '<em class="' + rule.cls + '">$1</em>');
-      });
-      return part;
-    }).join('');
   }
   // extra(질문카드 등)는 타이핑이 끝난 뒤 붙는다. onExtra(el) 콜백으로 이벤트 바인딩.
   function aiBubble(html, extra, speaker){
@@ -540,8 +471,6 @@
         setTimeout(tick, speed);
       } else {
         if(caret) caret.remove();
-        // 타이핑이 끝나면 **라벨** 강조를 입힌다(서식만 — 문구는 전부 AI 가 쓴 것).
-        tw.innerHTML = mdHl(plainText);
         if(opts.extraHtml){
           var body = el.querySelector('.body');
           var wrap = document.createElement('div');
@@ -560,8 +489,7 @@
     el.innerHTML = '<div class="who me">'+esc(UINIT)+'</div><div class="body">' +
       '<div class="name">'+esc(UNAME)+' <span class="t">방금</span></div>' +
       '<div class="bubble">'+esc(text)+'</div></div>';
-    // 내가 방금 보낸 말은 항상 보이게 — 여기서는 스크롤을 따라 내리는 게 자연스럽다.
-    thread.appendChild(el); scrollDown(true);
+    thread.appendChild(el); scrollDown();
   }
   function systemNote(text){
     var el = document.createElement('div');
@@ -587,7 +515,6 @@
   };
   var AGENT_STAGE = { parse_job_posting:0, build_user_profile:0, check_sufficiency:0, ask_user:1,
     analyze_gap:2, plan_roadmap:2, find_alternatives:2, verify_result:2, assemble_output:2 };
-  var pendingResume = null;   // 이력서 요청을 받아 답장을 기다리는 중이면 그 신호
   var railDone = [], railCur = null;   // 지나간 에이전트들 · 현재 에이전트 (질문 중에도 독에 이력 유지)
 
   function agentAv(key){
@@ -663,20 +590,18 @@
     currentQuestion = m;
     var opts = (m.options||[]).map(function(o){ return '<button data-opt>'+esc(o)+'</button>'; }).join('');
     var extra = '<div class="qcard"><span class="tag">'+(m.agentName ? esc(m.agentName)+' · ' : '')+'확인 질문</span>' +
+      '<div class="q">'+esc(m.text)+'</div>' +
       (opts ? '<div class="opts">'+opts+'</div>' : '') +
       '<div class="hint">선택지를 누르거나 아래에 직접 답할 수 있어요.</div></div>';
     // 안내 문장은 타이핑 연출, 질문 카드는 타이핑 끝난 뒤 등장 + 버튼 바인딩
-    // 에이전트가 한 질문을 그대로 말한다. UI 가 "잠시 확인할 게 있어요" 같은 말을 덧붙이지 않는다.
-    aiTyping(m.text || '', {
-      speaker: m.agent || 'ask_user',   // 질문 담당이 직접 묻는다
+    aiTyping('잠시 확인할 게 있어요. 답해주시면 반영해서 이어갈게요.', {
+      speaker: 'ask_user',   // 질문 담당이 직접 묻는다
       extraHtml: extra,
       onDone: function(el){
         el.querySelectorAll('[data-opt]').forEach(function(b){
           b.addEventListener('click', function(){ answer(b.textContent); });
         });
-        send.disabled = false;
-        field.setAttribute('data-ph', '답변을 입력하세요…');
-        document.getElementById('assistNote').innerHTML = '<i class="i i-bulb"></i> 이 질문에 답해주세요 (선택지 클릭 또는 직접 입력)';
+        syncComposer();
         field.focus();
       }
     });
@@ -690,10 +615,54 @@
       body: JSON.stringify({ text: text, replyTo: currentQuestion.questionId })
     });
     currentQuestion = null;
-    send.disabled = true;
     field.textContent = '';
-    field.setAttribute('data-ph', '분석을 이어가는 중…');
+    syncComposer();
     document.getElementById('assistNote').innerHTML = '<i class="i i-bulb"></i> 답변을 반영해 분석을 이어갑니다…';
+  }
+
+  /* AI 응답 + (있으면) "커리어 저장소에 추가할까요?" 확인 카드.
+     ★자동 저장하지 않는다 — AI는 제안만, 저장은 사용자 동의로. 저장은 기존 POST /api/evidences 재사용. */
+  function onAgentMessage(m){
+    var extra = '';
+    if (m.saveHint && m.saveHint.label){
+      extra = '<div class="qcard save-card">' +
+        '<span class="tag">커리어 저장소에 추가</span>' +
+        '<div class="q">이 정보를 저장해 두면, 다음 분석부터는 다시 묻지 않아요.</div>' +
+        '<div class="save-chip"><b>' + esc(m.saveHint.label) + '</b>' +
+        (m.saveHint.description ? '<span>' + esc(m.saveHint.description) + '</span>' : '') + '</div>' +
+        '<div class="opts"><button data-save>저장소에 추가</button>' +
+        '<button data-skip>이번만 사용</button></div></div>';
+    }
+    aiTyping(m.text, {
+      speaker: m.agent || railCur,
+      extraHtml: extra,
+      onDone: function(el){
+        var card = el.querySelector('.save-card');
+        if (!card) return;
+        var btnSave = card.querySelector('[data-save]');
+        var btnSkip = card.querySelector('[data-skip]');
+        btnSkip.addEventListener('click', function(){
+          card.innerHTML = '<div class="save-done skip">이번 분석에만 사용했어요.</div>';
+        });
+        btnSave.addEventListener('click', async function(){
+          btnSave.disabled = true; btnSkip.disabled = true; btnSave.textContent = '추가하는 중…';
+          try {
+            await JB.api('/api/evidences', { method:'POST', body: JSON.stringify({
+              kind: m.saveHint.kind || 'CERT',
+              label: m.saveHint.label,
+              description: m.saveHint.description || ''
+            })});
+            // 사이드바 "이번 분석 자료"는 갱신하지 않는다 — 이 자료는 '다음' 분석부터 쓰이는 것.
+            card.innerHTML = '<div class="save-done">✓ 커리어 저장소에 추가했어요 · <b>' +
+              esc(m.saveHint.label) + '</b> — 다음 분석부터 자동으로 반영돼요. ' +
+              '<a href="storage.html" target="_blank">저장소 보기</a></div>';
+          } catch(e){
+            btnSave.disabled = false; btnSkip.disabled = false; btnSave.textContent = '저장소에 추가';
+            card.insertAdjacentHTML('beforeend', '<div class="save-err">추가하지 못했어요: ' + esc(e.message) + '</div>');
+          }
+        });
+      }
+    });
   }
 
   function onDone(m){
@@ -709,17 +678,15 @@
     document.getElementById('fitNum').innerHTML = (rd.now!=null?num(rd.now):'—') + '<small>/100</small>';
     document.getElementById('fitDelta').className = 'n up'; document.getElementById('fitDelta').textContent = '▲ 목표 '+ (rd.goal!=null?num(rd.goal):'');
     document.getElementById('fitLbl').textContent = '로드맵 완주 시 ' + (rd.goal!=null?num(rd.goal):'') + ' 목표';
-    fillMyStrengths(r.gaps);   // 충족으로 확인된 요건을 내 이력 요약 위에 덧붙인다
     var pe = document.getElementById('planEmpty');
     if(pe) pe.outerHTML = '<div class="ipanel"><div class="ih">준비 로드맵 <span class="n up">'+((r.roadmap||[]).length)+'단계</span></div>' +
       '<div class="spec-row"><span class="k">우선 보완</span><span class="v">'+esc(rd.topGap||'')+'</span></div>' +
       '<div class="spec-row"><span class="k">산출물</span><span class="v">'+esc((r.artifact||{}).title||'')+'</span></div></div>';
     finishRail();   // 에이전트 레일 마무리(✓ 처리·펄스 중단)
-    document.getElementById('topSub').textContent = '분석 완료';
+    document.getElementById('topSub').textContent = (jobLabel ? jobLabel + ' · ' : '') + '분석 완료';
     document.getElementById('flowLbl').textContent = '분석 완료 ✓';
     document.querySelectorAll('#miniStages li').forEach(function(li){ li.className='done'; });
-    // 서두 문장도 서버 판정(readiness.judge)을 쓴다 — UI 가 판정을 말하지 않는다.
-    var reportEl = aiBubble(esc(rd.judge || ''), buildReport(r), 'assemble_output');   // 리포트 작성자 명의
+    var reportEl = aiBubble('분석이 끝났어요. <strong>'+esc(rd.topGap||'')+'</strong>이 가장 큰 격차입니다. 아래 로드맵을 확인해보세요.', buildReport(r), 'assemble_output');   // 리포트 작성자 명의
     var altBtn = reportEl.querySelector('[data-alts]');
     if(altBtn){ altBtn.addEventListener('click', function(){ showAlternatives(r.alternatives || []); }); }
     // 경로 선택 바인딩 + 복원 시 이미 고른 경로 강조
@@ -733,8 +700,9 @@
       markSelectedRoute(reportEl, selRt.id);
       renderRouteContent(r, selRt, reportEl.querySelector('[data-route-detail]'));   // 그 경로 콘텐츠 재현
     }
-    send.disabled = true; field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 완료되었습니다');
-    document.getElementById('assistNote').innerHTML = '분석 완료 · 준비 로드맵이 생성되었습니다';
+    // 분석이 끝나면 대화로 돌아온다 — 결과를 두고 계속 이야기할 수 있어야 하므로 입력을 막지 않는다
+    analysisActive = false;
+    syncComposer();
   }
 
   // 대체 공고 카드 HTML (인라인 패널·말풍선 공용)
@@ -756,7 +724,7 @@
   // 대체 공고 목록 — 말풍선(경로 없는 폴백 결과의 "대체 공고 보기" 버튼용). 고르면 그 공고로 독립 재분석.
   function showAlternatives(alts){
     if(!alts || !alts.length){ systemNote('추천할 대체 공고가 없어요.'); return; }
-    var el = aiBubble('함께 볼 만한 공고예요.',
+    var el = aiBubble('이 공고는 지원이 어려워도, 지금 지원해볼 만한 곳을 찾아봤어요.',
       '<div class="alt-panel"><div class="alt-h">대체 공고</div>'+altCardsHtml(alts)+'</div>');
     bindAltButtons(el, alts);
   }
@@ -769,13 +737,16 @@
       var list = await JB.api('/api/evidences');
       var ids = (list||[]).map(function(e){ return e.id; });
       if(!ids.length){ systemNote('저장소에 자료가 없어요. 먼저 커리어 저장소를 채워주세요.'); if(btn){ btn.disabled=false; btn.textContent='이 공고로 재분석 →'; } return; }
+      // 대체 공고는 별도 대화로 연다 — 목표가 다른 분석이라 같은 스레드에 겹쳐 놓으면 읽기 어렵다
       var res = await JB.api('/api/analyses/agent-custom', {
         method:'POST',
         body: JSON.stringify({ sourceType:'URL', content: alt.rawText, evidenceIds: ids, parentAnalysisId: analysisId })
       });
       var selEv = (list||[]).map(function(e){ return { kind:e.kind, label:e.label }; });
       try { sessionStorage.setItem('jobis.analysisMeta', JSON.stringify({ id: res.analysisId, evidences: selEv })); } catch(_){}
-      location.href = 'chat.html?id=' + encodeURIComponent(res.analysisId);
+      location.href = res.conversationId
+        ? 'chat.html?c=' + encodeURIComponent(res.conversationId)
+        : 'chat.html?id=' + encodeURIComponent(res.analysisId);
     } catch(e){
       systemNote('재분석을 시작하지 못했어요: ' + e.message);
       if(btn){ btn.disabled=false; btn.textContent='이 공고로 재분석 →'; }
@@ -783,13 +754,15 @@
   }
 
   // 지난(완료된) 분석 복원 — 결과(로드맵)부터. 실시간 연결 없이 저장된 결과를 그린다.
+  // ★Promise 반환 — 저장된 대화를 재생할 때(openConversation) 이 리포트가 다 그려진 뒤에
+  //   그다음 말풍선을 붙여야 순서가 안 어긋난다.
   function restore(){
     document.getElementById('connDot').style.background = 'var(--muted)';
     document.getElementById('connTxt').textContent = '지난 분석';
     document.getElementById('connTxt').style.color = 'var(--muted)';
     systemNote('지난 분석 결과를 불러왔어요');
     if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고');
-    JB.api('/api/analyses/' + encodeURIComponent(analysisId) + '/result').then(function(data){
+    return JB.api('/api/analyses/' + encodeURIComponent(analysisId) + '/result').then(function(data){
       renderResult(data.result || {});
     }).catch(function(e){ systemNote('결과를 불러오지 못했어요: ' + e.message); });
   }
@@ -803,7 +776,8 @@
     STRUCTURAL_BLOCK:  { cls:'block',   icon:'⚠' },
     UNDETERMINED:      { cls:'unknown', icon:'?' }
   };
-  var REC_ROUTE = { APPLY_NOW:'as_is', APPLY_WITH_POLISH:'as_is', REINFORCE_FIRST:'reinforce', MID_TERM_TARGET:'parallel' };
+  // 권장 경로는 판정과 일치해야 한다 — "보완하며 지원(APPLY_WITH_POLISH)"이면 '지금 지원'이 아니라 '보강 후 지원'을 권장.
+  var REC_ROUTE = { APPLY_NOW:'as_is', APPLY_WITH_POLISH:'reinforce', REINFORCE_FIRST:'reinforce', MID_TERM_TARGET:'parallel' };
   function decisionHtml(dec){
     if(!dec || !dec.status) return '';
     var meta = DECISION_META[dec.status] || DECISION_META.UNDETERMINED;
@@ -826,11 +800,16 @@
     var rd = r.readiness || {};
     var now = num(rd.now), goal = num(rd.goal), gain = goal - now;
     var steps = roadmapStepsHtml(r);
-    var gaps = (r.gaps||[]).slice(0,3).map(function(g){
-      var mk = g.mark==='ok'?'ok':(g.mark==='no'?'no':'tri');
-      var sym = g.mark==='ok'?'✓':(g.mark==='no'?'✕':'△');
-      return '<div class="gap-line"><span class="mk '+mk+'">'+sym+'</span><div><div class="gt">'+esc(g.requirement)+'</div><div class="gd">'+esc(g.fix||g.evidence||'')+'</div></div></div>';
-    }).join('');
+    // "부족한 증거 → 준비 과제"엔 실제로 부족한 것(세모·없음)만 넣는다.
+    // 확인됨(ok)은 준비 과제가 아니므로 제외 — 예전엔 필터 없이 앞 3개를 잘라서, AI가 ok를 앞에 두면 확인됨만 떴다.
+    var gapItems = (r.gaps||[]).filter(function(g){ return g.mark !== 'ok'; });
+    var gaps = gapItems.length
+      ? gapItems.slice(0,3).map(function(g){
+          var mk = g.mark==='no'?'no':'tri';
+          var sym = g.mark==='no'?'✕':'△';
+          return '<div class="gap-line"><span class="mk '+mk+'">'+sym+'</span><div><div class="gt">'+esc(g.requirement)+'</div><div class="gd">'+esc(g.fix||g.evidence||'')+'</div></div></div>';
+        }).join('')
+      : '<div class="gap-line"><div class="gd">공고의 필수 요건은 지금 자료로 대체로 확인됐어요. 우대 요건을 더 채우면 준비도가 올라가요.</div></div>';
     var hasRoutes = (r.routes||[]).length > 0;
     return '<div class="report">' +
       '<div class="report-head"><div class="rk">준비 로드맵 · '+esc(jobLabel||'분석 결과')+'</div><h3>'+esc(rd.judge||'')+'</h3></div>' +
@@ -957,7 +936,11 @@
       var res = await JB.api('/api/roadmaps', {
         method: 'POST', body: JSON.stringify({ analysisId: analysisId, routeId: route.id })
       });
-      if(out) out.innerHTML = generatedRoadmapHtml(res.roadmap || {}, route.id);
+      // SavedRoadmapResponse.roadmap 은 @JsonRawValue라 이미 파싱된 객체(문자열 아님) — staged:true 여야 roadmap-stages.html 라우팅.
+      var rm = res.roadmap;
+      if (typeof rm === 'string') { try { rm = JSON.parse(rm); } catch(e){ rm = {}; } }
+      rm = rm || {};
+      if(out) out.innerHTML = generatedRoadmapHtml(rm, route.id);
       btn.textContent = '저장됨 ✓'; btn.classList.add('done');
     } catch(e){
       btn.disabled = false; btn.textContent = '이 경로로 로드맵 생성 →';
@@ -971,8 +954,9 @@
       return '<div class="step active"><span class="sn">'+esc(String(s.no==null?'':s.no))+'</span>' +
         '<div><div class="st">'+esc(s.title||'')+'</div><div class="sm">'+esc(s.meta||'')+'</div></div></div>';
     }).join('');
-    var link = routeId ? '<a href="roadmap.html?id='+encodeURIComponent(analysisId)+'&route='+encodeURIComponent(routeId)+'" ' +
-      'style="display:inline-block;margin-top:11px;font-size:12.5px;font-weight:700;color:var(--brand-ink);text-decoration:none">전체 로드맵 페이지로 보기 →</a>' : '';
+    var link = routeId ? '<a href="'+JB.roadmapHref(rm, analysisId, routeId)+'" ' +
+      'style="display:inline-block;margin-top:11px;font-size:12.5px;font-weight:700;color:var(--brand-ink);text-decoration:none">' +
+      (rm && rm.staged ? '단계별로 진행하기 →' : '전체 로드맵 페이지로 보기 →') + '</a>' : '';
     return '<div class="rmgen-card"><div class="rmgen-h">'+esc(rm.title||'생성된 로드맵')+'</div>' +
       (rm.intro ? '<div class="rmgen-intro">'+esc(rm.intro)+'</div>' : '') +
       steps +
@@ -992,113 +976,8 @@
   }
 
   // 인사이트 "공고 요구 기술" 패널 채우기 (라이브 JOB_CONTEXT + 복원 둘 다 사용)
-  /**
-   * 오른쪽 패널의 "내 자료 요약" — 커리어 저장소에 **실제로 등록된** 자료만 센다.
-   * 자료가 없으면 없다고 말하고 저장소로 안내한다(가짜 스펙을 보여주지 않는다).
-   */
-  (function fillMySpec(){
-    var body = document.getElementById('mySpecBody');
-    if (!body) return;
-    JB.api('/api/evidences').then(function(list){
-      list = list || [];
-      if (!list.length){
-        body.innerHTML = '아직 등록한 자료가 없어요.<br>' +
-          '<a href="storage.html" style="color:var(--brand-ink);font-weight:700">커리어 저장소</a>에서 ' +
-          '추가하거나, 대화에서 이력서를 올려주세요.';
-        return;
-      }
-      var byKind = {};
-      list.forEach(function(e){ (byKind[e.kind] = byKind[e.kind] || []).push(e); });
-      var stacks = (byKind.STACK || []).map(function(e){ return e.label; });
-      var rows = '';
-      [['PROJECT','프로젝트'],['EDU','교육·학력'],['CERT','자격·어학'],
-       ['GITHUB','GitHub'],['PORTFOLIO','포트폴리오']].forEach(function(pair){
-        var items = byKind[pair[0]] || [];
-        if (items.length){
-          rows += '<div class="spec-row"><span class="k">' + pair[1] + '</span>' +
-                  '<span class="v">' + items.length + '건</span></div>';
-        }
-      });
-      body.innerHTML =
-        '<div class="spec-row"><span class="k">등록 자료</span><span class="v">' + list.length + '건</span></div>' +
-        rows +
-        (stacks.length
-          ? '<div style="margin-top:9px">기술 스택 ' + stacks.length + '개</div>' +
-            '<div class="stacks">' + stacks.slice(0, 10).map(function(s){
-              return '<span class="stk">' + esc(s) + '</span>'; }).join('') + '</div>'
-          : '');
-    }).catch(function(){
-      body.textContent = '자료를 불러오지 못했어요.';
-    });
-  })();
-
-  /**
-   * 오른쪽 패널의 "내 이력 요약" — AI 가 이력서에서 파싱한 항목을 그대로 그린다.
-   * 분석 전 저장소 요약(fillMySpec)을 이 결과로 덮는다.
-   */
-  var myProfile = null;
-  function fillMyProfile(m){
-    myProfile = m;
-    var head = document.getElementById('mySpecHead');
-    var body = document.getElementById('mySpecBody');
-    if (!body) return;
-    if (head) head.innerHTML = '내 이력 요약 <span class="n mut">파싱 완료</span>';
-
-    function list(title, items, cls){
-      if (!items || !items.length) return '';
-      return '<div class="jr-h">' + title + ' <span class="n mut">' + items.length + '</span></div>' +
-        '<div class="stacks">' + items.slice(0, 8).map(function(t){
-          return '<span class="stk' + (cls ? ' ' + cls : '') + '">' + esc(t) + '</span>'; }).join('') + '</div>';
-    }
-
-    var html = '';
-    if ((m.skills || []).length){
-      html += '<div class="jr-h">기술 스택 <span class="n mut">' + m.skills.length + '</span></div>' +
-              '<div class="stacks">' + m.skills.slice(0, 12).map(function(t){
-                return '<span class="stk">' + esc(t) + '</span>'; }).join('') + '</div>';
-    }
-    html += list('프로젝트', m.projects);
-    html += list('경력', m.experiences);
-    html += list('학력', m.education, 'soft');
-    html += list('자격·어학', (m.certifications || []).concat(m.languages || []), 'soft');
-
-    // 근거 문장 수 — 0 이면 대조가 사실상 불가능하므로 그 사실을 알린다.
-    if (!m.evidenceCount){
-      html += '<div class="jr-h">근거</div><div style="font-size:12px;color:var(--bad)">' +
-              '이력서에서 판정 근거 문장을 찾지 못했어요 — 경험을 문장으로 적어주시면 대조가 정확해져요.</div>';
-    } else {
-      html += '<div class="spec-row" style="margin-top:9px"><span class="k">판정 근거</span>' +
-              '<span class="v">' + m.evidenceCount + '개 문장</span></div>';
-    }
-    if (!html) html = '이력서에서 항목을 읽어내지 못했어요.';
-    body.innerHTML = html;
-  }
-
-  /** 판정이 끝나면 충족으로 확인된 요건을 강점으로 덧붙인다(서버 판정 결과만 쓴다). */
-  function fillMyStrengths(gaps){
-    var body = document.getElementById('mySpecBody');
-    if (!body || !myProfile) return;
-    var met = (gaps || []).filter(function(g){ return g.mark === 'ok'; })
-                          .map(function(g){ return g.requirement; });
-    if (!met.length) return;
-    body.insertAdjacentHTML('afterbegin',
-      '<div class="jr-h">확인된 강점 <span class="n mut">' + met.length + '</span></div>' +
-      '<ol class="jr-list pref">' + met.slice(0, 5).map(function(t){
-        return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>');
-  }
-
-  /**
-   * 오른쪽 패널의 "공고 요구사항" — AI 가 파싱한 항목을 그대로 표로 그린다.
-   * 긴 목록을 말풍선에 붓지 않고 여기서 보게 하는 것이 이 패널의 목적이다.
-   * ctx = JOB_CONTEXT 메시지(또는 복원된 공고 정보).
-   */
-  function fillJobReq(ctx){
-    ctx = ctx || {};
-    var stacks   = Array.isArray(ctx.stack) ? ctx.stack : [];
-    var required = Array.isArray(ctx.required) ? ctx.required : [];
-    var preferred = Array.isArray(ctx.preferred) ? ctx.preferred : [];
-    var domains  = Array.isArray(ctx.domains) ? ctx.domains : [];
-
+  function fillJobReq(career, stack){
+    var stacks = Array.isArray(stack) ? stack : [];
     var host = document.getElementById('insightScroll');
     var panel = document.getElementById('jobReqPanel');
     if (!panel){
@@ -1106,40 +985,13 @@
       panel.className = 'ipanel'; panel.id = 'jobReqPanel';
       host.insertBefore(panel, host.firstChild);
     }
-
-    function reqList(title, items, cls){
-      if (!items.length) return '';
-      return '<div class="jr-h">' + title + ' <span class="n mut">' + items.length + '</span></div>' +
-        '<ol class="jr-list ' + cls + '">' +
-        items.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ol>';
-    }
-
-    var head = '<div class="ih">공고 요구사항</div>';
-    var meta = '';
-    if (ctx.company || ctx.role){
-      meta += '<div class="spec-row"><span class="k">공고</span><span class="v">' +
-              esc([ctx.company, ctx.role].filter(Boolean).join(' · ')) + '</span></div>';
-    }
-    if (ctx.career){
-      meta += '<div class="spec-row"><span class="k">요구 연차</span><span class="v">' + esc(ctx.career) + '</span></div>';
-    }
-
-    var body = reqList('필수 요건', required, 'req') + reqList('우대 사항', preferred, 'pref');
-    if (stacks.length){
-      body += '<div class="jr-h">요구 기술 <span class="n mut">' + stacks.length + '</span></div>' +
-              '<div class="stacks">' + stacks.map(function(s){ return '<span class="stk">' + esc(s) + '</span>'; }).join('') + '</div>';
-    }
-    if (domains.length){
-      body += '<div class="jr-h">도메인</div><div class="stacks">' +
-              domains.map(function(s){ return '<span class="stk soft">' + esc(s) + '</span>'; }).join('') + '</div>';
-    }
-    if (!body){
-      body = '<div style="font-size:12px;color:var(--muted);margin-top:6px">원문에서 요구사항을 특정하지 못했어요</div>';
-    }
-    panel.innerHTML = head + meta + body;
+    panel.innerHTML = '<div class="ih">공고 요구 기술 <span class="n mut">'+stacks.length+'</span></div>' +
+      (career ? '<div class="spec-row"><span class="k">경력</span><span class="v">'+esc(career)+'</span></div>' : '') +
+      (stacks.length ? '<div class="stacks">'+stacks.map(function(s){ return '<span class="stk">'+esc(s)+'</span>'; }).join('')+'</div>'
+                     : '<div style="font-size:12px;color:var(--muted);margin-top:6px">원문에서 요구 기술을 특정하지 못했어요</div>');
   }
 
-  // 공고 이해 신호: 웹은 원문만 넘겼고, AI가 회사·직무·요건·요구스택을 분석해 보내온 것.
+  // 공고 이해 신호: 웹은 원문만 넘겼고, AI가 회사·직무·요구스택을 분석해 보내온 것.
   function onJobContext(m){
     var title = (m.company||'') + (m.role ? ' · ' + m.role : '');
     if (title.trim()){
@@ -1147,123 +999,19 @@
       document.getElementById('topTitle').textContent = title;
       document.title = 'J.O.B.I.S — ' + (m.company || '분석');
     }
-    fillJobReq(m);
-    // 대화 문장은 만들지 않는다 — 공고를 읽었다는 말은 노드 진행 신호와 에이전트 발화가 이미 한다.
-    // (여기서 UI 가 조립하면 에이전트 말과 겹쳐 같은 내용이 두 번 나온다.)
-  }
-
-  // ── 이력서 요청(REQUEST_RESUME) — 대화 중에 파일이나 원문으로 이력서를 받는다. ──
-  // 받은 원문은 (1) 분석에 바로 넘기고 (2) 커리어 저장소에 조각으로 적재한다.
-  // pdf·docx 는 브라우저가 못 읽으므로 base64 로 서버에 넘겨 AI가 추출한다.
-  /**
-   * 이력서 요청 — **재촉하지 않는다.**
-   * 에이전트가 이미 "이력서가 있으시면 주실래요?"라고 말했으므로 같은 말을 다시 하지 않고,
-   * 입력창을 열어 답장을 기다린다. 사용자는 그냥 붙여넣어도 되고 "없어요"라고 해도 된다.
-   * 파일(pdf·docx)은 브라우저가 못 읽어서 올릴 자리만 조용히 곁들인다.
-   */
-  function onRequestResume(m){
-    if(progressEl){ progressEl.remove(); progressEl = null; }
-    pendingResume = m;
-    var accept = (m.accept || ['.txt','.md','.pdf','.docx']).join(',');
-
-    // 에이전트가 문구를 준 경우에만 말풍선으로 전한다(브릿지·UI 가 문구를 지어내지 않는다).
-    if ((m.text || '').trim()){
-      aiTyping(m.text, { speaker: m.agent || 'build_user_profile' });
-    }
-
-    // 파일 업로드 자리 + 건너뛰기. 질문을 반복하지 않고 행동만 제시한다.
-    var el = document.createElement('div');
-    el.className = 'msg';
-    el.innerHTML = '<div class="body"><div class="rsm-slim">' +
-      '<label class="rsm-file"><input type="file" accept="' + escA(accept) + '" style="display:none">' +
-      '<span data-rsm-filelabel>이력서 파일 올리기 (pdf · docx · txt)</span></label>' +
-      '<button class="rsm-skip" type="button">이력서 없이 진행</button>' +
-      '<div class="rsm-note" data-rsm-note>또는 아래 입력창에 이력서를 붙여넣으세요. 올린 이력서는 커리어 저장소에도 저장돼요.</div>' +
-      '</div></div>';
-    thread.appendChild(el);
-    scrollDown();
-
-    var note = el.querySelector('[data-rsm-note]');
-    var fileInput = el.querySelector('input[type=file]');
-    fileInput.addEventListener('change', async function(){
-      var f = fileInput.files[0];
-      if(!f) return;
-      note.textContent = f.name + ' 읽는 중…';
-      try {
-        var parsed = await parseResumeFile(f);
-        if(!(parsed.text || '').trim()){
-          note.textContent = '파일에서 글자를 찾지 못했어요. 원문을 붙여넣어 주세요.';
-          return;
-        }
-        await storeFragments(parsed.fragments || [], note);
-        el.remove();
-        publishResume(parsed.text, f.name + ' (' + parsed.text.length + '자)');
-      } catch(err){ note.textContent = '읽지 못했어요: ' + err.message; }
-    });
-    el.querySelector('.rsm-skip').addEventListener('click', function(){
-      el.remove();
-      publishResume('', '이력서 없이 진행할게요');
-    });
-
-    // 입력창을 열어 답장을 받는다.
-    send.disabled = false;
-    field.setAttribute('contenteditable','true');
-    field.setAttribute('data-ph', '이력서를 붙여넣거나, 상황을 알려주세요…');
-    var an = document.getElementById('assistNote');
-    if(an) an.innerHTML = '<i class="i i-bulb"></i> 이력서를 주시면 요건과 대조해 드려요. 없으면 없다고 알려주세요.';
-    field.focus();
-  }
-
-  /** 이력서에서 뽑은 조각을 커리어 저장소에 적재. 실패해도 분석은 이어간다. */
-  async function storeFragments(fragments, note){
-    var items = (fragments || []).filter(function(f){ return !f.duplicate; })
-      .map(function(f){ return { kind: f.kind, label: f.label, description: f.description || '' }; });
-    if(!items.length) return;
-    try {
-      var r = await JB.api('/api/evidences/import', { method:'POST', body: JSON.stringify({ items: items }) });
-      var n = (r.created || []).length;
-      if(n && note) note.textContent = '저장소에 자료 ' + n + '건을 저장했어요.';
-    } catch(_){}
-  }
-
-  /** 파일 → base64 → 서버(AI) 추출. pdf·docx 를 위해 필요하다. */
-  function parseResumeFile(file){
-    return new Promise(function(resolve, reject){
-      var reader = new FileReader();
-      reader.onerror = function(){ reject(new Error('파일을 읽지 못했어요.')); };
-      reader.onload = function(){
-        var b64 = String(reader.result || '').split(',')[1] || '';
-        JB.api('/api/evidences/parse-file', {
-          method: 'POST', body: JSON.stringify({ filename: file.name, contentBase64: b64 })
-        }).then(resolve).catch(reject);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  /** 이력서 원문(또는 빈 값)을 AI 로 되돌려 분석을 재개시킨다 — 질문 답변과 같은 채널. */
-  function publishResume(text, label){
-    if(!pendingResume) return;
-    if(label) userBubble(label);
-    client.publish({
-      destination: '/app/agent/' + analysisId + '/message',
-      body: JSON.stringify({ text: text, replyTo: 'resume' })
-    });
-    pendingResume = null;
-    send.disabled = true;
-    field.textContent = '';
-    field.setAttribute('data-ph', '분석을 이어가는 중…');
-    var an = document.getElementById('assistNote');
-    if(an) an.innerHTML = '<i class="i i-bulb"></i> 받은 내용을 반영해 분석을 이어갑니다…';
+    var stacks = Array.isArray(m.stack) ? m.stack : [];
+    fillJobReq(m.career, m.stack);
+    // 대화로도 알려줌(공고를 읽은 느낌)
+    var line = '공고를 읽었어요' + (title.trim() ? ' — ' + title : '') + '. ' +
+      (stacks.length ? '요구 기술 ' + stacks.length + '개를 확인했어요. 이제 내 자료와 대조할게요.' : '이제 내 자료와 대조할게요.');
+    aiTyping(line, { speaker: 'parse_job_posting' });   // 공고 분석가 명의
   }
 
   function handle(m){
     if(m.type==='PROGRESS') onProgress(m);
     else if(m.type==='JOB_CONTEXT') onJobContext(m);
     else if(m.type==='QUESTION') onQuestion(m);
-    else if(m.type==='PROFILE_CONTEXT') fillMyProfile(m);
-    else if(m.type==='REQUEST_RESUME') onRequestResume(m);
-    else if(m.type==='AGENT_MESSAGE') aiTyping(m.text, { speaker: m.agent || railCur });   // 현재 담당 에이전트 명의
+    else if(m.type==='AGENT_MESSAGE') onAgentMessage(m);
     else if(m.type==='DONE') onDone(m);
     else if(m.type==='ERROR') renderFailure(m);
   }
@@ -1272,9 +1020,8 @@
   function renderFailure(m){
     if (typeof client !== 'undefined' && client && client.deactivate) { try { client.deactivate(); } catch(_){} }
     currentQuestion = null;
-    send.disabled = true;
-    field.setAttribute('contenteditable','false'); field.setAttribute('data-ph','분석이 종료되었습니다');
-    var an=document.getElementById('assistNote'); if(an) an.textContent='';
+    analysisActive = false;          // 분석은 멈췄어도 대화는 계속할 수 있어야 한다
+    syncComposer();
     var ct=document.getElementById('connTxt'); if(ct){ ct.textContent='분석 실패'; ct.style.color='var(--bad)'; }
     var dot=document.getElementById('connDot'); if(dot) dot.style.background='var(--bad)';
     if(progressEl){ progressEl.remove(); progressEl=null; }
@@ -1289,16 +1036,207 @@
     el.querySelector('[data-fail="new"]').addEventListener('click',function(){ location.href='new.html'; });
   }
 
-  // 컴포저 전송(직접 입력 답변)
+  /* ==================================================================
+     대화 — 이 화면의 바탕. 분석은 이 대화 안에서 일어나는 사건이다.
+     ================================================================== */
+
+  // 답을 기다리는 동안의 점 세 개(분석 진행바와 달리 "말을 고르는 중"에 해당)
+  function thinkingBubble(){
+    var el = document.createElement('div');
+    el.className = 'msg typing';
+    el.innerHTML = '<div class="who ai">✦</div><div class="body">' +
+      '<div class="name">J.O.B.I.S</div>' +
+      '<div class="bubble"><i></i><i></i><i></i></div></div>';
+    thread.appendChild(el); scrollDown();
+    return el;
+  }
+
+  function renderEmpty(){
+    thread.innerHTML =
+      '<div class="talk-empty"><h1>무엇을 준비하고 계세요?</h1>' +
+      '<p>목표 공고를 붙여넣으면 이 대화 안에서 바로 준비 상태를 살펴볼게요.<br>' +
+      '아직 공고가 없어도 괜찮아요 — 무엇부터 하면 좋을지부터 이야기해요.</p>' +
+      '<div class="talk-seeds">' +
+      '<button class="talk-seed">백엔드 취업 준비, 뭐부터 해야 할까요?</button>' +
+      '<button class="talk-seed">제 경험을 어떻게 정리해야 할까요?</button>' +
+      '<button class="talk-seed">포트폴리오에 뭐가 들어가야 하나요?</button>' +
+      '</div></div>';
+    thread.querySelectorAll('.talk-seed').forEach(function(b){
+      b.addEventListener('click', function(){ sendTalk(b.textContent); });
+    });
+  }
+
+  /** AI가 제안한 다음 단계를 말풍선 아래 버튼으로. lastText = 방금 사용자가 보낸 말(공고 원문일 수 있다). */
+  function actionHtml(action, label, lastText){
+    // 공고를 통째로 붙여넣었다면 AI 판단과 무관하게 언제나 분석 버튼을 준다.
+    // (AI가 NONE 을 내도 사용자를 막다른 길에 두지 않는다)
+    if (/https?:\/\//i.test(lastText) || lastText.length > 200)
+      return '<button class="talk-act" data-run-analysis>' + esc(label || '이 공고로 분석 시작') + ' →</button>';
+    if (action === 'ANALYZE' || action === 'JOB_POSTING')
+      return '<a class="talk-act" href="new.html">' + esc(label || '공고 골라서 시작') + ' →</a>';
+    if (action === 'RESUME')
+      return '<a class="talk-act" href="storage.html">' + esc(label || '커리어 저장소 정리') + ' →</a>';
+    return '';
+  }
+
+  /** 한마디 보내기. 대화가 아직 없으면 이 요청이 대화를 만든다(그때 목록에 나타난다). */
+  async function sendTalk(text){
+    if (talkBusy) return;
+    text = String(text || '').trim();
+    if (!text) return;
+    if (thread.querySelector('.talk-empty')) thread.innerHTML = '';
+
+    userBubble(text);
+    field.textContent = ''; talkBusy = true; syncComposer();
+    var wait = thinkingBubble();
+    try {
+      var r = await JB.api('/api/conversations/' + encodeURIComponent(conversationId || 'new') + '/messages', {
+        method: 'POST', body: JSON.stringify({ text: text })
+      });
+      wait.remove();
+      var isNew = !conversationId;
+      conversationId = r.conversationId;
+      if (isNew) history.replaceState(null, '', 'chat.html?c=' + encodeURIComponent(conversationId));
+      document.getElementById('topTitle').textContent = r.title || '대화';
+      document.title = 'J.O.B.I.S — ' + (r.title || '대화');
+      aiTyping(r.reply, {
+        extraHtml: actionHtml(r.action, r.actionLabel, text),
+        onDone: function(el){
+          var btn = el.querySelector('[data-run-analysis]');
+          if (btn) btn.addEventListener('click', function(){ startAnalysisInThread(text, 'TEXT', btn); });
+        }
+      });
+      JB.loadConversations(recentList, conversationId);   // 새 대화가 즉시 목록에 뜨도록
+    } catch(e){
+      wait.remove();
+      systemNote('답변을 가져오지 못했어요: ' + e.message);
+    } finally {
+      talkBusy = false; syncComposer(); field.focus();
+    }
+  }
+
+  /**
+   * 대화를 떠나지 않고 분석을 시작한다 — 이게 이 화면의 핵심.
+   * 위의 대화는 그대로 남고, 그 아래에 분석이 이어붙는다.
+   */
+  async function startAnalysisInThread(content, sourceType, btn){
+    if (btn){ btn.disabled = true; btn.textContent = '분석 준비 중…'; }
+    try {
+      var list = await JB.api('/api/evidences');
+      var ids = (list || []).map(function(e){ return e.id; });
+      if (!ids.length){
+        if (btn){ btn.insertAdjacentHTML('afterend',
+          '<div class="talk-err">저장소에 자료가 없어요. <a href="storage.html" style="color:var(--brand-ink)">커리어 저장소</a>를 먼저 채워주세요.</div>');
+          btn.remove(); }
+        return;
+      }
+      var res = await JB.api('/api/analyses/agent-custom', { method:'POST', body: JSON.stringify({
+        sourceType: sourceType, content: content, evidenceIds: ids, conversationId: conversationId }) });
+      if (btn){ btn.disabled = true; btn.textContent = '분석 시작됨 ✓'; }
+
+      // 대화 밖에서 열었더라도 서버가 대화를 만들어 담아준다 — 그 대화로 자리를 옮긴다
+      if (!conversationId && res.conversationId){
+        conversationId = res.conversationId;
+        history.replaceState(null, '', 'chat.html?c=' + encodeURIComponent(conversationId));
+      }
+      var d = document.createElement('div');
+      d.className = 'talk-divider'; d.textContent = '여기서 분석을 시작했어요';
+      thread.appendChild(d);
+      fillEvidenceFiles(list.map(function(e){ return { kind:e.kind, label:e.label }; }));
+      await mountAnalysis(res.analysisId);
+      JB.loadConversations(recentList, conversationId);
+    } catch(e){
+      if (btn){ btn.disabled = false; btn.textContent = '이 공고로 분석 시작 →';
+        btn.insertAdjacentHTML('afterend', '<div class="talk-err">분석을 시작하지 못했어요: ' + esc(e.message) + '</div>'); }
+    }
+  }
+
+  /** 분석을 이 스레드에 올린다. 완료된 것이면 결과를 복원하고, 진행 중이면 실시간으로 잇는다. */
+  async function mountAnalysis(aid){
+    analysisId = aid;
+    analysisActive = true;
+    app.classList.remove('rcol');                                  // 우측 인사이트 펼치기
+    document.getElementById('cardEvidence').style.display = '';
+    document.getElementById('cardStages').style.display = '';
+    document.getElementById('connTxt').textContent = '연결 중…';
+    syncComposer();
+    try {
+      var st = await JB.api('/api/analyses/' + encodeURIComponent(aid));
+      var jp = st.jobPosting || {};
+      var title = (jp.company || '') + (jp.role ? ' · ' + jp.role : '');
+      if (title.trim()){
+        jobLabel = title;
+        document.getElementById('topSub').textContent = title;
+      }
+      parentLabel = st.parentLabel || null;         // 대체 재분석이면 원래 공고명(서버 보관)
+      selectedRoute = st.selectedRoute || null;     // 고른 주 경로 id(서버 보관 → 복원 시 표시)
+      if (st.status === 'COMPLETED'){
+        fillJobReq(jp.career, jp.stack);
+        await restore();   // ★리포트가 다 그려진 뒤 반환 — 재생 시 다음 말풍선이 아래로 붙게(순서 보장)
+      } else if (st.status === 'FAILED'){
+        renderFailure({ message: '이전 분석이 완료되지 못했어요.', recoverable: true });
+      } else {
+        boot();
+      }
+    } catch(e){
+      analysisActive = false; syncComposer();
+      systemNote('이 분석을 열 수 없어요. 삭제됐거나 접근 권한이 없어요.');
+      var ct = document.getElementById('connTxt');
+      ct.textContent = '열 수 없음'; ct.style.color = 'var(--bad)';
+    }
+  }
+
+  /** 저장된 대화를 그린다. role=ANALYSIS 줄은 말풍선이 아니라 분석 그 자체를 올린다. */
+  async function openConversation(cid){
+    var d;
+    try { d = await JB.api('/api/conversations/' + encodeURIComponent(cid)); }
+    catch(e){ renderEmpty(); systemNote('대화를 열 수 없어요: ' + e.message); return; }
+    conversationId = d.conversationId;
+    document.getElementById('topTitle').textContent = d.title || '대화';
+    document.title = 'J.O.B.I.S — ' + (d.title || '대화');
+    thread.innerHTML = '';
+    var msgs = d.messages || [];
+    if (!msgs.length){ renderEmpty(); return; }
+    for (var i = 0; i < msgs.length; i++){
+      var m = msgs[i];
+      if (m.role === 'USER') userBubble(m.content);
+      else if (m.role === 'ASSISTANT') aiBubble(esc(m.content || '').replace(/\n/g, '<br>'));
+      else if (m.role === 'ANALYSIS' && m.analysisId){
+        var dv = document.createElement('div');
+        dv.className = 'talk-divider'; dv.textContent = '여기서 분석을 시작했어요';
+        thread.appendChild(dv);
+        await mountAnalysis(m.analysisId);   // 순서를 지키려면 기다려야 한다
+      }
+    }
+  }
+
+  /* ---------- 컴포저 — 분석이 질문 중이면 그 답, 아니면 대화 ---------- */
+  function syncComposer(){
+    var note = document.getElementById('assistNote');
+    if (currentQuestion){
+      send.disabled = false;
+      field.setAttribute('data-ph', '답변을 입력하세요…');
+      note.innerHTML = '<i class="i i-bulb"></i> 이 질문에 답해주세요 (선택지 클릭 또는 직접 입력)';
+    } else if (analysisActive){
+      send.disabled = true;
+      field.setAttribute('data-ph', '분석을 이어가는 중…');
+      note.innerHTML = '<i class="i i-bulb"></i> 분석이 끝나면 이어서 대화할 수 있어요';
+    } else {
+      send.disabled = !field.textContent.trim() || talkBusy;
+      field.setAttribute('data-ph', '무엇이든 물어보세요…');
+      note.innerHTML = '<i class="i i-bulb"></i> 공고를 붙여넣으면 이 대화 안에서 바로 분석을 시작해요';
+    }
+  }
+
   function submitField(){
     var t = field.textContent.trim();
-    if(!t) return;
-    // 이력서를 기다리는 중이면 입력을 이력서로 본다. 짧은 거절("없어요")도 그대로 전달해
-    // 다음 행동은 오케스트레이터가 정하게 한다.
-    if(pendingResume){ publishResume(t, t); return; }
-    if(currentQuestion) answer(t);
+    if (!t) return;
+    if (currentQuestion){ answer(t); return; }   // 분석이 묻는 중이면 그 답으로
+    if (analysisActive) return;                  // 분석이 도는 동안은 끼어들지 않는다
+    sendTalk(t);
   }
   send.addEventListener('click', submitField);
+  field.addEventListener('input', syncComposer);
   field.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); submitField(); }});
 
   // ---------- 부팅: STOMP 연결 → 구독 → 구독 후 세션 시작(begin) ----------
@@ -1319,7 +1257,7 @@
       if (!begun){
         begun = true;
         if (parentLabel) systemNote('↳ ' + parentLabel + ' 분석의 대체 공고로 재분석해요');
-        systemNote('분석을 시작합니다');   // 에이전트 명의로 UI 가 말하지 않는다
+        aiTyping('공고와 자료를 받았어요. 먼저 공고부터 읽어볼게요');
         JB.api('/api/analyses/agent/' + encodeURIComponent(analysisId) + '/begin', { method:'POST' })
           .catch(function(e){ systemNote('분석 시작 실패: ' + e.message); });
       }
@@ -1328,7 +1266,37 @@
     client.onWebSocketError = function(){ document.getElementById('connTxt').textContent = '연결 실패'; };
     client.activate();
   }
-  // boot()/restore()는 위 상태 조회(라이브/복원 분기)에서 호출된다.
+
+  /* ---------- 시작 ----------
+     대화가 지정돼 있으면 그 대화를, 지난 분석 링크면 그 분석이 든 대화를, 아무것도 없으면 새 대화를. */
+  (async function start(){
+    JB.loadConversations(recentList, conversationId);
+    syncComposer();
+
+    if (analysisId && !conversationId){
+      // 지난 링크(?id=) — 그 분석을 담은 대화가 있으면 대화째로 연다(앞의 대화까지 같이 보이도록)
+      var cid = null;
+      try {
+        var list = await JB.api('/api/analyses');
+        var hit = (list || []).filter(function(a){ return a.analysisId === analysisId; })[0];
+        cid = hit && hit.conversationId;
+      } catch(e){}
+      if (cid){
+        location.replace('chat.html?c=' + encodeURIComponent(cid) + (openRoute ? '&route=' + encodeURIComponent(openRoute) : ''));
+        return;
+      }
+      var only = analysisId; analysisId = null;   // 대화에 속하지 않은 지난 분석 — 분석만 연다
+      await mountAnalysis(only);
+      return;
+    }
+    if (conversationId){ await openConversation(conversationId); return; }
+
+    renderEmpty();
+    // 홈 입력창에서 넘어왔다면 그 문장으로 대화를 시작한다
+    var seed = null;
+    try { seed = sessionStorage.getItem('jobis.chatSeed'); sessionStorage.removeItem('jobis.chatSeed'); } catch(_){}
+    if (seed) sendTalk(seed); else field.focus();
+  })();
 })();
 </script>
 <style>

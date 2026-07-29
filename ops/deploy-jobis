@@ -106,7 +106,23 @@ else
   mv "$FAKE_AI_STAGING" "$FAKE_AI_RELEASE"
 fi
 
-for required_file in server.js package.json package-lock.json result.json; do
+for required_file in \
+  server.js \
+  llm.js \
+  providers/index.js \
+  providers/codex.js \
+  providers/codex-sidecar.js \
+  codex_oauth_adapter/__init__.py \
+  codex_oauth_adapter/cli.py \
+  codex_oauth_adapter/provider.py \
+  codex_oauth_adapter/server.py \
+  codex_oauth_adapter/ollama.py \
+  package.json \
+  package-lock.json \
+  pyproject.toml \
+  uv.lock \
+  NOTICE \
+  result.json; do
   if [[ ! -f "$FAKE_AI_RELEASE/$required_file" ]]; then
     echo "fake-ai release is missing $required_file." >&2
     false

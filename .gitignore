@@ -5,6 +5,12 @@ build/
 # node
 node_modules/
 
+# Python / uv
+**/.venv/
+**/__pycache__/
+*.py[cod]
+**/*.egg-info/
+
 # IDE
 .idea/
 .vscode/

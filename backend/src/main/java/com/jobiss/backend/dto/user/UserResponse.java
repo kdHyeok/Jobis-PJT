@@ -6,13 +6,9 @@ import com.jobiss.backend.domain.User;
 public record UserResponse(
         Long id,
         String name,
-        String email,
-        String jobTitle,
-        String status,
-        int completeness
+        String email
 ) {
     public static UserResponse from(User u) {
-        return new UserResponse(
-                u.getId(), u.getName(), u.getEmail(), u.getJobTitle(), u.getStatus(), u.getCompleteness());
+        return new UserResponse(u.getId(), u.getName(), u.getEmail());
     }
 }

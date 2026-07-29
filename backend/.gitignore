@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### 로컬 환경 파일 — 절대 커밋 금지(시크릿 포함). .env.example 만 커밋한다. ###
+.env
+.env.local
+.env.*.local

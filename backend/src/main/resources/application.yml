@@ -2,35 +2,37 @@ spring:
   application:
     name: backend
 
-  # === MySQL 연결 ===
-  # 운영 환경에서는 systemd EnvironmentFile 등 외부 환경변수로 주입한다.
+  # 프론트(HTML/JS)는 src/main/resources/static/ 에 번들되어 http://localhost:8080/ 루트로 서빙된다(기본 classpath).
+
+  # === DB 연결 — 값은 .env(로컬)/환경변수로 주입 (팀 규칙). local 프로필로 실행해야 .env를 읽는다. ===
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
   # === JPA / Hibernate ===
+  # 전환기: Hibernate가 엔티티에서 스키마를 생성(ddl-auto: update). 안정화되면 Flyway(Postgres)+validate로.
   jpa:
     hibernate:
-      ddl-auto: validate      # 스키마의 주인은 Flyway. Hibernate는 엔티티와 테이블의 일치만 검증한다.
-    open-in-view: false
-    show-sql: true
+      ddl-auto: update
+    open-in-view: false        # 실무 권장(요청 끝까지 DB세션 여는 anti-pattern 끔)
+    show-sql: true             # 실행되는 SQL을 콘솔에 출력(학습용)
     properties:
       hibernate:
         format_sql: true
 
-  # === Flyway (DB 스키마 버전관리) ===
+  # === Flyway ===
+  # MySQL 방언 마이그레이션(V1~V7)은 Postgres에서 못 도므로 끈다. 스키마는 Hibernate가 만든다.
   flyway:
-    enabled: true
-    locations: classpath:db/migration
+    enabled: false
 
-# === JWT ===
+# === JWT — secret 은 .env/환경변수로 주입(32자 이상 필수, 짧으면 서버 안 뜸) ===
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 86400000   # 24시간
 
-# === 가짜 AI 에이전트 서버 (별도 프로세스로 먼저 실행해야 함) ===
+# === 가짜 AI 에이전트 서버 (별도 프로세스) ===
 jobiss:
   agent:
-    url: ${AGENT_WS_URL:ws://localhost:8000}          # 실시간 분석 (WebSocket)
+    url: ${AGENT_WS_URL:ws://localhost:8000}          # 실시간 분석 (WebSocket) — 기본값 있어 .env 없어도 동작
     http-url: ${AGENT_HTTP_URL:http://localhost:8000} # 저장소 자료 파편화 (HTTP POST /extract)
