@@ -36,9 +36,13 @@ docker compose up -d --build
 - backend `/health` 200, `login.html` 200, Flyway 마이그레이션 정상 (Started in 9.4s)
 - fake-ai `/extract` 정상 응답 (LLM_DISABLED=1)
 - Jenkinsfile 스테이지의 빌드·태그 정리 명령을 동일 조건으로 서버에서 실행 확인
+- fake-ai `init: true` 적용 전후 컨테이너 종료 시간: 10초(SIGTERM 무시 후 SIGKILL) → 0초
 
 ## 3단계 전 결정할 것
 
+- fake-ai `server.js`에 SIGTERM 핸들러 추가 (WebSocket·codex sidecar 정상 종료).
+  `init: true`는 프로세스가 시그널을 받게만 해주고, 진행 중인 작업을 정리하지는 않는다 —
+  backend(Spring Boot graceful shutdown)와 격을 맞추려면 앱 레벨 처리가 필요하다
 - 프로덕션 fake-ai의 claude CLI 폴백: `WITH_CLAUDE=1` 빌드 + 인증 방식(API 키 env) 결정
 - 운영 postgres는 호스트 유지 → 컨테이너 backend에서 호스트 DB 접근 방법(`--add-host=host.docker.internal:host-gateway` 등) 확정
 - systemd 서비스와 컨테이너의 포트 충돌 없는 교체 순서 (fake-ai:8000 먼저, backend:8080 다음)

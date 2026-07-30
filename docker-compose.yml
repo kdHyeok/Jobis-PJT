@@ -26,6 +26,9 @@ services:
       LLM_DISABLED: "1"          # 로컬 기본: 실제 LLM 호출 없음 (큐레이팅 시나리오만)
     ports:
       - "${FAKE_AI_PORT:-8000}:8000"
+    # node가 PID 1이면 SIGTERM 기본 동작이 적용되지 않아 종료 시 10초 타임아웃 후 강제 종료된다.
+    # init(tini)을 PID 1로 끼워 시그널을 전달받게 한다.
+    init: true
     restart: unless-stopped
 
   backend:
