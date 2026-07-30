@@ -17,7 +17,9 @@
 - `docker-compose.yml` — 리포 루트. 전체 스택(postgres + fake-ai + backend) 로컬 실행용, **팀원 선택사항**
 - Jenkinsfile `Docker images: build` 스테이지 — master 병합 시 `jobis-backend:SHA`, `jobis-fake-ai:SHA` 이미지 빌드.
   Jenkins가 호스트 도커 데몬을 쓰므로(DooD) 빌드 즉시 배포 서버에 존재 — 레지스트리 불필요.
-  이미지 태그는 최근 3개만 유지 (릴리스 정리와 동일 정책).
+  배포 성공 후 최근 3개를 기준으로 정리하되, 현재 SHA와 직전 SHA는 롤백을 위해 항상 보존.
+- Jenkinsfile `Infra: static validation` 스테이지 — 모든 브랜치에서 배포 스크립트 Bash 문법과
+  운영 Compose 모델을 검증
 - `ops/docker-compose.prod.yml` — **운영 전용**. 호스트 네트워크 + 호스트 postgres 사용
 - `ops/deploy-jobis-container` — 컨테이너 배포 스크립트 (기존 `deploy-jobis`를 대체)
 
@@ -49,8 +51,11 @@ Jenkins는 `/usr/local/sbin/deploy-jobis`를 호출할 뿐 스크립트를 전�
 
 ### 롤백
 
-- 이전 SHA 이미지가 남아 있으면(태그 3개 유지) 스크립트가 자동으로 이전 태그로 재기동한다.
-- 되돌릴 이미지가 없는 최초 전환 실패 시에는 컨테이너를 내리고 systemd 유닛으로 복귀한다.
+- 이전 SHA 이미지가 남아 있으면 스크립트가 이전 태그로 재기동한 뒤 fake-ai/backend 헬스체크까지 확인한다.
+- 이전 이미지 재기동 또는 헬스체크가 실패하면 컨테이너를 내리고 systemd 유닛을
+  `enable --now`로 복구한 뒤 다시 헬스체크한다.
+- systemd 복구 성공 시 `.deployed-sha`를 제거해 현재 운영 방식이 컨테이너가 아님을 표시한다.
+- 이미지 정리는 성공한 배포 뒤에만 실행하며 현재 SHA와 직전 SHA는 삭제하지 않는다.
 - 수동 롤백: `sudo JOBIS_SHA=<이전SHA> docker compose -f /opt/jobis/docker-compose.prod.yml up -d`
 
 ## 팀원 사용법 (선택)

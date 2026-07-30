@@ -1,6 +1,6 @@
 // JOBIS Jenkins CI/CD
 //
-//   모든 브랜치 push/MR : CI (backend 테스트 + fake-ai 스모크 테스트)
+//   모든 브랜치 push/MR : CI (backend + fake-ai + RAG + 배포 파일 정적 검증)
 //   master push(병합)   : CI 통과 후 운영 서버 자동 배포
 //
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
@@ -106,9 +106,34 @@ pipeline {
       }
     }
 
+    stage('Infra: static validation') {
+      agent any
+      steps {
+        sh '''
+          test -x ops/deploy-jobis-container
+          bash -n ops/deploy-jobis-container
+
+          # Jenkins 컨테이너에는 운영 서버의 /etc/jobis/jobis.env가 없으므로
+          # 절대 경로와 env_file 내용은 해석하지 않고 Compose 모델만 검증한다.
+          # Jenkins 컨테이너의 Docker CLI에는 Compose 플러그인이 없을 수 있다.
+          # Compose가 포함된 공식 CLI 이미지에 파일을 표준입력으로 전달해 모델만 검증한다.
+          docker run --rm -i \
+            -e JOBIS_SHA=0000000000000000000000000000000000000000 \
+            docker:28-cli \
+            sh -ec '
+              mkdir -p /etc/jobis
+              : > /etc/jobis/jobis.env
+              exec docker compose --project-name jobis-validation -f - \
+                config --quiet --no-path-resolution --no-env-resolution
+            ' \
+            < ops/docker-compose.prod.yml
+        '''
+      }
+    }
+
     // 도커 전환 2단계: 배포 이미지를 CI에서 빌드해 쌓아둔다 (ops/DOCKER.md 참고).
     // Jenkins가 호스트 도커 데몬을 쓰므로(DooD) 빌드된 이미지는 곧바로 배포 서버에 존재한다.
-    // 아직 컨테이너로 서비스하지는 않는다 — 기존 jar/systemd 배포(아래 스테이지)와 병행.
+    // 이미지 정리는 배포 성공 후 deploy-jobis가 현재·직전 SHA를 보호하며 수행한다.
     stage('Docker images: build') {
       when { branch 'master' }
       agent any
@@ -116,18 +141,6 @@ pipeline {
         sh '''
           docker build -t "jobis-backend:$GIT_COMMIT" backend
           docker build -t "jobis-fake-ai:$GIT_COMMIT" fake-ai
-
-          # 오래된 이미지 태그 정리: 최근 3개만 유지.
-          # 내용이 같은 이미지는 CreatedAt이 동일해 정렬이 태그 문자열로 갈리므로,
-          # 방금 빌드한 $GIT_COMMIT 태그는 나이와 무관하게 절대 지우지 않는다 (deploy-jobis의 링크 보호와 동일한 원칙)
-          for img in jobis-backend jobis-fake-ai; do
-            docker images --format '{{.CreatedAt}}\t{{.Tag}}' "$img" \
-              | grep -v '<none>' | sort -r | awk -F'\t' 'NR>3{print $2}' \
-              | while read -r tag; do
-                  [ "$tag" = "$GIT_COMMIT" ] && continue
-                  docker image rm "$img:$tag" || true
-                done
-          done
         '''
       }
     }
