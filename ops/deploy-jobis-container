@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# JOBIS 컨테이너 배포 — 전환 3단계
+#
+# 기존 deploy-jobis(jar + systemd)를 대체한다. 차이점:
+#   - 배포 산출물이 파일이 아니라 이미지 태그다. Jenkins가 호스트 도커 데몬에
+#     jobis-backend:<SHA> / jobis-fake-ai:<SHA>를 이미 빌드해뒀으므로 전송 단계가 없다.
+#   - 롤백은 심볼릭 링크 되돌리기가 아니라 이전 SHA 태그로 재기동이다.
+#
+# 설치: sudo install -o root -g root -m 0755 ops/deploy-jobis-container /usr/local/sbin/deploy-jobis
+#       sudo install -o root -g root -m 0644 ops/docker-compose.prod.yml /opt/jobis/docker-compose.prod.yml
+set -Eeuo pipefail
+
+readonly COMPOSE_FILE="/opt/jobis/docker-compose.prod.yml"
+readonly STATE_FILE="/opt/jobis/.deployed-sha"
+readonly LEGACY_UNITS=(jobis-fake-ai.service jobis.service)
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "deploy-jobis must run as root." >&2
+  exit 1
+fi
+
+readonly RELEASE_SHA="${1:-}"
+if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Release SHA must be a 40-character lowercase Git commit SHA." >&2
+  exit 1
+fi
+
+readonly DEPLOY_ACTOR="${SUDO_USER:-}"
+if [[ -z "$DEPLOY_ACTOR" || "$DEPLOY_ACTOR" == "root" ]]; then
+  echo "deploy-jobis must be invoked through sudo by the deployment user." >&2
+  exit 1
+fi
+
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+  echo "Compose file is missing: $COMPOSE_FILE" >&2
+  exit 1
+fi
+
+# 배포할 이미지가 실제로 있는지 먼저 확인한다 (CI 빌드 스테이지 산출물).
+for image in "jobis-backend:${RELEASE_SHA}" "jobis-fake-ai:${RELEASE_SHA}"; do
+  if ! docker image inspect "$image" >/dev/null 2>&1; then
+    echo "Required image is missing: $image" >&2
+    exit 1
+  fi
+done
+
+readonly PREVIOUS_SHA="$(cat "$STATE_FILE" 2>/dev/null || true)"
+
+compose_up() {
+  JOBIS_SHA="$1" docker compose -f "$COMPOSE_FILE" up -d --no-build
+}
+
+# fake-ai는 /extract 계약, backend는 /health로 확인한다 (기존 스크립트와 동일한 기준).
+wait_for_fake_ai() {
+  local _
+  for _ in {1..30}; do
+    if curl -fsS \
+      -X POST \
+      -H 'Content-Type: application/json' \
+      -d '{"sourceType":"TEXT","content":"Java Spring Boot MySQL"}' \
+      http://127.0.0.1:8000/extract >/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+wait_for_backend() {
+  local _
+  for _ in {1..60}; do
+    if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+rollback() {
+  local exit_code=$?
+  trap - ERR
+  echo "Deployment failed. Rolling back." >&2
+
+  if [[ -n "$PREVIOUS_SHA" ]] &&
+     docker image inspect "jobis-backend:${PREVIOUS_SHA}" >/dev/null 2>&1 &&
+     docker image inspect "jobis-fake-ai:${PREVIOUS_SHA}" >/dev/null 2>&1; then
+    echo "  rolling back to ${PREVIOUS_SHA}" >&2
+    compose_up "$PREVIOUS_SHA" || true
+  else
+    # 컨테이너 전환 직후 실패 등 되돌릴 이미지가 없는 경우: systemd 방식으로 복귀한다.
+    echo "  no previous image; falling back to systemd units" >&2
+    JOBIS_SHA="$RELEASE_SHA" docker compose -f "$COMPOSE_FILE" down || true
+    for unit in "${LEGACY_UNITS[@]}"; do
+      systemctl start "$unit" || true
+    done
+  fi
+
+  exit "$exit_code"
+}
+trap rollback ERR
+
+# 최초 전환 시 systemd 서비스가 8000/8080 포트를 잡고 있으면 컨테이너가 기동하지 못한다.
+# 살아 있으면 중지하고, 재부팅 시 컨테이너와 충돌하지 않도록 자동 시작도 끈다.
+for unit in "${LEGACY_UNITS[@]}"; do
+  if systemctl is-active --quiet "$unit"; then
+    echo "Stopping legacy unit: $unit"
+    systemctl stop "$unit"
+  fi
+  if systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+    systemctl disable "$unit" >/dev/null 2>&1 || true
+  fi
+done
+
+compose_up "$RELEASE_SHA"
+
+if ! wait_for_fake_ai; then
+  echo "fake-ai health check failed." >&2
+  false
+fi
+
+if ! wait_for_backend; then
+  echo "Backend health check failed." >&2
+  false
+fi
+
+printf '%s\n' "$RELEASE_SHA" >"$STATE_FILE"
+trap - ERR
+
+echo "Deployment completed successfully: $RELEASE_SHA"
