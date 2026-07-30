@@ -14,7 +14,7 @@ import pytest
 from jobis_ai.contracts.api import ChatAttachment, ChatRequest, SourceType
 from jobis_ai.orchestrator import session as session_mod
 from jobis_ai.orchestrator.chat import handle_chat
-from jobis_ai.orchestrator.planner import AgentPlan, ReplanDecision
+from jobis_ai.orchestrator.planner import AgentPlan
 from jobis_ai.orchestrator.session import SessionStore
 from jobis_ai.structured import _truncate
 
@@ -27,7 +27,10 @@ def fresh_session_store(monkeypatch):
 
 
 def stub_planner(monkeypatch, agents, ack: str = ""):
-    plan = AgentPlan(agents=list(agents), confidence=0.9, ack=ack)
+    # requestedAgents=agents — 이 스텁은 "사용자가 이 기능을 청했다"는 뜻이다. 비우면
+    # 동의 게이트가 fail-closed 로 걸린다(그 동작은 test_planner.py 가 따로 본다).
+    plan = AgentPlan(agents=list(agents), requestedAgents=list(agents),
+                     confidence=0.9, ack=ack)
     monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
                         lambda message, session: (plan, []))
 
@@ -42,50 +45,41 @@ def _posting() -> ChatAttachment:
                           value="백엔드 개발자 모집. 필수: Python, Django 3년.")
 
 
-# --- 재계획 루프 (§2-1) --------------------------------------------------------
-def test_replan_stop_halts_remaining_agents(monkeypatch):
-    """재계획이 stop 을 내면 남은 에이전트를 돌리지 않는다 — 결과를 보고 다시 정하는 루프.
-
-    (posting_analysis 처럼 후속 질문을 내는 에이전트는 기존 규칙으로 이미 멈추므로,
-    후속 질문 없는 career_chat 을 첫 자리에 둬 재계획 경로만 분리해 본다.)
-    """
-
-    stub_planner(monkeypatch, ["career_chat", "resume_diagnosis"])
-    monkeypatch.setattr(
-        "jobis_ai.orchestrator.chat.replan_after",
-        lambda executed, outcome, remaining, session: ReplanDecision(
-            action="stop", reason="앞 결과로 이번 턴을 끝내는 게 낫다"),
-    )
-    res = handle_chat(ChatRequest(
-        sessionId="rp1", message="고민 들어주고 이력서도 진단해줘",
-        attachments=[_resume()],
-    ))
-    assert res.dispatched == ["career_chat"]          # 두 번째는 실행되지 않았다
-
-
-def test_replan_none_keeps_original_sequence(monkeypatch):
-    """재계획 불가(LLM 미설정) → 예정대로 계속 — 기존 동작이 그대로 보존된다."""
+# --- 관찰 후 재선택 루프 (ReAct — Agent_Test 패턴 이식) ------------------------
+def test_rules_keep_original_sequence_when_nothing_to_change(monkeypatch):
+    """규칙이 손댈 것이 없으면 예정대로 계속 — 관찰이 LLM 이던 때의 동작이 그대로 보존된다."""
 
     stub_planner(monkeypatch, ["career_chat", "resume_diagnosis"])
     res = handle_chat(ChatRequest(
-        sessionId="rp2", message="고민 들어주고 이력서도 진단해줘",
+        sessionId="ob2", message="고민 들어주고 이력서도 진단해줘",
         attachments=[_resume()],
     ))
     assert res.dispatched == ["career_chat", "resume_diagnosis"]
 
 
-def test_replan_not_called_for_single_agent_turn(monkeypatch):
-    """단일 에이전트 턴에는 재계획을 부르지 않는다 — 턴 지연을 늘리지 않는다."""
+def test_rules_finish_when_preconditions_broke(monkeypatch):
+    """전제가 무너지면 뒤 단계를 실행하지 않고 끝낸다 — 예전 관찰 LLM 이 못 막던 자리.
 
-    calls = []
-    stub_planner(monkeypatch, ["resume_diagnosis"])
-    monkeypatch.setattr(
-        "jobis_ai.orchestrator.chat.replan_after",
-        lambda *a, **k: calls.append(1),
-    )
-    handle_chat(ChatRequest(sessionId="rp3", message="이력서 진단해줘",
-                            attachments=[_resume()]))
-    assert not calls
+    실측(2026-07-29): `fit_analysis` 가 `analysis` 를 못 만들었는데 `coverletter_draft` 가
+    그대로 돌아 **analysis=None 위에서 초안을 썼다.** 규칙이 그 자리를 지킨다.
+    """
+
+    from jobis_ai.agents import AgentResult
+
+    stub_planner(monkeypatch, ["fit_analysis", "coverletter_draft"])
+    # 판정이 등급을 못 냈다: analysis 미승격 + 되묻는 질문도 없음
+    monkeypatch.setattr("jobis_ai.agents.fit_analysis.run",
+                        lambda s: AgentResult(reply="", data={"status": "failed"}))
+    ran = []
+    monkeypatch.setattr("jobis_ai.agents.coverletter_draft.run",
+                        lambda s: ran.append(1) or AgentResult(reply="초안"))
+
+    res = handle_chat(ChatRequest(sessionId="ob1", message="분석하고 자소서 써줘",
+                                  attachments=[_resume(), _posting()]))
+
+    assert res.dispatched == ["fit_analysis"], "전제가 없는 뒤 단계는 실행되지 않는다"
+    assert not ran
+    assert "진행하지 못했" in res.reply, "왜 못 했는지 사용자에게 말한다"
 
 
 # --- 세션 write-back (§3-5) ----------------------------------------------------
@@ -154,3 +148,383 @@ def test_intent_label_follows_actual_dispatch(monkeypatch):
     ))
     assert res.dispatched == ["posting_analysis"]
     assert res.intent == "posting_analysis"
+
+
+# --- 선호만으로 실공고 추천 (이력서 없이도 도달 가능) --------------------------
+def _stub_rag(monkeypatch, items):
+    """job_recommend 가 쓰는 RAG 어댑터를 고정 후보로 대체한다(데이터 파일 비의존)."""
+
+    from jobis_ai.rag import RagResult
+
+    monkeypatch.setattr(
+        "jobis_ai.agents.job_recommend.get_rag_adapter",
+        lambda: type("A", (), {
+            "search": staticmethod(lambda _q, **_kw: RagResult(items=items)),
+        })(),
+    )
+
+
+def _render_recommend(result):
+    """job_recommend 는 도구다 — 문장은 표현 계층이 만든다(계약 변경 반영)."""
+
+    from jobis_ai.agents.tool_render import render_job_recommend
+
+    assert result.reply == "", "도구는 사용자향 문장을 만들지 않는다"
+    return render_job_recommend(result.data, {})[0]
+
+
+_RAG_CANDIDATE = {
+    "text": "백엔드 개발자를 찾습니다. 필요 기술: Java, Spring 경험.",
+    "title": "백엔드 개발자 (신입)",
+    "companyName": "커머스컴퍼니",
+    "jobPostingId": "jk-1",
+    "url": "https://www.jobkorea.co.kr/Recruit/GI_Read/1",
+    "score": 0.9,
+}
+
+
+def test_job_recommend_runs_on_preferences_without_resume(monkeypatch):
+    """이력서가 없어도 선호만으로 실공고를 추천한다.
+
+    전에는 전제가 ("resume",) 뿐이라 이력서 없는 사용자는 공고 추천에 **영구히 도달 못 했다**
+    (resume 은 사용자 첨부라 생산자가 없어 자동 삽입으로도 못 채운다). 그 결과 플래너가
+    career_chat 으로 흘러 "공고 데이터가 없어서 특정 회사를 짚기 어렵다"고, 실공고 DB 가
+    있는데도 사실과 다르게 안내하는 사례가 실측됐다.
+    """
+
+    from jobis_ai.agents import job_recommend
+
+    _stub_rag(monkeypatch, [_RAG_CANDIDATE])
+    session = {"preferences": {"roles": ["백엔드"], "techStack": ["Java", "Spring"],
+                               "regions": ["서울"]}}
+    result = job_recommend.run(session)
+    recommendations = result.data["recommendations"]
+
+    assert recommendations, "선호만으로도 실공고 추천이 나와야 한다"
+    # 검색 쿼리는 선호에서 나온다 (프로필이 없어도 비지 않는다)
+    assert "백엔드" in result.data["query"]
+    # 실공고에서 온 것이므로 URL 이 붙는다 — 붙여넣으면 적합도 분석으로 이어진다
+    assert all(r["url"] for r in recommendations)
+    # 이력서가 없으니 역량 일치는 계산하지 않는다 — 0 건을 "일치 0" 으로 말하지 않는다
+    assert all(r["matchedSkills"] == [] for r in recommendations)
+    rendered = _render_recommend(result)
+    assert "계산하지 않았" in rendered
+    assert "0개 역량 일치" not in rendered
+
+
+def test_job_recommend_without_resume_does_not_build_profile(monkeypatch):
+    """이력서가 없으면 프로필을 만들지 않는다 — 빈 프로필밖에 못 내면서 LLM 만 쓰는 낭비."""
+
+    from jobis_ai.agents import job_recommend
+
+    _stub_rag(monkeypatch, [_RAG_CANDIDATE])
+    called = []
+    monkeypatch.setattr("jobis_ai.agents.job_recommend.ensure_profile",
+                        lambda s: called.append(1) or ({}, []))
+    job_recommend.run({"preferences": {"roles": ["백엔드"]}})
+    assert not called, "이력서 없는 턴에 ensure_profile 을 부르면 안 된다"
+
+
+def test_job_recommend_with_resume_still_matches_skills(monkeypatch):
+    """이력서가 있으면 기존대로 보유 역량 일치를 근거로 쓴다(회귀 방어)."""
+
+    from jobis_ai.agents import job_recommend
+
+    _stub_rag(monkeypatch, [_RAG_CANDIDATE])
+    session = {"profile": {"skills": [{"name": "Java"}, {"name": "Spring"}],
+                           "experiences": [{"role": "백엔드 개발자"}], "projects": []}}
+    result = job_recommend.run(session)
+
+    assert result.data["recommendations"], "이력서가 있으면 추천이 나와야 한다"
+    for r in result.data["recommendations"]:
+        assert r["matchedSkills"], "이력서가 있으면 역량 일치가 근거로 나와야 한다"
+    assert "계산하지 않았" not in _render_recommend(result)
+
+
+# --- 후속 질문이 남은 큐를 죽이지 않는다 ---------------------------------------
+def test_followup_does_not_kill_runnable_next_step(monkeypatch):
+    """앞 단계가 (뒤에 불필요한) 자료를 물어도, 지금 돌 수 있는 뒤 단계는 실행한다.
+
+    실측: "백엔드 신입 공고 추천해줘" → 계획 [선호 파악, 공고 추천]. 선호 파악이 공고 URL 을
+    물으면서 followUpQuestions 를 냈고, 오케스트레이터가 무조건 break 해서 **바로 실행 가능한
+    공고 추천이 사라졌다**. 사용자는 추천을 두 번 요청하고도 추천을 못 받았다.
+    """
+
+    from jobis_ai.agents import AgentResult
+
+    _stub_rag(monkeypatch, [_RAG_CANDIDATE])
+    stub_planner(monkeypatch, ["preference_intake", "job_recommend"])
+
+    def fake_intake(session):
+        # 선호는 채워 주면서, 뒤 단계에 필요 없는 공고 URL 을 묻는다
+        return AgentResult(
+            reply="선호 확인했어요.",
+            followUpQuestions=[{"field": "job_posting", "question": "공고 URL 을 주세요."}],
+            sessionUpdates={"preferences": {"roles": ["백엔드"], "techStack": ["Java"]}},
+        )
+
+    monkeypatch.setattr("jobis_ai.agents.preference_intake.run", fake_intake)
+
+    res = handle_chat(ChatRequest(sessionId="fq1", message="백엔드 신입 공고 추천해줘"))
+    assert res.dispatched == ["preference_intake", "job_recommend"]
+    # 물어본 질문은 그대로 사용자에게 나간다 — 계속 갔다고 질문을 삼키지 않는다
+    assert any(q["field"] == "job_posting" for q in res.followUpQuestions)
+
+
+def test_followup_still_halts_when_next_step_needs_it(monkeypatch):
+    """반대로, 물어본 자료가 뒤 단계의 전제면 그대로 멈춘다(기존 규율 유지)."""
+
+    from jobis_ai.agents import AgentResult
+
+    stub_planner(monkeypatch, ["posting_analysis", "fit_analysis"])
+
+    def fake_posting(session):
+        return AgentResult(
+            reply="이력서가 필요해요.",
+            followUpQuestions=[{"field": "resume", "question": "이력서를 주세요."}],
+        )
+
+    monkeypatch.setattr("jobis_ai.agents.posting_analysis.run", fake_posting)
+    res = handle_chat(ChatRequest(sessionId="fq2", message="이 공고 나 되나?",
+                                  attachments=[_posting()]))
+    # fit_analysis 는 이력서가 없어 지금 못 돈다 → 멈춘다
+    assert res.dispatched == ["posting_analysis"]
+
+
+# --- 연차 불일치 공고 제외 (신입에게 경력 8년 공고가 가던 문제) -------------------
+@pytest.mark.parametrize("text,expected", [
+    ("신입", 0.0),
+    ("경력무관", 0.0),
+    ("신입·경력", 0.0),
+    ("신입-경력 3년", 0.0),      # 신입부터 받는 공고
+    ("경력", 1.0),               # 연차 미표기 경력 채용 — 데이터 최다 유형
+    ("경력 3년", 3.0),
+    ("경력 3-8년", 3.0),         # 범위는 하한. 상한(8)을 잡으면 3년차를 잘못 걸러낸다
+    ("경력 5-15년", 5.0),
+    ("", None),                  # 모르면 None → 거르지 않는다
+    (None, None),
+    ("알 수 없음", None),
+])
+def test_experience_floor_years(text, expected):
+    from jobis_ai.postings_db import experience_floor_years
+
+    assert experience_floor_years(text) == expected
+
+
+@pytest.mark.parametrize("posting_floor,user_years,fits", [
+    (8.0, 0.0, False),    # 신입에게 8년 요구 — 이 버그의 원본 사례
+    (1.0, 0.0, False),    # 신입에게 연차 미표기 '경력' 공고
+    (0.0, 0.0, True),     # 신입에게 신입 가능 공고
+    (4.0, 3.0, True),     # 3년차에게 4년 요구 — 1년 관용 안에서 허용
+    (8.0, 3.0, False),    # 3년차에게 8년 요구
+    (8.0, None, True),    # 사용자 연차를 모르면 거르지 않는다
+    (None, 0.0, True),    # 공고 표기를 못 읽으면 거르지 않는다
+])
+def test_fits_experience(posting_floor, user_years, fits):
+    from jobis_ai.agents.job_recommend import _fits_experience
+
+    assert _fits_experience(posting_floor, user_years) is fits
+
+
+def test_job_recommend_excludes_experience_mismatch(monkeypatch):
+    """"신입" 이라고 말한 사용자에게 경력 요구 공고를 추천하지 않는다."""
+
+    from jobis_ai.agents import job_recommend
+
+    senior = {**_RAG_CANDIDATE, "title": "시니어 백엔드", "seniority": "경력 8년",
+              "url": "https://example.com/senior"}
+    junior = {**_RAG_CANDIDATE, "title": "백엔드 신입", "seniority": "신입·경력",
+              "url": "https://example.com/junior"}
+    _stub_rag(monkeypatch, [senior, junior])
+
+    session = {"preferences": {"roles": ["백엔드"], "techStack": ["Java"],
+                               "experienceLevel": "신입"}}
+    result = job_recommend.run(session)
+    urls = [r["url"] for r in result.data["recommendations"]]
+
+    assert urls == ["https://example.com/junior"], "경력 8년 공고가 신입에게 가면 안 된다"
+    assert any(w["code"] == "experience_filtered" for w in result.warnings)
+    assert "연차가 맞지 않는 공고 1건은 제외" in _render_recommend(result)
+
+
+def test_job_recommend_keeps_all_when_experience_unknown(monkeypatch):
+    """연차를 말하지 않았고 이력서도 없으면 거르지 않는다 — 모르면 판단하지 않는다."""
+
+    from jobis_ai.agents import job_recommend
+
+    senior = {**_RAG_CANDIDATE, "seniority": "경력 8년", "url": "https://example.com/s"}
+    _stub_rag(monkeypatch, [senior])
+    result = job_recommend.run({"preferences": {"roles": ["백엔드"], "techStack": ["Java"]}})
+    assert len(result.data["recommendations"]) == 1
+
+
+def test_job_recommend_all_filtered_says_so(monkeypatch):
+    """전부 연차로 걸러지면 "검색 결과 없음" 이 아니라 걸러냈다고 정직하게 말한다."""
+
+    from jobis_ai.agents import job_recommend
+
+    _stub_rag(monkeypatch, [{**_RAG_CANDIDATE, "seniority": "경력 8년"}])
+    result = job_recommend.run({"preferences": {"roles": ["백엔드"], "techStack": ["Java"],
+                                                "experienceLevel": "신입"}})
+    assert not result.data["recommendations"]
+    rendered = _render_recommend(result)
+    assert "신입 조건과 맞지 않아" in rendered
+    assert "검색에서 결과를 얻지 못해" not in rendered
+
+
+@pytest.mark.parametrize("experience,title,expected", [
+    # 정형 표기에 연차가 없고 제목에만 있는 공고 — 실측: 5년차에게 7년 요구 공고가 갔다
+    ("경력", "백엔드 개발자 (Java/Spring) 경력 7년 이상", 7.0),
+    ("경력", "통신 소프트웨어 개발자 (경력2년이상) 모집", 2.0),
+    # 제목은 **올릴 때만** 쓴다 — 정형 표기가 더 높으면 그대로
+    ("경력 10년", "백엔드 개발자 (경력 3년 이상)", 10.0),
+    # 신입 표기는 제목 때문에 뒤집히지 않는다
+    ("신입·경력", "백엔드 개발자 (경력 5년 이상 우대)", 0.0),
+    # '경력' 이 숫자에 붙지 않은 숫자는 연차가 아니다 — 오탐 방어
+    ("경력", "창립 20년 기업의 백엔드 개발자", 1.0),
+    ("경력", "2026년 상반기 백엔드 개발자", 1.0),
+    ("", "백엔드 개발자", None),
+])
+def test_posting_floor_years_uses_title_only_to_raise(experience, title, expected):
+    from jobis_ai.postings_db import posting_floor_years
+
+    assert posting_floor_years(experience, title) == expected
+
+
+def test_job_recommend_excludes_title_only_experience(monkeypatch):
+    """정형 표기가 '경력' 이어도 제목에 명시된 연차로 걸러낸다."""
+
+    from jobis_ai.agents import job_recommend
+
+    senior = {**_RAG_CANDIDATE, "title": "백엔드 개발자 (Java/Spring) 경력 7년 이상",
+              "seniority": "경력", "url": "https://example.com/senior7"}
+    fit = {**_RAG_CANDIDATE, "title": "백엔드 개발자 (Java/Spring)",
+           "seniority": "경력 3년", "url": "https://example.com/fit"}
+    _stub_rag(monkeypatch, [senior, fit])
+
+    session = {"preferences": {"roles": ["백엔드"], "techStack": ["Java"],
+                               "experienceLevel": "경력 3년"}}
+    result = job_recommend.run(session)
+    assert [r["url"] for r in result.data["recommendations"]] == ["https://example.com/fit"]
+
+
+# --- 관찰 낭비 제거 + 궤적 기록 (평가 §5-1, §5-2) -------------------------------
+def test_observe_records_continue_in_trace(monkeypatch):
+    """아무것도 바꾸지 않은 continue 도 궤적에 남는다 — 안 남기면 재선택을 증명할 수 없다.
+
+    이제 판단자가 규칙이라 **어느 규칙이 정했는지**(rule)까지 남는다. LLM 의 자유 문장보다
+    사후에 읽기 쉽다.
+    """
+
+    from jobis_ai import trace
+
+    stub_planner(monkeypatch, ["preference_intake", "job_recommend"])
+    with trace.recording() as rec:
+        handle_chat(ChatRequest(sessionId="ob6", message="조건 정리하고 공고 찾아줘",
+                                attachments=[_resume()]))
+
+    observed = [e for e in rec.events if e["kind"] == "observe"]
+    actions = [e["detail"]["action"] for e in observed]
+    assert "continue" in actions, "continue 결정이 궤적에 남아야 한다"
+    assert all(e["detail"].get("reason") for e in observed), "이유 없는 관찰 기록은 쓸모없다"
+    assert all(e["detail"].get("rule") for e in observed), "어느 규칙이 정했는지 남아야 한다"
+
+
+def test_dispatch_trace_marks_validator_change(monkeypatch):
+    """다중 시퀀스가 LLM 판단인지 검증기 삽입인지 궤적으로 구분된다.
+
+    실측에서 플래너 원안은 ['job_recommend'] 하나였고 preference_intake 는 검증기가
+    끼운 것이었다 — 이 구분이 없으면 "LLM 이 다중 에이전트를 계획했다"고 오독하게 된다.
+    """
+
+    from jobis_ai import trace
+
+    stub_planner(monkeypatch, ["job_recommend"])          # 원안은 하나
+    with trace.recording() as rec:
+        handle_chat(ChatRequest(sessionId="ob8", message="공고 추천해줘"))
+
+    planner = next(e for e in rec.events if e["kind"] == "planner")
+    dispatch = next(e for e in rec.events if e["kind"] == "dispatch")
+    assert planner["detail"]["selectedAgents"] == ["job_recommend"]
+    assert dispatch["detail"]["agents"] == ["preference_intake", "job_recommend"]
+    assert dispatch["detail"]["planChanged"] is True
+
+
+# --- LLM 이 인자까지 정한다 (평가 §5-3) ----------------------------------------
+def test_agent_args_validated_against_declaration():
+    """선언된 인자만 통과한다 — 이름 환각·미등록 에이전트·빈 값은 버린다."""
+
+    from jobis_ai.orchestrator.planner import AgentArg
+    from jobis_ai.orchestrator.router import validate_agent_args
+
+    ok = validate_agent_args([AgentArg(agent="job_recommend", name="job_name",
+                                       value="데이터 엔지니어")])
+    assert ok == {"job_recommend": {"job_name": "데이터 엔지니어"}}
+
+    # 선언되지 않은 인자 이름 / 빈 값 / 인자를 받지 않는 에이전트
+    assert validate_agent_args([AgentArg(agent="job_recommend", name="지어낸인자",
+                                         value="x")]) == {}
+    assert validate_agent_args([AgentArg(agent="job_recommend", name="job_name",
+                                         value="  ")]) == {}
+    assert validate_agent_args([AgentArg(agent="career_chat", name="job_name",
+                                         value="백엔드")]) == {}
+
+
+def test_manifest_exposes_agent_params():
+    """플래너 프롬프트에 인자가 노출된다 — 안 보이면 LLM 은 넘길 수 있음을 모른다."""
+
+    from jobis_ai.orchestrator.planner import _build_manifest
+
+    manifest = _build_manifest()
+    assert "인자 job_name" in manifest
+
+
+def test_explicit_job_name_skips_preference_intake():
+    """발화에 직군이 명시되면 선호 수집을 앞에 끼우지 않는다 (params_satisfy).
+
+    이 통로가 없으면 "데이터 엔지니어 공고 찾아줘" 가 선호 수집 턴을 한 번 더 거쳤다.
+    """
+
+    from jobis_ai.orchestrator.router import validate_plan
+
+    session = {"_agentArgs": {"job_recommend": {"job_name": "데이터 엔지니어"}}}
+    assert validate_plan(["job_recommend"], session).agents == ("job_recommend",)
+    # 인자가 없으면 기존대로 생산자를 끼운다
+    assert validate_plan(["job_recommend"], {}).agents == ("preference_intake", "job_recommend")
+
+
+def test_job_recommend_uses_job_name_arg(monkeypatch):
+    """넘겨받은 직군이 검색 쿼리 앞자리에 들어간다."""
+
+    from jobis_ai.agents import job_recommend
+
+    _stub_rag(monkeypatch, [_RAG_CANDIDATE])
+    session = {"_agentArgs": {"job_recommend": {"job_name": "데이터 엔지니어"}},
+               "preferences": {"roles": ["백엔드"]}}
+    result = job_recommend.run(session)
+    assert result.data["query"].startswith("데이터 엔지니어")
+
+
+# --- 대안 공고를 답변에 싣는다 (평가 §5-4) --------------------------------------
+def test_alternatives_block_shows_url_and_kind():
+    """계산만 하고 버리던 대안 공고를 보여준다 — 실공고는 URL 까지."""
+
+    from jobis_ai.agents.tool_render import _alternatives_block
+
+    block = _alternatives_block([
+        {"type": "lower_seniority", "title": "주니어 백엔드", "companyName": "커머스컴퍼니",
+         "reducedGaps": ["Kafka", "MSA"], "url": "https://example.com/jr"},
+        {"type": "stepping_stone", "title": "QA 엔지니어", "companyName": "", "url": ""},
+    ])
+    assert "요구 연차가 낮은 자리" in block
+    assert "https://example.com/jr" in block
+    assert "부족했던 2개 요건" in block
+    assert "징검다리 경로" in block
+
+
+def test_alternatives_block_empty_when_none():
+    """대안이 없으면 아무 말도 하지 않는다 — 없는 걸 있다고 하지 않는다."""
+
+    from jobis_ai.agents.tool_render import _alternatives_block
+
+    assert _alternatives_block([]) == ""

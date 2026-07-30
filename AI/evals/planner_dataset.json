@@ -1,58 +1,536 @@
 {
-  "description": "플래너 평가셋 — 발화 × 세션 자산 → 기대 최종 실행 시퀀스(validate_plan 통과 후). expectAsk=true 면 실행 없이 되묻기가 정답.",
+  "description": "플래너 평가셋 — 발화 × 세션 자산 → 기대 최종 실행 시퀀스(validate_plan 통과 후). expectAsk=true 면 실행 없이 되묻기가 정답(동의 게이트 포함). note 규약: \"갱신\" = 정책 변경으로 기대값을 고친 것(근거 필수) / \"OPEN\"·\"KNOWN FAILURE\" = 관측과 다르지만 **일부러 고치지 않은 것**(정책이 이미 정한 의도라서). 관측에 맞춰 기대값을 고치면 평가셋이 구현을 따라가는 거울이 된다.",
   "cases": [
-    { "caseId": "fit-basic", "message": "이 공고 나 되나?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-paraphrase-1", "message": "삼성전자 백엔드 공고에 지원하면 승산 있을까?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-paraphrase-2", "message": "내가 이 자리에 적합한지 분석해줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-paraphrase-3", "message": "이 공고랑 내 이력서 매칭 좀 봐줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-paraphrase-4", "message": "서류 통과 가능성 봐줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-paraphrase-5", "message": "이 공고 요구사항 중에 내가 못 채우는 게 뭐야?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-no-judgment-bait", "message": "합격 가능성 몇 퍼센트야?", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis"], "expectAsk": false },
-    { "caseId": "fit-missing-posting-degrade", "message": "이 공고 나 되나?", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
-    { "caseId": "fit-missing-resume-degrade", "message": "이 공고 나 되나?", "assets": ["job_posting"], "expectedAgents": ["posting_analysis"], "expectAsk": false },
-    { "caseId": "fit-missing-both", "message": "이 공고 나 되나?", "assets": [], "expectedAgents": [], "expectAsk": true },
-    { "caseId": "posting-analysis-direct", "message": "이 공고 분석해줘. 뭘 준비해야 돼?", "assets": ["job_posting"], "expectedAgents": ["posting_analysis"], "expectAsk": false },
-
-    { "caseId": "recommend-basic", "message": "내 이력서로 갈 수 있는 곳 추천해줘", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
-    { "caseId": "recommend-paraphrase-1", "message": "나한테 맞는 공고 좀 찾아줘", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
-    { "caseId": "recommend-paraphrase-2", "message": "어디 지원하면 좋을까?", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
-    { "caseId": "recommend-paraphrase-3", "message": "이력서 기반으로 갈만한 회사 리스트업 해줘", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
-    { "caseId": "recommend-terse", "message": "공고 추천", "assets": ["resume"], "expectedAgents": ["job_recommend"], "expectAsk": false },
-    { "caseId": "recommend-missing-resume", "message": "나한테 맞는 공고 추천해줘", "assets": [], "expectedAgents": ["preference_intake"], "expectAsk": false },
-    { "caseId": "preference-open", "message": "이력서는 없는데 공고 추천받고 싶어", "assets": [], "expectedAgents": ["preference_intake"], "expectAsk": false },
-    { "caseId": "preference-followup", "message": "핀테크 쪽 백엔드로 가고 싶어요", "assets": ["preferences"], "expectedAgents": ["preference_intake"], "expectAsk": false },
-
-    { "caseId": "resume-basic", "message": "내 이력서 좀 봐줘", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
-    { "caseId": "resume-paraphrase-1", "message": "이력서에서 부족한 부분 진단해줘", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
-    { "caseId": "resume-paraphrase-2", "message": "이력서 피드백 부탁해", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
-    { "caseId": "resume-paraphrase-3", "message": "제 이력서 강점이 뭔가요?", "assets": ["resume"], "expectedAgents": ["resume_diagnosis"], "expectAsk": false },
-    { "caseId": "resume-missing", "message": "내 이력서 진단해줘", "assets": [], "expectedAgents": [], "expectAsk": true },
-
-    { "caseId": "coverletter-with-analysis", "message": "자소서 써줘", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft"], "expectAsk": false },
-    { "caseId": "coverletter-auto-prereq", "message": "자소서 초안 부탁해", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "coverletter_draft"], "expectAsk": false },
-    { "caseId": "coverletter-paraphrase", "message": "이 회사 지원서 초안 작성해줘", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft"], "expectAsk": false },
-    { "caseId": "coverletter-motivation", "message": "지원 동기 문단 초안 잡아줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "coverletter_draft"], "expectAsk": false },
-    { "caseId": "coverletter-rewrite", "message": "자소서 다시 써줘", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft"], "expectAsk": false },
-    { "caseId": "coverletter-missing-posting", "message": "자소서 써줘", "assets": ["resume"], "expectedAgents": [], "expectAsk": true },
-
-    { "caseId": "interview-with-analysis", "message": "면접 예상 질문 뽑아줘", "assets": ["analysis"], "expectedAgents": ["interview_prep"], "expectAsk": false },
-    { "caseId": "interview-auto-prereq", "message": "면접 준비 도와줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "interview_prep"], "expectAsk": false },
-    { "caseId": "interview-followup", "message": "예상 꼬리질문도 뽑아줘", "assets": ["analysis"], "expectedAgents": ["interview_prep"], "expectAsk": false },
-    { "caseId": "interview-missing", "message": "면접 준비 도와줘", "assets": ["resume"], "expectedAgents": [], "expectAsk": true },
-
-    { "caseId": "roadmap-basic", "message": "로드맵 어디까지 했지?", "assets": ["roadmap"], "expectedAgents": ["roadmap_manager"], "expectAsk": false },
-    { "caseId": "roadmap-paraphrase", "message": "준비 일정 보여줘", "assets": ["roadmap"], "expectedAgents": ["roadmap_manager"], "expectAsk": false },
-    { "caseId": "roadmap-with-all-assets", "message": "부족한 부분 보완 로드맵 보여줘", "assets": ["resume", "job_posting", "analysis", "roadmap"], "expectedAgents": ["roadmap_manager"], "expectAsk": false },
-    { "caseId": "roadmap-missing", "message": "내 로드맵 보여줘", "assets": [], "expectedAgents": [], "expectAsk": true },
-
-    { "caseId": "multi-fit-then-coverletter", "message": "적합도 분석하고 자소서까지 써줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "coverletter_draft"], "expectAsk": false },
-    { "caseId": "multi-fit-then-interview", "message": "분석 후에 면접 질문도 준비해줘", "assets": ["resume", "job_posting"], "expectedAgents": ["fit_analysis", "interview_prep"], "expectAsk": false },
-    { "caseId": "multi-coverletter-and-interview", "message": "자소서랑 면접 질문 둘 다 부탁해", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["coverletter_draft", "interview_prep"], "expectAsk": false },
-
-    { "caseId": "greeting-chat", "message": "안녕하세요", "assets": ["resume", "job_posting"], "expectedAgents": ["career_chat"], "expectAsk": false },
-    { "caseId": "offtopic-chat", "message": "오늘 날씨 어때?", "assets": ["resume"], "expectedAgents": ["career_chat"], "expectAsk": false },
-    { "caseId": "thanks-chat", "message": "고마워", "assets": ["resume", "job_posting", "analysis"], "expectedAgents": ["career_chat"], "expectAsk": false },
-    { "caseId": "vent-chat", "message": "취업 너무 어렵다", "assets": [], "expectedAgents": ["career_chat"], "expectAsk": false },
-    { "caseId": "general-question-chat", "message": "포트폴리오가 그렇게 중요한가요?", "assets": [], "expectedAgents": ["career_chat"], "expectAsk": false }
+    {
+      "caseId": "fit-basic",
+      "message": "이 공고 나 되나?",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-paraphrase-1",
+      "message": "삼성전자 백엔드 공고에 지원하면 승산 있을까?",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-paraphrase-2",
+      "message": "내가 이 자리에 적합한지 분석해줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-paraphrase-3",
+      "message": "이 공고랑 내 이력서 매칭 좀 봐줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-paraphrase-4",
+      "message": "서류 통과 가능성 봐줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-paraphrase-5",
+      "message": "이 공고 요구사항 중에 내가 못 채우는 게 뭐야?",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false,
+      "note": "OPEN (2026-07-29 후속6). 기대값 유지. 이 발화 표현(\"요구사항 중 내가 못 채우는 게 뭐야?\")은 플래너 사다리 1단의 **예시로 그대로 적혀 있는데도** posting_analysis 로 간다 — 프롬프트가 말한 것을 모델이 따르지 않는 경우라 낡은 기대값이 아니다. \"요청과 전제가 어긋날 때\" 가족과 같은 뿌리."
+    },
+    {
+      "caseId": "fit-no-judgment-bait",
+      "message": "합격 가능성 몇 퍼센트야?",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-missing-posting-degrade",
+      "message": "이 공고 나 되나?",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false,
+      "note": "KNOWN FAILURE (2026-07-29). 관측 career_chat×3. 판정 요청인데 공고가 없어 fit 규칙이 발동하지 않고, 가진 자산으로 먼저 돕기(→ resume_diagnosis)로도 가지 않는다. coverletter-missing-posting·interview-missing 은 같은 상황에서 resume_diagnosis 로 가므로 플래너가 일관되지 않다. 기대값을 바꾸지 않고 열어 둔다."
+    },
+    {
+      "caseId": "fit-missing-resume-degrade",
+      "message": "이 공고 나 되나?",
+      "assets": [
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "posting_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "fit-missing-both",
+      "message": "이 공고 나 되나?",
+      "assets": [],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false,
+      "note": "2026-07-29 갱신(후속7). 후속2 에서 preference_intake 로 뒀는데, 구조가 같은 resume-missing 은 career_chat 으로 둬서 **평가셋 안에서 같은 상황이 다르게 기대**되고 있었다(내 실수). 자산이 하나도 없으면 \"가진 자산으로 먼저 할 일\"이 없어 둘 다 대화로 받는 것이 맞고, 그중 career_chat 이 apt 하다 — preference_intake 는 *공고를 찾기 위한* 선호를 모으는 에이전트(produces=preferences)이고 이 발화는 공고 찾기가 아니다."
+    },
+    {
+      "caseId": "posting-analysis-direct",
+      "message": "이 공고 분석해줘. 뭘 준비해야 돼?",
+      "assets": [
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "posting_analysis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "recommend-basic",
+      "message": "내 이력서로 갈 수 있는 곳 추천해줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "job_recommend"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "recommend-paraphrase-1",
+      "message": "나한테 맞는 공고 좀 찾아줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "job_recommend"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "recommend-paraphrase-2",
+      "message": "어디 지원하면 좋을까?",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "job_recommend"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "recommend-paraphrase-3",
+      "message": "이력서 기반으로 갈만한 회사 리스트업 해줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "job_recommend"
+      ],
+      "expectAsk": false,
+      "note": "OPEN (2026-07-29 후속6). 기대값 유지. resume 가 있어 job_recommend 가 바로 돌 수 있는데 1/3 에서 플래너가 요청하지 않은 resume_diagnosis 를 앞에 붙였다 — 검증기 삽입이 아니라 플래너가 덧붙인 것이라 상위집합(a)과 다르다."
+    },
+    {
+      "caseId": "recommend-terse",
+      "message": "공고 추천",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "job_recommend"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "recommend-missing-resume",
+      "message": "나한테 맞는 공고 추천해줘",
+      "assets": [],
+      "expectedAgents": [
+        "preference_intake",
+        "job_recommend"
+      ],
+      "expectAsk": false,
+      "note": "2026-07-29 갱신(후속6). 자산이 없으면 검증기가 job_recommend 의 생산자(preference_intake)를 앞에 끼운다 — 설계이고 tests/test_improvements.py 가 못 박은 동작이다. 기대값이 \"묻고 끝\"으로 좁혀져 있었다. 선호를 묻고 바로 추천까지 하는 것이 의도된 한 턴이다."
+    },
+    {
+      "caseId": "preference-open",
+      "message": "이력서는 없는데 공고 추천받고 싶어",
+      "assets": [],
+      "expectedAgents": [
+        "preference_intake",
+        "job_recommend"
+      ],
+      "expectAsk": false,
+      "note": "2026-07-29 갱신(후속6). 자산이 없으면 검증기가 job_recommend 의 생산자(preference_intake)를 앞에 끼운다 — 설계이고 tests/test_improvements.py 가 못 박은 동작이다. 기대값이 \"묻고 끝\"으로 좁혀져 있었다. 선호를 묻고 바로 추천까지 하는 것이 의도된 한 턴이다. / 후속6 재측정: preference_intake×2 · 상위집합×1 로 갈린다 — \"묻고 끝\" 과 \"묻고 추천까지\" 사이에서 본질적으로 흔들린다(어느 기대값이든 부분 점수)."
+    },
+    {
+      "caseId": "preference-followup",
+      "message": "핀테크 쪽 백엔드로 가고 싶어요",
+      "assets": [
+        "preferences"
+      ],
+      "expectedAgents": [
+        "preference_intake"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "resume-basic",
+      "message": "내 이력서 좀 봐줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "resume-paraphrase-1",
+      "message": "이력서에서 부족한 부분 진단해줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "resume-paraphrase-2",
+      "message": "이력서 피드백 부탁해",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "resume-paraphrase-3",
+      "message": "제 이력서 강점이 뭔가요?",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "resume-missing",
+      "message": "내 이력서 진단해줘",
+      "assets": [],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false,
+      "note": "OPEN (2026-07-29 후속6). 관측이 career_chat/job_recommend 로 갈리지만 기대값을 고치지 않는다 — 플래너 사다리 4단이 \"전제가 부족하면 가진 자산으로 할 수 있는 일을 고른다, 대화로 넘기지 않는다\"고 명시하므로 이건 낡은 기대값이 아니라 정책 위반이다. ①(프롬프트 규칙 추가)로 고치려다 규칙 간 간섭으로 되돌린 이력이 있다(후속2). 다음 시도는 규칙 추가가 아니라 career_chat 의 manifest 설명을 좁히는 방향. / D50 재측정: unstable 0.33 → **stable-wrong 0.00**(preference_intake×3). 기대값은 그대로 둔다 — 처방(career_chat manifest 좁히기)이 바뀌지 않았고, 일관되게 틀리는 쪽이 진단이 쉽다(§3-3)."
+    },
+    {
+      "caseId": "coverletter-with-analysis",
+      "message": "자소서 써줘",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis"
+      ],
+      "expectedAgents": [
+        "coverletter_draft"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "coverletter-auto-prereq",
+      "message": "자소서 초안 부탁해",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [],
+      "expectAsk": true,
+      "note": "2026-07-29 갱신(후속4). 사용자가 판정을 청하지 않았는데 무거운 전제(fit_analysis)가 필요하다 → 동의 게이트가 걸린다(07-28 정책). coverletter-motivation 과 구조가 동일한데 그때 함께 고치지 않아 평가셋 안에서 같은 상황이 다르게 기대되고 있었다. 게이트는 이제 플래너가 스스로 넣은 전제에도 걸린다(AgentPlan.inferredPrerequisites)."
+    },
+    {
+      "caseId": "coverletter-paraphrase",
+      "message": "이 회사 지원서 초안 작성해줘",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis"
+      ],
+      "expectedAgents": [
+        "coverletter_draft"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "coverletter-motivation",
+      "message": "지원 동기 문단 초안 잡아줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [],
+      "expectAsk": true,
+      "note": "2026-07-29 갱신. 무거운 생산자(fit_analysis)가 자동 삽입되면 말없이 시작하지 않고 한 턴 묻는다 — 동의 게이트(07-28, router.validate_plan)."
+    },
+    {
+      "caseId": "coverletter-rewrite",
+      "message": "자소서 다시 써줘",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis"
+      ],
+      "expectedAgents": [
+        "coverletter_draft"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "coverletter-missing-posting",
+      "message": "자소서 써줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false,
+      "note": "OPEN (2026-07-29 후속6). 관측이 career_chat/job_recommend 로 갈리지만 기대값을 고치지 않는다 — 플래너 사다리 4단이 \"전제가 부족하면 가진 자산으로 할 수 있는 일을 고른다, 대화로 넘기지 않는다\"고 명시하므로 이건 낡은 기대값이 아니라 정책 위반이다. ①(프롬프트 규칙 추가)로 고치려다 규칙 간 간섭으로 되돌린 이력이 있다(후속2). 다음 시도는 규칙 추가가 아니라 career_chat 의 manifest 설명을 좁히는 방향."
+    },
+    {
+      "caseId": "interview-with-analysis",
+      "message": "면접 예상 질문 뽑아줘",
+      "assets": [
+        "analysis"
+      ],
+      "expectedAgents": [
+        "interview_prep"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "interview-auto-prereq",
+      "message": "면접 준비 도와줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [],
+      "expectAsk": true,
+      "note": "2026-07-29 갱신(후속4). 사용자가 판정을 청하지 않았는데 무거운 전제(fit_analysis)가 필요하다 → 동의 게이트가 걸린다(07-28 정책). coverletter-motivation 과 구조가 동일한데 그때 함께 고치지 않아 평가셋 안에서 같은 상황이 다르게 기대되고 있었다. 게이트는 이제 플래너가 스스로 넣은 전제에도 걸린다(AgentPlan.inferredPrerequisites)."
+    },
+    {
+      "caseId": "interview-followup",
+      "message": "예상 꼬리질문도 뽑아줘",
+      "assets": [
+        "analysis"
+      ],
+      "expectedAgents": [
+        "interview_prep"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "interview-missing",
+      "message": "면접 준비 도와줘",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false,
+      "note": "OPEN (2026-07-29 후속6). 관측이 career_chat/job_recommend 로 갈리지만 기대값을 고치지 않는다 — 플래너 사다리 4단이 \"전제가 부족하면 가진 자산으로 할 수 있는 일을 고른다, 대화로 넘기지 않는다\"고 명시하므로 이건 낡은 기대값이 아니라 정책 위반이다. ①(프롬프트 규칙 추가)로 고치려다 규칙 간 간섭으로 되돌린 이력이 있다(후속2). 다음 시도는 규칙 추가가 아니라 career_chat 의 manifest 설명을 좁히는 방향."
+    },
+    {
+      "caseId": "roadmap-basic",
+      "message": "로드맵 어디까지 했지?",
+      "assets": [
+        "roadmap"
+      ],
+      "expectedAgents": [
+        "roadmap_manager"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "roadmap-paraphrase",
+      "message": "준비 일정 보여줘",
+      "assets": [
+        "roadmap"
+      ],
+      "expectedAgents": [
+        "roadmap_manager"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "roadmap-with-all-assets",
+      "message": "부족한 부분 보완 로드맵 보여줘",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis",
+        "roadmap"
+      ],
+      "expectedAgents": [
+        "roadmap_manager"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "roadmap-missing",
+      "message": "내 로드맵 보여줘",
+      "assets": [],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false,
+      "note": "2026-07-29 갱신. 같은 정책(07-27 대응표 제거) — 고정 문구로 대화를 끝내지 않는다."
+    },
+    {
+      "caseId": "multi-fit-then-coverletter",
+      "message": "적합도 분석하고 자소서까지 써줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis",
+        "coverletter_draft"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "multi-fit-then-interview",
+      "message": "분석 후에 면접 질문도 준비해줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "fit_analysis",
+        "interview_prep"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "multi-coverletter-and-interview",
+      "message": "자소서랑 면접 질문 둘 다 부탁해",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis"
+      ],
+      "expectedAgents": [
+        "coverletter_draft",
+        "interview_prep"
+      ],
+      "expectAsk": false,
+      "note": "KNOWN FAILURE (2026-07-29). 관측 interview_prep>coverletter_draft×3 — 내용은 맞고 순서만 반대다. 둘은 서로의 산출을 쓰지 않아(둘 다 analysis 소비) chat.parallel_group 이 실제로는 동시 실행한다. 즉 순서가 결과를 바꾸지 않는데 데이터셋이 순서를 강제하고 있다 — 지표가 순서 무관을 표현하지 못하는 한계를 드러낸 케이스라 그대로 둔다."
+    },
+    {
+      "caseId": "greeting-chat",
+      "message": "안녕하세요",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "offtopic-chat",
+      "message": "오늘 날씨 어때?",
+      "assets": [
+        "resume"
+      ],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "thanks-chat",
+      "message": "고마워",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis"
+      ],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "vent-chat",
+      "message": "취업 너무 어렵다",
+      "assets": [],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false
+    },
+    {
+      "caseId": "general-question-chat",
+      "message": "포트폴리오가 그렇게 중요한가요?",
+      "assets": [],
+      "expectedAgents": [
+        "career_chat"
+      ],
+      "expectAsk": false
+    }
   ]
 }

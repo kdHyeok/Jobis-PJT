@@ -23,6 +23,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import threading
 from pathlib import Path
 
@@ -33,6 +34,14 @@ from jobis_ai.webbridge import http_handlers as handlers
 from jobis_ai.webbridge.runner import Channel, run_session
 
 log = logging.getLogger(__name__)
+
+# uvicorn 은 자기 로거만 설정하고 루트는 건드리지 않는다 — 그래서 오케스트레이터가 남기는
+# 판단 궤적(planner/dispatch/observe INFO)이 서버 로그에 아예 안 찍혔다. 여기서 한 번
+# 설정해 준다. 레벨은 LOG_LEVEL 로 조절(기본 INFO, 조용히 하려면 WARNING).
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 app = FastAPI(title="jobis-ai 웹 브릿지", docs_url=None, redoc_url=None)
 

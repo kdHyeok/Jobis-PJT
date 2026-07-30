@@ -52,3 +52,23 @@ def memory_session_store(monkeypatch):
     session_mod.reset_session_store()
     yield
     session_mod.reset_session_store()
+
+
+@pytest.fixture(autouse=True)
+def force_null_rag(monkeypatch):
+    """단위 테스트는 RAG/공고 DB 를 기본 미연결(Null)로 강제한다.
+
+    sample_data 유무로 기본 어댑터가 갈리면(LocalPostings 자동 선택) 테스트가 데이터
+    파일에 좌우된다. postings_db·LocalPostings 는 test_postings_db.py 가 어댑터를
+    직접 생성해 검증한다.
+    """
+
+    from jobis_ai import rag
+
+    rag.get_rag_adapter.cache_clear()
+    monkeypatch.setattr(
+        rag, "get_settings",
+        lambda: type("S", (), {"rag_provider": "force_null_for_tests"})(),
+    )
+    yield
+    rag.get_rag_adapter.cache_clear()

@@ -45,13 +45,16 @@ def get_llm(tier: str = "default") -> Any:
         from langchain_openai import ChatOpenAI
 
         kwargs: dict[str, Any] = dict(
-            model=settings.llm_model_light if tier == "light" else settings.llm_model,
+            model=settings.active_model(tier),
             api_key=settings.gms_key,
             base_url=settings.llm_base_url,
             timeout=60,
             # 재시도는 structured.py 한 계층에서만 한다. 클라이언트까지 재시도하면
             # 3회 × 클라이언트 2회 = 최악 9회 네트워크 시도로 실패 시 지연이 폭주한다.
             max_retries=0,
+            # 스트리밍 응답의 마지막 청크에 usage(토큰 합계)를 싣는다 — llm_usage 집계용.
+            # 없으면 표현 계층(career_chat 등) 스트리밍 콜의 토큰이 영원히 미계측으로 남는다.
+            stream_usage=True,
         )
         if settings.temperature is not None:
             kwargs["temperature"] = settings.temperature
@@ -64,17 +67,14 @@ def get_llm(tier: str = "default") -> Any:
         # 개발 반복용. 서버 배포에는 openai(GMS)나 anthropic(API 키)을 쓴다.
         from jobis_ai.claude_code_llm import ClaudeCodeChat
 
-        return ClaudeCodeChat(
-            model=settings.claude_code_model_light if tier == "light" else settings.claude_code_model,
-            cli=settings.claude_cli,
-        )
+        return ClaudeCodeChat(model=settings.active_model(tier), cli=settings.claude_cli)
 
     if settings.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
         # anthropic 경로는 아직 티어 미분리 — 필요 시 ANTHROPIC_MODEL_LIGHT 를 추가한다.
         kwargs = dict(
-            model=settings.anthropic_model,
+            model=settings.active_model(tier),
             api_key=settings.anthropic_api_key,
             timeout=60,
             # 재시도는 structured.py 한 계층에서만 한다. 클라이언트까지 재시도하면

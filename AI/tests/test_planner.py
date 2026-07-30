@@ -27,6 +27,10 @@ ROADMAP = {"roadmap": {"roadmap": []}}
     # 전제 충족 — 고른 대로 실행
     (["fit_analysis"], {**RESUME, **POSTING}, ("fit_analysis",)),
     (["job_recommend"], {**RESUME}, ("job_recommend",)),
+    # 공고 추천의 전제는 "이력서 또는 선호" — 선호만 있어도 바로 추천한다
+    (["job_recommend"], {"preferences": {"roles": ["백엔드"]}}, ("job_recommend",)),
+    # 둘 다 없으면 선호를 만드는 생산자를 앞에 끼운다 (대화로 안 넘기고 목표를 살린다)
+    (["job_recommend"], {}, ("preference_intake", "job_recommend")),
     (["resume_diagnosis"], {**RESUME}, ("resume_diagnosis",)),
     (["posting_analysis"], {**POSTING}, ("posting_analysis",)),
     (["interview_prep"], {**ANALYSIS}, ("interview_prep",)),
@@ -46,7 +50,6 @@ ROADMAP = {"roadmap": {"roadmap": []}}
     (["fit_analysis"], {**RESUME}, (FALLBACK_AGENT,)),
     (["fit_analysis"], {**POSTING}, (FALLBACK_AGENT,)),
     (["fit_analysis"], {}, (FALLBACK_AGENT,)),
-    (["job_recommend"], {}, (FALLBACK_AGENT,)),
     (["coverletter_draft"], {**RESUME}, (FALLBACK_AGENT,)),
     (["roadmap_manager"], {}, (FALLBACK_AGENT,)),   # 로드맵은 조회 전용(생산자 삽입 안 함)
     # 빈 선택 — 무엇을 원하는지 못 읽었어도 대화로 받는다
@@ -131,10 +134,20 @@ def test_agent_plan_schema_rejects_unknown_name():
         AgentPlan(agents=["submit_application"])
 
 
+def test_agent_plan_requires_confidence():
+    """confidence 는 필수다 — default=0.0 이던 시절 모델이 칸을 빼먹으면 조용히 0.0 이 되어
+    정확히 고른 계획이 임계값에서 잘려 나갔다(2026-07-29 실측: 자료 제출 턴 3/5 붕괴).
+    누락은 검증 오류 → run_structured 재시도로 처리한다."""
+
+    with pytest.raises(ValidationError):
+        AgentPlan()
+
+
 def test_agent_plan_defaults_are_safe():
-    plan = AgentPlan()
+    plan = AgentPlan(confidence=0.5)
     assert plan.agents == []
-    assert plan.confidence == 0.0
+    assert plan.requestedAgents == []
+    assert plan.target == "" and plan.ack == ""
 
 
 # --- LLM 미설정 폴백 ----------------------------------------------------------
@@ -149,3 +162,105 @@ def test_plan_agents_empty_message_short_circuits():
     plan, warnings = plan_agents("   ", {})
     assert plan is None
     assert warnings == []
+
+
+# --- 동의 게이트: 통과 조건은 "청했다" 또는 "직전 턴 동의"뿐 (2026-07-29 재설계) --------
+def test_gate_fires_for_a_heavy_step_the_user_did_not_ask_for():
+    """**사용자가 청하지 않은 무거운 작업은 막는다.** 플래너가 스스로 골랐어도 마찬가지다.
+
+    실측(consistency S5·planner `coverletter-motivation`): 플래너가 `[fit_analysis,
+    coverletter_draft]` 를 골라 **수십 초 파이프라인이 말없이 돌았다.**
+    """
+
+    dispatch = validate_plan(
+        ["fit_analysis", "coverletter_draft"], {**RESUME, **POSTING},
+        requested=["coverletter_draft"],        # 사용자는 자소서만 청했다
+    )
+    assert dispatch.agents == (), "실행하지 않는다"
+    assert "진행할까요" in dispatch.ask
+    assert "자소서 초안" in dispatch.ask, "사용자의 목표를 문구에 담는다"
+    assert dispatch.pending == ("fit_analysis",), "무엇을 물었는지 세션에 적을 수 있게 낸다"
+
+
+def test_gate_is_fail_closed_when_the_planner_says_nothing():
+    """**모르면 묻는다.** 전에는 반대였다 — 플래너가 "내가 끼웠다"고 자기신고하지 않으면
+    게이트가 통과였고(fail-open), 모델이 그 칸을 비우면 수십 초 파이프라인이 말없이 돌았다.
+    같은 LLM 정보를 쓰면서 실패 방향만 뒤집었다(AGENTS §2-2)."""
+
+    dispatch = validate_plan(["fit_analysis", "coverletter_draft"], {**RESUME, **POSTING},
+                             requested=[])
+    assert dispatch.agents == () and dispatch.ask
+
+
+def test_gate_stays_silent_when_the_user_asked_for_the_heavy_step():
+    """사용자가 판정을 직접 청했으면 묻지 않고 실행한다."""
+
+    dispatch = validate_plan(
+        ["fit_analysis", "interview_prep"], {**RESUME, **POSTING},
+        requested=["fit_analysis", "interview_prep"],
+    )
+    assert dispatch.agents == ("fit_analysis", "interview_prep")
+    assert dispatch.ask == ""
+
+
+def test_gate_passes_after_the_user_consented_last_turn():
+    """직전 턴에 게이트가 물었고(`pendingConsent`) 사용자 발화를 거쳐 같은 이름이 다시
+    계획에 들어왔다 = 동의다. 전에는 이 통과 경로도 "플래너가 다음 턴에 명시적으로 고를
+    것"이라는 **모델에 대한 기대**였고, 동의는 어디에도 기록되지 않았다."""
+
+    session = {**RESUME, **POSTING, "pendingConsent": ["fit_analysis"]}
+    dispatch = validate_plan(["fit_analysis", "coverletter_draft"], session, requested=[])
+    assert dispatch.agents == ("fit_analysis", "coverletter_draft")
+    assert dispatch.ask == ""
+
+
+def test_a_light_prerequisite_does_not_trigger_the_gate():
+    """게이트는 **무거운** 것에만 걸린다 — 가벼운 전제는 말없이 끼워도 된다."""
+
+    dispatch = validate_plan(
+        ["preference_intake", "job_recommend"], {}, requested=["job_recommend"],
+    )
+    assert dispatch.ask == ""
+    assert "job_recommend" in dispatch.agents
+
+
+def test_requested_names_outside_the_plan_are_harmless():
+    """`requested` 에 계획 밖 이름이 섞여도 판정이 흔들리지 않는다(환각 방어)."""
+
+    dispatch = validate_plan(["fit_analysis"], {**RESUME, **POSTING},
+                             requested=["fit_analysis", "roadmap_manager"])
+    assert dispatch.agents == ("fit_analysis",) and dispatch.ask == ""
+
+
+def test_unrequested_prerequisite_for_an_existing_asset_is_dropped_not_asked():
+    """이미 있는 자산을 만드는 전제는 **묻지 않고 뺀다.**
+
+    게이트는 "필요한데 무거운 것"에만 의미가 있다. 실측(2026-07-29): analysis 를 이미 가진
+    세션에서 "자소서 다시 써줘" 에 플래너가 fit_analysis 를 넣어 게이트가 걸리고,
+    **이미 있는 분석을 다시 하겠냐고 묻는** 답이 나갔다.
+    """
+
+    session = {**RESUME, **POSTING, "analysis": {"fitGrade": "중", "gaps": []}}
+    dispatch = validate_plan(["fit_analysis", "coverletter_draft"], session,
+                             requested=["coverletter_draft"])
+    assert dispatch.ask == "", "이미 있는 분석을 다시 하겠냐고 묻지 않는다"
+    assert dispatch.agents == ("coverletter_draft",)
+
+
+def test_user_requested_reanalysis_is_not_dropped():
+    """사용자가 직접 재분석을 청했으면 이미 analysis 가 있어도 빼지 않는다."""
+
+    session = {**RESUME, **POSTING, "analysis": {"fitGrade": "중", "gaps": []}}
+    dispatch = validate_plan(["fit_analysis", "coverletter_draft"], session,
+                             requested=["fit_analysis", "coverletter_draft"])
+    assert dispatch.agents == ("fit_analysis", "coverletter_draft")
+
+
+def test_unknown_requested_keeps_the_plan_when_the_planner_says_nothing():
+    """모름(빈 `requested`)이면 **드롭은 하지 않는다** — 게이트와 반대 방향으로 기운다.
+    게이트가 틀리면 "묻지 않고 비싼 일을 함", 드롭이 틀리면 "청한 일을 안 함"이다."""
+
+    session = {**RESUME, **POSTING, "analysis": {"fitGrade": "중", "gaps": []},
+               "pendingConsent": ["fit_analysis"]}
+    dispatch = validate_plan(["fit_analysis", "coverletter_draft"], session, requested=[])
+    assert dispatch.agents == ("fit_analysis", "coverletter_draft")

@@ -15,14 +15,52 @@ from __future__ import annotations
 from typing import Any
 
 from jobis_ai.agents import AgentResult
-from jobis_ai.agents._common import ensure_profile
+from jobis_ai.agents._common import agent_arg, ensure_profile
+from jobis_ai.experience_estimator import estimate_experience_months
 from jobis_ai.gap_matcher import get_gap_matcher
+from jobis_ai.postings_db import experience_floor_years, posting_floor_years
 from jobis_ai.rag import get_rag_adapter
 from jobis_ai.role_taxonomy import get_role_taxonomy
 from jobis_ai.skill_taxonomy import get_skill_taxonomy
 
 _MAX_QUERY_SKILLS = 8
 _MAX_RECOMMENDATIONS = 5
+# 검색은 넉넉히 받아서 연차로 걸러낸 뒤 자른다 — 5건만 받아 거르면 남는 게 없다.
+_SEARCH_POOL = 30
+# 경력자에게 허용하는 초과 연차. 3년차에게 4년 요구 공고는 보여줄 만하다(도전 가능).
+# 신입(0년)에는 적용하지 않는다 — 아래 _fits_experience 참고.
+_OVER_YEARS_TOLERANCE = 1.0
+
+
+def _user_experience_years(session: dict[str, Any], profile: dict) -> float | None:
+    """사용자 연차. 대화로 말한 경력 수준이 우선, 없으면 이력서에서 추정. 모르면 None.
+
+    말한 것을 이력서 추정보다 앞세우는 이유: "신입인데 공고 봐줘" 처럼 사용자가 스스로
+    규정한 것이 가장 확실한 근거다. 둘 다 없으면 None — 그때는 연차로 거르지 않는다.
+    """
+
+    said = str((session.get("preferences") or {}).get("experienceLevel") or "").strip()
+    if said:
+        years = experience_floor_years(said)
+        if years is not None:
+            return years
+    if profile:
+        estimate = estimate_experience_months(profile)
+        if estimate.totalMonths is not None:
+            return estimate.totalMonths / 12.0
+    return None
+
+
+def _fits_experience(posting_floor: float | None, user_years: float | None) -> bool:
+    """공고 요구 연차가 사용자 연차에 맞는지. 어느 쪽이든 모르면 통과(거르지 않는다)."""
+
+    if posting_floor is None or user_years is None:
+        return True
+    if user_years <= 0:
+        # 신입에게는 "신입 지원 가능" 공고만. 연차 미표기 '경력' 공고(데이터의 최다 유형)도
+        # 경력자 채용이므로 제외한다 — 이게 신입에게 8년 요구 공고가 가던 원인이었다.
+        return posting_floor <= 0
+    return posting_floor <= user_years + _OVER_YEARS_TOLERANCE
 
 
 def _profile_role_category(profile: dict) -> str:
@@ -62,12 +100,17 @@ def _build_query(profile: dict, role_category: str, pref_terms: list[str]) -> st
 
 
 def _recommend_from_candidates(
-    candidates: list[dict], profile: dict, pref_terms: list[str]
+    candidates: list[dict], profile: dict, pref_terms: list[str], *, profile_known: bool = True
 ) -> list[dict]:
     """RAG 후보 공고 → 매칭 계산 기반 추천. find_alternatives._alternatives_from_rag 와
     같은 방식이되 목표 공고(gap)가 없으므로 reducedGaps 개념이 없다.
 
-    랭킹: 보유 역량 일치 수 + 선호 일치 수 합산, 동률이면 선호 일치 → RAG 점수 순."""
+    랭킹: 보유 역량 일치 수 + 선호 일치 수 합산, 동률이면 선호 일치 → RAG 점수 순.
+
+    profile_known=False(이력서 없이 선호만으로 온 경우)는 **역량 일치를 계산하지 않는다**.
+    빈 프로필로 매칭을 돌리면 전 후보가 "일치 0" 으로 탈락해 추천이 통째로 사라지기 때문이다.
+    이때 근거는 선호 일치와 공고 요구 기술 나열까지만 말하고, 역량 일치는 계산하지 않았음을
+    분명히 한다 — 없는 근거를 있는 것처럼 말하지 않는다."""
 
     taxonomy = get_skill_taxonomy()
     matcher = get_gap_matcher()
@@ -78,24 +121,33 @@ def _recommend_from_candidates(
         skills = taxonomy.find_in_text(text)
         if not skills:
             continue
-        pseudo_reqs = [
-            {"requirementId": f"rec-{i}", "text": skill, "type": "required"}
-            for i, skill in enumerate(skills, start=1)
-        ]
-        report = matcher.match(pseudo_reqs, profile)
-        matched = [s for m in report.matches if m.status == "met" for s in m.matchedSkills]
-        if not matched:
-            continue
+        matched: list[str] = []
+        if profile_known:
+            pseudo_reqs = [
+                {"requirementId": f"rec-{i}", "text": skill, "type": "required"}
+                for i, skill in enumerate(skills, start=1)
+            ]
+            report = matcher.match(pseudo_reqs, profile)
+            matched = [s for m in report.matches if m.status == "met" for s in m.matchedSkills]
+            if not matched:
+                continue
         haystack = " ".join([
             text, str(candidate.get("title", "")), str(candidate.get("companyName", "")),
         ]).lower()
         matched_prefs = [t for t in pref_terms if t.lower() in haystack]
-        reason = (
-            f"공고 요구 기술 {len(skills)}개 중 {len(matched)}개"
-            f"({', '.join(matched[:5])})를 이미 보유하고 있습니다."
-        )
-        if matched_prefs:
-            reason += f" 말씀해주신 선호({', '.join(matched_prefs[:3])})와도 맞는 공고예요."
+        if profile_known:
+            reason = (
+                f"공고 요구 기술 {len(skills)}개 중 {len(matched)}개"
+                f"({', '.join(matched[:5])})를 이미 보유하고 있습니다."
+            )
+            if matched_prefs:
+                reason += f" 말씀해주신 선호({', '.join(matched_prefs[:3])})와도 맞는 공고예요."
+        else:
+            reason = f"공고가 요구하는 기술은 {', '.join(skills[:5])} 입니다."
+            if matched_prefs:
+                reason = (f"말씀해주신 선호({', '.join(matched_prefs[:3])})와 맞는 공고예요. "
+                          + reason)
+            reason += " 이력서를 올려주시면 보유 역량과의 일치까지 계산해 드려요."
         out.append({
             "title": str(candidate.get("title") or candidate.get("companyName") or text[:40]),
             "companyName": str(candidate.get("companyName", "")),
@@ -104,6 +156,11 @@ def _recommend_from_candidates(
             "requiredSkills": skills,
             "reason": reason,
             "sourceJobPostingId": candidate.get("jobPostingId"),
+            # 공고의 연차 표기 원문 — 사용자에게 그대로 보여준다(우리 해석이 아니라 공고 표기).
+            "experience": str(candidate.get("seniority") or ""),
+            # 공고를 나열할 때는 URL 을 함께 준다 — 사용자가 바로 그 공고로 적합도
+            # 분석을 이어갈 수 있게 (Agent_Test 프로토타입의 UX 규칙 이식).
+            "url": str(candidate.get("url") or ""),
             "confidence": float(candidate.get("score", 0.0) or 0.0),
         })
 
@@ -119,53 +176,79 @@ def _recommend_from_candidates(
 
 
 def run(session: dict[str, Any]) -> AgentResult:
-    """세션 이력서 → 프로필 → RAG 검색 → 매칭 계산 → 추천 목록."""
+    """세션 이력서 → 프로필 → RAG 검색 → 매칭 계산 → 추천 목록.
 
-    profile, warnings = ensure_profile(session)
+    이력서 없이 선호만 있어도 실공고를 추천한다(전제가 "이력서 또는 선호"). 그때는 프로필을
+    만들지 않는다 — 이력서가 없으면 build_user_profile 은 빈 프로필밖에 못 내면서 LLM 만 쓴다.
+    """
+
+    profile_known = bool(session.get("resume") or session.get("profile"))
+    if profile_known:
+        profile, warnings = ensure_profile(session)
+    else:
+        profile, warnings = {}, []
     role_category = _profile_role_category(profile)
     pref_terms = _preference_terms(session)
+    # 플래너(LLM)가 발화에서 직군을 읽어 넘겼으면 그것을 검색의 앞자리에 둔다 —
+    # "데이터 엔지니어 공고 찾아줘" 처럼 대상이 발화에만 있는 경우, 이 통로가 없으면
+    # 선호 수집 턴을 한 번 더 거쳐야 했다. 없으면 기존대로 프로필·선호만으로 만든다.
+    job_name = agent_arg(session, "job_recommend", "job_name")
+    if job_name and job_name.lower() not in {t.lower() for t in pref_terms}:
+        pref_terms = [job_name] + pref_terms
     query = _build_query(profile, role_category, pref_terms)
 
     if not query:
         return AgentResult(
-            reply="이력서에서 검색에 쓸 기술·직무 정보를 찾지 못했습니다. 이력서에 기술 스택이 담겨 있는지 확인해 주세요.",
+            data={"recommendations": [], "emptyQuery": True, "profileKnown": profile_known,
+                  "query": "", "roleCategory": role_category, "preferenceTerms": pref_terms},
             warnings=warnings + [{
                 "code": "empty_recommend_query",
-                "message": "job_recommend: 프로필에 스킬·직무 정보가 없어 검색 쿼리를 만들지 못했습니다.",
+                "message": "job_recommend: 프로필·선호 어디에도 스킬·직무 정보가 없어 검색 쿼리를 만들지 못했습니다.",
             }],
         )
 
-    rag = get_rag_adapter().search(query)
+    rag = get_rag_adapter().search(query, top_k=_SEARCH_POOL)
     warnings.extend(rag.warnings)
 
-    recommendations = _recommend_from_candidates(rag.items, profile, pref_terms) if rag.items else []
+    # 연차 불일치 공고를 랭킹 전에 걸러낸다 — "신입" 이라고 말한 사용자에게 경력 8년 요구
+    # 공고를 추천하던 문제. 사용자 연차나 공고 표기를 모르면 거르지 않는다.
+    user_years = _user_experience_years(session, profile)
+    candidates = [
+        c for c in rag.items
+        if _fits_experience(posting_floor_years(c.get("seniority"), c.get("title")), user_years)
+    ]
+    dropped = len(rag.items) - len(candidates)
+    if dropped:
+        warnings.append({
+            "code": "experience_filtered",
+            "message": (f"job_recommend: 연차 불일치로 공고 {dropped}건 제외"
+                        f"(사용자 {user_years:g}년 기준)."),
+        })
 
-    if recommendations:
-        top = recommendations[0]
-        pref_note = (
-            f"말씀해주신 선호({', '.join(pref_terms[:4])})를 반영해 " if pref_terms else ""
-        )
-        reply = (
-            f"{pref_note}보유 역량과 매칭되는 공고 {len(recommendations)}건을 찾았습니다. "
-            f"가장 잘 맞는 곳은 '{top['title']}'"
-            f"({len(top['matchedSkills'])}개 역량 일치)입니다. "
-            "관심 있는 공고를 고르시면 그 공고로 상세 적합도 분석을 이어서 해드릴게요."
-        )
-    else:
+    recommendations = (
+        _recommend_from_candidates(candidates, profile, pref_terms, profile_known=profile_known)
+        if candidates else []
+    )
+
+    # 문장은 만들지 않는다 — 이 모듈은 도구다(계산만). 표현은 tool_render.render_job_recommend.
+    if not recommendations and dropped and not candidates:
+        warnings.append({
+            "code": "no_recommendation_after_experience_filter",
+            "message": f"job_recommend: 연차 필터로 후보 {dropped}건이 전부 제외돼 추천이 없습니다.",
+        })
+    elif not recommendations:
         # 실공고 없이 추천을 지어내지 않는다.
-        reply = (
-            "실제 공고 검색(RAG)에서 결과를 얻지 못해 추천을 만들 수 없습니다. "
-            "공고 데이터 연결 후 다시 시도해 주세요."
-        )
         warnings.append({
             "code": "no_recommendation",
             "message": "job_recommend: RAG 결과가 없어 추천을 생성하지 않았습니다(허구 공고 금지).",
         })
 
     return AgentResult(
-        reply=reply,
         data={"query": query, "roleCategory": role_category,
-              "preferenceTerms": pref_terms, "recommendations": recommendations},
+              "preferenceTerms": pref_terms, "recommendations": recommendations,
+              # 표현 계층이 문장을 고르는 데 쓰는 사실들(판단이 아니라 상태다)
+              "profileKnown": profile_known, "droppedByExperience": dropped,
+              "userExperienceYears": user_years},
         warnings=warnings,
         sessionUpdates={"recommendations": recommendations},
     )

@@ -31,7 +31,10 @@ def fresh_session_store(monkeypatch):
 def stub_planner(monkeypatch, agents, ack: str = ""):
     """플래너의 선택을 주입한다 — LLM 추론을 대신하되 뒤 단계는 실제 코드가 돈다."""
 
-    plan = AgentPlan(agents=list(agents), confidence=0.9, ack=ack)
+    # requestedAgents=agents — 이 스텁은 "사용자가 이 기능을 청했다"는 뜻이다(게이트 동작은
+    # test_planner.py 가 따로 본다).
+    plan = AgentPlan(agents=list(agents), requestedAgents=list(agents),
+                     confidence=0.9, ack=ack)
     monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
                         lambda message, session: (plan, []))
 
@@ -150,15 +153,35 @@ def test_chat_explicit_heavy_producer_runs_without_gate(monkeypatch):
     assert res.dispatched[0] == "fit_analysis"
 
 
-def test_chat_planner_ack_is_visible(monkeypatch):
-    """플래너의 이해 확인 문장이 응답에 실린다(가시화) — 오선택을 사용자가 정정할 수 있게."""
+def test_chat_planner_ack_is_visible_when_it_explains_a_plan(monkeypatch):
+    """ack 는 **계획을 설명할 때** 실린다 — 여러 에이전트를 돌면 순서를 알려야 한다."""
+
+    stub_planner(monkeypatch, ["posting_analysis", "resume_diagnosis"],
+                 ack="공고를 먼저 정리하고 이력서를 진단할게요.")
+    res = handle_chat(ChatRequest(
+        sessionId="s5b", message="공고랑 이력서 다 봐줘",
+        attachments=[_resume_attachment(), _posting_attachment()],
+    ))
+    assert len(res.dispatched) > 1
+    assert "공고를 먼저 정리하고 이력서를 진단할게요." in res.reply
+
+
+def test_chat_ack_dropped_when_single_agent_speaks_for_itself(monkeypatch):
+    """에이전트 하나가 스스로 말하면 ack 를 싣지 않는다 — 같은 말을 두 번 하게 된다.
+
+    실측(2026-07-29): 면접 턴이 "면접 연습을 시작하겠습니다. 면접 연습을 시작하겠습니다.
+    첫 질문입니다: …" 로 나갔다. ack(플래너)와 에이전트 첫 문장이 같은 말이었다.
+    라우팅 가시화는 ack 가 아니라 `intent` 가 맡는다(프론트가 에이전트 이름을 표시한다).
+    """
 
     stub_planner(monkeypatch, ["resume_diagnosis"], ack="이력서 진단으로 이해했어요.")
     res = handle_chat(ChatRequest(
         sessionId="s5", message="이력서 진단해줘", attachments=[_resume_attachment()],
     ))
     assert res.dispatched == ["resume_diagnosis"]
-    assert "이력서 진단으로 이해했어요." in res.reply
+    assert "이력서 진단으로 이해했어요." not in res.reply
+    assert res.reply.strip(), "에이전트의 말은 그대로 남는다"
+    assert res.intent == "resume_diagnosis", "라우팅 가시화는 intent 로 유지된다"
 
 
 def test_chat_forbidden_ack_is_dropped(monkeypatch):
@@ -175,7 +198,7 @@ def test_posting_analysis_seniority_shows_posting_wording():
     """연차 표기는 공고가 한 말(yearsEvidence)을 그대로 — 사다리 라벨("주니어 신입")은
     공고에 없는 단어("신입")를 만들 수 있어 숫자 근거가 있으면 쓰지 않는다."""
 
-    from jobis_ai.agents.posting_analysis import _seniority_line
+    from jobis_ai.agents.tool_render import _seniority_line
 
     line = _seniority_line({
         "jobTitle": "백엔드 개발자",
@@ -190,7 +213,7 @@ def test_posting_analysis_seniority_shows_posting_wording():
 def test_posting_analysis_seniority_evidence_fallback_from_text():
     """옛 캐시(yearsEvidence 없음)면 원문 항목에서 표기를 찾아 쓴다."""
 
-    from jobis_ai.agents.posting_analysis import _seniority_line
+    from jobis_ai.agents.tool_render import _seniority_line
 
     line = _seniority_line({
         "jobTitle": "백엔드 개발자",
@@ -203,7 +226,7 @@ def test_posting_analysis_seniority_evidence_fallback_from_text():
 def test_posting_analysis_seniority_without_evidence():
     """숫자 근거가 아예 없으면(키워드만) 사다리 라벨을 키워드 기준으로 표기한다."""
 
-    from jobis_ai.agents.posting_analysis import _seniority_line
+    from jobis_ai.agents.tool_render import _seniority_line
 
     line = _seniority_line({"jobTitle": "백엔드", "seniority": "senior",
                             "requiredRequirements": [{"text": "Kubernetes 운영"}]})
@@ -260,3 +283,118 @@ def test_career_chat_falls_back_honestly_without_llm():
     assert "적합도 분석" in result.reply
 
 
+
+
+# --- 발화 소유자 하나 (compose_reply) — show_lead 4중 불리언 대체 (2026-07-29) --------
+def test_compose_reply_lead_is_silent_when_an_agent_already_spoke():
+    """계획 하나를 에이전트가 스스로 말했으면 계획 설명은 침묵한다(같은 말 두 번 금지)."""
+
+    from jobis_ai.orchestrator.chat import compose_reply
+
+    out = compose_reply([], ["진단 결과입니다."], ack="이력서 진단할게요.", steps=1)
+    assert out == "진단 결과입니다."
+
+
+def test_compose_reply_lead_explains_multi_step_and_silence():
+    """알려 줄 순서가 있거나(둘 이상) 아무도 말하지 않았으면 계획 설명이 실린다."""
+
+    from jobis_ai.orchestrator.chat import compose_reply
+
+    assert compose_reply([], ["A", "B"], ack="둘 다 볼게요.", steps=2).startswith("둘 다 볼게요.")
+    assert compose_reply([], [], ack="둘 다 볼게요.", steps=1) == "둘 다 볼게요."
+
+
+def test_compose_reply_validator_change_speaks_the_reason_not_the_plan():
+    """검증기가 계획을 바꿨으면 원안 설명(ack)이 아니라 **바뀐 이유**(note)를 말한다."""
+
+    from jobis_ai.orchestrator.chat import compose_reply
+
+    out = compose_reply(["이력서를 받았어요."], ["공고 정리 결과"],
+                        ack="적합도 분석을 진행하겠습니다.", note="공고가 없어서 이력서 진단부터 할게요.",
+                        steps=1, changed_by="validator")
+    assert "적합도 분석" not in out, "하지 않은 일을 하겠다고 말하지 않는다"
+    assert out.startswith("이력서를 받았어요. 공고가 없어서")
+
+
+def test_compose_reply_rule_change_stays_silent_because_the_rule_explained():
+    """실행 중 규칙이 바꿨으면 이유는 규칙이 이미 said 에 말했다 — 계획 설명은 침묵."""
+
+    from jobis_ai.orchestrator.chat import compose_reply
+
+    out = compose_reply([], ["등급이 하라서 자소서는 미뤘어요."],
+                        ack="자기소개서 초안을 작성하겠습니다.", note="무시됨",
+                        steps=2, changed_by="rule")
+    assert out == "등급이 하라서 자소서는 미뤘어요."
+
+
+# --- 동의 게이트 왕복: 물어본 것을 세션에 적고, 다음 턴에 통과시킨다 --------------------
+def test_consent_gate_records_what_it_asked_and_passes_next_turn(monkeypatch, fresh_session_store):
+    """게이트가 물은 이름을 `pendingConsent` 에 적고, 다음 턴 계획에 다시 들어오면 실행한다.
+
+    전에는 이 통과 경로가 "동의하면 다음 턴 플래너가 명시적으로 고를 것"이라는 **모델에 대한
+    기대**였고 동의는 어디에도 기록되지 않았다.
+    """
+
+    plan = AgentPlan(agents=["fit_analysis", "coverletter_draft"],
+                     requestedAgents=["coverletter_draft"], confidence=0.9)
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
+                        lambda message, session: (plan, []))
+
+    first = handle_chat(ChatRequest(
+        sessionId="consent-1", message="자소서 써줘",
+        attachments=[_resume_attachment(), _posting_attachment()]))
+    assert first.dispatched == [], "청하지 않은 무거운 작업은 먼저 묻는다"
+    assert "진행할까요" in first.reply
+    assert fresh_session_store.get("consent-1")["pendingConsent"] == ["fit_analysis"]
+
+    # 다음 턴 — 사용자가 "응"이라 하고 플래너가 같은 계획을 낸다(requested 는 여전히 자소서뿐).
+    second = handle_chat(ChatRequest(sessionId="consent-1", message="응 진행해줘"))
+    assert second.dispatched[0] == "fit_analysis", "동의했으므로 게이트를 통과한다"
+    assert fresh_session_store.get("consent-1")["pendingConsent"] == [], "동의는 한 번 쓰면 소진된다"
+
+
+# ---------------------------------------------------------------------------
+# 확신 문턱 면제 — 이번 턴 제출물이 계획 첫 에이전트의 전제를 채우면 강등하지 않는다 (D66)
+# ---------------------------------------------------------------------------
+def stub_planner_unrequested(monkeypatch, agents, confidence):
+    """청함 없는 낮은 확신 계획 — 말없이 자료만 붙여넣은 턴의 플래너 출력을 재현한다."""
+
+    plan = AgentPlan(agents=list(agents), requestedAgents=[], confidence=confidence)
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
+                        lambda message, session: (plan, []))
+
+
+def test_low_confidence_with_posting_submission_is_exempt(monkeypatch):
+    """공고를 방금 제출한 턴 — 확신 0.55 여도 posting_analysis 가 강등되지 않는다.
+
+    실측(2026-07-30): 말없이 공고만 붙여넣으면 합성 발화 탓에 확신이 문턱(0.6) 아래로
+    나와 career_chat 으로 강등됐고, 사용자는 항목화를 기대했다.
+    """
+
+    stub_planner_unrequested(monkeypatch, ["posting_analysis"], 0.55)
+    response = handle_chat(ChatRequest(sessionId="s-conf-exempt", message="",
+                                       attachments=[_posting_attachment()]))
+    assert "posting_analysis" in response.dispatched
+
+
+def test_low_confidence_without_submission_still_falls_back(monkeypatch):
+    """제출물이 없는 낮은 확신 턴은 기존대로 대화가 받는다 — 면제는 제출 턴에만."""
+
+    from jobis_ai.orchestrator.session import get_session_store
+
+    # 세션에 공고가 *이미* 있어도(지난 턴 제출) 이번 턴 제출이 아니면 면제가 아니다.
+    get_session_store().update("s-conf-fallback", {
+        "job_posting": {"sourceType": "text", "value": "백엔드 모집. 필수: Python."}})
+    stub_planner_unrequested(monkeypatch, ["posting_analysis"], 0.55)
+    response = handle_chat(ChatRequest(sessionId="s-conf-fallback", message="음 글쎄요"))
+    assert response.dispatched == ["career_chat"]
+
+
+def test_submission_grounds_plan_matrix():
+    from jobis_ai.orchestrator.chat import _submission_grounds_plan
+
+    assert _submission_grounds_plan(("posting_analysis",), ["job_posting"])
+    assert _submission_grounds_plan(("resume_diagnosis",), ["resume_extra"])
+    assert not _submission_grounds_plan(("career_chat",), ["job_posting"])   # 전제 무관
+    assert not _submission_grounds_plan(("posting_analysis",), [])           # 제출 없음
+    assert not _submission_grounds_plan((), ["job_posting"])                 # 계획 없음

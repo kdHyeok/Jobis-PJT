@@ -25,6 +25,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from jobis_ai.agents import AgentResult
+from jobis_ai.gap_matcher import GRADE_HIGH, GRADE_MID
 from jobis_ai.structured import run_structured
 from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
 
@@ -35,9 +36,9 @@ _HARD_CONSTRAINT = re.compile(
     r"(학사|석사|박사)\s*(이상|학위)|전공자?\s*(만|한정)|자격증\s*필수|필수\s*자격)"
 )
 
-# 점수 구간 → 목표 상태. 경계값은 gap_matcher 의 등급 기준(상 0.7 / 중 0.4)과 같은 자리에 둔다.
-_APPLY_NOW_SCORE = 70
-_REINFORCE_SCORE = 40
+# 점수 구간 → 목표 상태. 경계는 **gap_matcher 에서 가져온다**(D16 = 등급 경계의 단일 출처).
+# 전에는 70/40 을 리터럴로 다시 적고 주석으로 "같은 자리에 둔다"고만 해 뒀는데, 그건 값이
+# 갈라질 때 아무도 못 잡는 형태다 — 한쪽만 고쳐도 테스트가 통과한다.
 
 _STATUS_LABEL = {
     "APPLY_NOW": "지금 지원",
@@ -91,10 +92,9 @@ def _decide_status(analysis: dict, unmet: list[str], hard: list[dict]) -> str:
     if hard:
         return "MID_TERM_TARGET"
 
-    now = round(score * 100)
-    if now >= _APPLY_NOW_SCORE:
+    if score >= GRADE_HIGH:
         return "APPLY_NOW" if not unmet else "APPLY_WITH_POLISH"
-    if now >= _REINFORCE_SCORE:
+    if score >= GRADE_MID:
         return "REINFORCE_FIRST"
     return "MID_TERM_TARGET"
 
@@ -263,6 +263,61 @@ def _write_plan(facts: dict) -> tuple[dict, list[dict]]:
 
 
 # ---------------------------------------------------------------------------
+# 표현 — 결정론 조립 (판정·문구는 위에서 이미 정해졌다)
+# ---------------------------------------------------------------------------
+_EFFORT_LABEL = {"low": "부담 낮음", "mid": "부담 중간", "high": "부담 높음"}
+
+_MAX_REASONS_IN_REPLY = 3
+
+
+def render_plan_reply(decision: dict[str, Any], routes: list[dict[str, Any]]) -> str:
+    """목표 상태 + 지원 경로를 대화 답변으로 조립한다. **LLM 없음** — 정해진 값을 옮겨 적는다.
+
+    전에는 `f"{label} — {headline}"` 한 줄이었다. 그래서 이 에이전트의 산출물인 **지원 경로
+    2~3개가 대화 채널에 아예 도달하지 않았다**(data 로만 나가 웹 리포트 패널에서만 보였다).
+    등급이 낮을 때 이 에이전트로 강제 전이하기로 한 뒤(chat.weak_grade_transition) 그 결함이
+    정면에 드러났다 — 사용자에게 "무엇을 할지"를 주려고 보낸 자리에서 아무것도 말하지 않았다.
+
+    덤으로 동어반복도 막는다. 실측(2026-07-29): LLM headline 이
+    `"이 목표는 중기 목표로 설정되었습니다."` 여서 답변이 `"중기 목표 — 이 목표는 중기 목표로
+    설정되었습니다."` 로 나갔다. headline 이 label 을 되풀이하면 label 만 남긴다.
+    """
+
+    label = str(decision.get("label") or "").strip()
+    headline = str(decision.get("headline") or "").strip()
+    head = f"**{label}**" if label else ""
+    # headline 이 label 을 되풀이하면 싣지 않는다(같은 말 두 번).
+    if headline and not (label and label in headline):
+        head = f"{head} — {headline}" if head else headline
+    lines = [head] if head else []
+
+    reasons = [str(r).strip() for r in (decision.get("reasons") or []) if str(r).strip()]
+    lines += [f"· {r}" for r in reasons[:_MAX_REASONS_IN_REPLY]]
+
+    route_lines = []
+    for index, route in enumerate(routes, 1):
+        title = str(route.get("title") or "").strip()
+        if not title:
+            continue
+        tags = [_EFFORT_LABEL.get(str(route.get("effort") or ""), "")]
+        if route.get("hardRisk"):
+            # 프로젝트·학습으로 대체할 수 없는 조건이 걸려 있다 — 감추면 헛수고를 권하게 된다.
+            tags.append("필수 조건 충돌")
+        tag = " · ".join(t for t in tags if t)
+        summary = str(route.get("summary") or "").strip()
+        route_lines.append(f"{index}. [{tag}] {title}" + (f" — {summary}" if summary else ""))
+    if route_lines:
+        lines.append("지원 경로:")
+        lines += route_lines
+
+    recheck = str(decision.get("recheckCondition") or "").strip()
+    if recheck:
+        lines.append(f"(다시 판정해 볼 시점: {recheck})")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # 진입점
 # ---------------------------------------------------------------------------
 def run(session: dict[str, Any]) -> AgentResult:
@@ -330,7 +385,7 @@ def run(session: dict[str, Any]) -> AgentResult:
 
     plan = {"decision": decision, "routes": routes}
     return AgentResult(
-        reply=f"{decision['label']} — {decision['headline']}",
+        reply=render_plan_reply(decision, routes),
         data={"applicationPlan": plan},
         warnings=warnings,
         sessionUpdates={"application_plan": plan},

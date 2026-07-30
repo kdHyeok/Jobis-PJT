@@ -31,15 +31,18 @@ class Dispatch:
     # 실행 시퀀스가 플래너의 선택과 달라졌을 때만 쓰는 가시화 문구.
     note: str = ""
     # 동의 게이트 — 비어 있지 않으면 이번 턴에는 실행하지 않고 이 질문만 한다.
-    # 무거운 생산자(fit_analysis 등)가 **자동 삽입**될 때, 수십 초·LLM 여러 회짜리
-    # 파이프라인을 말없이 시작하는 대신 먼저 묻는다. 사용자가 동의하면 다음 턴에
-    # 플래너가 그 생산자를 명시적으로 고르므로 게이트에 다시 걸리지 않는다.
+    # 무거운 생산자(fit_analysis 등)가 사용자의 청함 없이 계획에 들어갈 때, 수십 초·LLM
+    # 여러 회짜리 파이프라인을 말없이 시작하는 대신 먼저 묻는다.
     ask: str = ""
+    # 게이트가 물어본 에이전트 이름들 — 호출부가 세션(`pendingConsent`)에 적어 둔다.
+    # 다음 턴 계획에 같은 이름이 들어오면 그것이 동의이므로 게이트를 통과시킨다.
+    pending: tuple[str, ...] = ()
 
 
 _AGENT_LABEL = {
     "fit_analysis": "적합도 분석",
     "posting_analysis": "공고 분석",
+    "posting_fetch": "공고 수집",
     "application_plan": "지원 경로 설계",
     "preference_intake": "선호 파악",
     "career_chat": "진로 대화",
@@ -57,7 +60,13 @@ _ASSET_LABEL = {
     "roadmap": "준비 로드맵",
     "recommendations": "추천 공고",
     "coverletter": "자소서 초안",
+    "preferences": "공고 선호",
+    "interview": "면접 연습 진행 상태",
 }
+
+# 선호 자산으로 인정하는 항목 — 하나라도 채워져 있으면 "선호 있음"이다.
+# (preference_intake 가 저장하는 dict 에는 turns 같은 진행 표식도 섞여 있어 dict 유무로는 못 본다.)
+_PREFERENCE_FIELDS = ("roles", "domains", "companies", "regions", "techStack")
 
 # 전제 자동 삽입의 재귀 깊이 상한 — 생산자 체인 순환 방어.
 _MAX_INSERT_DEPTH = 2
@@ -80,12 +89,70 @@ def _session_assets(session: dict[str, Any]) -> set[str]:
 
     assets = {
         key
-        for key in ("resume", "job_posting", "analysis", "roadmap", "recommendations", "coverletter")
+        for key in ("resume", "job_posting", "analysis", "roadmap", "recommendations",
+                    "coverletter", "interview")
         if session.get(key)
     }
     if session.get("profile"):
         assets.add("resume")
+    prefs = session.get("preferences") or {}
+    if any(prefs.get(field) for field in _PREFERENCE_FIELDS):
+        assets.add("preferences")
+    # 플래너가 넘긴 인자가 전제를 대신하는 경우(AgentSpec.params_satisfy) — 발화에 이미
+    # 값이 있으면 그 자산을 만드는 선행 에이전트를 끼울 이유가 없다.
+    agent_args = session.get("_agentArgs") or {}
+    if agent_args:
+        from jobis_ai.agents import get_agent_registry
+
+        for name, spec in get_agent_registry().items():
+            given = agent_args.get(name) or {}
+            for param, asset in getattr(spec, "params_satisfy", ()):
+                if given.get(param):
+                    assets.add(asset)
     return assets
+
+
+def validate_agent_args(raw_args: list[Any]) -> dict[str, dict[str, str]]:
+    """플래너가 채운 인자를 레지스트리 선언과 대조해 통과분만 남긴다 — 순수 결정론.
+
+    에이전트 이름 환각은 Literal 이 막고, **인자 이름 환각은 여기서** 막는다
+    (미등록 에이전트·미선언 인자·빈 값은 조용히 버린다). 반환: {에이전트: {인자: 값}}
+    """
+
+    from jobis_ai.agents import get_agent_registry
+
+    registry = get_agent_registry()
+    out: dict[str, dict[str, str]] = {}
+    for arg in raw_args or []:
+        agent = str(getattr(arg, "agent", "") or "").strip()
+        name = str(getattr(arg, "name", "") or "").strip()
+        value = str(getattr(arg, "value", "") or "").strip()
+        spec = registry.get(agent)
+        if not (spec and value):
+            continue
+        if name not in {pname for pname, _ in spec.params}:
+            continue
+        out.setdefault(agent, {})[name] = value
+    return out
+
+
+def session_assets(session: dict[str, Any]) -> set[str]:
+    """보유 자산 이름 집합 — 오케스트레이터도 "지금 이 단계가 도나"를 같은 기준으로 본다."""
+
+    return _session_assets(session)
+
+
+def runnable_now(spec: Any, assets: set[str]) -> bool:
+    """생산자 삽입 **없이** 지금 그대로 실행 가능한지 — 전제가 이미 다 있는지만 본다.
+
+    agent_feasibility 와 다르다: 그쪽은 "생산자를 끼우면 가능한가"까지 세므로 자산이 하나도
+    없어도 가능으로 나온다. 실행 큐에서 "이 단계 지금 돌 수 있나"를 물을 때는 이걸 쓴다.
+    """
+
+    if not set(spec.preconditions) <= assets:
+        return False
+    alternatives = set(getattr(spec, "preconditions_any", ()))
+    return not alternatives or bool(alternatives & assets)
 
 
 def _plan_agent(spec: Any, assets: set[str], plan: list[str],
@@ -118,6 +185,19 @@ def _plan_agent(spec: Any, assets: set[str], plan: list[str],
         if missing:
             return missing
 
+    # 대안 전제(하나라도 충족). 하나도 없으면 만들 수 있는 것의 생산자를 선언 순서대로 시도한다.
+    alternatives = getattr(spec, "preconditions_any", ())
+    if alternatives and not (set(alternatives) & trial_assets):
+        for asset in alternatives:
+            producer = next((s for s in registry.values() if asset in s.produces), None)
+            if producer is None or producer.name in trial_plan:
+                continue
+            if _plan_agent(producer, trial_assets, trial_plan, registry, depth + 1) is None:
+                break
+        else:
+            # 아무 대안도 못 채웠다 — 대표로 첫 대안을 결측 자산으로 보고한다(라벨용).
+            return alternatives[0]
+
     if spec.name not in trial_plan:
         trial_plan.append(spec.name)
         trial_assets.update(spec.produces)
@@ -146,17 +226,38 @@ def agent_feasibility(session: dict[str, Any]) -> dict[str, str | None]:
     return out
 
 
-def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any]) -> Dispatch:
+def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any],
+                  requested: tuple[str, ...] | list[str] | None = None) -> Dispatch:
     """플래너가 고른 시퀀스를 실행 가능하게 보정한다. 순수 결정론 — LLM 없음.
 
     미등록 이름·전제 결측 에이전트는 뺀다(무엇으로 바꿀지는 정하지 않는다).
     남는 것이 없으면 대화형 에이전트에게 턴을 넘긴다.
+
+    requested — `agents` 중 **사용자가 이번 발화에서 직접 청한** 이름들
+    (`AgentPlan.requestedAgents`). `None` 은 "호출자가 이 정보를 주지 않았다"(코드 직접
+    호출·설명 도구)이고, 빈 리스트는 "청한 것이 없다"다 — 아래 게이트가 둘을 다르게 본다.
     """
 
     from jobis_ai.agents import get_agent_registry
 
     registry = get_agent_registry()
     assets = _session_assets(session)
+
+    # 사용자가 청하지 않았는데 **이미 있는 자산을 만드는** 항목은 불필요하다 — 묻지 않고 뺀다.
+    # 게이트는 "필요한데 무거운 것"에만 의미가 있다. 이미 있는 분석을 다시 하겠냐고 묻는 것은
+    # 사용자를 헷갈리게 한다(실측 2026-07-29: analysis 를 가진 자소서 요청에 게이트가 걸렸다).
+    #
+    # **모름(`requested` 가 비었다)이면 빼지 않는다.** 게이트와 반대 방향으로 기운다 —
+    # 게이트가 틀리는 대가는 "묻지 않고 비싼 일을 함"이고, 이 드롭이 틀리는 대가는
+    # "사용자가 청한 일을 안 함"이다. 모를 때는 각자 자기 쪽의 안전한 방향을 택한다.
+    if requested:
+        redundant = {
+            name for name in agents
+            if name not in set(requested) and name in registry
+            and set(registry[name].produces) & assets
+        }
+        if redundant:
+            agents = [name for name in agents if name not in redundant]
 
     plan: list[str] = []
     dropped: list[tuple[str, str]] = []
@@ -176,16 +277,29 @@ def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any]) 
     if not plan:
         return Dispatch((FALLBACK_AGENT,))
 
-    # 동의 게이트 — 플래너가 고르지 않은 **무거운** 생산자가 자동 삽입됐으면 실행하지 않고
+    # 동의 게이트 — **사용자가 청하지 않은** 무거운 작업(수십 초·LLM 여러 회)은 실행하지 않고
     # 먼저 묻는다. note 로 알리고 이미 도는 것과, 시작 전에 묻는 것은 UX·비용이 다르다.
-    requested = set(agents)
-    inserted_heavy = [n for n in plan
-                      if n not in requested and getattr(registry[n], "heavy", False)]
-    if inserted_heavy:
-        goals = [n for n in plan if n in requested]
+    #
+    # **통과 조건은 둘뿐이고 둘 다 코드가 확인한다** (2026-07-29 재설계):
+    #   ① 사용자가 이번 발화에서 직접 청했다 — `requested`.
+    #   ② 직전 턴에 이 게이트가 물었고(`session["pendingConsent"]`) 사용자 발화를 거쳐 같은
+    #      이름이 다시 계획에 들어왔다 = 동의다.
+    # 어느 것도 아니면(모름 포함) 묻는다 — **fail-closed**. 전에는 반대였다: 플래너가
+    # "이건 내가 전제로 끼웠다"고 **자기신고**(`inferredPrerequisites`)해야 게이트가 걸렸고,
+    # 모델이 그 칸을 비우면 수십 초 파이프라인이 말없이 돌았다(fail-open). 같은 LLM 정보를
+    # 쓰면서 실패 방향만 뒤집은 것이다 — AGENTS §2-2("금지는 프롬프트가 아니라 구조로").
+    # ②를 세션에 적는 이유: 전에는 동의를 아무 데도 기록하지 않고 "동의하면 다음 턴에 플래너가
+    # 명시적으로 고를 것"에 의존했다 — 그것도 모델에 맡긴 통과 경로였다.
+    consented = set(session.get("pendingConsent") or ())
+    requested_set = set(agents) if requested is None else set(requested)
+    unasked_heavy = [n for n in plan
+                     if n not in requested_set and n not in consented
+                     and getattr(registry[n], "heavy", False)]
+    if unasked_heavy:
+        goals = [n for n in plan if n not in unasked_heavy]
         goal_label = " · ".join(agent_label(n) for n in goals) or "요청하신 작업"
-        heavy_label = " · ".join(agent_label(n) for n in inserted_heavy)
-        return Dispatch((), ask=(
+        heavy_label = " · ".join(agent_label(n) for n in unasked_heavy)
+        return Dispatch((), pending=tuple(unasked_heavy), ask=(
             f"{goal_label}에는 먼저 {heavy_label}이 필요해요. "
             f"시간이 조금 걸리는 작업인데(수십 초), 바로 진행할까요?"))
 

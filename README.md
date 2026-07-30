@@ -14,8 +14,8 @@
 S15P11C202/
 ├── backend/    # Spring Boot 백엔드 (웹 서비스 본체, 정적 프론트 포함)
 │   └── src/main/resources/static/   # 프론트엔드 화면 (HTML/JS)
-├── fake-ai/    # 개발용 가짜 AI 서버 (Node.js, WebSocket)
-├── AI/         # AI 에이전트 개발 (재통합 예정, 안내: AI/README.md)
+├── AI/         # AI 에이전트 서버 (멀티에이전트 오케스트레이터 + 웹 브릿지, 안내: AI/README.md)
+├── fake-ai/    # 개발용 가짜 AI 서버 (Node.js, WebSocket) — 대화 기능은 없다
 ├── DATA/       # 채용공고 데이터 수집 (재통합 예정, 안내: DATA/README.md)
 ├── RAG/        # RAG 기능 개발 격리 디렉토리 (안내: RAG/README.md)
 ├── _docs/      # 기능 정의서, 협업 가이드 등 산출물 문서
@@ -23,7 +23,7 @@ S15P11C202/
 └── _ref/       # 참고 자료 (이미지·영상)
 ```
 
-> `AI/`, `DATA/`는 구조 정리를 위해 비워둔 상태입니다. 기존 작업물은 아카이브 태그(`archive/ai_agent_jy`, `archive/data` 등)와 develop 커밋 이력에 보존되어 있습니다. 복원: `git switch -c <브랜치명> archive/<태그명>`
+> `DATA/`는 구조 정리를 위해 비워둔 상태입니다. 기존 작업물은 아카이브 태그(`archive/data` 등)와 develop 커밋 이력에 보존되어 있습니다. 복원: `git switch -c <브랜치명> archive/<태그명>`
 
 ## 브랜치 운영
 
@@ -41,66 +41,96 @@ master   # 배포·시연 가능한 안정 버전 (직접 push 금지)
 
 ## 실행 방법
 
-### 준비물
+이 브랜치 하나로 프론트·백엔드·AI 가 전부 뜬다. 프론트는 별도 서버가 없고 백엔드가 함께 서빙한다.
+**기동 순서는 MySQL → AI(:8000) → 백엔드(:8080)** — 백엔드가 앞의 둘에 의존한다.
 
-- Java 17
-- Node.js 18+
-- MySQL 8
+준비물: **Java 17**, **MySQL 8**, **Python 3.11+** (+ [uv](https://docs.astral.sh/uv/) 권장)
 
-### 1. DB 생성
-
-MySQL에 접속해서 데이터베이스만 만든다. (테이블은 백엔드 실행 시 Flyway가 자동 생성)
+### 1. DB 만들고 백엔드 설정 채우기
 
 ```sql
 CREATE DATABASE jobiss CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-기본 접속 정보 (`backend/src/main/resources/application.yml`)
-
-| 항목 | 값 |
-|---|---|
-| url | `localhost:3306/jobiss` |
-| username | `root` |
-| password | `ssafy` |
-
-다르면 환경변수로 덮어쓴다.
+DB 접속 정보와 JWT 시크릿은 코드에 기본값이 없다. `backend/.env` 를 만들어 채운다.
 
 ```bash
-# 예시
-set DB_USERNAME=root
-set DB_PASSWORD=본인비밀번호
+cd backend && cp .env.example .env    # Windows: Copy-Item .env.example .env
 ```
 
-### 2. 가짜 AI 서버 실행 (먼저)
+```properties
+DB_URL=jdbc:mysql://localhost:3306/jobiss?serverTimezone=UTC&characterEncoding=UTF-8
+DB_USERNAME=root
+DB_PASSWORD=본인_비밀번호
+JWT_SECRET=32자_이상의_임의_문자열      # openssl rand -base64 48
+```
+
+### 2. AI 서버 (:8000) — 백엔드보다 먼저
 
 ```bash
-cd fake-ai
-npm install
-node server.js
+cd AI && cp .env.example .env
 ```
 
-→ `ws://localhost:8000` 대기. **이게 떠 있어야 분석이 동작한다.**
+`.env` 에서 LLM 을 **둘 중 하나** 고른다. 기능 차이는 없고 속도·비용만 다르다.
 
-### 3. 백엔드 실행
+```properties
+# (A) Claude Code CLI — 무과금. 그 머신에 claude CLI 가 로그인돼 있어야 한다.
+#     느리다(호출마다 CLI 기동). 토큰 스트리밍은 안 되고 완성본이 한 번에 온다.
+LLM_PROVIDER=claude_code
+EMBED_PROVIDER=null
+
+# (B) SSAFY GMS — 빠르고(턴당 4~10초) 토큰 스트리밍도 된다. GMS 토큰이 과금된다.
+LLM_PROVIDER=openai
+GMS_KEY=본인_GMS_키
+```
+
+띄운다.
+
+```bash
+uv run --extra prototype uvicorn jobis_ai.webbridge.app:app --host 127.0.0.1 --port 8000
+```
+
+> uv 없이: `python -m venv .venv && source .venv/bin/activate`(Windows: `.venv\Scripts\activate`) →
+> `pip install -e ".[prototype]"` → 같은 `uvicorn` 명령.
+> `Uvicorn running on http://127.0.0.1:8000` 이 뜨면 준비 완료.
+> 확인: `curl http://localhost:8000/health` → `{"status":"ok","engine":"jobis-ai"}`
+
+### 3. 백엔드 (:8080)
+
+`.env` 를 읽으려면 **`local` 프로필**로 띄워야 한다.
 
 ```bash
 cd backend
-gradlew.bat bootRun     # macOS/Linux: ./gradlew bootRun
+gradlew.bat bootRun --args="--spring.profiles.active=local"
+# macOS/Linux: ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-→ `http://localhost:8080`
+`Started BackendApplication` 이 뜨면 준비 완료.
 
-### 4. 접속
+### 4. 에이전트와 대화하기
+
+`http://localhost:8080/login.html` → 회원가입 → 로그인 → 좌측 **`JOBIS에게 물어보기`**
+
+이력서가 없어도 그냥 말하면 된다. 무엇을 할지는 에이전트가 정한다.
 
 ```
-http://localhost:8080/login.html
+저는 신입이에요. 자바 스프링 백엔드 공고 추천해줘. 서울이고 커머스 도메인 관심 있어요.
 ```
 
-회원가입 → 로그인 → `커리어 저장소`에 이력서 텍스트 붙여넣고 등록 → `새 분석`에서 공고 URL/원문 입력 → 분석 진행.
+→ 선호를 파악하고 실공고를 URL 과 함께 추천한다(연차가 안 맞는 공고는 제외하고 몇 건 빠졌는지 알려준다).
+추천된 URL 을 그대로 붙여넣으면 그 공고 분석으로 이어지고, 이력서까지 주면 적합도까지 판정한다.
 
-### 실행 순서 요약
+### 막히면
 
-1. MySQL 실행
-2. `fake-ai` → `node server.js`
-3. `backend` → `gradlew.bat bootRun`
-4. 브라우저 → `http://localhost:8080/login.html`
+| 증상 | 해결 |
+|---|---|
+| 기동 중 `Could not resolve placeholder 'JWT_SECRET'` | `backend/.env` 가 없거나 `local` 프로필로 안 띄웠다 |
+| 기동 중 `Communications link failure` | MySQL 이 꺼져 있거나 `jobiss` DB 가 없다 |
+| 기동 중 `Flyway ... checksum mismatch` | 다른 브랜치가 만든 DB 다. `DROP DATABASE jobiss` 후 다시 만든다 |
+| 대화에서 `대화 처리 실패(404)` | :8000 에 `fake-ai` 가 떠 있다(`/chat` 이 없다). AI 서버로 교체 |
+| `AI 서버에 연결하지 못했어요` | :8000 이 꺼져 있다. AI 서버를 막 재시작했다면 한 번 더 보내본다 |
+| 공고 추천이 안 나온다 | `AI/sample_data/db내 공고파일/` 에 공고 JSON 이 있는지 확인 |
+
+AI 서버 상세(제공 API·프로바이더 전환·공고 데이터 위치)는 [AI/README.md](AI/README.md),
+백엔드 설정 상세는 [backend/README.md](backend/README.md) 를 본다.
+공고 분석(WS)만 볼 거면 `:8000` 에 `fake-ai`(`cd fake-ai && npm install && node server.js`)를 대신 띄워도 된다 — 대화 기능은 빠진다.

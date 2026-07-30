@@ -61,3 +61,50 @@ def test_html_extractor_drops_script_and_style():
     assert "본문 텍스트" in text
     assert "color:red" not in text
     assert "var x" not in text
+
+
+def test_html_extractor_joins_inline_spans():
+    """한글/워드 내보내기 공고는 문장이 수십 개 <span> 으로 쪼개져 있다(실측
+    Gno=49638104: "(4" 와 "년제 대졸…" 이 별도 노드). 인라인 노드는 한 줄로 잇고
+    블록 태그(p·br·div)에서만 줄을 바꾼다."""
+
+    parser = _HTMLTextExtractor()
+    parser.feed(
+        '<p><span lang="EN-US">(4</span><span>년제 대졸 또는 산업기사 이상</span>)</p>'
+        "<p><b>경력</b> : <span>1년</span></p>"
+    )
+    assert parser.text == "(4년제 대졸 또는 산업기사 이상)\n경력 : 1년"
+
+
+def test_html_extractor_preserves_table_columns():
+    """표의 행은 셀을 " | " 로 이어 컬럼 구조를 보존한다 — "필수사항|자격요건|우대사항"
+    3컬럼 표가 낱줄로 흩어지면 필수/우대 구분이 사라진다(실측 Gno=49638104)."""
+
+    parser = _HTMLTextExtractor()
+    parser.feed(
+        "<table><tr><td><p>1.</p><p>필수사항</p></td><td>2. 자격요건</td></tr>"
+        "<tr><td>- 비자 결격 없음</td><td>- 학력: 대졸</td></tr></table>"
+    )
+    assert "1. 필수사항 | 2. 자격요건" in parser.text
+    assert "- 비자 결격 없음 | - 학력: 대졸" in parser.text
+
+
+def test_image_file_extracts_via_clova_vlm(tmp_path, monkeypatch):
+    """공고 캡쳐 이미지(png 등)는 Clova VLM 텍스트화로 읽는다(D64) — 크롤링이 막힌
+    공고의 우회로. 실 API 계약(dataUri 접두 포함)은 2026-07-30 라이브로 검증했다."""
+
+    img = tmp_path / "capture.png"
+    img.write_bytes(b"\x89PNG-fake")
+    monkeypatch.setattr("jobis_ai.feat_url.clova_vlm_file",
+                        lambda path, result: "자격요건: Python 3년 이상")
+    result = extract_text({"sourceType": "file", "value": str(img)})
+    assert result.text == "자격요건: Python 3년 이상"
+
+
+def test_image_unsupported_extension_warns():
+    from jobis_ai.extract import ExtractResult
+    from jobis_ai.feat_url import clova_vlm_file
+
+    r = ExtractResult(text="")
+    assert clova_vlm_file("capture.gif", r) == ""
+    assert any(w["code"] == "unsupported_image_type" for w in r.warnings)

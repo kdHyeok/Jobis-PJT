@@ -81,8 +81,10 @@ _CATEGORY_WEIGHT = {
 }
 
 # 종합 점수 → 등급 경계. 상 ≥ 0.7, 중 0.4~0.7 미만, 하 < 0.4 (사용자 결정 2026-07-21).
-_GRADE_HIGH = 0.7
-_GRADE_MID = 0.4
+# **경계의 단일 출처다**(D16) — 공개 이름인 이유는 이 값을 쓰는 곳(예: application_plan 의
+# 목표 상태 판정)이 리터럴을 다시 적지 않게 하기 위해서다. 여기만 고치면 전부 따라온다.
+GRADE_HIGH = 0.7
+GRADE_MID = 0.4
 
 
 @dataclass(frozen=True)
@@ -608,9 +610,9 @@ def overall_fit(score_basis: dict) -> tuple[float | None, str]:
     total_w = sum(_CATEGORY_WEIGHT[k] for k in present)
     score = round(sum(v * _CATEGORY_WEIGHT[k] for k, v in present.items()) / total_w, 2)
 
-    if score >= _GRADE_HIGH:
+    if score >= GRADE_HIGH:
         grade = "상"
-    elif score >= _GRADE_MID:
+    elif score >= GRADE_MID:
         grade = "중"
     else:
         grade = "하"
@@ -619,7 +621,7 @@ def overall_fit(score_basis: dict) -> tuple[float | None, str]:
         "usedCategories": {k: {"score": v, "weight": _CATEGORY_WEIGHT[k]} for k, v in present.items()},
         "excludedCategories": [k for k, v in score_basis.items() if v is None],
         "weightedScore": score,
-        "thresholds": {"상": _GRADE_HIGH, "중": _GRADE_MID},
+        "thresholds": {"상": GRADE_HIGH, "중": GRADE_MID},
         "grade": grade,
     })
     return score, grade

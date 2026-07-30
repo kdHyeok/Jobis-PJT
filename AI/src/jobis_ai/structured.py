@@ -8,17 +8,31 @@
 - 호출 실패(llm_call_failed): 키는 있는데 호출이 실패 → **재시도 후에도 안 되면** 노드는
   가짜 샘플을 내지 말고 '생성 실패(빈 결과 + 경고)'로 정직하게 처리해야 한다.
 호출 실패는 여기서 먼저 여러 번 재시도한다(일시적 오류 흡수).
+
+**재시도 소진은 로그에 WARNING 으로 남긴다.** 실측 사고(07-29): Claude CLI 인자 하나가 빠져
+자기 루프 층이 통째로 죽었는데 결정론 폴백이 그럴듯하게 답해서 **아무도 몰랐다.** 경고는
+응답 객체에 실려 아무도 읽지 않았고 trace 는 턴 끝에 사라졌다 — 남는 곳이 없었다.
+LLM 호출 지점 16개가 전부 이 파일을 지나므로, 여기 한 줄이 그 전부를 덮는다.
+
+**사용량(콜·토큰)도 여기서 걷는다** — 같은 이유다. 호출 지점 전부가 이 파일을 지나므로
+`llm_usage.record` 한 자리가 "턴당 몇 콜, 토큰 몇"의 전체를 덮는다(평가 리포트 §1-2·§2-1).
+토큰은 LangChain 콜백(구조화)·청크 usage(스트리밍)에서 걷고, 못 걷는 공급자는 None 으로
+정직하게 남긴다 — 0 으로 지어내지 않는다.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import TypeVar
 
+from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 
-from jobis_ai import trace
+from jobis_ai import llm_usage, trace
 from jobis_ai.llm import LLMNotConfiguredError, get_llm
+
+log = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -100,6 +114,7 @@ def run_structured(
         trace.emit("llm_call", f"{node}: LLM 미설정 — 호출 생략", {
             "node": node, "schema": schema.__name__, "outcome": "not_configured",
         })
+        llm_usage.record(node=node, tier=tier, outcome="not_configured", attempts=0)
         return None, warnings
 
     # OpenAI(GMS) 경유는 기본 method(json_schema strict)가 기본값 있는 필드를 거부해
@@ -112,20 +127,34 @@ def run_structured(
     structured_llm = llm.with_structured_output(schema, **method_kwargs)
     messages = [("system", system_prompt), ("human", content)]
 
+    # 토큰은 콜백으로 걷는다 — 구조화 출력은 파싱된 객체만 돌려줘 응답의 usage 가 사라진다.
+    # LangChain Runnable 이 아닌 어댑터(claude_code CLI)는 config 를 못 받으므로 안 넘긴다
+    # — 그 콜은 토큰 None(unmetered)으로 기록된다.
+    usage_cb = llm_usage.UsageCallbackHandler()
+    invoke_kwargs = (
+        {"config": {"callbacks": [usage_cb]}} if isinstance(structured_llm, Runnable) else {}
+    )
+
     # 일시적 오류(네트워크·레이트리밋·파싱)를 흡수하기 위해 여러 번 재시도한다.
     last_exc: Exception | None = None
     started = time.perf_counter()
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
-            result = structured_llm.invoke(messages)
+            result = structured_llm.invoke(messages, **invoke_kwargs)
+            duration_ms = round((time.perf_counter() - started) * 1000)
+            input_tokens, output_tokens = usage_cb.tokens()
             trace.emit("llm_call", f"{node}: LLM 호출 성공", {
                 "node": node, "schema": schema.__name__, "outcome": "ok",
                 "tier": tier, "attempt": attempt,
-                "durationMs": round((time.perf_counter() - started) * 1000),
+                "durationMs": duration_ms,
+                "inputTokens": input_tokens, "outputTokens": output_tokens,
                 "systemPrompt": system_prompt,
                 "input": content,
                 "output": result.model_dump(),
             })
+            llm_usage.record(node=node, tier=tier, outcome="ok", attempts=attempt,
+                             duration_ms=duration_ms,
+                             input_tokens=input_tokens, output_tokens=output_tokens)
             return result, warnings
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
@@ -136,11 +165,20 @@ def run_structured(
         "code": "llm_call_failed",
         "message": f"{node}: LLM 호출 {_MAX_ATTEMPTS}회 재시도 후 실패 — {last_exc}",
     })
+    duration_ms = round((time.perf_counter() - started) * 1000)
+    # 실패한 시도도 응답까지 왔다가 파싱에서 죽었으면 토큰은 태웠다 — 실패 콜의 토큰도 합계에 든다.
+    input_tokens, output_tokens = usage_cb.tokens()
     trace.emit("llm_call", f"{node}: LLM 호출 실패({_MAX_ATTEMPTS}회 재시도)", {
         "node": node, "schema": schema.__name__, "outcome": "failed",
-        "durationMs": round((time.perf_counter() - started) * 1000),
+        "durationMs": duration_ms,
         "error": str(last_exc), "input": content,
     })
+    llm_usage.record(node=node, tier=tier, outcome="failed", attempts=_MAX_ATTEMPTS,
+                     duration_ms=duration_ms,
+                     input_tokens=input_tokens, output_tokens=output_tokens)
+    # 폴백이 그럴듯해도 로그에는 남는다 — 성공은 INFO 도 안 남기지만 실패는 WARNING 이다.
+    log.warning("LLM 호출 실패: node=%s schema=%s tier=%s %d회 재시도 후 포기 — %r",
+                node, schema.__name__, tier, _MAX_ATTEMPTS, last_exc)
     return None, warnings
 
 
@@ -181,6 +219,7 @@ def run_streaming_text(
         trace.emit("llm_call", f"{node}: LLM 미설정 — 호출 생략", {
             "node": node, "schema": "(streaming text)", "outcome": "not_configured",
         })
+        llm_usage.record(node=node, tier=tier, outcome="not_configured", attempts=0)
         return "", warnings
 
     messages = [("system", system_prompt), ("human", content)]
@@ -192,9 +231,11 @@ def run_streaming_text(
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         parts: list[str] = []
         buffer = ""
+        usage: dict | None = None      # 스트리밍은 마지막 청크에 usage 합계가 실린다(stream_usage)
         try:
             if streamable:
                 for chunk in llm.stream(messages):
+                    usage = getattr(chunk, "usage_metadata", None) or usage
                     piece = chunk.content if isinstance(chunk.content, str) else str(chunk.content or "")
                     if not piece:
                         continue
@@ -207,16 +248,24 @@ def run_streaming_text(
                     trace.emit("token", node, {"node": node, "text": buffer})
             else:
                 result = llm.invoke(messages)
+                usage = getattr(result, "usage_metadata", None)
                 whole = result.content if isinstance(result.content, str) else str(result.content or "")
                 parts.append(whole)
                 if whole:
                     trace.emit("token", node, {"node": node, "text": whole})
             text = "".join(parts).strip()
+            duration_ms = round((time.perf_counter() - started) * 1000)
+            input_tokens = int(usage["input_tokens"]) if usage and "input_tokens" in usage else None
+            output_tokens = int(usage["output_tokens"]) if usage and "output_tokens" in usage else None
             trace.emit("llm_call", f"{node}: LLM 스트리밍 성공", {
                 "node": node, "schema": "(streaming text)", "outcome": "ok",
                 "tier": tier, "attempt": attempt, "chars": len(text),
-                "durationMs": round((time.perf_counter() - started) * 1000),
+                "durationMs": duration_ms,
+                "inputTokens": input_tokens, "outputTokens": output_tokens,
             })
+            llm_usage.record(node=node, tier=tier, outcome="ok", attempts=attempt,
+                             duration_ms=duration_ms,
+                             input_tokens=input_tokens, output_tokens=output_tokens)
             return text, warnings
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
@@ -227,9 +276,14 @@ def run_streaming_text(
         "code": "llm_call_failed",
         "message": f"{node}: LLM 스트리밍 {_MAX_ATTEMPTS}회 재시도 후 실패 — {last_exc}",
     })
+    duration_ms = round((time.perf_counter() - started) * 1000)
     trace.emit("llm_call", f"{node}: LLM 스트리밍 실패({_MAX_ATTEMPTS}회 재시도)", {
         "node": node, "schema": "(streaming text)", "outcome": "failed",
-        "durationMs": round((time.perf_counter() - started) * 1000),
+        "durationMs": duration_ms,
         "error": str(last_exc),
     })
+    llm_usage.record(node=node, tier=tier, outcome="failed", attempts=_MAX_ATTEMPTS,
+                     duration_ms=duration_ms)
+    log.warning("LLM 스트리밍 실패: node=%s tier=%s %d회 재시도 후 포기 — %r",
+                node, tier, _MAX_ATTEMPTS, last_exc)
     return "", warnings

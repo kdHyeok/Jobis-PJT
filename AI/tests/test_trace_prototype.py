@@ -29,7 +29,8 @@ def stub_planner(monkeypatch):
 
     from jobis_ai.orchestrator.planner import AgentPlan
 
-    plan = AgentPlan(agents=["fit_analysis"], confidence=0.9, ack="적합도 분석을 실행할게요.")
+    plan = AgentPlan(agents=["fit_analysis"], requestedAgents=["fit_analysis"],
+                     confidence=0.9, ack="적합도 분석을 실행할게요.")
     monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
                         lambda message, session: (plan, []))
 

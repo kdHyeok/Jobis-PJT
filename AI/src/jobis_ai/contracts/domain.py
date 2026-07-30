@@ -217,6 +217,10 @@ class AlternativeJob(BaseModel):
     reducedGaps: list[str] = Field(default_factory=list)
     reason: str = ""
     sourceJobPostingId: Optional[str] = None
+    # 실공고에서 온 대안이면 그 공고 URL. 사용자가 붙여넣으면 그 공고로 분석이 이어진다
+    # (job_recommend 와 같은 규칙 — 공고를 제시할 때는 URL 을 함께 준다).
+    # 실공고 근거 없는 경로 제안(stepping_stone)은 빈 문자열이다.
+    url: str = ""
     confidence: float = 0.0
 
 

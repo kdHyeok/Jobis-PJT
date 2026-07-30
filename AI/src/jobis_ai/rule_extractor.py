@@ -19,10 +19,17 @@ from jobis_ai.skill_taxonomy import get_skill_taxonomy
 
 # --- 경력 연차 ---
 # "경력 3년 이상", "3년 이상", "최소 3년", "3년+", "3~5년", "3-5년", "3년 차"
-_YEARS_RANGE = re.compile(r"(\d{1,2})\s*[~\-–]\s*(\d{1,2})\s*년")
-_YEARS_MIN = re.compile(r"(?:최소\s*)?(\d{1,2})\s*년\s*(?:이상|\+|차|이상의)")
-_YEARS_PLUS = re.compile(r"(\d{1,2})\s*년\s*\+")
-_NEWCOMER = re.compile(r"신입|경력\s*무관|경력무관|무관")
+# 경계 둘을 강제한다(실측 버그, 잡코리아 Gno=49546576 회사 소개 "2025년 차세대 휴머노이드"):
+# - 숫자 왼쪽 (?<!\d) — 연도("2025")의 꼬리("25")를 연차로 읽지 않는다
+# - '차' 뒤 (?![가-힣]) — "차세대·차량"의 '차'는 연차의 '차'가 아니다
+_YEARS_RANGE = re.compile(r"(?<!\d)(\d{1,2})\s*[~\-–]\s*(\d{1,2})\s*년")
+_YEARS_MIN = re.compile(r"(?:최소\s*)?(?<!\d)(\d{1,2})\s*년\s*(?:이상의?|\+|차(?![가-힣]))")
+_YEARS_PLUS = re.compile(r"(?<!\d)(\d{1,2})\s*년\s*\+")
+# "경력 : 1년" — 이상/차 없이 라벨로만 적는 표기(잡코리아 표 공고 실측 Gno=49638104).
+_YEARS_LABELED = re.compile(r"경력\s*[:：]?\s*(?<!\d)(\d{1,2})\s*년")
+# bare "무관"을 넣으면 안 된다 — "학력무관"·"성별: 무관"까지 경력무관(0년)으로 오판한다
+# (실측 Gno=49638104: 경력 1년 공고가 "학력무관" 탓에 신입으로 읽혔다).
+_NEWCOMER = re.compile(r"신입|경력\s*[:：]?\s*무관")
 
 # --- 연락처/링크 ---
 _EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
@@ -41,7 +48,8 @@ _HEADER_TAIL = r"\s*[\)\]】]?\s*(\([^)\n]{0,20}\))?\s*[:：]?\s*$"
 
 _REQUIRED_HEADER = re.compile(
     rf"^{_BULLET}(자격\s*요건|지원\s*자격|필수\s*(요건|사항|자격|조건)|자격\s*조건|"
-    rf"이런\s*분을\s*찾아요|이런\s*분과\s*함께|requirements?|qualifications?|must\s*have)"
+    rf"이런\s*분들?[을과]\s*(찾아요|찾고\s*있어요|함께)|"
+    rf"requirements?|qualifications?|must\s*have)"
     rf"{_HEADER_TAIL}",
     re.IGNORECASE | re.MULTILINE,
 )
@@ -50,6 +58,9 @@ _PREFERRED_HEADER = re.compile(
     rf"nice\s*to\s*have|plus){_HEADER_TAIL}",
     re.IGNORECASE | re.MULTILINE,
 )
+# 섹션으로 인정하는 최소 실질 내용 — 이보다 짧으면 헤더 오인(목차·표 라벨)으로 본다.
+_MIN_SECTION_CHARS = 10
+
 # 요건 섹션의 끝을 알리는 다른 헤더들(복리후생 등). 여기까지만 섹션으로 본다.
 _OTHER_HEADER = re.compile(
     rf"^{_BULLET}(복리\s*후생|혜택|근무\s*(조건|환경|지역|시간)|채용\s*(절차|과정)|"
@@ -94,14 +105,10 @@ def _extract_years(text: str) -> tuple[int | None, str]:
     적극적 정보라서, 미상과 섞으면 seniority 판정이 틀어진다).
     """
 
-    for pattern in (_YEARS_MIN, _YEARS_PLUS):
+    for pattern in (_YEARS_MIN, _YEARS_PLUS, _YEARS_RANGE, _YEARS_LABELED):
         match = pattern.search(text)
         if match:
             return int(match.group(1)), match.group(0).strip()
-
-    match = _YEARS_RANGE.search(text)
-    if match:
-        return int(match.group(1)), match.group(0).strip()
 
     match = _NEWCOMER.search(text)
     if match:
@@ -117,6 +124,20 @@ def _slice_section(text: str, start: int, end_candidates: list[int]) -> str:
     return text[start : min(ends)].strip() if ends else text[start:].strip()
 
 
+# 요건 목록 줄의 표지 — 불릿 도형 또는 "1." "1)" 번호.
+_LIST_LINE = re.compile(r"^\s*(?:[-*•·▪◦∙‣■□]|\d{1,2}[.)])\s*\S", re.MULTILINE)
+
+
+def _listlike(section: str) -> bool:
+    """섹션 본문이 요건 목록답게 보이는가 — 앞부분에 불릿/번호 줄이 있는가.
+
+    껍데기 라벨 뒤에 붙는 급여·근무지 안내문(사람인)이나 접수기간(잡코리아)은 목록이
+    아니라 서술문이다. 앞 400자만 본다 — 진짜 섹션이면 목록이 바로 시작된다.
+    """
+
+    return bool(_LIST_LINE.search(section[:400]))
+
+
 def _extract_sections(text: str) -> tuple[str, str]:
     """'자격요건' / '우대사항' 섹션 본문을 분리한다. 실패하면 ("", "").
 
@@ -124,8 +145,10 @@ def _extract_sections(text: str) -> tuple[str, str]:
     LLM 에 넘긴다(억지로 나누지 않는다).
     """
 
-    req_match = _REQUIRED_HEADER.search(text)
-    pref_match = _PREFERRED_HEADER.search(text)
+    req_matches = list(_REQUIRED_HEADER.finditer(text))
+    req_match = req_matches[0] if req_matches else None
+    pref_matches = list(_PREFERRED_HEADER.finditer(text))
+    pref_match = pref_matches[0] if pref_matches else None
     if not req_match and not pref_match:
         return "", ""
 
@@ -134,8 +157,38 @@ def _extract_sections(text: str) -> tuple[str, str]:
     for pattern in (_REQUIRED_HEADER, _PREFERRED_HEADER, _OTHER_HEADER):
         boundaries += [m.start() for m in pattern.finditer(text)]
 
+    # 우대 헤더도 사이트 껍데기에 뜬다 — 사람인 상단의 "우대사항" 탭 라벨 뒤에는 급여·근무지
+    # 안내가 붙어 있어, 첫 매치를 잡으면 그 안내문이 우대 섹션으로 확정되고 진짜 우대사항
+    # ("■ 우대 사항" + 불릿 목록)이 통째로 빠진다(실측 rec_idx=54347596). 요건 섹션 본문은
+    # 불릿/번호 목록이 관행이므로, 매치가 여럿이면 **본문이 목록으로 시작하는 첫 후보**를 고른다.
+    if len(pref_matches) > 1:
+        for candidate in pref_matches:
+            if _listlike(_slice_section(text, candidate.end(), boundaries)):
+                pref_match = candidate
+                break
+
+    # 사이트 껍데기에도 같은 라벨이 뜬다 — 잡코리아 사이드바의 "지원자격"(뒤따르는 내용은
+    # 접수기간·마감일)이 본문의 "자격 요건"보다 앞에 있어, 첫 매치를 잡으면 내용 없는
+    # 섹션이 확정되고 파서는 "그 섹션에서만" 뽑으라는 지시 탓에 필수요건을 통째로 놓친다
+    # (실측 Gno=49675900). 자격요건/우대사항은 관행상 붙어 다니는 쌍이므로, 매치가 여럿이면
+    # **우대사항 헤더 앞에서 가장 가까운 것**을 본문 헤더로 본다.
+    if pref_match and len(req_matches) > 1:
+        before_pref = [m for m in req_matches if m.start() < pref_match.start()]
+        if before_pref:
+            req_match = before_pref[-1]
+
     required = _slice_section(text, req_match.end(), boundaries) if req_match else ""
     preferred = _slice_section(text, pref_match.end(), boundaries) if pref_match else ""
+
+    # 찾은 헤더의 섹션이 실질 내용 없이 비면 분리 전체를 신뢰하지 않는다 — 목차/표 컬럼
+    # 라벨("1. 필수사항 2. 자격요건 3. 우대사항")을 헤더로 오인한 것이다(실측 Gno=49638104:
+    # 필수 섹션이 "3." 두 글자로 확정돼 파서가 "그 섹션에서만" 지시로 필수요건을 통째로
+    # 놓쳤다). 확신이 없으면 뽑지 않는다 — 전문이 LLM 으로 가는 쪽이 낫다.
+    def _hollow(match: re.Match | None, section: str) -> bool:
+        return match is not None and len(section) < _MIN_SECTION_CHARS
+
+    if _hollow(req_match, required) or _hollow(pref_match, preferred):
+        return "", ""
     return required, preferred
 
 

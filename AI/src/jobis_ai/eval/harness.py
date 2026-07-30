@@ -124,18 +124,25 @@ def main() -> None:
     parser.add_argument("--save", help="baseline 리포트를 저장할 경로(개선 전후 비교용)")
     args = parser.parse_args()
 
+    from jobis_ai.eval import provenance
+
+    meta = provenance()
     cases = load_dataset(args.dataset)
-    print(f"평가셋 {len(cases)}건 실행 (실 LLM 호출)…")
+    print(f"평가셋 {len(cases)}건 실행 (실 LLM 호출) — "
+          f"provider={meta['provider']} model={meta['model']}…")
     case_results = [run_case(c) for c in cases]
     summary = aggregate(case_results)
     _print_report(case_results, summary)
 
     if args.save:
+        # meta 를 맨 앞에 둔다 — 파일을 열면 "무엇으로 잰 수치인가"가 첫 줄에 보여야 한다.
         Path(args.save).write_text(
-            json.dumps({"summary": summary, "cases": case_results}, ensure_ascii=False, indent=2),
+            json.dumps({"meta": meta, "dataset": args.dataset,
+                        "summary": summary, "cases": case_results},
+                       ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        print(f"\nbaseline 저장: {args.save}")
+        print(f"\nbaseline 저장: {args.save} ({meta['provider']}/{meta['model']}, {meta['measuredAt']})")
 
 
 if __name__ == "__main__":

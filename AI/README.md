@@ -48,7 +48,7 @@ src/jobis_ai/
 ├── llm.py, embed.py, rag.py, config.py
 ├── service.py                # 요청→그래프→응답 진입점
 └── run_demo.py                # 데모 실행기
-tests/                        # 133건, LLM/임베딩 실호출 없이 1초대(conftest.py가 강제)
+tests/                        # 253건, LLM/임베딩 실호출 없이 1초대(conftest.py가 강제)
 ```
 
 ## 실행
@@ -69,6 +69,72 @@ python -m jobis_ai.run_demo
 # 4) 테스트 (LLM/임베딩 실호출 없음, ~1초)
 pytest
 ```
+
+### 웹 서비스와 함께 띄우기 — 웹 브릿지 서버 (:8000)
+
+웹 백엔드(Spring Boot)가 붙는 서버다. `fake-ai`(node) 자리에 그대로 들어가므로
+**웹 쪽 코드·설정·DB를 건드리지 않고** 이 서버만 켜면 진짜 에이전트로 바뀐다.
+
+```bash
+# uv 사용 (권장 — 의존성 자동 설치, venv 불필요)
+uv run --extra prototype uvicorn jobis_ai.webbridge.app:app --host 127.0.0.1 --port 8000
+
+# venv 를 이미 만들어 뒀다면
+pip install -e ".[prototype]"
+uvicorn jobis_ai.webbridge.app:app --host 127.0.0.1 --port 8000
+```
+
+- 준비 완료 신호: `Uvicorn running on http://127.0.0.1:8000`
+- 확인: `curl http://localhost:8000/health` → `{"status":"ok","engine":"jobis-ai"}`
+- Windows 에서 한글이 깨지면 `PYTHONUTF8=1` 을 함께 준다
+- 8000 이 이미 쓰이면 다른 포트로 띄우고, 백엔드에 `AGENT_WS_URL`·`AGENT_HTTP_URL` 만 준다
+  (`application.yml` 이 이미 그 변수를 읽는다 — 파일 수정 불필요)
+
+제공 계약 두 갈래 — 상세는 [`docs/webbridge.md`](docs/webbridge.md):
+
+| | 경로 | 쓰임 |
+|---|---|---|
+| WebSocket | `/` | 공고 분석 대화 (START/USER_MESSAGE ↔ PROGRESS/QUESTION/DONE) |
+| HTTP | `/chat`, `/chat/stream` | 대화 페이지 한 턴 (`/chat/stream` 은 진행·토큰 SSE) |
+| HTTP | `/extract`, `/extract-file` | 저장소 자료 파편화 |
+| HTTP | `/roadmap`, `/reassess`, `/roadmap-ask`, `/submission-review` | 로드맵·산출물 |
+
+전체 스택(MySQL → AI → 백엔드) 기동 순서는 루트 [README](../README.md#실행-방법) 참고.
+
+### LLM 프로바이더 선택 (`.env` 의 `LLM_PROVIDER`)
+
+둘 중 아무거나 골라 쓴다 — 기능 차이는 없고 속도·비용만 다르다.
+
+| | `claude_code` | `openai` (GMS) |
+|---|---|---|
+| 필요한 것 | 그 머신에 `claude` CLI 로그인(팀 플랜) | `GMS_KEY` |
+| 비용 | 무과금 (구독 시트) | GMS 토큰 과금 |
+| 속도 | 느림 — 호출마다 CLI 기동(수 초) | 빠름 (턴당 4~10초) |
+| 토큰 스트리밍 | X (완성본 한 덩어리) | **O** |
+
+```bash
+# (A) Claude Code CLI — GMS_KEY 불필요
+LLM_PROVIDER=claude_code
+EMBED_PROVIDER=null              # GMS_KEY 가 없으면 임베딩은 어차피 건너뛴다
+# CLAUDE_CLI=claude              # 기본값. Windows 에서 띄우고 claude 가 WSL 에 있으면 "wsl claude"
+# CLAUDE_CODE_MODEL=sonnet       # 기본값 (고급 티어: 추출·생성)
+# CLAUDE_CODE_MODEL_LIGHT=haiku  # 기본값 (경량 티어: 분류·이진판정)
+
+# (B) GMS — 토큰 스트리밍까지 확인할 때
+LLM_PROVIDER=openai
+GMS_KEY=본인_GMS_키
+```
+
+바꾼 뒤에는 브릿지를 **재시작**해야 적용된다.
+`GMS_KEY` 가 없어도 임베딩 계층은 예외를 던지지 않고 경고만 남기고 건너뛴다
+(`embed_impl/gms_openai.py` — "예외를 던지지 않는다" 규칙). 즉 키 없이 `claude_code` 만으로 정상 동작한다.
+
+### 공고 데이터 (실공고 추천·URL 조회)
+
+`postings_db` 가 읽는 크롤링 공고 JSON 위치는 기본 `sample_data/db내 공고파일/` 이고,
+환경변수 `POSTINGS_DB_DIR` 로 바꿀 수 있다. 데이터팀 파일이 오면 그 디렉토리에 JSON 을
+넣고 재시작만 하면 된다(파일 형식은 `src/jobis_ai/postings_db.py` 상단 주석 참고).
+이 데이터가 없으면 공고 추천이 빈 결과가 되고, 공고 URL 첨부는 웹 수집으로 폴백한다.
 
 ## 그래프 흐름
 
