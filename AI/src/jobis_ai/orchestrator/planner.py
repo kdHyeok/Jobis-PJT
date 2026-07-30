@@ -37,6 +37,19 @@ AgentName = Literal[
 CONFIDENCE_THRESHOLD = 0.6
 
 
+class AgentArg(BaseModel):
+    """에이전트 하나에 넘길 인자 한 개.
+
+    에이전트별로 다른 인자 스키마를 만들면 구조화 출력이 동적 스키마가 되어(공급자별로
+    지원이 갈린다) 하네스가 약해진다. 그래서 **평평한 목록**으로 받고, 이름 검증은
+    검증기(router)가 레지스트리 선언과 대조해 결정론으로 한다.
+    """
+
+    agent: AgentName = Field(description="인자를 받을 에이전트 이름.")
+    name: str = Field(description="인자 이름. 에이전트 목록에 적힌 이름만.")
+    value: str = Field(description="발화에서 읽어낸 값. 추측·확장 금지.")
+
+
 class AgentPlan(BaseModel):
     """플래너 출력 — 에이전트 선택·참조·이해 확인 문장뿐, 판단 필드는 없다.
 
@@ -49,10 +62,28 @@ class AgentPlan(BaseModel):
         "선행 에이전트는 시스템이 알아서 앞에 끼운다. 이 발화에 맞는 에이전트가 없으면 빈 배열."))
     target: str = Field(default="", description=(
         "발화가 가리키는 공고·대상 참조(URL, \"지난번 그 공고\" 등). 없으면 빈 문자열. 추측 금지."))
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description=(
-        "**agents 선택에 대한 확신도**(0~1). 발화가 명확해서 이 에이전트가 맞다고 판단했으면 "
-        "0.8 이상을 준다. 0.6 미만이면 시스템은 실행하지 않고 대화로 받는다 — 즉 무엇을 원하는지 "
-        "정말 모를 때만 낮게 준다. 적합도·합격 가능성에 대한 확신이 아니다."))
+    agentArgs: list["AgentArg"] = Field(default_factory=list, description=(
+        "에이전트에 넘길 인자. 에이전트 목록에 '인자'가 적힌 것만, 발화에 값이 **실제로 있을 때만** "
+        "채운다. 없으면 빈 배열 — 추측해서 채우지 않는다(빈 값이면 시스템이 세션 정보로 처리한다)."))
+    # **필수 필드다(기본값 없음).** default=0.0 이던 시절, 모델이 이 칸을 빼먹으면 조용히
+    # 0.0 이 되어 **정확히 고른 계획이 임계값(0.6)에서 잘려 나갔다** — 실측(2026-07-29,
+    # gpt-4.1-mini): 자료 제출 턴 5회 중 3회가 agents 는 맞는데 confidence 0.00 → 전부
+    # career_chat 후퇴(풀턴 일관성 S3·S4·S7 붕괴). 누락은 "확신 없음"이 아니라 "모름"이다
+    # (AGENTS §2-1 모른다 ≠ 아니다) — 기본값으로 답을 지어내지 않고, 필수로 만들어 누락을
+    # 검증 오류 → 재시도로 처리한다(금지를 프롬프트가 아니라 스키마로 — §2-2와 같은 원리).
+    confidence: float = Field(ge=0.0, le=1.0, description=(
+        "**agents 선택에 대한 확신도**(0~1). 반드시 채운다. 발화가 명확해서 이 에이전트가 "
+        "맞다고 판단했으면 0.8 이상을 준다. 0.6 미만이면 시스템은 실행하지 않고 대화로 받는다 "
+        "— 즉 무엇을 원하는지 정말 모를 때만 낮게 준다. 적합도·합격 가능성에 대한 확신이 아니다."))
+    requestedAgents: list[AgentName] = Field(default_factory=list, description=(
+        "agents 중 **사용자가 이번 발화에서 직접 청한** 것만. 요청을 수행하려면 전제로 필요해서 "
+        "네가 판단해 넣은 것은 넣지 않는다. "
+        "**이것은 agents 의 부분집합을 표시하는 칸이다 — 여기 적을 것이 하나뿐이라고 agents 를 "
+        "줄이지 않는다.** "
+        "예: \"자소서 써줘\" 에 agents=[\"fit_analysis\",\"coverletter_draft\"] 를 냈다면 "
+        "→ [\"coverletter_draft\"] (사용자는 자소서만 청했다). "
+        "\"분석하고 면접 질문도\" 라면 → 둘 다. 직전 턴에 시스템이 \"진행할까요?\" 로 물은 것에 "
+        "사용자가 동의했다면 그 항목도 청한 것이다."))
     ack: str = Field(default="", description=(
         "요청을 어떻게 이해했고 무엇을 하려는지 사용자에게 보여줄 자연스러운 한 문장. "
         "적합도·합격 가능성 등 판단·예측·조언은 절대 넣지 않는다(금지표현 검증에서 버려진다)."))
@@ -69,24 +100,37 @@ _PLANNER_SYSTEM_TEMPLATE = """너는 취업 지원 서비스의 오케스트레�
 
 판단 원칙:
 - **지금 실행 가능한 에이전트만 고른다.** 실행 가능 여부는 [세션 자산 상태]에 있다.
-- 사용자가 원하는 것을 바로 못 한다면, **지금 가진 자산으로 사용자에게 도움이 되는 일을 먼저
-  하는 에이전트**를 고른다. 부족한 자료는 그 에이전트가 결과를 들고 대화로 직접 요청한다.
-- [세션 자산 상태]에 "이번 턴 제출 자료"가 있으면, 이 발화에서 판정을 명시적으로 요청하지
-  않는 한 **먼저 그 자료를 읽어 정리해 보여주는 에이전트**를 고른다: 공고 제출이면
-  posting_analysis, 이력서 제출이면 resume_diagnosis. 시스템이 앞 턴에 "이력서를 주시면
-  분석해 드릴까요"라고 물었더라도, 자료가 새로 제출된 턴에는 정리부터 한다 — 정리 에이전트가
-  정리 결과를 보여주고 진단 여부를 다시 묻는다.
-- fit_analysis(무거운 판정)는 사용자가 정리 결과를 본 뒤 진단을 요청·동의한 턴에 고른다.
-  직전 턴에 시스템이 "진단해볼까요?"라고 물었고 사용자가 동의("응", "해줘", "진단해줘")하면
-  fit_analysis 다 — 이때는 resume_diagnosis 를 다시 고르지 않는다(이미 정리를 보여줬다).
-- 직전 턴에 시스템이 "~에는 먼저 적합도 분석이 필요해요. 진행할까요?"라고 물었고 사용자가
-  동의하면, fit_analysis 와 원래 요청했던 에이전트를 **순서대로 함께** agents 에 담는다
-  (예: ["fit_analysis", "coverletter_draft"]).
+- **무엇을 고를지는 이 순서로 정한다** — 위에서 아래로 내려가며 **처음 맞는 항목**을 택한다.
+  이 순서가 곧 우선순위다(한 발화에 둘이 맞으면 위가 이긴다).
+
+  1. **판정·적합도를 명시적으로 요청**했고 전제(이력서·공고)가 있다 → fit_analysis.
+     정리를 거치지 않는다 — 물어본 것을 주지 않고 요약만 돌려주면 요청을 무시하는 셈이다.
+     예: "이 공고 나 되나?" · "지원하면 승산 있을까?" · "내 이력서랑 매칭 봐줘" ·
+     "요구사항 중 내가 못 채우는 게 뭐야?" · "분석해줘".
+     이어서 할 것을 함께 말했으면 뒤에 붙인다("분석하고 면접 질문도" → ["fit_analysis", "interview_prep"]).
+
+  2. **직전 턴에 시스템이 물은 것에 대한 답·동의**다 → 그 흐름을 잇는다.
+     "진단해볼까요?" 에 동의 → fit_analysis (정리를 다시 하지 않는다 — 이미 보여줬다).
+     "~에는 먼저 적합도 분석이 필요해요, 진행할까요?" 에 동의 → ["fit_analysis", 원래 요청한 것].
+
+  3. [세션 자산 상태]에 **"이번 턴 제출 자료"** 가 있다 → 그 자료를 정리해 보여주는 에이전트
+     (공고 → posting_analysis, 이력서 → resume_diagnosis). 앞 턴에 무엇을 물었든 자료가 새로
+     제출된 턴에는 정리부터 하고, 정리 에이전트가 결과를 보여주며 다음을 다시 묻는다.
+
+  4. **특정 기능을 요청**했다 → 그 기능의 에이전트.
+     전제가 부족하면 **가진 자산으로 지금 할 수 있는 일**을 대신 고른다 — 부족한 자료는 그
+     에이전트가 결과를 들고 대화로 청한다. 대화로 넘기지 않는다.
+
+  5. **요청이 없다**(인사·감사·하소연·잡담) → career_chat.
+     자료가 있다는 이유로 사용자가 요청하지 않은 작업을 시작하지 않는다.
+
+  6. 어느 것도 아니다 → agents 를 비우고 confidence 를 낮게 준다. 시스템이 대화로 받는다.
+
+- **전제는 시스템이 채운다.** 목표만 고르면 되고, 전제 자산을 만드는 선행 에이전트는 검증기가
+  앞에 끼운다. 그리고 **사용자가 직접 청한 것만 `requestedAgents` 에 적는다** — 사용자가
+  청하지 않은 무거운 작업은 시스템이 실행 전에 먼저 묻는다(적지 않으면 묻고 넘어간다).
 - 적합도·합격 가능성·조언·추천을 스스로 판단하거나 답하지 않는다 — 그것은 에이전트의 일이다.
-- 발화가 짧거나 지시어("그거 해줘", "응", "이어서")면 [최근 대화] 맥락으로 해석한다.
-  직전 턴에서 시스템이 물은 것에 대한 답이면 그 흐름을 잇는 에이전트를 고른다.
-- 어느 에이전트도 이 발화에 맞지 않으면 agents 를 비우고 confidence 를 낮게 준다 —
-  시스템이 대화로 받는다.
+- 발화가 짧거나 지시어("그거 해줘", "응", "이어서")면 [최근 대화] 맥락으로 해석한다(사다리 2).
 - confidence 는 선택 확신도(0~1). 애매하면 낮게 준다.
 - target 에는 발화가 가리키는 공고/대상 참조가 있으면 그대로 옮겨 적는다(추측 금지).
 - ack 에는 요청을 어떻게 이해했고 무엇을 하려는지 자연스러운 한 문장을 쓴다.
@@ -103,8 +147,16 @@ def _build_manifest() -> str:
 
     from jobis_ai.agents import get_agent_registry
 
-    return "\n".join(f"- {spec.name}: {spec.description}"
-                     for spec in get_agent_registry().values())
+    lines = []
+    for spec in get_agent_registry().values():
+        if spec.internal:
+            continue    # 오케스트레이터 전용 단계 — 플래너 어휘에 넣지 않는다(재측정 회피)
+        lines.append(f"- {spec.name}: {spec.description}")
+        # 인자를 받는 에이전트는 무엇을 넘길 수 있는지 함께 보여준다 — 안 보여주면 LLM 은
+        # 값을 넘길 수 있다는 것 자체를 모른다(스키마가 곧 지시문).
+        for pname, pdesc in spec.params:
+            lines.append(f"    · 인자 {pname}: {pdesc}")
+    return "\n".join(lines)
 
 
 _ASSET_LABEL = {
@@ -197,55 +249,3 @@ def plan_agents(message: str, session: dict[str, Any]) -> tuple[AgentPlan | None
     # 에이전트 선택은 고급 모델 유지 — 경량(gpt-5-nano) 실측에서 정확도 100%→48.8%로
     # 붕괴(과잉 선택·오되묻기). 스키마 제한·검증기로도 못 막는 판단 품질 차이다 (0724 실측).
     return run_structured(AgentPlan, system, user_content, node="agent_planner")
-
-
-class ReplanDecision(BaseModel):
-    """에이전트 실행 결과를 본 뒤의 재계획 — 계속/중단/수정 셋 중 하나.
-
-    판단 필드는 없다. 남은 시퀀스를 이어갈지에 대한 제어 신호뿐이다.
-    """
-
-    action: Literal["continue", "stop", "replace"] = Field(default="continue", description=(
-        "continue: 남은 에이전트를 예정대로 실행. "
-        "stop: 방금 결과로 이번 턴을 끝내는 게 낫다(뒤 에이전트가 무의미해졌다). "
-        "replace: 남은 시퀀스를 agents 로 교체한다."))
-    agents: list[AgentName] = Field(default_factory=list, description=(
-        "action 이 replace 일 때만 채운다 — 남은 턴에 실행할 에이전트, 실행 순서대로."))
-    reason: str = Field(default="", description="이 결정을 내린 근거 한 문장 (관찰용, 사용자 비노출).")
-
-
-_REPLAN_SYSTEM = """너는 취업 지원 서비스의 오케스트레이터 플래너다. 계획된 에이전트 시퀀스를
-실행하는 중이고, 방금 하나가 끝났다. 그 결과를 보고 남은 시퀀스를 이어갈지 정한다.
-
-- 결과가 예정대로면 continue. 대부분 continue 다.
-- 방금 결과가 남은 에이전트의 전제를 무너뜨렸으면(예: 공고 본문이 사실상 비어 정리가 무의미,
-  분석이 자료 부족으로 미완) stop — 뒤를 돌려도 빈 근거 위에서 돈다.
-- 남은 시퀀스보다 나은 순서·구성이 명백할 때만 replace 를 쓴다. 확신 없으면 continue.
-- 적합도·합격 가능성을 판단하지 않는다. 제어 신호만 낸다."""
-
-
-def replan_after(executed: str, outcome_summary: dict[str, Any],
-                 remaining: list[str], session: dict[str, Any]) -> ReplanDecision | None:
-    """에이전트 하나 실행 후 경량 재계획 — "결과를 보고 다음을 다시 정하는 루프"의 본체.
-
-    다중 에이전트 시퀀스에서만 호출된다(단일 에이전트 턴 지연을 늘리지 않기 위해).
-    제어 신호 분류라 경량 모델이면 충분하다. LLM 미설정·실패면 None — 호출부는 continue 로
-    간주한다(재계획이 안 되는 환경에서 기존 동작 그대로).
-    """
-
-    import json
-
-    payload = {
-        "userMessage": str(session.get("last_message") or ""),
-        "executedAgent": executed,
-        "outcome": outcome_summary,
-        "remainingAgents": remaining,
-    }
-    decision, warnings = run_structured(
-        ReplanDecision, _REPLAN_SYSTEM, json.dumps(payload, ensure_ascii=False),
-        node="replan", tier="light",
-    )
-    # 미설정(개발 모드)·호출 실패 모두 None — 경고를 밖으로 올리지 않는 이유는
-    # 재계획이 부가 기능이라 실패가 턴 결과를 오염시키면 안 되기 때문이다.
-    del warnings
-    return decision

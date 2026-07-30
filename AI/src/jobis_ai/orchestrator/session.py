@@ -37,6 +37,7 @@ ASSET_KEYS = frozenset({
     "recommendations",   # job_recommend 산출
     "roadmap",           # 준비 로드맵 (fit_analysis 산출 → roadmap_manager 조회)
     "coverletter",       # 자소서 초안 (항상 draft_pending_review 상태)
+    "interview",         # 면접 연습 진행 상태 {asked, answers, usedTopics} — 자기 루프가 턴 간에 이어받는다
     "application_plan",  # {decision, routes} — application_plan 산출 (목표 상태·지원 경로)
     "posting_summary",   # NormalizedJobPosting dict — 화면(우측 패널) 항목화용 파싱 결과 캐시
     "judgment_summary",  # {matches, score} — 판정 근거(요건별 매칭·점수 산출) 화면 표시용 캐시
@@ -45,6 +46,10 @@ ASSET_KEYS = frozenset({
     "availableHoursPerWeek",
     "preferences",       # {roles, companies, domains} — 대화로 수집한 공고 선호 (누적)
     "last_message",      # 이번 턴 발화 원문 — 대화형 에이전트(preference_intake)의 입력
+    # 동의 게이트가 **직전 턴에 물어본** 무거운 에이전트 이름들. 다음 턴 계획에 그 이름이
+    # 다시 들어오면 그것이 곧 사용자의 동의다(사용자 발화가 사이에 있었으므로) — 동의를
+    # 어디에도 기록하지 않아 "다음 턴엔 플래너가 알아서 고른다"에 의존했던 것을 코드로 옮긴 것.
+    "pendingConsent",
     "history",           # [{role: user|assistant, content}] — 턴 간 대화 맥락 (append_history 로만 기록)
 })
 

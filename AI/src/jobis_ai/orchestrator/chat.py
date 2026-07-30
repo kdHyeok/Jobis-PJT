@@ -7,8 +7,10 @@
   (스키마 Literal). 실행은 그 에이전트만 하고, 상태 전이는 outcome.sessionUpdates 로만 일어난다.
 - 검증: 고른 시퀀스의 실행 가능성은 validate_plan(순수 코드)이, 사용자에게 나가는 문장은
   금지표현 검증(safe_ack)이 사후에 확인한다.
-- 재계획 루프: 다중 에이전트 시퀀스에서는 하나가 끝날 때마다 결과 요약을 경량 플래너에
-  되물어 계속/중단/수정을 정한다(상한 2회) — "결과를 보고 다음을 다시 정하는" 오케스트레이션.
+- 재계획: 에이전트가 끝날 때마다 남은 계획을 다시 정한다 — 판단자는 **규칙**(observe_rules)이다.
+  전에는 경량 LLM 이 결과 요약을 보고 continue/finish/call 을 냈는데, 실측에서 실행을 바꾼
+  사례가 없고 자기 자리의 위험(전제 붕괴)조차 못 막아 규칙으로 내렸다. LLM 이 도구를 골라
+  스스로 도는 ReAct 는 한 층 아래(agents/agent_loop.py)가 담당한다.
 
 이 모듈은 판단하지 않고, 흐름 순서도 정해 두지 않는다. 무엇을 할지는 플래너가 매 턴 새로
 정한다. LLM 이 없거나 확신이 낮으면 대화형 에이전트가 턴을 받는다 — 고정 문구로 대화를
@@ -21,20 +23,37 @@
 
 from __future__ import annotations
 
+import contextvars
+import logging
+import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from jobis_ai import trace
+from jobis_ai import llm_usage, trace
 from jobis_ai.agents import get_agent_registry
 from jobis_ai.contracts.api import ChatRequest, ChatResponse
+from jobis_ai.orchestrator import observe_rules
 from jobis_ai.orchestrator.attachment_kind import resolve_kind
 from jobis_ai.orchestrator.planner import (
     CONFIDENCE_THRESHOLD,
     plan_agents,
-    replan_after,
     safe_ack,
 )
-from jobis_ai.orchestrator.router import FALLBACK_AGENT, Dispatch, validate_plan
+from jobis_ai.orchestrator.router import (
+    FALLBACK_AGENT,
+    Dispatch,
+    agent_label,
+    runnable_now,
+    session_assets,
+    validate_agent_args,
+    validate_plan,
+)
 from jobis_ai.orchestrator.session import HISTORY_MAX_ITEMS, get_session_store
+
+# 판단 궤적은 trace(창문) 외에 **로그로도** 남긴다. trace 이벤트는 턴이 끝나면 사라지므로
+# (SSE 중계·패널 조립용으로만 쓰인다) 사후에 "무엇을 왜 골랐나"를 볼 수단이 없었다.
+# 한 줄에 한 결정 — 세션 단위로 grep 하면 궤적 전체가 순서대로 읽힌다.
+log = logging.getLogger(__name__)
 
 _ATTACHMENT_ACK = {
     "resume": "이력서를 받았어요.",
@@ -48,8 +67,48 @@ _ATTACHMENT_ACK_CORRECTED = {
     "job_posting": "붙여주신 내용이 이력서가 아니라 채용 공고로 보여서, 공고로 등록했어요.",
 }
 
-# 턴당 재계획 상한 — 재계획이 재계획을 부르는 폭주 방지 (기존 하네스 철학 그대로).
-_MAX_REPLANS = 2
+# URL 은 공고 전용이다(D62) — 이력서·포트폴리오 링크는 받지 않는다. 주소는 내용 판정이
+# 성립하지 않으므로(resolve_kind 불가) 종류를 규약으로 고정할 수 있어야 결정론이 된다.
+_ATTACHMENT_ACK_URL_POSTING = "공고 링크를 받았어요."
+_ATTACHMENT_ACK_URL_COERCED = (
+    "링크는 채용 공고로만 받고 있어서 공고 링크로 등록했어요. "
+    "이력서는 내용을 직접 붙여넣어 주세요."
+)
+
+_URL_RE = re.compile(r"https?://[^\s<>\"']+")
+# 스킴 없이 붙여넣는 주소("saramin.co.kr/zf_user/…") — **발화 전체가 도메인/경로 한
+# 토큰**일 때만 주소로 본다. 경로(/)를 요구해 문장 속 도메인("github.com에 올렸어요")
+# 오탐을 막고, 경로 뒤는 \S 로 열어 한글 검색어가 인코딩 없이 섞인 실제 붙여넣기
+# 주소(searchword=ai엔지니어)도 받는다. 실측(2026-07-30): 사람인 주소가 스킴이 없어
+# 감지되지 않았고 일반 대화로 흘러 "열람할 수 없어요"가 나갔다.
+_SCHEMELESS_URL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}/\S*$")
+
+
+def detect_posting_url(message: str, session: dict) -> str:
+    """발화에 붙여넣은 공고 URL 을 찾는다 — **결정론(LLM 없음).**
+
+    URL 은 공고 전용(D62)이므로 주소만으로 공고 제출로 확정할 수 있다. 이미 세션의
+    공고가 같은 주소면(원문 승격 뒤에는 sourceUrl 로 남는다) 빈 문자열 — 같은 공고를
+    다시 등록해 분석 자산을 무효화하지 않는다.
+    """
+
+    text = (message or "").strip()
+    match = _URL_RE.search(text)
+    if match:
+        url = match.group()
+    elif _SCHEMELESS_URL_RE.match(text):
+        url = f"https://{text}"   # 수집기가 열 수 있게 스킴을 붙여 정규화한다
+    else:
+        return ""
+    url = url.rstrip(".,;)]}>'\"")   # 문장 부호 꼬리 제거 ("…?Gno=123." 등)
+    posting = session.get("job_posting") or {}
+    if url in (posting.get("sourceUrl"), posting.get("value")):
+        return ""
+    return url
+
+# 턴당 에이전트 실행 상한 — 관찰(call)이 실행을 무한히 잇는 폭주 방지
+# (Agent_Test 의 MAX_STEPS 가드와 같은 역할).
+_MAX_AGENT_STEPS = 5
 
 
 def _apply_attachments(request: ChatRequest, session: dict,
@@ -66,7 +125,16 @@ def _apply_attachments(request: ChatRequest, session: dict,
     warnings: list[dict] = []
     for att in request.attachments:
         kind = att.kind
-        # URL 은 내용이 아니라 주소라 판정이 성립하지 않는다 — 텍스트만 검증.
+        url_coerced = False
+        # URL 은 내용이 아니라 주소라 판정이 성립하지 않는다 — 종류는 규약으로 고정한다:
+        # **URL 첨부는 공고 전용(D62).** 텍스트만 내용으로 검증한다.
+        if att.sourceType.value == "url" and kind != "job_posting":
+            url_coerced, kind = True, "job_posting"
+            warnings.append({"code": "url_posting_only",
+                             "message": f"URL 첨부는 공고 전용 — {att.kind} → job_posting 으로 저장"})
+            trace.emit("attachment_kind", "URL 첨부를 공고로 고정(공고 전용 규약)", {
+                "claimed": att.kind, "resolved": kind,
+            })
         if kind in ("resume", "job_posting") and att.sourceType.value == "text":
             kind, kind_warnings = resolve_kind(kind, att.value)
             warnings.extend(kind_warnings)
@@ -89,7 +157,8 @@ def _apply_attachments(request: ChatRequest, session: dict,
             })
         else:
             stage({"job_posting": payload, "analysis": None})
-        acks.append(_ATTACHMENT_ACK[kind] if kind == att.kind
+        acks.append(_ATTACHMENT_ACK_URL_COERCED if url_coerced
+                    else _ATTACHMENT_ACK[kind] if kind == att.kind
                     else _ATTACHMENT_ACK_CORRECTED[kind])
         kinds.append(kind)
     return acks, kinds, warnings
@@ -121,20 +190,123 @@ def _visible_assets(session: dict) -> list[str]:
     return sorted(k for k in session if session.get(k) and not k.startswith("_"))
 
 
-def _outcome_summary(outcome) -> dict:
-    """재계획 입력용 실행 결과 요약 — 전문 대신 신호만 (경량 모델 입력)."""
+# 한 번에 동시 실행할 에이전트 상한. LLM 호출은 I/O 대기라 스레드로 충분하지만, 동시
+# 호출은 곧 동시 과금·레이트리밋이므로 무한정 넓히지 않는다.
+_MAX_PARALLEL = 3
 
-    return {
-        "reply": (outcome.reply or "")[:300],
-        "dataKeys": sorted(outcome.data.keys()),
-        "warningCodes": [str(w.get("code") or "") for w in outcome.warnings],
-        "producedAssets": sorted(outcome.sessionUpdates.keys()),
-        "askedUser": bool(outcome.followUpQuestions),
-    }
+
+def parallel_group(queue: list[str], dispatched: list[str], session: dict) -> list[str]:
+    """큐 앞에서 **서로 독립이고 지금 실행 가능한** 연속 구간을 고른다(2개 이상일 때만 의미).
+
+    독립의 기준은 capability manifest 가 이미 갖고 있다 — 앞 멤버가 만드는 자산(`produces`)을
+    뒤 멤버가 전제로 쓰면 순서가 있는 것이므로 거기서 끊는다. 같은 자산을 둘이 만들어도
+    끊는다(누가 이겼는지가 실행 순서에 좌우되면 결과가 흔들린다).
+
+    실측 예: `posting_analysis`(공고) ∥ `resume_diagnosis`(이력서) ∥ `fit_analysis`(둘 다 이미
+    보유) — 셋 다 지금 실행 가능하고 서로의 산출을 기다리지 않는다.
+    """
+
+    registry = get_agent_registry()
+    assets = session_assets(session)
+    group: list[str] = []
+    produced: set[str] = set()
+    for name in queue[:_MAX_PARALLEL]:
+        spec = registry.get(name)
+        if spec is None or name in dispatched or name in group:
+            break
+        if spec.internal:
+            # 오케스트레이터가 끼운 단계(공고 수집 등)는 **단독으로** 돈다 — 세션 자산을
+            # 그 자리에서 바꾸는 단계라(URL→원문 승격), 병렬 사본과 섞이면 뒤 멤버가
+            # 승격 전 자산으로 따로 수집한다(이중 fetch).
+            break
+        if not runnable_now(spec, assets):
+            break                                   # 앞 단계가 만들어 줘야 도는 것
+        deps = set(spec.preconditions) | set(spec.preconditions_any)
+        if deps & produced or set(spec.produces) & produced:
+            break                                   # 의존하거나 같은 자산을 쓴다 → 순서가 있다
+        group.append(name)
+        produced |= set(spec.produces)
+    return group
+
+
+# 첨부 kind → 그 첨부가 채우는 세션 자산 (resume_extra 는 기존 이력서에 덧붙는다).
+_KIND_TO_ASSET = {"resume": "resume", "resume_extra": "resume", "job_posting": "job_posting"}
+
+
+def _submission_grounds_plan(agents: tuple[str, ...] | list[str],
+                             submitted_kinds: list[str]) -> bool:
+    """이번 턴 제출물이 계획 첫 에이전트의 전제를 채우는가 — 확신 문턱 면제의 근거.
+
+    확신도는 **발화(언어)의 모호함**을 잰다. 그런데 첨부 제출은 말이 아니라 행동이라,
+    말없이 공고만 붙여넣은 턴은 합성 발화 탓에 확신이 낮게 나온다(실측 2026-07-30:
+    posting_analysis 원안 확신 0.55 → career_chat 강등, 사용자는 항목화를 기대했다).
+    방금 낸 첨부를 소비하는 계획이라면 의도는 첨부가 이미 증명하므로 문턱을 면제한다.
+
+    첫 에이전트만 본다 — 문턱이 막는 실패는 "턴을 통째로 엉뚱한 일에 쓰는 것"이고
+    그 방향은 첫 에이전트가 정한다. 판단은 manifest(전제 선언)에서 파생한다(§2-2).
+    """
+
+    from jobis_ai.agents import get_agent_registry
+
+    if not agents or not submitted_kinds:
+        return False
+    spec = get_agent_registry().get(agents[0])
+    if spec is None:
+        return False
+    submitted = {_KIND_TO_ASSET.get(kind) for kind in submitted_kinds} - {None}
+    return bool((set(spec.preconditions) | set(spec.preconditions_any)) & submitted)
+
+
+def compose_reply(acks: list[str], said: list[str], *, ack: str = "", note: str = "",
+                  steps: int = 1, changed_by: str = "") -> str:
+    """턴의 사용자향 문장을 조립하는 **유일한 자리.** 순서: 첨부 확인 → 계획 설명 → 한 말.
+
+    전에는 이 결정이 호출부의 4중 불리언(`show_lead`)이었고, 같은 자리에서 실측 결함이 세 번
+    났다. 원인은 조건이 부족해서가 아니라 화자가 넷(첨부·계획·에이전트·규칙)인데 문장을 하나만
+    낸다는 사실이 어디에도 적혀 있지 않아서였다. 규칙은 하나다 — **계획 설명(lead)은 다른
+    화자가 대신할 수 없을 때만 실린다.**
+
+      · changed_by="rule"      실행 중 규칙이 계획을 바꿨다. 이유는 규칙이 이미 `said` 에
+        말했으므로 계획 설명은 **침묵한다** — 그러지 않으면 하지 않은 일을 하겠다고 말한다
+        (실측: 등급 하로 자소서를 미뤄 놓고 첫 문장이 "자기소개서 초안을 작성하겠습니다").
+      · changed_by="validator" 검증기가 계획을 바꿨다 → 바뀐 이유(`note`)를 말한다. 플래너의
+        `ack` 는 원안 설명이라 여기서 쓰면 사실과 어긋난다.
+      · changed_by=""          계획대로 돌았다 → 알려 줄 순서가 있거나(`steps`>1) 아무도 말하지
+        않았을 때만 `ack`. 하나가 스스로 말했으면 같은 말을 두 번 하는 셈이다.
+    """
+
+    lead = {"rule": "", "validator": note}.get(
+        changed_by, (ack or note) if (steps > 1 or not said) else "")
+    return " ".join(part for part in [*acks, lead, *said] if part).strip()
 
 
 def handle_chat(request: ChatRequest) -> ChatResponse:
-    """대화 한 턴을 처리한다."""
+    """대화 한 턴을 처리한다. 턴 전체의 LLM 사용량(콜·토큰)을 집계해 한 줄로 남긴다.
+
+    집계를 이 바깥 껍질에서 여는 이유: "이 턴이 몇 콜로 결론에 도달했고 토큰을 얼마나
+    태웠나"가 지금까지 어디에도 없었다(평가 리포트 §1-2 "집계기가 없다"·§2-1 "토큰 실측 0").
+    trace 는 턴 끝에 소멸하므로 요약을 **로그**에 남기고, 관찰 UI 용으로 trace 에도 사본을
+    흘린다. 동의 게이트로 일찍 끝나는 턴도 플래너 콜은 썼으므로 finally 로 잡는다.
+    """
+
+    with llm_usage.collecting() as usage:
+        try:
+            return _handle_chat_turn(request)
+        finally:
+            s = usage.summary()
+            if s["calls"]:
+                trace.emit("llm_usage", "턴 LLM 사용량", s)
+                tokens = (f"{s['inputTokens']}→{s['outputTokens']}"
+                          if s["inputTokens"] is not None else "미계측")
+                if s["unmeteredCalls"] and s["inputTokens"] is not None:
+                    tokens += f"(+미계측 {s['unmeteredCalls']}콜)"
+                log.info("[%s] llm: 콜 %d건(재시도 %d·실패 %d) 토큰 %s 노드=%s",
+                         request.sessionId, s["calls"], s["retries"], s["failed"], tokens,
+                         ",".join(f"{n}×{c}" for n, c in s["byNode"].items()))
+
+
+def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
+    """턴 본체 — 플래너 → 검증기 → 실행 큐 → 관찰 규칙."""
 
     session_id = request.sessionId
     store = get_session_store()
@@ -163,6 +335,21 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
 
     acks, stored_kinds, attach_warnings = _apply_attachments(request, session, _stage)
 
+    # 발화에 붙여넣은 링크 — URL 은 공고 전용(D62)이므로 내용 판정 없이 결정론으로 공고
+    # 자산에 올린다. 첨부와 같은 규약: 새 공고가 오면 이전 공고의 분석은 무효다.
+    # 원문 수집(feat_url)은 여기서 하지 않는다 — 첫 소비자 도구(posting_analysis·
+    # fit_analysis)가 ensure_posting_text 로 수집해 원문을 자산으로 승격한다. 플래너 전에
+    # 수십 초 fetch 를 하면 계획도 없이 사용자를 기다리게 한다.
+    if "job_posting" not in stored_kinds:
+        posting_url = detect_posting_url(request.message, session)
+        if posting_url:
+            _stage({"job_posting": {"sourceType": "url", "value": posting_url},
+                    "analysis": None})
+            acks.append(_ATTACHMENT_ACK_URL_POSTING)
+            stored_kinds.append("job_posting")
+            trace.emit("url_intake", "발화의 URL 을 공고 자산으로 등록", {"url": posting_url})
+            log.info("[%s] url_intake: 발화 URL → job_posting 등록 %s", session_id, posting_url)
+
     # 메시지 없이 첨부만 온 턴 — **멈추지 않는다.** 자료를 준 것 자체가 "이걸로 이어가 달라"는
     # 요청이므로, 발화를 합성해 플래너가 다음 단계를 고르게 한다. 첨부도 발화도 없으면
     # 플래너가 None 을 주고 대화형 에이전트가 턴을 받는다.
@@ -184,20 +371,32 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
     warnings = attach_warnings + warnings
 
     ack = safe_ack(plan)   # 플래너의 이해 확인 문장 — 검증 통과 시 결정론 note 대신 쓴다
+    # LLM 이 정한 인자 — 선언된 이름만 통과시킨다(미선언 인자 환각 차단). 에이전트는
+    # 세션의 `_agentArgs` 에서 자기 것만 꺼내 쓴다(없으면 기존대로 세션만 보고 동작).
+    agent_args = validate_agent_args(plan.agentArgs) if plan is not None else {}
+    if agent_args:
+        session["_agentArgs"] = agent_args
     if plan is not None:
         trace.emit("planner", "플래너(LLM)가 에이전트를 선택", {
             "selectedAgents": list(plan.agents), "confidence": plan.confidence,
-            "target": plan.target, "ack": plan.ack,
+            "target": plan.target, "ack": plan.ack, "agentArgs": agent_args,
             "sessionAssets": _visible_assets(session),
         })
+        log.info("[%s] planner: 원안=%s 확신=%.2f 인자=%s 자산=%s", session_id,
+                 list(plan.agents), plan.confidence, agent_args or "-",
+                 _visible_assets(session))
         label = plan.agents[0] if plan.agents else "unclear"
         confidence = plan.confidence
-        if not plan.agents or plan.confidence < CONFIDENCE_THRESHOLD:
+        grounded = _submission_grounds_plan(plan.agents, stored_kinds)
+        if grounded and plan.agents and plan.confidence < CONFIDENCE_THRESHOLD:
+            log.info("[%s] 확신 %.2f < %.2f 이지만 이번 턴 제출물(%s)이 계획을 뒷받침 — 면제",
+                     session_id, plan.confidence, CONFIDENCE_THRESHOLD, stored_kinds)
+        if not plan.agents or (plan.confidence < CONFIDENCE_THRESHOLD and not grounded):
             # 무엇을 원하는지 확신이 낮으면 대화로 받는다 — 기능 목록만 읽어주고 끝내지 않는다.
             dispatch = Dispatch((FALLBACK_AGENT,))
         else:
             # 2) 검증기(순수 코드) — 전제 자산 확인·생산자 삽입·실행 불가 제거.
-            dispatch = validate_plan(plan.agents, session)
+            dispatch = validate_plan(plan.agents, session, plan.requestedAgents)
     else:
         # 플래너 불가(LLM 미설정·실패) — 대응표로 흐름을 대신 정하지 않는다. 대화형 에이전트가
         # 턴을 받아 사용자의 말에 답하고 필요한 자료를 요청한다.
@@ -205,13 +404,15 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
         label, confidence = FALLBACK_AGENT, 0.0
         dispatch = Dispatch((FALLBACK_AGENT,))
 
-    # 동의 게이트 — 무거운 생산자(fit_analysis)가 자동 삽입됐으면 실행하지 않고 먼저 묻는다.
-    # 동의하면 다음 턴 플래너가 그 생산자를 명시적으로 고른다(플래너 프롬프트 규칙).
+    # 동의 게이트 — 사용자가 청하지 않은 무거운 작업은 실행하지 않고 먼저 묻는다.
+    # 물어본 이름을 세션에 적어 둔다 — 다음 턴 계획에 다시 들어오면 그것이 동의다(router).
     if dispatch.ask:
-        trace.emit("consent_gate", "무거운 파이프라인 자동 삽입 — 실행 전 동의 요청", {
+        trace.emit("consent_gate", "청하지 않은 무거운 작업 — 실행 전 동의 요청", {
             "ask": dispatch.ask, "plannedAgents": list(plan.agents) if plan else [],
+            "pendingConsent": list(dispatch.pending),
         })
-        final_reply = " ".join(r for r in acks + [dispatch.ask] if r).strip()
+        _stage({"pendingConsent": list(dispatch.pending)})
+        final_reply = compose_reply(acks, [dispatch.ask])
         _finish(final_reply)
         return ChatResponse(
             sessionId=session_id, reply=final_reply, intent=label,
@@ -225,47 +426,73 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
     if dispatch.agents:
         label = dispatch.agents[0]
 
+    # 게이트를 통과했으므로 대기 중인 동의는 소진됐다 — 남겨 두면 다음 턴에도 통과권이 된다.
+    if session.get("pendingConsent"):
+        _stage({"pendingConsent": []})
+
+    # 검증기가 계획을 바꿨는지 — 아래 로그와 계획 설명 문장이 함께 쓴다.
+    plan_changed = plan is not None and tuple(plan.agents) != tuple(dispatch.agents)
+
     trace.emit("dispatch", "검증기 확정 실행 시퀀스", {
         "agents": list(dispatch.agents), "note": dispatch.note,
+        "planChanged": plan_changed,
     })
+    # 플래너 원안과 다르면 그 사실을 남긴다 — 다중 에이전트 순서가 LLM 판단인지
+    # 검증기의 생산자 자동 삽입인지 로그만 보고 구분할 수 있게(둘은 성격이 다르다).
+    log.info("[%s] dispatch: 확정=%s%s%s", session_id, list(dispatch.agents),
+             " (플래너 원안과 다름 — 생산자 삽입/제외)" if plan_changed else "",
+             f" ask={dispatch.ask[:40]!r}" if dispatch.ask else "")
 
     # 4) 에이전트 실행 — 레지스트리에 있는 것만, 순서대로. 결과는 그대로 전달.
     # 대화형 에이전트 단독 실행이면 ack 를 생략한다 — 에이전트의 말이 이미 대화라
     # "이해했다" 문장이 겹치면 상담원 멘트 두 번 듣는 느낌이 된다.
     registry = get_agent_registry()
-    solo_conversational = dispatch.agents in (("preference_intake",), ("career_chat",))
-    # 검증기가 계획을 바꿨으면(전제 부족으로 강등·전제 삽입) **바뀐 이유**를 말한다.
-    # 플래너의 ack 는 원래 계획을 설명하는 문장이라, 강등된 실행 앞에 붙으면 사실과 어긋난다
-    # (예: 이력서가 없어 공고 정리만 하는데 "적합도 분석을 진행하겠습니다"로 시작).
-    plan_changed = plan is not None and tuple(plan.agents) != tuple(dispatch.agents)
-    lead = dispatch.note if (plan_changed and dispatch.note) else (ack or dispatch.note)
-    replies: list[str] = acks + [("" if solo_conversational else lead)]
+    # 계획 설명을 누가 하는지는 compose_reply 가 정한다 — 여기서는 "무엇이 계획을 바꿨나"만
+    # 넘긴다("" 없음 / "validator" 검증기 / "rule" 실행 중 규칙).
+    changed_by = "validator" if plan_changed else ""
+    replies: list[str] = []
     dispatched: list[str] = []
     results: dict[str, dict] = {}
     follow_up: list[dict] = []
 
-    # 실행 큐 — 재계획(replace)이 남은 시퀀스를 갈아끼울 수 있어 튜플 대신 큐로 돈다.
+    # 실행 큐 — 관찰(call)이 다음 실행을 끼워 넣을 수 있어 튜플 대신 큐로 돈다.
     queue: list[str] = list(dispatch.agents)
-    # 재계획은 다중 에이전트 시퀀스에서만 — 단일 에이전트 턴의 지연을 늘리지 않는다.
-    replan_budget = _MAX_REPLANS if len(queue) > 1 else 0
 
-    while queue:
-        name = queue.pop(0)
-        spec = registry.get(name)
-        if spec is None:
-            replies.append(
-                f"'{name}' 기능은 아직 준비 중이에요. 다른 기능(적합도 분석·공고 추천·이력서 진단·면접 준비)을 이용해 주세요."
-            )
-            warnings.append({"code": "agent_not_implemented",
-                             "message": f"orchestrator: 미구현 에이전트 dispatch — {name}"})
-            break
+    # URL 공고가 미수집 상태면 수집 도구를 **결정론으로** 맨 앞에 끼운다(D64). 플래너의
+    # 판단이 아니다 — 자산 상태에서 따라 나오는 필연적 단계라서, manifest 에 없는
+    # internal 도구를 오케스트레이터가 직접 배치한다(플래너 어휘 불변 → 재측정 불필요).
+    # 성공하면 원문이 자산으로 굳고, 실패하면 관찰 규칙이 공고 소비 단계를 걷어낸다.
+    if ((session.get("job_posting") or {}).get("sourceType") == "url"
+            and "posting_fetch" not in queue):
+        queue.insert(0, "posting_fetch")
+        trace.emit("dispatch", "URL 공고 미수집 — 수집 도구를 큐 맨 앞에 삽입", {
+            "inserted": "posting_fetch", "queue": list(queue),
+        })
+        log.info("[%s] dispatch: posting_fetch 삽입(URL 공고 미수집) 큐=%s",
+                 session_id, list(queue))
+
+    steps = 0
+
+    def _execute(name: str, spec, sess: dict):
+        """에이전트 하나 실행 + 도구면 표현 계층까지. 병렬 워커도 이걸 부른다."""
 
         trace.emit("agent_start", f"{name} 실행 시작", {
             "agent": name, "description": spec.description,
             "preconditions": list(spec.preconditions),
-            "sessionAssets": _visible_assets(session),
+            "sessionAssets": _visible_assets(sess),
         })
-        outcome = spec.entry(session)
+        outcome = spec.entry(sess)
+        # 도구는 말하지 않는다 — 데이터만 내고, 사용자향 문장은 표현 계층(spec.render)이 만든다.
+        # 그래서 문구를 고칠 때 계산 코드를 건드리지 않는다(AgentSpec docstring 의 tool/agent 구분).
+        # 표현 계층도 LLM 을 쓸 수 있으므로 경고를 함께 받는다(폴백 이유를 삼키지 않는다).
+        if spec.kind == "tool" and spec.render is not None:
+            outcome.reply, render_warnings = spec.render(outcome.data, sess)
+            outcome.warnings.extend(render_warnings)
+        return outcome
+
+    def _absorb(name: str, outcome) -> None:
+        """실행 결과를 턴에 반영한다. **큐 순서대로** 부른다 — 병렬로 돌아도 결과 순서는 계획 순서다."""
+
         dispatched.append(name)
         results[name] = outcome.data
         warnings.extend(outcome.warnings)
@@ -276,36 +503,136 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
             "followUpQuestions": outcome.followUpQuestions,
             "sessionUpdates": sorted(outcome.sessionUpdates.keys()),
         })
+        log.info("[%s] agent: %s 완료 질문=%s 갱신=%s", session_id, name,
+                 [q.get("field") for q in outcome.followUpQuestions],
+                 sorted(outcome.sessionUpdates.keys()))
         if outcome.sessionUpdates:
             _stage(outcome.sessionUpdates)
         if outcome.reply:
             replies.append(outcome.reply)
 
-        # 파이프 중간에 추가 정보가 필요해지면(need_more_info) 뒤 에이전트를 실행하지 않는다.
-        if outcome.followUpQuestions:
+    def _run_parallel(group: list[str]) -> dict[str, Any]:
+        """서로 독립인 에이전트들을 동시에 돌린다.
+
+        **이득 실측 (2026-07-29 재측정, claude_code/sonnet, 독립 3개 = posting_analysis ∥
+        resume_diagnosis ∥ fit_analysis)**: 순차 47.8 · 48.0초 vs 병렬 13.3 · 37.6초.
+        순차는 안정적이고 병렬은 캐시 상태에 따라 갈리므로 **최소 10초, 최대 35초** 단축이다.
+        세션 사본·contextvars 복사·토큰 뮤트·큐순서 병합이라는 복잡도를 지고 가는 근거가
+        이 수치다 — 숫자가 없으면 지우는 것이 맞다(그래서 여기 박아 둔다).
+        재현: `_MAX_PARALLEL` 을 1 과 3 으로 바꿔 같은 턴을 번갈아 두 번씩 돌린다.
+
+        규율 둘:
+        - 각 에이전트는 **세션 사본**을 받는다. 상태 변경(sessionUpdates·내부 캐시)은 끝난 뒤
+          큐 순서대로 합친다 — 병렬이 결과나 상태 순서를 흔들면 안 된다.
+        - 토큰 델타는 끈다. 프론트는 델타를 한 버퍼에 이어 붙이므로(ask.html `streamed +=`)
+          두 에이전트의 토큰이 동시에 흐르면 섞인 글이 보인다. 진행 이벤트는 그대로 흘린다.
+
+        프로필을 미리 만들어 두는 최적화는 **넣었다가 뺐다.** 여러 멤버가 각자 프로필을 지으면
+        같은 LLM 추출을 두 번 하니 미리 한 번 만들자는 것이었는데, 실측(2026-07-29)에서 그
+        선빌드가 임계 경로에 **8.3초**를 얹었다. 전제에 resume 이 있다고 프로필을 쓰는 것이
+        아니기 때문이다 — fit_analysis 는 그래프 안에서 따로 짓는다. 실제 중복은 프로필을 쓰는
+        에이전트 둘이 같은 구간에 들어올 때만 생기고, 그때도 두 호출이 **동시에** 나가므로
+        늘어나는 것은 비용이지 시간이 아니다. 확실한 손해로 드문 손해를 막지 않는다.
+        """
+
+        trace.emit("parallel", f"{len(group)}개 에이전트 동시 실행", {
+            "agents": list(group), "labels": [agent_label(n) for n in group],
+            "reason": "서로의 산출을 기다리지 않는 구간",
+        })
+        log.info("[%s] parallel: %s 동시 실행", session_id, list(group))
+
+        copies: dict[str, dict] = {}
+        futures = {}
+        with trace.muted_tokens(), ThreadPoolExecutor(max_workers=len(group)) as pool:
+            for name in group:
+                sess = dict(session)
+                sess["_stagedUpdates"] = {}      # 사본의 캐시는 사본에만 쌓인다
+                copies[name] = sess
+                # 워커 스레드는 부모 컨텍스트를 물려받지 않는다 — 복사해서 넘기지 않으면
+                # trace 레코더가 안 보여 진행 이벤트가 통째로 사라진다.
+                ctx = contextvars.copy_context()
+                futures[name] = pool.submit(ctx.run, _execute, name, registry[name], sess)
+            outcomes = {name: future.result() for name, future in futures.items()}
+
+        for name in group:      # 사본에 쌓인 캐시(ensure_profile 등)를 큐 순서대로 반영
+            staged = copies[name].get("_stagedUpdates") or {}
+            if staged:
+                _stage(staged)
+        return outcomes
+
+    while queue and steps < _MAX_AGENT_STEPS:
+        if queue[0] in dispatched:      # 같은 턴에 같은 에이전트 재실행 금지 (루프 방어)
+            queue.pop(0)
+            continue
+        if registry.get(queue[0]) is None:
+            name = queue.pop(0)
+            replies.append(
+                f"'{name}' 기능은 아직 준비 중이에요. 다른 기능(적합도 분석·공고 추천·이력서 진단·면접 준비)을 이용해 주세요."
+            )
+            warnings.append({"code": "agent_not_implemented",
+                             "message": f"orchestrator: 미구현 에이전트 dispatch — {name}"})
             break
 
-        # 5) 경량 재계획 — 방금 결과를 보고 남은 시퀀스를 이어갈지 다시 정한다 (§2-1).
-        # LLM 미설정·실패면 None → 예정대로 계속(기존 동작 그대로).
-        if queue and replan_budget > 0:
-            replan_budget -= 1
-            decision = replan_after(name, _outcome_summary(outcome), list(queue), session)
-            if decision is None or decision.action == "continue":
-                continue
-            trace.emit("replan", f"재계획: {decision.action}", {
-                "afterAgent": name, "action": decision.action,
-                "agents": list(decision.agents), "reason": decision.reason,
-            })
-            if decision.action == "stop":
-                break
-            # replace — 교체 시퀀스도 검증기를 다시 통과시킨다(전제·중복·동의 게이트 동일 적용).
-            replacement = validate_plan(decision.agents, session)
-            if replacement.ask or not replacement.agents:
-                break
-            queue = [n for n in replacement.agents if n not in dispatched]
+        # 서로 독립인 구간은 동시에 돈다. 순차로 돌 이유가 "코드가 그렇게 생겨서"뿐이면
+        # 사용자는 이유 없이 기다린다.
+        group = parallel_group(queue, dispatched, session)
+        if len(group) > 1 and steps + len(group) <= _MAX_AGENT_STEPS:
+            outcomes = _run_parallel(group)
+            for name in group:
+                _absorb(name, outcomes[name])
+            del queue[:len(group)]
+            steps += len(group)
+            batch, batch_outcomes = list(group), [outcomes[n] for n in group]
+        else:
+            name = queue.pop(0)
+            steps += 1
+            outcome = _execute(name, registry[name], session)
+            _absorb(name, outcome)
+            batch, batch_outcomes = [name], [outcome]
 
-    final_reply = " ".join(r for r in replies if r).strip()
+        last = batch[-1]
+
+        # 5) 관찰 → 재선택 — 방금 결과를 보고 남은 계획을 다시 정한다. **결정론(LLM 없음).**
+        #
+        # 전에는 여기서 경량 LLM(planner.observe_after)이 실행 결과 **요약**을 보고
+        # continue/finish/call 을 냈다. 그 층을 걷어낸 이유는 observe_rules 모듈 docstring 에
+        # 있다 — 요약해서 말하면: 관찰 LLM 은 플래너보다 정보가 적고(발화·자산·이력은 플래너가
+        # 이미 봤다), 추가로 가진 실행 결과에서 제어에 쓸 신호는 전부 열거 가능한 구조화 값이며,
+        # 실측에서 call 0건·finish 는 전부 규칙 커버 범위였고, **자기 자리의 위험조차 못 막았다**
+        # (판정이 실패해 analysis 가 없는데 자소서가 그대로 돌던 결함 — drop_unrunnable 참고).
+        #
+        # 프로토타입도 같은 분할을 했다: 툴 선택은 LLM, level 분기는 조건엣지(decisions D11).
+        # 이 자리는 그 조건엣지에 해당한다. LLM 이 도구를 골라 스스로 도는 ReAct 는 한 층 아래
+        # (agents/agent_loop.py)에 있고, 그쪽이 본체의 에이전트다움을 지는 곳이다.
+        obs = observe_rules.observe(batch, dict(zip(batch, batch_outcomes)),
+                                    queue, dispatched, session)
+        queue = list(obs.queue)
+        trace.emit("observe", f"관찰 후 재선택: {obs.action}", {
+            "afterAgent": last, "action": obs.action, "rule": obs.rule,
+            "reason": obs.reason, "remainingPlanned": list(queue),
+        })
+        log.info("[%s] observe: %s after=%s 규칙=%s 남은예정=%s 이유=%s", session_id,
+                 obs.action, last, obs.rule, list(queue), obs.reason[:80])
+        if obs.note:
+            # 규칙이 계획을 바꿨으면 이유를 말한다. 이유를 말한 화자가 있으므로 계획 설명은
+            # compose_reply 에서 침묵한다 — 하지 않은 일을 하겠다고 말하게 되므로.
+            replies.append(obs.note)
+            changed_by = "rule"
+        if obs.action == "finish":
+            break
+
+    final_reply = compose_reply(acks, replies, ack=ack, note=dispatch.note,
+                                steps=len(dispatch.agents), changed_by=changed_by)
     _finish(final_reply)
+
+    # **이 답변이 폴백임을 로그에 못 박는다.** structured.py 가 호출 단위로 남기는 WARNING 과
+    # 별개로 한 줄 더 남기는 이유: 07-29 사고의 증상은 "호출 하나가 실패"가 아니라 "층이 죽었는데
+    # 답변은 그럴듯했다"였다. 답변이 나갔다는 사실과 LLM 이 죽었다는 사실이 **같은 줄에** 있어야
+    # 로그를 훑는 사람이 알아본다(재시도로 흡수된 실패는 여기 안 온다 — 경고가 안 달린다).
+    failed_nodes = [w.get("message", "") for w in warnings if w.get("code") == "llm_call_failed"]
+    if failed_nodes:
+        log.error("[%s] LLM 이 죽은 채 답변이 나갔다 — 이 응답은 결정론 폴백이다. 실패 %d건: %s",
+                  session_id, len(failed_nodes), " | ".join(failed_nodes))
 
     return ChatResponse(
         sessionId=session_id,

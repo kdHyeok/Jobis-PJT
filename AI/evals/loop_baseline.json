@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "modelLight": "gpt-4.1-nano",
+    "temperature": 0.3,
+    "measuredAt": "2026-07-29T21:02:54",
+    "runs": 5
+  },
+  "totals": {
+    "invariantViolations": 0,
+    "handoff": {
+      "attempts": 0,
+      "ok": 0,
+      "rate": null
+    }
+  },
+  "cases": [
+    {
+      "name": "preference_intake",
+      "stability": 1.0,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 1.0,
+        "max": 1,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "record_preference": 5
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 2.0,
+        "retries": 0,
+        "inputTokensMean": 2159,
+        "outputTokensMean": 84,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "interview_prep",
+      "stability": 0.8,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 2.6,
+        "max": 5,
+        "limitReached": 1
+      },
+      "trajectories": {
+        "pick_material>record_question": 4,
+        "pick_material>pick_material>record_question>record_question>record_question": 1
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 3.6,
+        "retries": 0,
+        "inputTokensMean": 3223,
+        "outputTokensMean": 106,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "coverletter_draft",
+      "stability": 0.6,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 4.0,
+        "max": 5,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>save_draft>check_draft>save_draft": 3,
+        "find_evidence>save_draft>check_draft>save_draft>check_draft": 1,
+        "find_evidence>save_draft>check_draft": 1
+      },
+      "warnings": {
+        "coverletter_check_unresolved": 1
+      },
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 5.0,
+        "retries": 0,
+        "inputTokensMean": 7422,
+        "outputTokensMean": 493,
+        "unmeteredCalls": 0
+      }
+    }
+  ]
+}

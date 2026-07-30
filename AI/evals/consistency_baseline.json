@@ -1,0 +1,235 @@
+{
+  "meta": {
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "modelLight": "gpt-4.1-nano",
+    "temperature": 0.3,
+    "measuredAt": "2026-07-29T21:17:36",
+    "runs": 3
+  },
+  "totals": {
+    "deviations": 2,
+    "llm": {
+      "callsMeanPerTurn": 2.76,
+      "inputTokensMeanPerTurn": 4347,
+      "outputTokensMeanPerTurn": 301
+    }
+  },
+  "cases": [
+    {
+      "name": "S1 일상 위로",
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": [
+            "career_chat"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "career_chat"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "career_chat"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 2.0,
+        "inputTokensMean": 3336,
+        "outputTokensMean": 124,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "S2 무관 거절",
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": [
+            "career_chat"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "career_chat"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "career_chat"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 2.0,
+        "inputTokensMean": 3319,
+        "outputTokensMean": 93,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "S3 공고 제출→정리",
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": [
+            "posting_analysis"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "posting_analysis"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "posting_analysis"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 3.0,
+        "inputTokensMean": 4022,
+        "outputTokensMean": 232,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "S4 이력서 제출→정리",
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": [
+            "resume_diagnosis"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "resume_diagnosis"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "resume_diagnosis"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 3.0,
+        "inputTokensMean": 4965,
+        "outputTokensMean": 387,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "S5 갭분석 동의게이트",
+      "consistentOk": 1,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": []
+        },
+        {
+          "ok": false,
+          "dispatched": [
+            "fit_analysis"
+          ]
+        },
+        {
+          "ok": false,
+          "dispatched": [
+            "fit_analysis"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 4.33,
+        "inputTokensMean": 5304,
+        "outputTokensMean": 494,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "S6 슬롯 오배정 교정",
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": [
+            "resume_diagnosis"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "resume_diagnosis"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "resume_diagnosis"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 3.0,
+        "inputTokensMean": 4965,
+        "outputTokensMean": 422,
+        "unmeteredCalls": 0
+      }
+    },
+    {
+      "name": "S7 공고 추천(실데이터)",
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "dispatched": [
+            "job_recommend"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "job_recommend"
+          ]
+        },
+        {
+          "ok": true,
+          "dispatched": [
+            "job_recommend"
+          ]
+        }
+      ],
+      "llm": {
+        "callsMean": 2.0,
+        "inputTokensMean": 4516,
+        "outputTokensMean": 358,
+        "unmeteredCalls": 0
+      }
+    }
+  ]
+}

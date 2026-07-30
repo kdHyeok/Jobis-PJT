@@ -82,7 +82,7 @@ class StepRun:
                 if not plan.agents or plan.confidence < CONFIDENCE_THRESHOLD:
                     dispatch = Dispatch((FALLBACK_AGENT,))
                 else:
-                    dispatch = validate_plan(plan.agents, session)
+                    dispatch = validate_plan(plan.agents, session, plan.requestedAgents)
             else:
                 # 플래너 불가 — 대응표로 흐름을 대신 정하지 않고 대화형 에이전트가 턴을 받는다
                 # (chat.handle_chat 과 동일).

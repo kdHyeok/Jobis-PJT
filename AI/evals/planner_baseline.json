@@ -1,555 +1,856 @@
 {
-  "mode": "플래너(실 LLM 호출)",
+  "meta": {
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "modelLight": "gpt-4.1-nano",
+    "temperature": 0.3,
+    "measuredAt": "2026-07-29T21:13:16",
+    "mode": "플래너(실 LLM 호출)",
+    "runs": 3
+  },
+  "dataset": "evals/planner_dataset.json",
   "summary": {
     "cases": 46,
-    "sequence_accuracy": 1.0,
+    "runs_per_case": 3,
+    "sequence_accuracy": 0.8623,
     "ask_accuracy": 1.0,
-    "llm_failed": 0
+    "mean_stability": 0.9928,
+    "stable_correct": 39,
+    "stable_wrong": 6,
+    "unstable": 1,
+    "llm_failed": 0,
+    "fallback_rate": 0.0217,
+    "mean_confidence": 0.885
   },
   "cases": [
     {
       "caseId": "fit-basic",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "fit-paraphrase-1",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.917
     },
     {
       "caseId": "fit-paraphrase-2",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.917
     },
     {
       "caseId": "fit-paraphrase-3",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.917
     },
     {
       "caseId": "fit-paraphrase-4",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "fit-paraphrase-5",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "fit-no-judgment-bait",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis"
-      ],
-      "actual": [
-        "fit_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis",
+      "observed": {
+        "fit_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "fit-missing-posting-degrade",
-      "correct": true,
-      "ask_match": true,
-      "expected": [
-        "resume_diagnosis"
-      ],
-      "actual": [
-        "resume_diagnosis"
-      ],
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-wrong",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "fallback": 3
+      },
+      "mean_confidence": 0.667
     },
     {
       "caseId": "fit-missing-resume-degrade",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "posting_analysis"
-      ],
-      "actual": [
-        "posting_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "posting_analysis",
+      "observed": {
+        "posting_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "fit-missing-both",
-      "correct": true,
-      "ask_match": true,
-      "expected": "ASK",
-      "actual": "ASK",
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-wrong",
+      "expected": "career_chat",
+      "observed": {
+        "preference_intake": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.867
     },
     {
       "caseId": "posting-analysis-direct",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "posting_analysis"
-      ],
-      "actual": [
-        "posting_analysis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "posting_analysis",
+      "observed": {
+        "posting_analysis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "recommend-basic",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "job_recommend"
-      ],
-      "actual": [
-        "job_recommend"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "job_recommend",
+      "observed": {
+        "job_recommend": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "recommend-paraphrase-1",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "job_recommend"
-      ],
-      "actual": [
-        "job_recommend"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "job_recommend",
+      "observed": {
+        "job_recommend": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "recommend-paraphrase-2",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "job_recommend"
-      ],
-      "actual": [
-        "job_recommend"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "job_recommend",
+      "observed": {
+        "job_recommend": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "recommend-paraphrase-3",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "job_recommend"
-      ],
-      "actual": [
-        "job_recommend"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "job_recommend",
+      "observed": {
+        "job_recommend": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "recommend-terse",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "job_recommend"
-      ],
-      "actual": [
-        "job_recommend"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "job_recommend",
+      "observed": {
+        "job_recommend": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "recommend-missing-resume",
-      "correct": true,
-      "ask_match": true,
-      "expected": [
-        "preference_intake"
-      ],
-      "actual": [
-        "preference_intake"
-      ],
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-wrong",
+      "expected": "preference_intake>job_recommend",
+      "observed": {
+        "preference_intake": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "preference-open",
-      "correct": true,
-      "ask_match": true,
-      "expected": [
-        "preference_intake"
-      ],
-      "actual": [
-        "preference_intake"
-      ],
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-wrong",
+      "expected": "preference_intake>job_recommend",
+      "observed": {
+        "preference_intake": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "preference-followup",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "preference_intake"
-      ],
-      "actual": [
-        "preference_intake"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "preference_intake",
+      "observed": {
+        "preference_intake": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "resume-basic",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "resume_diagnosis"
-      ],
-      "actual": [
-        "resume_diagnosis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "resume_diagnosis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "resume-paraphrase-1",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "resume_diagnosis"
-      ],
-      "actual": [
-        "resume_diagnosis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "resume_diagnosis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "resume-paraphrase-2",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "resume_diagnosis"
-      ],
-      "actual": [
-        "resume_diagnosis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "resume_diagnosis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "resume-paraphrase-3",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "resume_diagnosis"
-      ],
-      "actual": [
-        "resume_diagnosis"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "resume_diagnosis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "resume-missing",
-      "correct": true,
-      "ask_match": true,
-      "expected": "ASK",
-      "actual": "ASK",
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-wrong",
+      "expected": "career_chat",
+      "observed": {
+        "preference_intake": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "coverletter-with-analysis",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "coverletter_draft"
-      ],
-      "actual": [
-        "coverletter_draft"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "coverletter_draft",
+      "observed": {
+        "coverletter_draft": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "coverletter-auto-prereq",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis",
-        "coverletter_draft"
-      ],
-      "actual": [
-        "fit_analysis",
-        "coverletter_draft"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "ASK",
+      "observed": {
+        "ASK": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "gate": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "coverletter-paraphrase",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "coverletter_draft"
-      ],
-      "actual": [
-        "coverletter_draft"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "coverletter_draft",
+      "observed": {
+        "coverletter_draft": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "coverletter-motivation",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis",
-        "coverletter_draft"
-      ],
-      "actual": [
-        "fit_analysis",
-        "coverletter_draft"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "ASK",
+      "observed": {
+        "ASK": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "gate": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "coverletter-rewrite",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "coverletter_draft"
-      ],
-      "actual": [
-        "coverletter_draft"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "coverletter_draft",
+      "observed": {
+        "coverletter_draft": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "coverletter-missing-posting",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": "ASK",
-      "actual": "ASK",
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "resume_diagnosis": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.8
     },
     {
       "caseId": "interview-with-analysis",
-      "correct": true,
-      "ask_match": true,
-      "expected": [
-        "interview_prep"
-      ],
-      "actual": [
-        "interview_prep"
-      ],
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-wrong",
+      "expected": "interview_prep",
+      "observed": {
+        "preference_intake": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.8
     },
     {
       "caseId": "interview-auto-prereq",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis",
-        "interview_prep"
-      ],
-      "actual": [
-        "fit_analysis",
-        "interview_prep"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "ASK",
+      "observed": {
+        "ASK": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "gate": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "interview-followup",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "interview_prep"
-      ],
-      "actual": [
-        "interview_prep"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "interview_prep",
+      "observed": {
+        "interview_prep": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.833
     },
     {
       "caseId": "interview-missing",
-      "correct": true,
-      "ask_match": true,
-      "expected": "ASK",
-      "actual": "ASK",
-      "path": "planner"
+      "runs": 3,
+      "correct": false,
+      "accuracy": 0.6667,
+      "stability": 0.6667,
+      "ask_accuracy": 1.0,
+      "verdict": "unstable",
+      "expected": "resume_diagnosis",
+      "observed": {
+        "resume_diagnosis": 2,
+        "career_chat": 1
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.8
     },
     {
       "caseId": "roadmap-basic",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "roadmap_manager"
-      ],
-      "actual": [
-        "roadmap_manager"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "roadmap_manager",
+      "observed": {
+        "roadmap_manager": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "roadmap-paraphrase",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "roadmap_manager"
-      ],
-      "actual": [
-        "roadmap_manager"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "roadmap_manager",
+      "observed": {
+        "roadmap_manager": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "roadmap-with-all-assets",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "roadmap_manager"
-      ],
-      "actual": [
-        "roadmap_manager"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "roadmap_manager",
+      "observed": {
+        "roadmap_manager": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "roadmap-missing",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": "ASK",
-      "actual": "ASK",
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "career_chat",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.8
     },
     {
       "caseId": "multi-fit-then-coverletter",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis",
-        "coverletter_draft"
-      ],
-      "actual": [
-        "fit_analysis",
-        "coverletter_draft"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis>coverletter_draft",
+      "observed": {
+        "fit_analysis>coverletter_draft": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "multi-fit-then-interview",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "fit_analysis",
-        "interview_prep"
-      ],
-      "actual": [
-        "fit_analysis",
-        "interview_prep"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "fit_analysis>interview_prep",
+      "observed": {
+        "fit_analysis>interview_prep": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "multi-coverletter-and-interview",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "coverletter_draft",
-        "interview_prep"
-      ],
-      "actual": [
-        "coverletter_draft",
-        "interview_prep"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "coverletter_draft>interview_prep",
+      "observed": {
+        "coverletter_draft>interview_prep": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "greeting-chat",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "career_chat"
-      ],
-      "actual": [
-        "career_chat"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "career_chat",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "offtopic-chat",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "career_chat"
-      ],
-      "actual": [
-        "career_chat"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "career_chat",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "thanks-chat",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "career_chat"
-      ],
-      "actual": [
-        "career_chat"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "career_chat",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "vent-chat",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "career_chat"
-      ],
-      "actual": [
-        "career_chat"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "career_chat",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     },
     {
       "caseId": "general-question-chat",
+      "runs": 3,
       "correct": true,
-      "ask_match": true,
-      "expected": [
-        "career_chat"
-      ],
-      "actual": [
-        "career_chat"
-      ],
-      "path": "planner"
+      "accuracy": 1.0,
+      "stability": 1.0,
+      "ask_accuracy": 1.0,
+      "verdict": "stable-correct",
+      "expected": "career_chat",
+      "observed": {
+        "career_chat": 3
+      },
+      "llm_failed": 0,
+      "paths": {
+        "planner": 3
+      },
+      "mean_confidence": 0.9
     }
   ]
 }

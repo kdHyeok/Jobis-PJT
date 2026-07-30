@@ -12,6 +12,8 @@ get_llm() 이 돌려주는 다른 공급자(LangChain Chat 모델)와 같은 표
 - 서버 배포용이 아니다 — CLI 로그인 세션이 있는 개발 머신에서만 동작한다.
 - 호출당 CLI 기동 오버헤드(수 초)가 있다. GMS(gpt-4.1-mini)보다 느리다.
 - 구조화 출력이 서버 강제형이 아니라 지시+검증형이다. 검증 실패는 예외 → 재시도.
+- **내장 도구를 끈다**(`--tools ""`). 우리 프롬프트에 "도구" 목록이 나오면 Claude 가 자기
+  도구를 쓰려 들어 `--max-turns 1` 에 걸린다 — 아래 `_COMMON_ARGS` 주석 참고.
 """
 
 from __future__ import annotations
@@ -28,6 +30,20 @@ _FENCE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 # 호출당 상한(초). CLI 기동 + 모델 응답. 판정 파이프라인 한 노드가 이보다 오래 걸리면 실패가 맞다.
 _CALL_TIMEOUT_SEC = 180
+
+# 모든 호출에 붙는 인자.
+#
+# `--tools ""` — **내장 도구(Read/Bash/Edit…)를 전부 끈다.** 없으면 우리 프롬프트가 "쓸 수 있는
+# 도구:" 라고 도구 목록을 늘어놓는 순간(agents/agent_loop 의 자기 루프) Claude 가 *자기* 도구를
+# 쓰려 들고, `--max-turns 1` 에 걸려 `stop_reason: tool_use` 로 실패한다. 실측(2026-07-29):
+# `interview_prep`·`coverletter_draft` 루프가 3회 재시도 끝에 전부 죽어 결정론 폴백으로
+# 나갔다 — 자기 루프 층이 이 공급자에서 통째로 꺼져 있었다.
+# 우리가 원하는 것은 텍스트·JSON 생성 하나뿐이므로 도구를 줄 이유가 없다.
+#
+# `--strict-mcp-config` — 전역 설정의 MCP 서버를 로드하지 않는다(기동이 수 초 빨라진다).
+# `--max-turns 1` — 한 번 답하고 끝. 도구를 끈 뒤에는 이걸로 충분하다.
+_COMMON_ARGS = ["--output-format", "json", "--max-turns", "1",
+                "--strict-mcp-config", "--tools", ""]
 
 
 def extract_json(text: str) -> str:
@@ -71,8 +87,7 @@ class ClaudeCodeChat:
         prompt = f"{system}\n\n---\n[입력]\n{human}"
 
         out = subprocess.run(
-            [*self.cli, "-p", prompt, "--output-format", "json",
-             "--model", self.model, "--max-turns", "1", "--strict-mcp-config"],
+            [*self.cli, "-p", prompt, "--model", self.model, *_COMMON_ARGS],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
             cwd=tempfile.gettempdir(),
@@ -113,10 +128,7 @@ class _Structured:
         )
 
         out = subprocess.run(
-            # --strict-mcp-config: 전역 설정의 MCP 서버를 로드하지 않는다 — 기동이 수 초
-            # 빨라지고, 구조화 추출에 도구는 필요 없다.
-            [*self._chat.cli, "-p", prompt, "--output-format", "json",
-             "--model", self._chat.model, "--max-turns", "1", "--strict-mcp-config"],
+            [*self._chat.cli, "-p", prompt, "--model", self._chat.model, *_COMMON_ARGS],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
             # 레포 밖에서 실행 — 프로젝트 CLAUDE.md·설정·훅이 판정 프롬프트에 섞이지 않게.

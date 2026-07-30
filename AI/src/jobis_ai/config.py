@@ -48,6 +48,27 @@ class Settings:
     gms_key: str               # SSAFY GMS(API 게이트웨이) 발급 키. LLM/임베딩 호출 공용
     embed_base_url: str        # GMS 경유 임베딩 엔드포인트 base URL
     embed_model: str           # 임베딩 모델명 (예: text-embedding-3-small)
+    jina_api_key: str          # jina.ai reader 키 (선택 — 없으면 무키 저율 호출)
+    clova_api_key: str         # Clova Studio 키 (이미지 공고 VLM, feat_url/)
+    clova_vlm_url: str         # Clova VLM 챗 엔드포인트 전체 URL
+
+    def active_model(self, tier: str = "default") -> str:
+        """**지금 프로바이더가 실제로 부르는 모델명.** provenance 와 런타임의 단일 출처다.
+
+        이게 없던 동안 하네스가 `llm_model`(=GMS 모델명)을 프로바이더와 무관하게 기록해,
+        Claude CLI 로 돌린 baseline 에 `"model": "gpt-4.1-mini"` 가 박혔다
+        (`planner_harness.py` 오귀속 — 평가 리포트 §4-3). 어느 모델로 잰 수치인지 파일이
+        말하지 못하면 그 baseline 은 비교 근거가 못 된다.
+
+        `get_llm` 이 모델을 고르는 분기와 **같은 사전을 쓰게** 여기 한 곳에 둔다 —
+        지표와 런타임이 갈라지지 못하게 하는 것이 이 코드베이스의 방식이다(D52·§4-3).
+        """
+
+        if self.llm_provider == "openai":
+            return self.llm_model_light if tier == "light" else self.llm_model
+        if self.llm_provider == "claude_code":
+            return self.claude_code_model_light if tier == "light" else self.claude_code_model
+        return self.anthropic_model      # anthropic 경로는 아직 티어 미분리
 
     @property
     def has_llm_key(self) -> bool:
@@ -93,4 +114,10 @@ def get_settings() -> Settings:
             "EMBED_BASE_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
         ),
         embed_model=os.getenv("EMBED_MODEL", "text-embedding-3-small"),
+        jina_api_key=os.getenv("JINA_API_KEY", ""),
+        clova_api_key=os.getenv("CLOVA_API_KEY", ""),
+        clova_vlm_url=os.getenv(
+            "CLOVA_VLM_URL",
+            "https://clovastudio.stream.ntruss.com/v3/chat-completions/HCX-005",
+        ),
     )
