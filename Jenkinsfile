@@ -135,18 +135,13 @@ pipeline {
     stage('Deploy production') {
       when { branch 'master' }
       agent any
+      // 컨테이너 배포(3단계)부터는 전송할 산출물이 없다.
+      // 위 스테이지가 호스트 도커 데몬에 이미지를 빌드했고(DooD), Jenkins와 배포 대상이
+      // 같은 호스트이므로 SHA만 넘기면 deploy-jobis가 해당 태그로 컨테이너를 교체한다.
       steps {
-        unstash 'backend-jar'
-        unstash 'fake-ai-tar'
         sshagent(credentials: ['jobis-deploy-ssh']) {
           sh '''
             test -n "$DEPLOY_HOST" || { echo "DEPLOY_HOST 전역 환경변수가 없습니다."; exit 1; }
-            scp -o StrictHostKeyChecking=accept-new \
-              backend/backend.jar \
-              "jobis-deploy@$DEPLOY_HOST:/tmp/jobis-backend-$GIT_COMMIT.jar"
-            scp -o StrictHostKeyChecking=accept-new \
-              fake-ai/fake-ai.tar.gz \
-              "jobis-deploy@$DEPLOY_HOST:/tmp/jobis-fake-ai-$GIT_COMMIT.tar.gz"
             ssh -o StrictHostKeyChecking=accept-new \
               "jobis-deploy@$DEPLOY_HOST" \
               "sudo -n /usr/local/sbin/deploy-jobis '$GIT_COMMIT'"

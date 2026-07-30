@@ -6,9 +6,9 @@
 | 단계 | 내용 | 상태 |
 |---|---|---|
 | 1 | Dockerfile 2개 + compose 작성, 로컬 검증 | ✅ 완료 (2026-07-29) |
-| 2 | Jenkinsfile에 이미지 빌드 스테이지 추가 (jar 배포와 병행) | ✅ 이 브랜치 |
-| 3 | fake-ai → backend 순서로 컨테이너 배포 교체 | 예정 |
-| 4 | systemd 유닛·릴리스 디렉토리 방식 폐기 | 예정 |
+| 2 | Jenkinsfile에 이미지 빌드 스테이지 추가 (jar 배포와 병행) | ✅ 완료 (2026-07-30, master #3) |
+| 3 | fake-ai·backend를 컨테이너 배포로 교체 | ✅ 이 브랜치 |
+| 4 | systemd 유닛 파일·릴리스 디렉토리 제거 | 예정 (3단계 안정화 후) |
 
 ## 파일 구성
 
@@ -18,6 +18,40 @@
 - Jenkinsfile `Docker images: build` 스테이지 — master 병합 시 `jobis-backend:SHA`, `jobis-fake-ai:SHA` 이미지 빌드.
   Jenkins가 호스트 도커 데몬을 쓰므로(DooD) 빌드 즉시 배포 서버에 존재 — 레지스트리 불필요.
   이미지 태그는 최근 3개만 유지 (릴리스 정리와 동일 정책).
+- `ops/docker-compose.prod.yml` — **운영 전용**. 호스트 네트워크 + 호스트 postgres 사용
+- `ops/deploy-jobis-container` — 컨테이너 배포 스크립트 (기존 `deploy-jobis`를 대체)
+
+## 운영 배포 구조 (3단계)
+
+컨테이너로 옮기는 것은 **fake-ai와 backend 둘뿐**이다. postgres·nginx·Jenkins는 호스트에 그대로 둔다.
+
+호스트 네트워크(`network_mode: host`)를 쓰는 이유:
+
+- 운영 postgres가 `listen_addresses=localhost`, `pg_hba`도 `127.0.0.1/32`만 허용한다.
+  브리지 네트워크에서는 접근 불가(`host.docker.internal` → no response 확인),
+  호스트 네트워크에서는 접속 성공(`accepting connections` 확인).
+- postgres 설정 변경·재시작이 필요 없고, nginx 프록시 대상(`127.0.0.1:8080`)도 그대로다.
+- `/etc/jobis/jobis.env`의 `AGENT_WS_URL=ws://127.0.0.1:8000`도 수정 없이 유효하다.
+  (이 ws는 backend→fake-ai 루프백 연결이라 브라우저용 wss 핫픽스와 무관하다. fake-ai는 TLS 미지원.)
+
+codex 자격증명은 API 키가 아니라 OAuth 상태 파일이므로 디렉토리를 읽기·쓰기로 마운트한다
+(토큰 갱신 시 파일에 다시 씀). 호스트 ubuntu와 컨테이너 node가 모두 uid 1000이라 권한 조정이 필요 없다.
+
+### 서버 설치 (배포 방식 변경 시 1회, 루트 권한 필요)
+
+```bash
+sudo install -o root -g root -m 0755 ops/deploy-jobis-container /usr/local/sbin/deploy-jobis
+sudo install -o root -g root -m 0644 ops/docker-compose.prod.yml /opt/jobis/docker-compose.prod.yml
+```
+
+Jenkins는 `/usr/local/sbin/deploy-jobis`를 호출할 뿐 스크립트를 전송하지 않으므로,
+`ops/` 아래 파일을 고쳤다면 위 설치를 다시 해야 반영된다.
+
+### 롤백
+
+- 이전 SHA 이미지가 남아 있으면(태그 3개 유지) 스크립트가 자동으로 이전 태그로 재기동한다.
+- 되돌릴 이미지가 없는 최초 전환 실패 시에는 컨테이너를 내리고 systemd 유닛으로 복귀한다.
+- 수동 롤백: `sudo JOBIS_SHA=<이전SHA> docker compose -f /opt/jobis/docker-compose.prod.yml up -d`
 
 ## 팀원 사용법 (선택)
 
