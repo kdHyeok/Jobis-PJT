@@ -106,6 +106,21 @@ def test_classify_seniority_from_explicit_keyword_and_years():
     assert roles.classify_seniority("개발자", "", years=12) == "lead"
 
 
+def test_seniority_years_beat_english_words_inside_other_words():
+    """실측(Gno=49638113): 회사 소개 'Global Leading DX Company' 의 'lead' 가 경력 3년 공고를
+    lead(10년+)로 분류해, 4년 경력자가 연차 미달로 판정될 수 있었다(D118).
+
+    ① 요구 연차가 있으면 그것이 이긴다  ② ASCII 별칭은 단어 경계로만 맞는다."""
+    roles = get_role_taxonomy()
+    body = "IEA Global Leading DX Company. 경력 : 3년 이상"
+    assert roles.classify_seniority("AI Agent 개발자", body, years=3) == "mid"
+    # 연차 근거가 없어도 단어 안에 박힌 'lead' 는 매칭되지 않는다
+    assert roles.classify_seniority("AI Agent 개발자", "Global Leading DX Company") == ""
+    # 진짜 단어로 쓰인 별칭은 그대로 잡는다
+    assert roles.classify_seniority("Tech Lead", "") == "lead"
+    assert roles.classify_seniority("신입사원 채용", "") == "junior"
+
+
 def test_unknown_role_and_seniority_stay_empty_not_guessed():
     """모르면 모른다고 둔다 — 여기서 찍으면 career_graph 가 그 위에 경로를 쌓아 오류가 증폭된다."""
     roles = get_role_taxonomy()
@@ -132,3 +147,27 @@ def test_role_taxonomy_owns_vocabulary_used_by_career_graph():
         assert roles.is_known_role(target), f"career_graph 의 '{target}' 가 role_taxonomy 에 없다"
         for feeder in feeders:
             assert roles.is_known_role(feeder), f"피더 '{feeder}' 가 role_taxonomy 에 없다"
+
+
+def test_role_category_llm_pick_fills_the_gap_but_cannot_leave_the_taxonomy():
+    """D120: 사전에 없는 표기는 별칭 룰이 못 잇는다(실측 Gno=49638113 "AI Agent 개발자").
+    LLM 이 사전 **목록에서 고르고**, 목록 밖 값은 버린다 — career_graph·RAG 가 이 키로
+    조회하므로 없는 키는 하류를 조용히 끊는다."""
+    from jobis_ai.contracts.domain import NormalizedJobPosting
+    from jobis_ai.graph.read_nodes import _apply_rule_extraction
+    from jobis_ai.rule_extractor import extract_rules
+
+    def apply(title, llm_pick, text):
+        posting = NormalizedJobPosting(jobTitle=title, roleCategory=llm_pick)
+        warnings = _apply_rule_extraction(posting, extract_rules(text), text)
+        return posting.roleCategory, [w["code"] for w in warnings]
+
+    text = "ㆍ생성형 AI 기반 AI Agent 설계 및 개발\nㆍ경력 3년 이상"
+    # ② 별칭이 없는 표기 → LLM 이 고른 사전 키를 쓴다
+    assert apply("AI Agent 개발자", "ml_engineer", text)[0] == "ml_engineer"
+    # ① 직무명 별칭이 있으면 룰이 이긴다 (LLM 이 다르게 골라도)
+    assert apply("백엔드 개발자", "ml_engineer", text)[0] == "backend"
+    # 사전 밖 값은 버리고 이유를 남긴다
+    role, codes = apply("AI Agent 개발자", "ai_agent_engineer", text)
+    assert role == "" and "role_pick_off_taxonomy" in codes
+    assert "role_unclassified" in codes

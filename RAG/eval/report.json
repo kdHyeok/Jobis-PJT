@@ -1,0 +1,1720 @@
+{
+  "generated_at": "2026-07-28T06:34:32.925302+00:00",
+  "version": {
+    "judge_prompt": "v3",
+    "n_corpus_active": 1172,
+    "pool_generated_at": "2026-07-28T01:29:52.176841+00:00"
+  },
+  "headline": {
+    "metric": "normalized_nDCG@3",
+    "definition": "(actual - random) / (pool_oracle - random)",
+    "best_arm": "rrf_ce",
+    "scores": {
+      "random": 0.0191,
+      "bm25": 0.3876,
+      "dense": 0.7423,
+      "rrf": 0.702,
+      "rrf_ce": 0.801
+    }
+  },
+  "macro_average": {
+    "random": {
+      "ndcg3": 0.1379,
+      "p3": 0.1379,
+      "ap3": 0.0805,
+      "norm_ndcg3": 0.0191
+    },
+    "bm25": {
+      "ndcg3": 0.4964,
+      "p3": 0.4253,
+      "ap3": 0.3755,
+      "norm_ndcg3": 0.3876
+    },
+    "dense": {
+      "ndcg3": 0.8084,
+      "p3": 0.7356,
+      "ap3": 0.7031,
+      "norm_ndcg3": 0.7423
+    },
+    "rrf": {
+      "ndcg3": 0.7889,
+      "p3": 0.6897,
+      "ap3": 0.6667,
+      "norm_ndcg3": 0.702
+    },
+    "rrf_ce": {
+      "ndcg3": 0.854,
+      "p3": 0.7816,
+      "ap3": 0.772,
+      "norm_ndcg3": 0.801
+    }
+  },
+  "comparisons": {
+    "random_vs_bm25": {
+      "mean_delta": 0.3584,
+      "ci_95": [
+        0.2019,
+        0.5097
+      ],
+      "significant": true
+    },
+    "random_vs_dense": {
+      "mean_delta": 0.6708,
+      "ci_95": [
+        0.5741,
+        0.7606
+      ],
+      "significant": true
+    },
+    "random_vs_rrf": {
+      "mean_delta": 0.6509,
+      "ci_95": [
+        0.5355,
+        0.7621
+      ],
+      "significant": true
+    },
+    "random_vs_rrf_ce": {
+      "mean_delta": 0.7164,
+      "ci_95": [
+        0.6448,
+        0.7873
+      ],
+      "significant": true
+    },
+    "bm25_vs_dense": {
+      "mean_delta": 0.3124,
+      "ci_95": [
+        0.1541,
+        0.4643
+      ],
+      "significant": true
+    },
+    "bm25_vs_rrf": {
+      "mean_delta": 0.2925,
+      "ci_95": [
+        0.1641,
+        0.424
+      ],
+      "significant": true
+    },
+    "bm25_vs_rrf_ce": {
+      "mean_delta": 0.358,
+      "ci_95": [
+        0.2247,
+        0.4919
+      ],
+      "significant": true
+    },
+    "dense_vs_rrf": {
+      "mean_delta": -0.0199,
+      "ci_95": [
+        -0.1028,
+        0.0596
+      ],
+      "significant": false
+    },
+    "dense_vs_rrf_ce": {
+      "mean_delta": 0.0456,
+      "ci_95": [
+        -0.0206,
+        0.1107
+      ],
+      "significant": false
+    },
+    "rrf_vs_rrf_ce": {
+      "mean_delta": 0.0655,
+      "ci_95": [
+        -0.026,
+        0.1513
+      ],
+      "significant": false
+    }
+  },
+  "by_axis": {
+    "기술": {
+      "random": 0.0,
+      "bm25": 0.3156,
+      "dense": 0.7091,
+      "rrf": 0.5783,
+      "rrf_ce": 0.8307,
+      "n": 8
+    },
+    "지역": {
+      "random": 0.0126,
+      "bm25": 0.4812,
+      "dense": 0.9512,
+      "rrf": 0.8019,
+      "rrf_ce": 1.0,
+      "n": 7
+    },
+    "제약": {
+      "random": 0.0581,
+      "bm25": 0.4101,
+      "dense": 0.6872,
+      "rrf": 0.7685,
+      "rrf_ce": 0.7816,
+      "n": 8
+    },
+    "난이도": {
+      "random": 0.0,
+      "bm25": 0.3444,
+      "dense": 0.6165,
+      "rrf": 0.6613,
+      "rrf_ce": 0.5552,
+      "n": 6
+    }
+  },
+  "bias_correction": {
+    "n_calibration_queries": 3,
+    "bias_ratio_range": [
+      3.715,
+      7.718
+    ],
+    "ratios": [
+      3.715,
+      5.895,
+      7.718
+    ]
+  },
+  "per_query": {
+    "q04": {
+      "query": "서울 경력무관 TypeScript 쓰는 회사",
+      "category": "tech_focus",
+      "n_pool": 82,
+      "n_judged": 82,
+      "label_dist": {
+        "Incorrect": 49,
+        "Correct": 32,
+        "Ambiguous": 1
+      },
+      "random_floor": 0.3924,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.6139
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 16,
+        "n2_dense_rel": 16,
+        "overlap": 7,
+        "chapman_N": 35.1,
+        "pool_rel": 32,
+        "estimated_missed": 3.1
+      }
+    },
+    "q54": {
+      "query": "서울 3년차 React TypeScript 프론트엔드 개발자",
+      "category": "multi_tech",
+      "n_pool": 77,
+      "n_judged": 77,
+      "label_dist": {
+        "Correct": 41,
+        "Incorrect": 27,
+        "Ambiguous": 9
+      },
+      "random_floor": 0.5922,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2961,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 27,
+        "n2_dense_rel": 25,
+        "overlap": 12,
+        "chapman_N": 55.0,
+        "pool_rel": 41,
+        "estimated_missed": 14.0
+      }
+    },
+    "q03": {
+      "query": "서울 5년차 Python 데이터 엔지니어",
+      "category": "tech_focus",
+      "n_pool": 82,
+      "n_judged": 82,
+      "label_dist": {
+        "Incorrect": 48,
+        "Correct": 19,
+        "Ambiguous": 15
+      },
+      "random_floor": 0.3227,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.2346,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.6536
+        },
+        "rrf": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "rrf_ce": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.6536
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 7,
+        "n2_dense_rel": 13,
+        "overlap": 1,
+        "chapman_N": 55.0,
+        "pool_rel": 19,
+        "estimated_missed": 36.0
+      }
+    },
+    "q25": {
+      "query": "서울 3년차 스프링부트 하는 회사",
+      "category": "tech_alias",
+      "n_pool": 87,
+      "n_judged": 87,
+      "label_dist": {
+        "Incorrect": 49,
+        "Correct": 29,
+        "Ambiguous": 9
+      },
+      "random_floor": 0.3929,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.1173,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 0.5307,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.227
+        },
+        "rrf_ce": {
+          "ndcg3": 0.8827,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.8068
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 8,
+        "n2_dense_rel": 17,
+        "overlap": 0,
+        "chapman_N": 161.0,
+        "pool_rel": 29,
+        "estimated_missed": 132.0
+      }
+    },
+    "q28": {
+      "query": "경기 3년차 도커 쓰는 백엔드",
+      "category": "tech_alias",
+      "n_pool": 78,
+      "n_judged": 78,
+      "label_dist": {
+        "Correct": 37,
+        "Incorrect": 33,
+        "Ambiguous": 8
+      },
+      "random_floor": 0.5259,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.2961,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 0.852,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.6878
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 21,
+        "n2_dense_rel": 19,
+        "overlap": 9,
+        "chapman_N": 43.0,
+        "pool_rel": 37,
+        "estimated_missed": 6.0
+      }
+    },
+    "q27": {
+      "query": "서울 5년차 쿠버네티스 다루는 데브옵스",
+      "category": "tech_alias",
+      "n_pool": 84,
+      "n_judged": 84,
+      "label_dist": {
+        "Incorrect": 65,
+        "Ambiguous": 12,
+        "Correct": 7
+      },
+      "random_floor": 0.1534,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.4693,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.3731
+        },
+        "dense": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.3889,
+          "norm_ndcg3": 0.7229
+        },
+        "rrf": {
+          "ndcg3": 0.8827,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.8614
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 6,
+        "n2_dense_rel": 4,
+        "overlap": 3,
+        "chapman_N": 7.8,
+        "pool_rel": 7,
+        "estimated_missed": 0.8
+      }
+    },
+    "q26": {
+      "query": "서울 신입 리액트 개발자",
+      "category": "tech_alias",
+      "n_pool": 86,
+      "n_judged": 86,
+      "label_dist": {
+        "Incorrect": 43,
+        "Correct": 42,
+        "Ambiguous": 1
+      },
+      "random_floor": 0.4921,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.5381
+        },
+        "dense": {
+          "ndcg3": 0.5307,
+          "p3": 0.6667,
+          "ap3": 0.3889,
+          "norm_ndcg3": 0.076
+        },
+        "rrf": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.5381
+        },
+        "rrf_ce": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.5381
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 14,
+        "n2_dense_rel": 26,
+        "overlap": 2,
+        "chapman_N": 134.0,
+        "pool_rel": 42,
+        "estimated_missed": 92.0
+      }
+    },
+    "q30": {
+      "query": "서울 경력무관 파이썬 데이터 분석가",
+      "category": "tech_alias",
+      "n_pool": 82,
+      "n_judged": 82,
+      "label_dist": {
+        "Incorrect": 48,
+        "Ambiguous": 28,
+        "Correct": 6
+      },
+      "random_floor": 0.2473,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.148,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.148,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 0.648,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.5324
+        },
+        "rrf": {
+          "ndcg3": 0.2346,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "rrf_ce": {
+          "ndcg3": 0.7346,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.6474
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 2,
+        "n2_dense_rel": 2,
+        "overlap": 0,
+        "chapman_N": 8.0,
+        "pool_rel": 6,
+        "estimated_missed": 2.0
+      }
+    },
+    "q22": {
+      "query": "여의도 3년차 금융 IT Java 개발자",
+      "category": "colloquial_region",
+      "n_pool": 70,
+      "n_judged": 70,
+      "label_dist": {
+        "Incorrect": 43,
+        "Correct": 24,
+        "Ambiguous": 3
+      },
+      "random_floor": 0.3684,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2961,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.6286
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 0.7039,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.5312
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 11,
+        "n2_dense_rel": 19,
+        "overlap": 10,
+        "chapman_N": 20.8,
+        "pool_rel": 24,
+        "estimated_missed": 0.0
+      }
+    },
+    "q08": {
+      "query": "서울 3년차 Python 개발자 채용",
+      "category": "region_focus",
+      "n_pool": 79,
+      "n_judged": 79,
+      "label_dist": {
+        "Incorrect": 38,
+        "Correct": 30,
+        "Ambiguous": 11
+      },
+      "random_floor": 0.4469,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.4693,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.0404
+        },
+        "bm25": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 0.852,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.7324
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 14,
+        "n2_dense_rel": 15,
+        "overlap": 6,
+        "chapman_N": 33.3,
+        "pool_rel": 30,
+        "estimated_missed": 3.3
+      }
+    },
+    "q23": {
+      "query": "성남 신입 Spring 백엔드",
+      "category": "colloquial_region",
+      "n_pool": 73,
+      "n_judged": 73,
+      "label_dist": {
+        "Incorrect": 44,
+        "Correct": 22,
+        "Ambiguous": 7
+      },
+      "random_floor": 0.3562,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.5307,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.2711
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 17,
+        "n2_dense_rel": 15,
+        "overlap": 11,
+        "chapman_N": 23.0,
+        "pool_rel": 22,
+        "estimated_missed": 1.0
+      }
+    },
+    "q21": {
+      "query": "분당 경력무관 Python 개발자 채용",
+      "category": "colloquial_region",
+      "n_pool": 71,
+      "n_judged": 71,
+      "label_dist": {
+        "Incorrect": 45,
+        "Correct": 18,
+        "Ambiguous": 8
+      },
+      "random_floor": 0.3128,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "dense": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.6586
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 15,
+        "n2_dense_rel": 15,
+        "overlap": 12,
+        "chapman_N": 18.7,
+        "pool_rel": 18,
+        "estimated_missed": 0.7
+      }
+    },
+    "q09": {
+      "query": "경기도 신입 Java 개발자",
+      "category": "region_focus",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Correct": 44,
+        "Incorrect": 36,
+        "Ambiguous": 1
+      },
+      "random_floor": 0.5445,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 0.7039,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.35
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 15,
+        "n2_dense_rel": 27,
+        "overlap": 4,
+        "chapman_N": 88.6,
+        "pool_rel": 44,
+        "estimated_missed": 44.6
+      }
+    },
+    "q19": {
+      "query": "강남에서 3년차 Java 백엔드 개발자",
+      "category": "colloquial_region",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Incorrect": 45,
+        "Correct": 33,
+        "Ambiguous": 3
+      },
+      "random_floor": 0.4242,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 17,
+        "n2_dense_rel": 20,
+        "overlap": 6,
+        "chapman_N": 53.0,
+        "pool_rel": 33,
+        "estimated_missed": 20.0
+      }
+    },
+    "q20": {
+      "query": "판교 신입 React 프론트엔드 개발자",
+      "category": "colloquial_region",
+      "n_pool": 67,
+      "n_judged": 67,
+      "label_dist": {
+        "Incorrect": 34,
+        "Correct": 27,
+        "Ambiguous": 6
+      },
+      "random_floor": 0.4427,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.4693,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.0477
+        },
+        "bm25": {
+          "ndcg3": 0.7039,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.4686
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 15,
+        "n2_dense_rel": 21,
+        "overlap": 13,
+        "chapman_N": 24.1,
+        "pool_rel": 27,
+        "estimated_missed": 0.0
+      }
+    },
+    "q32": {
+      "query": "경기 신입 React 프론트엔드",
+      "category": "combo_balanced",
+      "n_pool": 78,
+      "n_judged": 78,
+      "label_dist": {
+        "Incorrect": 38,
+        "Correct": 34,
+        "Ambiguous": 6
+      },
+      "random_floor": 0.4679,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.8827,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.7795
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 19,
+        "n2_dense_rel": 25,
+        "overlap": 11,
+        "chapman_N": 42.3,
+        "pool_rel": 34,
+        "estimated_missed": 8.3
+      }
+    },
+    "q34": {
+      "query": "서울 신입 TypeScript 프론트엔드 개발자",
+      "category": "combo_balanced",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Incorrect": 49,
+        "Correct": 26,
+        "Ambiguous": 6
+      },
+      "random_floor": 0.362,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "dense": {
+          "ndcg3": 0.7039,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.5359
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.6323
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 13,
+        "n2_dense_rel": 18,
+        "overlap": 7,
+        "chapman_N": 32.2,
+        "pool_rel": 26,
+        "estimated_missed": 6.2
+      }
+    },
+    "q57": {
+      "query": "서울 경력 1년차 Spring 백엔드 개발자",
+      "category": "boundary_exp",
+      "n_pool": 86,
+      "n_judged": 86,
+      "label_dist": {
+        "Incorrect": 40,
+        "Correct": 38,
+        "Ambiguous": 8
+      },
+      "random_floor": 0.4917,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.3889,
+          "norm_ndcg3": 0.5385
+        },
+        "dense": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "rrf": {
+          "ndcg3": 0.5866,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.1867
+        },
+        "rrf_ce": {
+          "ndcg3": 0.5307,
+          "p3": 0.6667,
+          "ap3": 0.3889,
+          "norm_ndcg3": 0.0767
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 18,
+        "n2_dense_rel": 18,
+        "overlap": 1,
+        "chapman_N": 179.5,
+        "pool_rel": 38,
+        "estimated_missed": 141.5
+      }
+    },
+    "q39": {
+      "query": "서울 강남 스프링부트 3년차 백엔드",
+      "category": "combo_dense",
+      "n_pool": 83,
+      "n_judged": 83,
+      "label_dist": {
+        "Incorrect": 46,
+        "Correct": 29,
+        "Ambiguous": 8
+      },
+      "random_floor": 0.3968,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 7,
+        "n2_dense_rel": 24,
+        "overlap": 4,
+        "chapman_N": 39.0,
+        "pool_rel": 29,
+        "estimated_missed": 10.0
+      }
+    },
+    "q31": {
+      "query": "서울에서 3년차 Java Spring 백엔드",
+      "category": "combo_balanced",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Incorrect": 47,
+        "Correct": 30,
+        "Ambiguous": 4
+      },
+      "random_floor": 0.3952,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 0.5307,
+          "p3": 0.6667,
+          "ap3": 0.3889,
+          "norm_ndcg3": 0.224
+        },
+        "rrf": {
+          "ndcg3": 0.5307,
+          "p3": 0.6667,
+          "ap3": 0.3889,
+          "norm_ndcg3": 0.224
+        },
+        "rrf_ce": {
+          "ndcg3": 0.8827,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.806
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 15,
+        "n2_dense_rel": 17,
+        "overlap": 5,
+        "chapman_N": 47.0,
+        "pool_rel": 30,
+        "estimated_missed": 17.0
+      }
+    },
+    "q17": {
+      "query": "서울 경력무관 React 개발자 채용",
+      "category": "exp_focus",
+      "n_pool": 83,
+      "n_judged": 83,
+      "label_dist": {
+        "Correct": 42,
+        "Incorrect": 33,
+        "Ambiguous": 8
+      },
+      "random_floor": 0.5616,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.4649
+        },
+        "bm25": {
+          "ndcg3": 0.1173,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 17,
+        "n2_dense_rel": 27,
+        "overlap": 5,
+        "chapman_N": 83.0,
+        "pool_rel": 42,
+        "estimated_missed": 41.0
+      }
+    },
+    "q41": {
+      "query": "부산 신입 Java 백엔드 개발자",
+      "category": "combo_dense",
+      "n_pool": 40,
+      "n_judged": 40,
+      "label_dist": {
+        "Incorrect": 36,
+        "Correct": 4
+      },
+      "random_floor": 0.1055,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.2961,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.2131
+        },
+        "dense": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.7377
+        },
+        "rrf": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.7377
+        },
+        "rrf_ce": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.7377
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 4,
+        "n2_dense_rel": 4,
+        "overlap": 4,
+        "chapman_N": 4.0,
+        "pool_rel": 4,
+        "estimated_missed": 0.0
+      }
+    },
+    "q38": {
+      "query": "경기 5년차 Docker 데브옵스",
+      "category": "combo_balanced",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Incorrect": 41,
+        "Correct": 27,
+        "Ambiguous": 13
+      },
+      "random_floor": 0.4091,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.148,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.852,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.7495
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 19,
+        "n2_dense_rel": 10,
+        "overlap": 4,
+        "chapman_N": 43.0,
+        "pool_rel": 27,
+        "estimated_missed": 16.0
+      }
+    },
+    "q63": {
+      "query": "서울 3년차 Python QA 엔지니어 테스트 자동화",
+      "category": "low_resource_role",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Incorrect": 80,
+        "Correct": 1
+      },
+      "random_floor": 0.0287,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.6309,
+          "p3": 0.3333,
+          "ap3": 0.5,
+          "norm_ndcg3": 0.62
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 0.3333,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 0.3333,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 0.5,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.4852
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 1,
+        "n2_dense_rel": 1,
+        "overlap": 1,
+        "chapman_N": 1.0,
+        "pool_rel": 1,
+        "estimated_missed": 0.0
+      }
+    },
+    "q44": {
+      "query": "대구에서 5년차 Kubernetes 다루는 시니어 개발자",
+      "category": "sparse_relax",
+      "n_pool": 41,
+      "n_judged": 41,
+      "label_dist": {
+        "Incorrect": 35,
+        "Correct": 4,
+        "Ambiguous": 2
+      },
+      "random_floor": 0.1205,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.7039,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.6633
+        },
+        "dense": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "rrf": {
+          "ndcg3": 0.2346,
+          "p3": 0.3333,
+          "ap3": 0.1111,
+          "norm_ndcg3": 0.1297
+        },
+        "rrf_ce": {
+          "ndcg3": 0.4693,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.3966
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 3,
+        "n2_dense_rel": 3,
+        "overlap": 3,
+        "chapman_N": 3.0,
+        "pool_rel": 4,
+        "estimated_missed": 0.0
+      }
+    },
+    "q49": {
+      "query": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까",
+      "category": "freeform",
+      "n_pool": 81,
+      "n_judged": 81,
+      "label_dist": {
+        "Incorrect": 40,
+        "Correct": 38,
+        "Ambiguous": 3
+      },
+      "random_floor": 0.4864,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.7039,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.4234
+        },
+        "dense": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 1.0,
+          "p3": 1.0,
+          "ap3": 1.0,
+          "norm_ndcg3": 1.0
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 16,
+        "n2_dense_rel": 27,
+        "overlap": 7,
+        "chapman_N": 58.5,
+        "pool_rel": 38,
+        "estimated_missed": 20.5
+      }
+    },
+    "q48": {
+      "query": "경남 3년차 Go 시스템 프로그래머",
+      "category": "sparse_relax",
+      "n_pool": 36,
+      "n_judged": 36,
+      "label_dist": {
+        "Incorrect": 32,
+        "Correct": 3,
+        "Ambiguous": 1
+      },
+      "random_floor": 0.0954,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 0.2961,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.2218
+        },
+        "rrf": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "rrf_ce": {
+          "ndcg3": 0.4693,
+          "p3": 0.3333,
+          "ap3": 0.3333,
+          "norm_ndcg3": 0.4133
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 3,
+        "n2_dense_rel": 3,
+        "overlap": 3,
+        "chapman_N": 3.0,
+        "pool_rel": 3,
+        "estimated_missed": 0.0
+      }
+    },
+    "q64": {
+      "query": "서울 3년차 AWS SRE 엔지니어 채용",
+      "category": "low_resource_role",
+      "n_pool": 80,
+      "n_judged": 80,
+      "label_dist": {
+        "Incorrect": 60,
+        "Ambiguous": 20
+      },
+      "random_floor": 0.2501,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "dense": {
+          "ndcg3": 0.7039,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.6052
+        },
+        "rrf": {
+          "ndcg3": 1.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 1.0
+        },
+        "rrf_ce": {
+          "ndcg3": 0.4693,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.2923
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 0,
+        "n2_dense_rel": 0,
+        "overlap": 0,
+        "chapman_N": 0.0,
+        "pool_rel": 0,
+        "estimated_missed": 0.0
+      }
+    },
+    "q53": {
+      "query": "서울 golang 10년차 서버 개발자",
+      "category": "parser_trap",
+      "n_pool": 77,
+      "n_judged": 77,
+      "label_dist": {
+        "Incorrect": 68,
+        "Ambiguous": 5,
+        "Correct": 4
+      },
+      "random_floor": 0.0841,
+      "oracle_ndcg3": 1.0,
+      "arms": {
+        "random": {
+          "ndcg3": 0.0,
+          "p3": 0.0,
+          "ap3": 0.0,
+          "norm_ndcg3": 0.0
+        },
+        "bm25": {
+          "ndcg3": 0.4134,
+          "p3": 0.3333,
+          "ap3": 0.1667,
+          "norm_ndcg3": 0.3595
+        },
+        "dense": {
+          "ndcg3": 0.8827,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.8719
+        },
+        "rrf": {
+          "ndcg3": 0.852,
+          "p3": 0.6667,
+          "ap3": 0.5556,
+          "norm_ndcg3": 0.8384
+        },
+        "rrf_ce": {
+          "ndcg3": 0.7654,
+          "p3": 0.6667,
+          "ap3": 0.6667,
+          "norm_ndcg3": 0.7439
+        }
+      },
+      "pool_miss": {
+        "n1_bm25_rel": 3,
+        "n2_dense_rel": 3,
+        "overlap": 2,
+        "chapman_N": 4.3,
+        "pool_rel": 4,
+        "estimated_missed": 0.3
+      }
+    }
+  },
+  "gate_failed": [
+    "human_kappa",
+    "self_consistency"
+  ]
+}

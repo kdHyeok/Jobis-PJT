@@ -85,7 +85,7 @@
   <div id="out"></div>
 
   <h2 class="section">파이프라인 성능 대시보드</h2>
-  <button id="eval-run">v4 평가 다시 측정</button>
+  <button id="eval-run">다시 계산 (골든셋 42질의 재실행, ~1~2분)</button>
   <span id="eval-status" class="note"></span>
   <div id="eval-body"></div>
 
@@ -237,29 +237,24 @@ function renderEval(rep) {
   const body = document.getElementById('eval-body');
   body.innerHTML = '';
 
-  if (!rep.headline || !rep.macro_average) {
-    const error = document.createElement('div');
-    error.className = 'note';
-    error.textContent = '지원하지 않는 이전 평가 리포트 형식입니다. v4 평가를 다시 측정하세요.';
-    body.appendChild(error);
-    return;
-  }
-
-  const headline = rep.headline;
-  const scores = headline.scores || {};
   const tiles = document.createElement('div');
   tiles.className = 'tiles';
-  tiles.appendChild(tile(escapeHtml(headline.best_arm || '-'), '최고 검색 arm', 'good'));
-  Object.entries(scores).forEach(([arm, score]) => {
-    tiles.appendChild(tile(`${score}`, `${escapeHtml(arm)} · ${escapeHtml(headline.metric)}`,
-      arm === headline.best_arm ? 'good' : ''));
-  });
+  const rrf = rep.search.rrf_only, ce = rep.search.with_rerank, delta = rep.search.mrr_delta;
+  tiles.appendChild(tile(`${ce.recall_at_10}`, `recall@10 (판정풀 내부)`));
+  tiles.appendChild(tile(`${rrf.mrr} → ${ce.mrr}`, `MRR (RRF → +재순위)`));
+  tiles.appendChild(tile(
+    `${delta.mean >= 0 ? '+' : ''}${delta.mean} <small>[${delta.ci95[0]}, ${delta.ci95[1]}]</small>`,
+    'MRR 변화량 (95% CI)', delta.significant ? 'good' : 'warn'));
+  tiles.appendChild(tile(`${rep.discrimination.auc_cross_encoder}`, 'AUC 재순위 (관련성 판별력)', 'good'));
+  tiles.appendChild(tile(`${rep.discrimination.auc_rrf}`, 'AUC RRF (비교군)'));
+  tiles.appendChild(tile(`${rep.parsing.exact_match_rate}`, `파싱 정확도 (${rep.parsing.checked}건 검증됨)`,
+    rep.parsing.exact_match_rate >= 0.95 ? 'good' : 'warn'));
+  tiles.appendChild(tile(`${rep.chunking.posting_whole_ratio}`, '공고 통짜 비율'));
   body.appendChild(tiles);
-
-  if (rep.gate_failed && rep.gate_failed.length) {
+  if (!delta.significant) {
     const n = document.createElement('div');
     n.className = 'note';
-    n.textContent = `주의: 실패한 평가 게이트 — ${rep.gate_failed.join(', ')}`;
+    n.textContent = 'MRR 변화량 CI가 0을 포함 — "재순위가 지표를 개선한다"는 주장은 통계적으로 근거 없음(골든셋이 재순위 결과를 온전히 판정 못 함). 대신 AUC로 판별력은 확인됨.';
     body.appendChild(n);
   }
 
@@ -269,47 +264,44 @@ function renderEval(rep) {
 
   const c1 = document.createElement('div');
   c1.className = 'card';
-  c1.innerHTML = '<h3>검색 arm별 정규화 nDCG@3</h3><div id="chart-arm"></div>';
+  c1.innerHTML = '<h3>카테고리별 recall@10 (재순위 적용)</h3><div class="legend"><span style="background:var(--series-1)"></span>recall</div><div id="chart-cat"></div>';
   grid.appendChild(c1);
-  barChart(c1.querySelector('#chart-arm'),
-    Object.entries(scores).map(([arm, score]) => ({
-      label: arm, value: score, display: score,
-      cls: arm === headline.best_arm ? 'b2' : '',
-    })));
+  barChart(c1.querySelector('#chart-cat'),
+    Object.entries(ce.recall_by_category).map(([k, v]) => ({label: k, value: v, display: v})),
+    {max: 1});
 
   const c2 = document.createElement('div');
   c2.className = 'card';
-  c2.innerHTML = '<h3>검색 arm별 원시 nDCG@3</h3><div id="chart-raw"></div>';
+  c2.innerHTML = '<h3>노드별 지연 (ms, 콜드스타트 제외 평균)</h3><div id="chart-lat"></div>';
   grid.appendChild(c2);
-  barChart(c2.querySelector('#chart-raw'),
-    Object.entries(rep.macro_average).map(([arm, metrics]) => ({
-      label: arm, value: metrics.ndcg3, display: metrics.ndcg3,
-    })), {max: 1});
+  const latOrder = ['query_parse', 'hybrid_search', 'generate', 'load_normalize', 'chunking', 'embedding', 'store_postings', 'store_chunks'];
+  const latData = latOrder.filter(k => rep.latency[k]).map(k => ({
+    label: k, value: rep.latency[k].avg_ms, display: `${rep.latency[k].avg_ms}ms`,
+  }));
+  barChart(c2.querySelector('#chart-lat'), latData);
 
   const c3 = document.createElement('div');
   c3.className = 'card';
-  c3.innerHTML = '<h3>쌍대 부트스트랩 비교</h3><div id="compare-list" class="note"></div>';
+  c3.innerHTML = `<h3>검색축 판별력 비교 (AUC, Correct/Incorrect ${rep.discrimination.n_correct}/${rep.discrimination.n_incorrect}쌍)</h3><div id="chart-auc"></div>`;
   grid.appendChild(c3);
-  const comparisons = Object.entries(rep.comparisons || {}).map(([name, value]) => {
-    const ci = value.ci_95 || [];
-    return `${name}: Δ=${value.mean_delta} · 95% CI [${ci.join(', ')}] · ${value.significant ? '유의' : '비유의'}`;
-  });
-  c3.querySelector('#compare-list').textContent = comparisons.join('\n') || '비교 결과 없음';
+  barChart(c3.querySelector('#chart-auc'), [
+    {label: 'CrossEncoder', value: rep.discrimination.auc_cross_encoder, display: rep.discrimination.auc_cross_encoder, cls: 'b2'},
+    {label: 'RRF', value: rep.discrimination.auc_rrf, display: rep.discrimination.auc_rrf},
+  ], {max: 1});
 
   const c4 = document.createElement('div');
   c4.className = 'card';
-  c4.innerHTML = '<h3>축별 최고 arm</h3><div id="axis-list" class="note"></div>';
+  c4.innerHTML = '<h3>파싱 필드별 정확도</h3><div id="chart-parse"></div>';
   grid.appendChild(c4);
-  const axes = Object.entries(rep.by_axis || {}).map(([axis, values]) => {
-    const arms = Object.entries(values).filter(([name]) => name !== 'n');
-    const best = arms.sort((a, b) => b[1] - a[1])[0] || ['-', '-'];
-    return `${axis} (n=${values.n ?? '?'}): ${best[0]} · ${best[1]}`;
-  });
-  c4.querySelector('#axis-list').textContent = axes.join('\n') || '축별 결과 없음';
+  barChart(c4.querySelector('#chart-parse'), [
+    {label: '기술(tech)', value: rep.parsing.tech_field_accuracy, display: rep.parsing.tech_field_accuracy},
+    {label: '지역(region)', value: rep.parsing.region_field_accuracy, display: rep.parsing.region_field_accuracy},
+    {label: '연차(exp)', value: rep.parsing.exp_field_accuracy, display: rep.parsing.exp_field_accuracy},
+  ], {max: 1});
 
   const meta = document.createElement('div');
   meta.className = 'note';
-  meta.textContent = `생성 시각: ${rep.generated_at} · 지표: ${headline.metric} · ${headline.definition}`;
+  meta.textContent = `생성 시각: ${rep.generated_at} · 청크 ${rep.chunking.total_chunks}개(평균 ${rep.chunking.avg_tokens}tok) · 라벨=LLM 자체판정(사람 기준 아님)`;
   body.appendChild(meta);
 }
 
@@ -333,7 +325,7 @@ document.getElementById('eval-run').onclick = async () => {
   const btn = document.getElementById('eval-run');
   const status = document.getElementById('eval-status');
   btn.disabled = true;
-  status.textContent = 'v4 게이트 확인 및 재측정 중...';
+  status.textContent = '재계산 중 (골든셋 42질의 × RRF/재순위 비교 + AUC + 파싱 정확도)...';
   try {
     const res = await fetch('/api/eval/run', {method: 'POST'});
     const data = await res.json();

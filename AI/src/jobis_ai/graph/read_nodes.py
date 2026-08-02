@@ -45,12 +45,30 @@ from jobis_ai.structured import llm_unconfigured, run_structured
 # ---------------------------------------------------------------------------
 # parse_job_posting  (Job Posting Parser, 설계 8장)
 # ---------------------------------------------------------------------------
+_ROLE_KEY_MENU = ", ".join(
+    f"{key}({get_role_taxonomy().label_of(key)})" for key in get_role_taxonomy().all_role_keys()
+)
+
+
 class _JobPostingRead(BaseModel):
     """파서 2차 LLM 추출 스키마 — **읽기 전용**(설계 §0 ① 읽기 계층).
 
-    `NormalizedJobPosting` 과 달리 `roleCategory`/`seniority` 가 **없다**. 그 둘은 '판단'이라
-    `role_taxonomy` 룰이 결정한다(§3.1). LLM 에게 애초에 그 필드를 주지 않아야 판단을 안 한다 —
-    프롬프트로 "하지 마라"라고 적는 것보다 스키마에서 빼는 게 확실하다.
+    `seniority`(연차 사다리 칸)는 여기 **없다** — 그건 판단이라 `role_taxonomy` 룰이 정한다.
+    LLM 에게 애초에 그 필드를 주지 않아야 판단을 안 한다(§2-2: 프롬프트로 "하지 마라"라고
+    적는 것보다 스키마에서 빼는 게 확실하다).
+
+    **연차(min/maxYears)는 여기 있다 — 읽기지 판단이 아니다(D118).** "공고가 몇 년을
+    요구하나"는 비정형 → 정형 추출이고, 정규식은 그 읽기의 조악한 구현이었다: 회사 소개의
+    "2025년"·"차세대", "학력무관", 프로젝트 나열 속 "8년 이상"을 요구 연차로 읽은 실측이
+    `rule_extractor` 주석에 넷 쌓여 있다. **years → 사다리 칸(seniority)은 그대로 룰이다.**
+
+    **`roleCategory` 도 여기 있다 — 단, 열린 생성이 아니라 닫힌 선택이다(D120).** "이 직무가
+    사전의 어느 직군에 가장 가까운가"는 의미 유사도 판단이고, 별칭 사전은 그걸 못 한다:
+    사전에 없는 표기가 오면 미상으로 떨어진다(실측 Gno=49638113 — "AI Agent 개발자"가
+    `role_unclassified`, 대체 경로 탐색이 막혔다). 별칭을 계속 늘리는 것은 새 직무명이 생길
+    때마다 지는 경주다. **사전(선택지)은 여전히 룰이 소유한다** — LLM 은 그 목록에서 고르기만
+    하고, 목록 밖 값은 버려진다. `career_graph` 전이 관계와 RAG 쿼리가 이 키를 쓰므로
+    없는 키가 들어오면 하류가 조용히 끊긴다.
     """
 
     # 설명을 비워 두면 약한 모델이 이 칸을 그냥 건너뛴다(gpt-4.1 계열에서 실측: 둘 다 빈 문자열).
@@ -61,6 +79,22 @@ class _JobPostingRead(BaseModel):
     companyName: str = Field(default="", description=(
         "채용하는 회사 이름. 대괄호·괄호 안에 있어도 뽑는다. "
         "예: '[클라우드웨이브] 백엔드 엔지니어' → '클라우드웨이브'. 원문에 없으면 빈 문자열."))
+    roleCategory: str = Field(default="", description=(
+        "이 공고의 직무가 **아래 목록 중 어디에 가장 가까운가**. 목록의 키를 그대로 하나만 "
+        f"적는다(괄호는 설명이다): {_ROLE_KEY_MENU}. "
+        "직무명 표기가 목록과 달라도 하는 일이 같으면 그 키를 고른다"
+        "(예: 'AI Agent 개발자' → ml_engineer, '서비스 서버 개발' → backend). "
+        "목록 어디에도 해당하지 않으면 빈 문자열 — **목록에 없는 값을 만들지 않는다.**"))
+    minYears: int | None = Field(default=None, description=(
+        "이 공고가 **지원 자격으로** 요구하는 최소 경력 연차(숫자). 신입/경력무관이면 0. "
+        "요구 연차를 적지 않았으면 null — 추측하지 않는다. "
+        "회사 소개·프로젝트 이력·설립연도에 적힌 연수는 요구 연차가 아니다."))
+    maxYears: int | None = Field(default=None, description=(
+        "요구 연차의 **상한**. 범위로 적었을 때만('경력 3~7년' → 7). "
+        "'3년 이상'처럼 상한이 없으면 null."))
+    yearsEvidence: str = Field(default="", description=(
+        "minYears 를 읽어낸 **원문 그대로의 조각**('경력 3년 이상'). 원문에 없는 말을 쓰면 "
+        "안 된다 — 이 문자열이 원문에 그대로 없으면 값 전체가 버려진다. 근거가 없으면 빈 문자열."))
     requiredRequirements: list[Requirement] = Field(default_factory=list)
     preferredRequirements: list[Requirement] = Field(default_factory=list)
     techStack: list[str] = Field(default_factory=list)
@@ -81,6 +115,8 @@ _JOB_PARSER_SYSTEM = """너는 채용공고에서 필드를 뽑아내는 추출�
   두 섹션이 모두 비어 있을 때만 fullText 에서 "우대/있으면 좋음" 같은 표현으로 필수·우대를 구분한다.
 - 각 requirement 는 한 문장 단위로 쪼갠다. requirementId 는 아무 값이나 넣어도 된다(뒤에서 룰이 재부여한다).
 - techStack 은 knownTechStack 에 **없는** 기술/언어/도구만. domainKeywords 는 산업·서비스 도메인 키워드(예: 커머스, 핀테크).
+- roleCategory 는 **목록에서 고르는 것**이지 지어내는 것이 아니다. 직무명 표기가 목록과 달라도 하는 일이 같으면 그 키를 고르고, 정말 해당이 없으면 빈 문자열로 둔다.
+- 연차(minYears/maxYears)는 **지원 자격으로 요구한 것만** 읽는다. 회사 설립연도·연혁("2025년 차세대"), 수행 프로젝트 나열 속 연수, "학력무관"의 무관은 요구 연차가 아니다. 헤더/요약에 적힌 요구 연차가 본문 어딘가의 숫자보다 우선한다. yearsEvidence 에는 그 근거를 **원문 그대로** 옮긴다.
 - 원문에 없는 내용을 지어내지 말 것. 불명확하거나 원문이 부실하면 uncertainties 에 한국어로 기록한다.
 - 모든 텍스트는 한국어로 출력한다."""
 
@@ -189,6 +225,10 @@ def _apply_rule_extraction(
 
     순서가 중요하다: **룰이 LLM 을 이긴다.** 룰은 원문에 그렇게 적혀 있을 때만 값을 내므로
     정밀도가 높고, LLM 은 그럴듯하게 지어낼 수 있다. 겹치면 룰 쪽을 신뢰한다.
+
+    **연차만 예외다(D118)** — 정규식은 "어디에 적혀 있나"를 못 봐서 회사 소개·프로젝트
+    나열의 숫자를 요구 연차로 읽었다. 대신 LLM 값은 근거 검증을 통과해야 채택한다
+    (`yearsEvidence` 가 원문에 그대로 있을 것) — 실패하면 룰 값으로 되돌린다.
     """
 
     warnings: list[dict] = []
@@ -206,13 +246,43 @@ def _apply_rule_extraction(
     # 기술스택: 룰이 찾은 것(확정) 먼저, LLM 이 추가로 찾은 것(사전에 없는 신기술 등)을 뒤에.
     posting.techStack = get_skill_taxonomy().normalize_all([*rules.techStack, *posting.techStack])
 
-    # 직군·연차: LLM 추정이 아니라 taxonomy 룰이 결정한다(§3.1).
-    posting.roleCategory = roles.classify_role(posting.jobTitle, text)
-    posting.seniority = roles.classify_seniority(posting.jobTitle, text, years=rules.minYears)
-    # 숫자 원본을 보존한다 — 사다리 칸은 손실 요약이라 판정(연차 대 연차)과 표기(원문)는
-    # 이 값을 우선한다.
-    posting.minYears = rules.minYears
-    posting.yearsEvidence = rules.yearsEvidence
+    # 연차: LLM 이 **읽고**(어디에 적힌 숫자인지 의미로 가른다), 근거 검증을 통과할 때만
+    # 채택한다. 실패하면 룰 값으로 되돌린다 — 검증 없이 받으면 §2-5(없는 근거 금지)가 뚫린다.
+    evidence = _clean_field(posting.yearsEvidence)
+    llm_read_years = posting.minYears is not None and bool(evidence) and evidence in text
+    if not llm_read_years:
+        if posting.minYears is not None:
+            warnings.append({
+                "code": "years_evidence_unverified",
+                "message": (f"LLM 이 읽은 요구 연차({posting.minYears}년)의 근거"
+                            f"'{evidence or '(없음)'}'를 원문에서 찾지 못해 룰 값으로 되돌립니다."),
+            })
+        posting.minYears = rules.minYears
+        posting.maxYears = rules.maxYears
+        posting.yearsEvidence = rules.yearsEvidence
+    else:
+        posting.yearsEvidence = evidence
+
+    # 직군(D120) — 세 단계, 정밀한 것부터:
+    #   ① 직무명의 별칭 정확 일치(룰). 사전에 있는 표기면 이게 가장 확실하다.
+    #   ② LLM 이 사전 목록에서 고른 값. 표기가 사전에 없을 때 의미로 잇는다.
+    #   ③ 본문 빈도(룰). 마지막 수단 — 직무명이 아니라 본문에서 세는 거라 오분류가 쉽다
+    #      (담당업무에 "백엔드"가 몇 번 나온다고 백엔드 공고인 것은 아니다). LLM 뒤로 내렸다.
+    llm_pick = _clean_field(posting.roleCategory).lower()
+    if llm_pick and not roles.is_known_role(llm_pick):
+        # 사전 밖 값은 버린다 — career_graph·RAG 가 이 키로 조회하므로 없는 키는 하류를
+        # 조용히 끊는다. 버렸다는 사실은 남긴다(§2-6).
+        warnings.append({
+            "code": "role_pick_off_taxonomy",
+            "message": f"LLM 이 사전에 없는 직군 '{llm_pick}' 을 골라 무시합니다",
+        })
+        llm_pick = ""
+    posting.roleCategory = (roles.classify_role(posting.jobTitle, "")
+                            or llm_pick
+                            or roles.classify_role("", text))
+    # 사다리 칸은 연차 숫자를 5칸으로 뭉갠 **손실 요약**이다 — 판정(연차 대 연차)과 표기(원문)는
+    # minYears/yearsEvidence 를 우선한다.
+    posting.seniority = roles.classify_seniority(posting.jobTitle, text, years=posting.minYears)
 
     if not posting.roleCategory:
         warnings.append({
@@ -224,9 +294,9 @@ def _apply_rule_extraction(
             "code": "seniority_unknown",
             "message": "요구 연차 근거를 찾지 못해 미상으로 둡니다(추측하지 않음).",
         })
-    elif rules.yearsEvidence:
+    elif posting.yearsEvidence:
         posting.uncertainties.append(
-            f"요구 연차는 원문 '{rules.yearsEvidence}' 근거로 {posting.seniority} 로 분류했습니다."
+            f"요구 연차는 원문 '{posting.yearsEvidence}' 근거로 {posting.seniority} 로 분류했습니다."
         )
     return warnings
 
@@ -569,6 +639,17 @@ def build_user_profile(state: GraphState) -> dict[str, Any]:
 
     resumeInput 이 없으면(실서비스의 DB 조회 경로 미구현 단계) 폴백 샘플을 쓴다.
     """
+
+    # 멱등(D84) — 이미 구조화된 프로필이 상태에 있으면 그대로 쓴다. parse_job_posting 과
+    # 같은 규약: 화이트보드(세션 profile)의 지식을 진입부가 실어 주면 LLM 재추출이 없다.
+    already = state.get("normalizedUserProfile") or {}
+    if any(already.get(k) for k in ("skills", "experiences", "projects", "education")):
+        return {
+            "status": Status.BUILDING_PROFILE,
+            "normalizedUserProfile": already,
+            "toolLog": [_log("build_user_profile", "이미 구조화된 프로필을 재사용",
+                             to="check_sufficiency")],
+        }
 
     resume_source = state.get("resumeInput")
     warnings: list[dict] = []

@@ -80,6 +80,33 @@ _ANALYSIS = {
 _RESUME = {"sourceType": "text", "value": "Java Spring 백엔드 2년. 재고관리 API 프로젝트."}
 _POSTING = {"sourceType": "text", "value": "백엔드 채용. 자격요건 Java/Spring 2년, Kafka."}
 
+# --- 강조 재작성 케이스 전용 입력 (2026-08-02) ------------------------------------
+# "트러블슈팅 살려서 다시" 같은 요청은 **이력서에 그 단어가 없어도 성립한다.** 그 요건을 재려면
+# 요청어와 겹치지 않는 근거가 있어야 하므로, 근거를 `evidenceMap` 에만 둔다 — 구조화 항목
+# (projects/achievements)에는 없다. 재료가 좁으면 LLM 이 아무리 잘 읽어도 못 찾는 자리다.
+_TROUBLE_TEXT = "재고 동기화 중복 차감 장애를 추적해 낙관적 락으로 해결했습니다."
+_PROFILE_WITH_EVIDENCE = {
+    **_PROFILE,
+    "evidenceMap": [
+        {"evidenceId": "ev-1", "source": "p1", "text": _TROUBLE_TEXT},
+        {"evidenceId": "ev-2", "source": "p1",
+         "text": "Spring Boot 와 MySQL 로 주문·재고 API 를 구현했습니다."},
+    ],
+}
+_PRIOR_DRAFT = {
+    "status": "draft_pending_review",
+    "motivation": "Java/Spring 으로 백엔드를 다뤄 왔기에 지원합니다. 재고관리 API 를 설계했습니다. "
+                  "같은 문제를 더 큰 규모에서 풀고 싶습니다.",
+    "strengthsParagraph": "재고관리 API 에서 백엔드를 맡았습니다. Java 와 Spring Boot 로 "
+                          "주문 도메인을 구현했습니다. MySQL 스키마를 직접 설계했습니다.",
+    "improvementParagraph": "Kafka 경험은 아직 없습니다. 학습 계획을 세워 메우고 있습니다. "
+                            "토이 프로젝트에 적용해 볼 계획입니다.",
+    "revisions": 1,
+}
+# 요청어("트러블슈팅")와 한 글자도 겹치지 않는 근거의 표지. 이 중 하나라도 새 강점 문단에
+# 들어왔다면 **문자 대조가 아니라 의미로** 근거를 골랐다는 뜻이다.
+_TROUBLE_MARKERS = ("락", "중복 차감", "동기화", "장애")
+
 
 def _cases() -> list[tuple]:
     """(이름, 모듈, 세션, 불변식(steps, reply) -> bool | None)
@@ -105,6 +132,17 @@ def _cases() -> list[tuple]:
           "job_posting": _POSTING, "last_message": "자소서 초안 써줘"},
          # 저장 없이 답하면 화면에 나갈 본문이 없다(초안은 save_draft 로만 기록된다).
          lambda tools, reply: "save_draft" in tools),
+
+        # 2026-08-02 추가 — 자소서의 실사용은 한 번 받고 끝이 아니라 "이거 살려서 다시"다.
+        # 그 요청은 이력서에 **요청어가 없어도** 성립해야 한다(트러블슈팅 → 장애·락). 재료를
+        # 좁혀 두면(구버전: evidenceMap 미수집 + find_evidence 0건이면 "없습니다") 구조적으로
+        # 불가능한 자리라, 이 케이스가 그 표면의 유일한 측정이다.
+        ("coverletter_emphasis", "coverletter_draft",
+         {"profile": _PROFILE_WITH_EVIDENCE, "analysis": _ANALYSIS, "resume": _RESUME,
+          "job_posting": _POSTING, "coverletter": _PRIOR_DRAFT,
+          "last_message": "트러블슈팅 경험 살려서 강점 문단 다시 써줘"},
+         lambda tools, reply: "save_draft" in tools
+                              and any(m in reply for m in _TROUBLE_MARKERS)),
     ]
 
 
@@ -159,14 +197,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="자기 루프 궤적 안정성 평가 (실 LLM)")
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--save", help="결과 JSON 저장 경로 — 콘솔에서 사라지는 수치는 baseline 이 못 된다")
+    # 대조군·실험군을 같은 공급자로 직접 돌릴 때 관련 케이스만 잰다(실 LLM 이라 전 케이스는 비싸다).
+    parser.add_argument("--case", action="append", help="이 이름의 케이스만 실행 (여러 번 지정 가능)")
     args = parser.parse_args()
     runs = args.runs
+
+    cases = [c for c in _cases() if not args.case or c[0] in args.case]
+    if not cases:
+        parser.error(f"해당 케이스 없음. 가능한 이름: {', '.join(c[0] for c in _cases())}")
 
     from jobis_ai.agents.agent_loop import DEFAULT_MAX_STEPS
     from jobis_ai.eval import provenance
 
-    meta = provenance(runs=runs)
-    print(f"=== 자기 루프 궤적 안정성 — {len(_cases())}케이스 × {runs}회 (실 LLM) ===")
+    meta = provenance(runs=runs, cases=[c[0] for c in cases])
+    print(f"=== 자기 루프 궤적 안정성 — {len(cases)}케이스 × {runs}회 (실 LLM) ===")
     print(f"    provider={meta['provider']} model={meta['model']}"
           f" / 기본 스텝 상한={DEFAULT_MAX_STEPS}\n")
 
@@ -174,7 +218,7 @@ def main() -> None:
     total_handoffs = 0
     total_handoff_ok = 0
     case_reports: list[dict] = []
-    for name, module, session, invariant in _cases():
+    for name, module, session, invariant in cases:
         trajectories: list[str] = []
         replied = 0
         step_counts: list[int] = []

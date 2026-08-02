@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 
-from jobrag.sources import parse_exp_range
+from jobrag.sources import parse_exp_from_body, parse_exp_range
 from jobrag.store import connect
 
 
@@ -19,20 +19,30 @@ def main():
     dry_run = "--dry-run" in sys.argv
     conn = connect()
     with conn.cursor() as cur:
-        cur.execute("SELECT uid, exp_min, exp_max, raw->>'experience' FROM postings")
+        cur.execute("""SELECT uid, exp_min, exp_max, needs_review,
+                              raw->>'experience', title, raw->>'detail_text'
+                       FROM postings""")
         rows = cur.fetchall()
 
     updates = []
-    changed = 0
-    for uid, old_min, old_max, raw_exp in rows:
-        new_min, new_max, _ = parse_exp_range(raw_exp or "")
+    changed = from_body = 0
+    for uid, old_min, old_max, old_review, raw_exp, title, body in rows:
+        raw_exp = raw_exp or ""
+        new_min, new_max, suspect = parse_exp_range(raw_exp)
+        # 크롤러가 experience에 라벨만 담은 공고("경력") 구제 — to_posting과 동일 규칙.
+        # "무관"/"신입"은 파서가 의도적으로 준 값이므로 덮지 않는다.
+        if new_min is None and "무관" not in raw_exp and "신입" not in raw_exp:
+            b = parse_exp_from_body(f"{title or ''}\n{body or ''}")
+            if b is not None:
+                new_min, suspect = b, True
+                from_body += 1
         if (new_min, new_max) != (old_min, old_max):
             changed += 1
-            print(f"  {uid}: exp_min {old_min}->{new_min}, exp_max {old_max}->{new_max}  "
-                  f"(원문: {raw_exp!r})")
-        updates.append((new_min, new_max, uid))
+            print(f"  {uid}: exp_min {old_min}->{new_min}, exp_max {old_max}->{new_max}"
+                  f"  (experience={raw_exp!r}{', 본문추정' if suspect and new_min is not None else ''})")
+        updates.append((new_min, new_max, suspect or bool(old_review), uid))
 
-    print(f"\n대상 {len(rows)}건 중 변경 {changed}건")
+    print(f"\n대상 {len(rows)}건 중 변경 {changed}건 (본문 보강 {from_body}건)")
 
     if dry_run:
         print("(--dry-run: DB 갱신 없음)")
@@ -41,7 +51,8 @@ def main():
 
     with conn.cursor() as cur:
         cur.executemany(
-            "UPDATE postings SET exp_min = %s, exp_max = %s, updated_at = now() WHERE uid = %s",
+            "UPDATE postings SET exp_min = %s, exp_max = %s, needs_review = %s, "
+            "updated_at = now() WHERE uid = %s",
             updates,
         )
     conn.commit()

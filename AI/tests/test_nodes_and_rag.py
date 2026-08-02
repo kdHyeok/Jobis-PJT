@@ -10,7 +10,7 @@ from jobis_ai.graph.nodes import (
     find_alternatives,
     parse_job_posting,
 )
-from jobis_ai.rag import NullRagAdapter, get_rag_adapter
+from jobis_ai.rag import NullRagAdapter, RagResult, get_rag_adapter
 from jobis_ai.roadmap_scheduler import PlannedItem, schedule
 
 
@@ -160,12 +160,18 @@ def test_schedule_drops_items_that_cannot_finish_within_horizon():
 
 
 # --- Alternative Path Finder + RAG hook ----------------------------------
-def test_build_alternative_query_combines_job_and_gaps():
+def test_build_alternative_query_uses_posting_only_not_gaps():
+    """쿼리는 공고(직무·직군·기술)와 하위 직업군으로만 만든다 — 갭은 안 싣는다(D112).
+
+    식별자("req-2")는 의미 검색의 쿼리 임베딩을 흐리고, 미충족 스킬은 목적과 역방향이다
+    (그 스킬을 **요구하는** 공고를 끌어와 reducedGaps 가 깎인다). 키워드 검색에서는 둘 다
+    증상이 없어(모든 후보 점수를 똑같이 깎음) 이 회귀를 테스트가 잡아야 한다.
+    """
     posting = {"jobTitle": "백엔드 개발자", "roleCategory": "web-backend",
                "techStack": ["Java", "Spring"]}
-    gap = {"gaps": [{"requirementId": "req-2"}]}
-    query = _build_alternative_query(posting, gap)
-    assert "백엔드 개발자" in query and "Java" in query and "req-2" in query
+    query = _build_alternative_query(posting)
+    assert "백엔드 개발자" in query and "Java" in query and "web-backend" in query
+    assert "req-2" not in query and "Kubernetes" not in query
 
 
 def test_llm_call_failure_returns_honest_empty_not_fake(monkeypatch):
@@ -245,3 +251,36 @@ def test_find_alternatives_calls_rag_and_stays_honest_when_unconnected(monkeypat
     assert out["alternativeJobs"], "폴백이라도 경로 제안은 있어야 한다"
     assert all(j["sourceJobPostingId"] is None for j in out["alternativeJobs"]), \
         "RAG 미연결이면 구체 공고 id 를 지어내지 않는다"
+
+
+def test_find_alternatives_excludes_experience_mismatch(monkeypatch):
+    """대안 공고도 연차로 거른다(D115) — 신입에게 '경력 7년 이상' 공고는 대안이 아니다.
+
+    job_recommend 에만 필터가 있어서, 같은 사용자가 추천에서는 걸러지고 대안 공고에서는
+    7년 요구 공고를 받던 비대칭을 막는다. 제외 사실은 warning 과 uncertainties 로 남는다.
+    """
+
+    def fake_search(query, *, top_k=5):
+        return RagResult(items=[
+            {"text": "Java Spring 백엔드", "title": "시니어 백엔드 개발자",
+             "companyName": "가", "jobPostingId": "p-1", "url": "", "seniority": "경력 7년",
+             "score": 0.9},
+            {"text": "Java Spring 백엔드", "title": "백엔드 개발자",
+             "companyName": "나", "jobPostingId": "p-2", "url": "", "seniority": "신입",
+             "score": 0.8},
+        ])
+
+    monkeypatch.setattr(get_rag_adapter(), "search", fake_search)
+
+    state = {
+        "normalizedJobPosting": {"jobTitle": "백엔드 개발자", "techStack": ["Java"]},
+        "gapAnalysisResult": {"gaps": [{"requirementId": "req-2"}], "strengths": []},
+        # 경력 근거가 없는 프로필 = 신입(0년) — 추정기가 0개월을 낸다.
+        "normalizedUserProfile": {"skills": [{"name": "Java"}], "experiences": [],
+                                  "projects": [], "evidences": []},
+    }
+    out = find_alternatives(state)
+
+    assert any(w["code"] == "experience_filtered" for w in out["warnings"])
+    ids = {j["sourceJobPostingId"] for j in out["alternativeJobs"]}
+    assert "p-1" not in ids, "7년 요구 공고를 신입에게 대안으로 주지 않는다"

@@ -90,6 +90,21 @@ def test_all_fail_warns_not_raises(monkeypatch):
     assert any(w["code"] == "empty_extract" for w in result.warnings)
 
 
+def test_meta_description_prepended(monkeypatch):
+    """잡코리아 헤더 요약(경력·학력)은 JS 렌더라 jina 본문에 없다 — 정적 meta description
+    을 본문 맨 앞에 붙여 파서가 공고 대표 연차를 먼저 보게 한다(실측 Gno=49564982)."""
+
+    page = (
+        '<html><head><meta name="description" content="채용 - 운영개발, 경력 1~5년, 학력무관">'
+        "</head><body></body></html>"
+    )
+    monkeypatch.setattr(feat_url, "_jina_text", lambda url, result: "본문. RDBMS 8년 이상 경험")
+    monkeypatch.setattr(feat_url, "_get", _fake_get({PAGE_URL: page}))
+    result = feat_url.fetch_job_posting(PAGE_URL)
+    assert result.text.startswith("채용 - 운영개발, 경력 1~5년")
+    assert "8년 이상" in result.text
+
+
 def test_ascii_url_encodes_korean_but_keeps_reserved_chars():
     """한글 검색어가 인코딩 없이 섞인 실제 붙여넣기 주소 — urllib 즉사 방지 (2026-07-30 실측)."""
 

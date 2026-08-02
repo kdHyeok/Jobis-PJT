@@ -25,6 +25,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from jobis_ai.agents import AgentResult
+from jobis_ai.agents._common import posting_identity
 from jobis_ai.gap_matcher import GRADE_HIGH, GRADE_MID
 from jobis_ai.structured import run_structured
 from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
@@ -306,6 +307,13 @@ def render_plan_reply(decision: dict[str, Any], routes: list[dict[str, Any]]) ->
         tag = " · ".join(t for t in tags if t)
         summary = str(route.get("summary") or "").strip()
         route_lines.append(f"{index}. [{tag}] {title}" + (f" — {summary}" if summary else ""))
+        # 유사공고 병행 경로의 실공고(D91) — 경로 제목만 주고 공고를 안 주면 사용자는
+        # 어디에 지원하며 병행하라는 것인지 알 수 없다.
+        for posting in (route.get("relatedPostings") or [])[:3]:
+            name = str(posting.get("companyName") or "").strip()
+            title_text = str(posting.get("title") or "").strip()[:40]
+            link = f" — {posting['url']}" if posting.get("url") else ""
+            route_lines.append(f"   · {name} | {title_text}{link}")
     if route_lines:
         lines.append("지원 경로:")
         lines += route_lines
@@ -315,6 +323,55 @@ def render_plan_reply(decision: dict[str, Any], routes: list[dict[str, Any]]) ->
         lines.append(f"(다시 판정해 볼 시점: {recheck})")
 
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# 위임 — 유사공고 병행 경로의 실공고 (P1-a/D91)
+# ---------------------------------------------------------------------------
+def _related_postings(session: dict[str, Any]) -> tuple[list[dict], list[dict]]:
+    """"유사공고 병행" 경로에 실을 실공고 — job_recommend 를 **읽기 전용**으로 소비한다.
+
+    같은 계산(실공고 추천)을 여기서 다시 만들지 않고 물어본다(확장 계획 P1-a 1안).
+    application_plan 은 단발 호출이라 delegate_tool(agent_loop 전용)을 못 쓰므로 그 가드를
+    수동 재현한다: ① 전제 미충족이면 실행하지 않고 거부를 관찰로 남긴다(분모 기록),
+    ② 상대의 sessionUpdates·캐시는 버린다 — 상태 전이는 오케스트레이터만(§2-4),
+    ③ 실패해도 경로 문구는 기존 폴백으로 남는다(이 위임은 강화지 전제가 아니다).
+    """
+
+    from jobis_ai import trace
+    from jobis_ai.agents import get_agent_registry
+    from jobis_ai.orchestrator.router import runnable_now, session_assets
+
+    spec = get_agent_registry().get("job_recommend")
+    if spec is None:
+        return [], []
+    if not runnable_now(spec, session_assets(session)):
+        trace.emit("delegate_refused", "위임 거부: job_recommend — 전제 미충족", {
+            "target": "job_recommend", "from": "application_plan",
+            "reason": "preconditions_not_met",
+        })
+        return [], []
+
+    sess = dict(session)
+    sess["_stagedUpdates"] = {}      # 읽기 전용 — 위임의 캐시·상태가 본 턴에 남지 않는다
+    try:
+        outcome = spec.entry(sess)
+    except Exception as exc:        # noqa: BLE001 — 강화 실패가 본 판정을 막지 않는다
+        return [], [{"code": "delegate_failed",
+                     "message": f"application_plan→job_recommend 실패: {exc}"}]
+
+    recommendations = list((outcome.data or {}).get("recommendations") or [])[:3]
+    trace.emit("delegate", "에이전트 위임 호출: job_recommend (읽기 전용)", {
+        "target": "job_recommend", "from": "application_plan",
+        "results": len(recommendations),
+    })
+    related = [{"companyName": str(r.get("companyName") or ""),
+                "title": str(r.get("title") or ""),
+                "url": str(r.get("url") or "")} for r in recommendations]
+    warnings = [{"code": "delegated_warning",
+                 "message": f"job_recommend: {w.get('message', '')}"}
+                for w in (outcome.warnings or [])]
+    return related, warnings
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +393,7 @@ def run(session: dict[str, Any]) -> AgentResult:
     score = analysis.get("overallScore")
     roadmap = list(analysis.get("roadmap") or [])
     first_step = (roadmap[0].get("title") or "") if roadmap else ""
-    posting = session.get("job_posting") or {}
+    _company, _role = posting_identity(session)
 
     # 경로별 부담·필수조건 충돌은 룰이 정한다(문구가 아니라 판정이다).
     route_specs = [
@@ -347,8 +404,10 @@ def run(session: dict[str, Any]) -> AgentResult:
     ]
 
     facts = {
-        "company": analysis.get("companyName") or posting.get("company") or "",
-        "role": analysis.get("roleTitle") or "",
+        # `posting.get("company")` 로 찾던 폴백은 늘 빈 값이었다 — job_posting 자산은
+        # {sourceType, value} 원천이라 회사명 칸이 없다. 파싱 결과에서 읽는다.
+        "company": _company,
+        "role": _role,
         "status": status,
         "score": round(score * 100) if isinstance(score, (int, float)) else None,
         "met": met[:6],
@@ -368,6 +427,10 @@ def run(session: dict[str, Any]) -> AgentResult:
         "nextTarget": written.get("nextTarget") or "",
         "recheckCondition": written.get("recheckCondition") or "",
     }
+    # 유사공고 병행 경로의 실공고 — job_recommend 읽기 전용 위임(P1-a/D91).
+    related, delegate_warnings = _related_postings(session)
+    warnings.extend(delegate_warnings)
+
     written_routes = {r["id"]: r for r in written.get("routes") or []}
     routes = []
     for spec in route_specs:
@@ -380,7 +443,7 @@ def run(session: dict[str, Any]) -> AgentResult:
             "risks": text.get("risks", []),
             "confirmed": met[:3],
             "missing": unmet[:3],
-            "relatedPostings": [],
+            "relatedPostings": related if spec["id"] == "parallel" else [],
         })
 
     plan = {"decision": decision, "routes": routes}

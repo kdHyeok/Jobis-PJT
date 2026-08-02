@@ -1,0 +1,857 @@
+<title>RAG 검색 성능 평가 — 사람 검증 결과</title>
+<style>
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --mut:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --bd:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --nul:#898781;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --hm0:#cde2fb; --hm1:#9ec5f4; --hm2:#5598e7; --hm3:#256abf; --hm4:#104281;
+  /* 셀 텍스트 색은 대비 실측으로 결정 (WCAG 4.5:1 이상). 밝은쪽 step2는 흰 글씨가
+     2.99:1로 미달이라 잉크색으로 내린다 — 6.59:1. */
+  --hm0t:#0b0b0b; --hm1t:#0b0b0b; --hm2t:#0b0b0b; --hm3t:#ffffff; --hm4t:#ffffff;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme=light])){
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink2:#c3c2b7; --mut:#898781;
+  --grid:#2c2c2a; --axis:#383835; --bd:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926;
+  --hm0:#0d366b; --hm1:#184f95; --hm2:#256abf; --hm3:#5598e7; --hm4:#9ec5f4;
+  --hm0t:#ffffff; --hm1t:#ffffff; --hm2t:#ffffff; --hm3t:#0b0b0b; --hm4t:#0b0b0b;
+}}
+:root[data-theme=dark]{
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink2:#c3c2b7; --mut:#898781;
+  --grid:#2c2c2a; --axis:#383835; --bd:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926;
+  --hm0:#0d366b; --hm1:#184f95; --hm2:#256abf; --hm3:#5598e7; --hm4:#9ec5f4;
+  --hm0t:#ffffff; --hm1t:#ffffff; --hm2t:#ffffff; --hm3t:#0b0b0b; --hm4t:#0b0b0b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);font-family:var(--sans);
+  line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:48px 24px 96px}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:8px}
+.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut);
+  font-family:var(--mono);margin:0 0 10px}
+h1{font-size:clamp(26px,4vw,40px);line-height:1.15;margin:0 0 12px;text-wrap:balance;
+  letter-spacing:-.02em;font-weight:640}
+.dek{font-size:17px;color:var(--ink2);margin:0;max-width:64ch}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:16px;font-family:var(--mono);
+  font-size:11.5px;color:var(--mut)}
+section{margin-top:44px}
+h2{font-size:20px;margin:0 0 6px;letter-spacing:-.01em;font-weight:640;
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h2 .n{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.1em}
+h3{font-size:15px;margin:26px 0 8px;font-weight:640}
+.lede{color:var(--ink2);margin:0 0 18px;max-width:70ch;font-size:14.5px}
+p{margin:0 0 12px}
+.card{background:var(--surface);border:1px solid var(--bd);border-radius:10px;padding:20px 22px}
+.grid2{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+/* 게이트 */
+.gates{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.gate{background:var(--surface);border:1px solid var(--bd);border-radius:10px;
+  padding:16px 18px;border-left:4px solid var(--mut)}
+.gate.pass{border-left-color:var(--good)} .gate.fail{border-left-color:var(--crit)}
+.gate.na{border-left-color:var(--warn)}
+.gate .nm{font-size:12.5px;color:var(--ink2);margin:0 0 6px;font-weight:600}
+.gate .st{display:flex;align-items:center;gap:8px;font-size:22px;font-weight:660;margin-bottom:6px}
+.gate .st .ic{font-size:14px}
+.gate.pass .st{color:var(--good)} .gate.fail .st{color:var(--crit)} .gate.na .st{color:var(--warn)}
+.gate .why{font-size:12px;color:var(--mut);font-family:var(--mono);line-height:1.5}
+/* 핵심수치 */
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--bd);border-radius:10px;padding:16px 18px}
+.tile .k{font-size:11.5px;color:var(--mut);margin:0 0 4px;font-family:var(--mono)}
+.tile .v{font-size:29px;font-weight:660;letter-spacing:-.02em;line-height:1.1}
+.tile .s{font-size:12px;color:var(--ink2);margin-top:4px}
+/* 차트 */
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font-family:var(--sans);fill:var(--ink2)}
+.chart .rlabel{font-size:12.5px;fill:var(--ink);font-weight:600}
+.chart .rlabel.sm{font-size:11.5px}
+.chart .rsub{font-size:10.5px;fill:var(--mut)}
+.chart .mono,.chart .val,.chart .tick,.chart .tag{font-family:var(--mono)}
+.chart .val{font-size:11.5px;fill:var(--ink);font-variant-numeric:tabular-nums}
+.chart .tick{font-size:10px;fill:var(--mut)}
+.chart .mid{text-anchor:middle}
+.chart .tag{font-size:10.5px}
+.chart .tag.s1{fill:var(--s1)} .chart .tag.nul{fill:var(--mut)}
+.chart .grid{stroke:var(--grid);stroke-width:1}
+.chart .axis{stroke:var(--axis);stroke-width:1}
+.chart .zero{stroke:var(--ink2);stroke-width:1.5}
+.chart .ci{stroke:var(--s1);stroke-width:2;opacity:.55}
+.chart .ci.nul{stroke:var(--nul)}
+.chart .ci-cap{stroke:var(--s1);stroke-width:2;opacity:.55}
+.chart .dot.s1{fill:var(--s1)} .chart .dot.nul{fill:var(--nul)}
+.chart .bar.s1{fill:var(--s1)} .chart .bar.s2{fill:var(--s2)}
+.chart .pt{stroke:var(--surface);stroke-width:2}
+.chart .pt.s1{fill:var(--s1)} .chart .pt.crit{fill:var(--crit)}
+.chart .rule-crit{stroke:var(--crit);stroke-width:2}
+.chart .rule-mut{stroke:var(--mut);stroke-width:2}
+.chart .rule-lbl{font-size:10.5px;font-family:var(--mono)}
+.chart .rule-lbl.crit{fill:var(--crit)} .chart .rule-lbl.mut{fill:var(--mut)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 14px;font-size:12.5px;color:var(--ink2)}
+.legend span{display:flex;align-items:center;gap:7px}
+.sw{width:13px;height:13px;border-radius:3px;flex:none}
+.sw.s1{background:var(--s1)} .sw.s2{background:var(--s2)} .sw.nul{background:var(--nul)}
+/* 표 */
+.scroll{overflow-x:auto;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:right;padding:9px 12px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+  font-weight:600;background:var(--plane);position:sticky;top:0}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+td.best{font-weight:680;color:var(--s1)}
+.hm td.c{text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-weight:600;border:2px solid var(--surface);border-radius:0}
+.hm td.c[data-step="0"]{background:var(--hm0);color:var(--hm0t)}
+.hm td.c[data-step="1"]{background:var(--hm1);color:var(--hm1t)}
+.hm td.c[data-step="2"]{background:var(--hm2);color:var(--hm2t)}
+.hm td.c[data-step="3"]{background:var(--hm3);color:var(--hm3t)}
+.hm td.c[data-step="4"]{background:var(--hm4);color:var(--hm4t)}
+details{margin-top:14px;border:1px solid var(--bd);border-radius:10px;background:var(--surface)}
+details>summary{cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:var(--ink2)}
+details>summary:hover{color:var(--ink)}
+details[open]>summary{border-bottom:1px solid var(--bd)}
+details .in{padding:4px}
+details .in .scroll{border:0;border-radius:0}
+:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+/* 해설 */
+.note{border-left:3px solid var(--s1);padding:12px 0 12px 16px;margin:16px 0;
+  font-size:14px;color:var(--ink2);background:transparent}
+.note strong{color:var(--ink)}
+.warnbox{border-left:3px solid var(--crit);padding:12px 0 12px 16px;margin:16px 0;font-size:14px}
+.warnbox strong{color:var(--crit)}
+.gloss{display:grid;gap:0;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.gi{padding:14px 18px;border-top:1px solid var(--bd)}
+.gi dt{font-weight:660;font-size:13.5px;margin-bottom:3px}
+.gi dt .en{font-family:var(--mono);font-size:11.5px;color:var(--mut);font-weight:400;margin-left:6px}
+.gi dd{margin:0;font-size:13px;color:var(--ink2);line-height:1.6}
+ul.tight{margin:0 0 12px;padding-left:20px;font-size:14px;color:var(--ink2)}
+ul.tight li{margin-bottom:7px}
+ul.tight strong{color:var(--ink)}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--bd);
+  font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="wrap">
+<header class="top">
+<p class="eyebrow">사람 채점 반영 · 정규화 질의 트랙</p>
+<h1>RAG 검색 성능 평가 결과</h1>
+<p class="dek">사람이 앵커 118쌍을 손수 라벨링해, 이 프로젝트 최초로
+<strong>사람 기준</strong> 측정이 됐다. 그전까지의 신뢰도 수치는 모두 LLM 대 LLM 비교였다.</p>
+<div class="meta">
+<span>판정 프롬프트 v3</span>
+<span>질의 15종</span>
+<span>판정 439쌍</span>
+<span>사람 검증 118쌍 (26.9%)</span>
+<span>풀 depth 10</span>
+<span>2026-07-28</span>
+</div></header>
+<section><h2>한눈에 <span class="n">요약</span></h2>
+<div class="tiles">
+<div class="tile"><p class="k">최고 성능 구성</p><div class="v mono">rrf_ce</div>
+<p class="s">정규화 nDCG@3 0.685</p></div>
+<div class="tile"><p class="k">판정 신뢰도 κ</p><div class="v">0.592</div>
+<p class="s">기준 0.60 · 판정 불가</p></div>
+<div class="tile"><p class="k">사람 자기일관성</p><div class="v">0.855</div>
+<p class="s">측정 가능한 상한(천장)</p></div>
+<div class="tile"><p class="k">순위 라벨 강건성</p>
+<div class="v" style="color:var(--good)">동일</div>
+<p class="s">두 qrels에서 arm 순위 불변</p></div>
+<div class="tile"><p class="k">구분된 비교</p><div class="v">6<span style="font-size:16px;color:var(--mut)">/10</span></div>
+<p class="s">나머지는 표본 부족으로 구분 불가</p></div>
+</div>
+<div class="warnbox"><strong>먼저 읽을 것.</strong>
+<code>rrf_ce</code>가 점수상 1위지만, <strong>2·3위와 통계적으로 구분되지 않는다</strong>
+(rrf 대비 CI [-0.057, +0.274],
+bm25 대비 CI [-0.014, +0.270] —
+둘 다 0을 포함). 질의 15종은 상위 구성들을 가려낼 검정력이 없다.
+<strong>"검색이 작동하며 무작위·단독 방식보다 낫다"까지가 이 데이터로 방어되는 결론이고,
+"어떤 구성을 채택할지"는 아직 결론이 아니다.</strong></div></section>
+<section><h2>게이트 현황 <span class="n">사전 등록 기준</span></h2>
+<p class="lede">게이트는 측정 전에 정해둔 통과 조건이다. 실패한 게이트가 있으면 그 영향을 받는
+수치는 헤드라인으로 인용하지 않는다 — 기준을 사후에 바꾸지 않기 위한 장치다.</p>
+<div class="gates">
+<div class="gate pass"><p class="nm">Tier 0 · 입출력 계약</p>
+<div class="st"><span class="ic">✓</span>PASS</div>
+<p class="why">32/32 검사 통과<br>결정적 검사 · LLM 무관</p></div>
+<div class="gate na"><p class="nm">게이트 3 · 판정 신뢰도 (κ ≥ 0.60)</p>
+<div class="st"><span class="ic">◐</span>판정 불가</div>
+<p class="why">κ = 0.5921 (기준까지 +0.0079)<br>
+95% CI [0.434, 0.736] → 기준선 포함</p></div>
+<div class="gate pass"><p class="nm">게이트 3b · 채점자 자기일관성</p>
+<div class="st"><span class="ic">✓</span>PASS</div>
+<p class="why">κ = 0.855 · 3분류 0.789<br>
+재검사 19쌍</p></div>
+</div>
+<div class="note"><strong>게이트 3은 "실패"가 아니라 "판정 불가"다.</strong>
+점추정 0.5921는 기준 0.60에 0.0079 미달이지만,
+118쌍 표본의 95% 신뢰구간이 기준선을 포함한다. 사전 등록 규칙대로
+<strong>FAIL로 기록</strong>하되(기준을 사후에 낮추지 않는다), 이것은 통과 실패가 확정된 것이 아니라
+표본이 판정을 낼 만큼 크지 않다는 뜻이다.</div>
+<div class="note"><strong>게이트 3b가 처음으로 실제 작동했다.</strong>
+이전 LLM 앵커는 temperature 0이라 같은 항목에 늘 같은 답을 내 κ가 구조적으로 1.0이었고
+아무것도 검출하지 못했다. 사람 재검사 19쌍에서 κ = 0.855,
+<strong>이진 판정 원일치율 94.7%</strong>
+(3분류 79.0%) — 즉 사람이 뒤집은 것은
+<strong>5.3%</strong>다.
+<em>κ는 우연 일치를 보정한 값이므로 (1−κ)를 뒤집힘 비율로 읽으면 안 된다</em>
+— 그렇게 읽으면 14.5%로 3배 과장된다.</div></section>
+<section><h2>누가 사람과 가장 비슷하게 판정하나 <span class="n">판정 신뢰도</span></h2>
+<p class="lede">사람 라벨을 정답으로 두고 판정자 셋을 대조했다. 가로선은 95% 신뢰구간 —
+길수록 표본이 부족해 값이 불확실하다는 뜻이다.</p>
+<svg viewBox="0 0 700 212" role="img" class="chart" aria-label="판정자별 Cohen 카파와 95% 신뢰구간"><line x1="250" y1="26" x2="660" y2="26" class="axis"/><line x1="250.0" y1="26" x2="250.0" y2="182" class="grid"/><text x="250.0" y="198" class="tick mid">0.0</text><line x1="332.0" y1="26" x2="332.0" y2="182" class="grid"/><text x="332.0" y="198" class="tick mid">0.2</text><line x1="414.0" y1="26" x2="414.0" y2="182" class="grid"/><text x="414.0" y="198" class="tick mid">0.4</text><line x1="496.0" y1="26" x2="496.0" y2="182" class="grid"/><text x="496.0" y="198" class="tick mid">0.6</text><line x1="578.0" y1="26" x2="578.0" y2="182" class="grid"/><text x="578.0" y="198" class="tick mid">0.8</text><line x1="660.0" y1="26" x2="660.0" y2="182" class="grid"/><text x="660.0" y="198" class="tick mid">1.0</text><line x1="496.0" y1="20" x2="496.0" y2="182" class="rule-crit"/><text x="496.0" y="14" class="rule-lbl crit mid">기준 0.60</text><line x1="600.5" y1="20" x2="600.5" y2="182" class="rule-mut"/><text x="600.5" y="14" class="rule-lbl mut mid">사람 천장 0.855</text><text x="0" y="60.0" class="rlabel">gemini-2.5-flash-lite</text><text x="0" y="75.0" class="rsub">본판정 v3</text><line x1="428.1" y1="63.0" x2="551.8" y2="63.0" class="ci"/><line x1="428.1" y1="58.0" x2="428.1" y2="68.0" class="ci-cap"/><line x1="551.8" y1="58.0" x2="551.8" y2="68.0" class="ci-cap"/><circle cx="492.8" cy="63.0" r="5.5" class="dot s1"><title>gemini-2.5-flash-lite (본판정 v3): κ=0.5921, 95% CI [0.4344, 0.7362]</title></circle><text x="668" y="67.0" class="val">0.592</text><text x="0" y="106.0" class="rlabel">gemini-2.5-flash</text><text x="0" y="121.0" class="rsub">§3-B 실험군</text><line x1="365.2" y1="109.0" x2="502.7" y2="109.0" class="ci"/><line x1="365.2" y1="104.0" x2="365.2" y2="114.0" class="ci-cap"/><line x1="502.7" y1="104.0" x2="502.7" y2="114.0" class="ci-cap"/><circle cx="435.9" cy="109.0" r="5.5" class="dot s1"><title>gemini-2.5-flash (§3-B 실험군): κ=0.4535, 95% CI [0.2810, 0.6163]</title></circle><text x="668" y="113.0" class="val">0.454</text><text x="0" y="152.0" class="rlabel">claude-fable-5</text><text x="0" y="167.0" class="rsub">기존 LLM 앵커</text><line x1="399.2" y1="155.0" x2="529.0" y2="155.0" class="ci"/><line x1="399.2" y1="150.0" x2="399.2" y2="160.0" class="ci-cap"/><line x1="529.0" y1="150.0" x2="529.0" y2="160.0" class="ci-cap"/><circle cx="466.8" cy="155.0" r="5.5" class="dot s1"><title>claude-fable-5 (기존 LLM 앵커): κ=0.5289, 95% CI [0.3640, 0.6806]</title></circle><text x="668" y="159.0" class="val">0.529</text></svg>
+<div class="legend"><span><span class="sw s1"></span>κ 점추정 · 가로선 95% CI</span>
+<span style="color:var(--crit)">│ 사전 등록 기준</span>
+<span style="color:var(--mut)">│ 사람 자기일관성 = 도달 가능한 상한</span></div>
+<div class="note"><strong>천장을 알고 나서야 기준의 의미가 보인다.</strong>
+사람 자신의 일관성이 κ = 0.855이므로, 어떤 판정기도 그 위로 갈 수 없다
+— 정답 자체가 그만큼 흔들리기 때문이다. 본판정 judge는 천장의
+<strong>69.2%</strong>에 도달했고, 기준 0.60는
+천장의 70.2%를 요구한다. 애초에 여유가 거의 없는 기준이었다.</div>
+<div class="scroll"><table><thead><tr>
+<th>판정자</th><th>κ</th><th>95% CI</th><th>이진 일치</th><th>3분류 일치</th>
+<th>정밀도</th><th>재현율</th><th>편향 방향</th></tr></thead><tbody>
+<tr><td>gemini-2.5-flash-lite (본판정 v3)</td>
+<td class="num best">0.5921</td>
+<td class="num">[0.434, 0.736]</td>
+<td class="num">0.8051</td>
+<td class="num">0.6441</td>
+<td class="num">0.7292</td>
+<td class="num">0.7778</td>
+<td>적합 과다 판정 (b=10, c=13)</td></tr>
+<tr><td>gemini-2.5-flash (§3-B 실험군)</td>
+<td class="num best">0.4535</td>
+<td class="num">[0.281, 0.616]</td>
+<td class="num">0.7542</td>
+<td class="num">0.6271</td>
+<td class="num">0.7353</td>
+<td class="num">0.5556</td>
+<td>적합 과소 판정 (b=20, c=9)</td></tr>
+<tr><td>claude-fable-5 (기존 LLM 앵커)</td>
+<td class="num best">0.5289</td>
+<td class="num">[0.364, 0.681]</td>
+<td class="num">0.7881</td>
+<td class="num">0.6695</td>
+<td class="num">0.7941</td>
+<td class="num">0.6000</td>
+<td>적합 과소 판정 (b=18, c=7)</td></tr>
+</tbody></table></div>
+<div class="note"><strong>중요한 반전 둘.</strong>
+① 더 큰 모델(gemini-2.5-flash)을 판정기로 올리려던 실험은 사전 등록 기준 미달로 기각했는데,
+사람 기준으로 보니 실제로 <strong>더 나빴다</strong>(κ 0.454 &lt;
+0.592). 기각이 옳았다.
+② 그간 정답 대리로 써온 Claude 앵커도 사람에서 더 멀다(κ 0.529).
+<strong>즉 과거의 신뢰도 수치는 열등한 대리 기준에 맞춰 재고 있었다.</strong>
+LLM끼리의 일치도는 사람과의 일치도를 대신하지 못한다.</div></section>
+<section><h2>검색 성능 <span class="n">정규화 nDCG@3</span></h2>
+<p class="lede">0 = <strong>풀 안에서 무작위로 뽑은</strong> 수준(코퍼스 무작위보다 훨씬 높은 기준선),
+1 = 완벽한 정렬. 같은 검색 결과를 두 가지 정답표로
+채점했다 — 판정기 라벨만 쓴 것과, 사람이 라벨한 118쌍을 사람 것으로 덮어쓴 것.</p>
+<svg viewBox="0 0 700 284" role="img" class="chart" aria-label="검색 구성별 정규화 nDCG@3"><line x1="92.0" y1="22" x2="92.0" y2="256" class="grid"/><text x="92.0" y="272" class="tick mid">0.00</text><line x1="226.5" y1="22" x2="226.5" y2="256" class="grid"/><text x="226.5" y="272" class="tick mid">0.25</text><line x1="361.0" y1="22" x2="361.0" y2="256" class="grid"/><text x="361.0" y="272" class="tick mid">0.50</text><line x1="495.5" y1="22" x2="495.5" y2="256" class="grid"/><text x="495.5" y="272" class="tick mid">0.75</text><line x1="630.0" y1="22" x2="630.0" y2="256" class="grid"/><text x="630.0" y="272" class="tick mid">1.00</text><line x1="92" y1="256" x2="630" y2="256" class="axis"/><text x="0" y="49" class="rlabel mono">rrf_ce</text><rect x="92" y="38" width="376.6" height="13" rx="4" class="bar s1"><title>rrf_ce / judge qrels: 0.7000</title></rect><text x="475.6" y="49" class="val">0.700</text><rect x="92" y="53" width="368.7" height="13" rx="4" class="bar s2"><title>rrf_ce / 사람 반영 qrels: 0.6853</title></rect><text x="467.7" y="64" class="val">0.685</text><text x="0" y="93" class="rlabel mono">rrf</text><rect x="92" y="82" width="326.5" height="13" rx="4" class="bar s1"><title>rrf / judge qrels: 0.6069</title></rect><text x="425.5" y="93" class="val">0.607</text><rect x="92" y="97" width="293.6" height="13" rx="4" class="bar s2"><title>rrf / 사람 반영 qrels: 0.5458</title></rect><text x="392.6" y="108" class="val">0.546</text><text x="0" y="137" class="rlabel mono">bm25</text><rect x="92" y="126" width="286.7" height="13" rx="4" class="bar s1"><title>bm25 / judge qrels: 0.5329</title></rect><text x="385.7" y="137" class="val">0.533</text><rect x="92" y="141" width="240.7" height="13" rx="4" class="bar s2"><title>bm25 / 사람 반영 qrels: 0.4474</title></rect><text x="339.7" y="152" class="val">0.447</text><text x="0" y="181" class="rlabel mono">dense</text><rect x="92" y="170" width="224.2" height="13" rx="4" class="bar s1"><title>dense / judge qrels: 0.4167</title></rect><text x="323.2" y="181" class="val">0.417</text><rect x="92" y="185" width="194.6" height="13" rx="4" class="bar s2"><title>dense / 사람 반영 qrels: 0.3617</title></rect><text x="293.6" y="196" class="val">0.362</text><text x="0" y="225" class="rlabel mono">random</text><rect x="92" y="214" width="1.0" height="13" rx="4" class="bar s1"><title>random / judge qrels: 0.0000</title></rect><text x="100.0" y="225" class="val">0.000</text><rect x="92" y="229" width="5.6" height="13" rx="4" class="bar s2"><title>random / 사람 반영 qrels: 0.0104</title></rect><text x="104.6" y="240" class="val">0.010</text></svg>
+<div class="legend"><span><span class="sw s1"></span>judge qrels (판정기 라벨 439쌍)</span>
+<span><span class="sw s2"></span>사람 반영 qrels (사람 118쌍 덮어씀)</span></div>
+<div class="note"><strong>순위가 정답표를 바꿔도 그대로다.</strong>
+사람 라벨을 넣으면 이진 판정이 19.5% 뒤집히고 절대 점수는 대체로 내려가지만
+(bm25 -0.086이 가장 크게 하락), 순위는
+<code>rrf_ce &gt; rrf &gt; bm25 &gt; dense &gt; random</code>로 동일하다.
+<strong>순위 결론은 라벨 오차에 강건하고, 절대 수치는 그렇지 않다.</strong>
+가장 덜 흔들린 건 rrf_ce(-0.015)다.</div>
+<div class="scroll"><table><thead><tr><th>구성</th><th>설명</th>
+<th>nDCG@3</th><th>P@3</th><th>AP@3</th><th>정규화 nDCG@3</th><th>Δ vs judge qrels</th>
+</tr></thead><tbody>
+<tr><td class="num">rrf_ce</td><td>RRF 하이브리드 + 교차인코더 재순위</td>
+<td class="num">0.7521</td><td class="num">0.6222</td>
+<td class="num">0.6000</td>
+<td class="num best">0.6853</td>
+<td class="num">-0.0147</td></tr>
+<tr><td class="num">rrf</td><td>RRF 하이브리드 (BM25+dense 순위융합)</td>
+<td class="num">0.6423</td><td class="num">0.5333</td>
+<td class="num">0.5074</td>
+<td class="num">0.5458</td>
+<td class="num">-0.0611</td></tr>
+<tr><td class="num">bm25</td><td>BM25 어휘 검색 단독</td>
+<td class="num">0.6164</td><td class="num">0.4444</td>
+<td class="num">0.3963</td>
+<td class="num">0.4474</td>
+<td class="num">-0.0855</td></tr>
+<tr><td class="num">dense</td><td>임베딩 벡터 검색 단독</td>
+<td class="num">0.5293</td><td class="num">0.3778</td>
+<td class="num">0.3148</td>
+<td class="num">0.3617</td>
+<td class="num">-0.0550</td></tr>
+<tr><td class="num">random</td><td>무작위 (바닥 기준선)</td>
+<td class="num">0.0626</td><td class="num">0.0222</td>
+<td class="num">0.0222</td>
+<td class="num">0.0104</td>
+<td class="num">+0.0104</td></tr>
+</tbody></table></div>
+<p class="lede" style="margin-top:8px;font-size:12.5px">표 수치는 사람 반영 qrels 기준. Δ는 판정기 라벨만 썼을 때와의 차이.</p>
+<h3>무엇이 구분되고, 무엇이 구분되지 않는가</h3>
+<p class="lede">두 구성의 차이를 질의 단위로 재표집해 95% 신뢰구간을 낸 것이다.
+구간이 <strong>0을 걸치면</strong> 그 차이는 우연과 구별되지 않는다 — 즉 두 구성의 우열을 말할 수 없다.</p>
+<svg viewBox="0 0 700 360" role="img" class="chart" aria-label="구성 간 차이의 95% 신뢰구간"><line x1="191.3" y1="18" x2="191.3" y2="332" class="grid"/><text x="191.3" y="348" class="tick mid">-0.2</text><line x1="262.6" y1="18" x2="262.6" y2="332" class="zero"/><text x="262.6" y="348" class="tick mid">+0.0</text><line x1="333.8" y1="18" x2="333.8" y2="332" class="grid"/><text x="333.8" y="348" class="tick mid">+0.2</text><line x1="405.1" y1="18" x2="405.1" y2="332" class="grid"/><text x="405.1" y="348" class="tick mid">+0.4</text><line x1="476.3" y1="18" x2="476.3" y2="332" class="grid"/><text x="476.3" y="348" class="tick mid">+0.6</text><line x1="547.6" y1="18" x2="547.6" y2="332" class="grid"/><text x="547.6" y="348" class="tick mid">+0.8</text><text x="262.6" y="12" class="rule-lbl mut mid">차이 없음</text><text x="0" y="49.0" class="rlabel mono sm">random vs bm25</text><line x1="401.7" y1="45.0" x2="508.4" y2="45.0" class="ci s1"/><circle cx="459.5" cy="45.0" r="4.5" class="dot s1"><title>random_vs_bm25: Δ=+0.5529, CI [+0.3906, +0.6900]</title></circle><text x="610" y="49.0" class="tag s1">유의</text><text x="0" y="79.0" class="rlabel mono sm">random vs dense</text><line x1="365.4" y1="75.0" x2="488.1" y2="75.0" class="ci s1"/><circle cx="428.3" cy="75.0" r="4.5" class="dot s1"><title>random_vs_dense: Δ=+0.4653, CI [+0.2885, +0.6330]</title></circle><text x="610" y="79.0" class="tag s1">유의</text><text x="0" y="109.0" class="rlabel mono sm">random vs rrf</text><line x1="392.6" y1="105.0" x2="535.6" y2="105.0" class="ci s1"/><circle cx="468.7" cy="105.0" r="4.5" class="dot s1"><title>random_vs_rrf: Δ=+0.5786, CI [+0.3650, +0.7663]</title></circle><text x="610" y="109.0" class="tag s1">유의</text><text x="0" y="139.0" class="rlabel mono sm">random vs rrf_ce</text><line x1="438.1" y1="135.0" x2="569.7" y2="135.0" class="ci s1"/><circle cx="507.7" cy="135.0" r="4.5" class="dot s1"><title>random_vs_rrf_ce: Δ=+0.6881, CI [+0.4927, +0.8620]</title></circle><text x="610" y="139.0" class="tag s1">유의</text><text x="0" y="169.0" class="rlabel mono sm">bm25 vs dense</text><line x1="190.3" y1="165.0" x2="267.7" y2="165.0" class="ci nul"/><circle cx="231.4" cy="165.0" r="4.5" class="dot nul"><title>bm25_vs_dense: Δ=-0.0876, CI [-0.2028, +0.0143]</title></circle><text x="610" y="169.0" class="tag nul">구분 불가</text><text x="0" y="199.0" class="rlabel mono sm">bm25 vs rrf</text><line x1="240.0" y1="195.0" x2="302.3" y2="195.0" class="ci nul"/><circle cx="271.7" cy="195.0" r="4.5" class="dot nul"><title>bm25_vs_rrf: Δ=+0.0257, CI [-0.0633, +0.1115]</title></circle><text x="610" y="199.0" class="tag nul">구분 불가</text><text x="0" y="229.0" class="rlabel mono sm">bm25 vs rrf_ce</text><line x1="257.5" y1="225.0" x2="358.8" y2="225.0" class="ci nul"/><circle cx="310.7" cy="225.0" r="4.5" class="dot nul"><title>bm25_vs_rrf_ce: Δ=+0.1352, CI [-0.0144, +0.2700]</title></circle><text x="610" y="229.0" class="tag nul">구분 불가 ※</text><text x="0" y="259.0" class="rlabel mono sm">dense vs rrf</text><line x1="268.1" y1="255.0" x2="341.1" y2="255.0" class="ci s1"/><circle cx="302.9" cy="255.0" r="4.5" class="dot s1"><title>dense_vs_rrf: Δ=+0.1133, CI [+0.0156, +0.2203]</title></circle><text x="610" y="259.0" class="tag s1">유의</text><text x="0" y="289.0" class="rlabel mono sm">dense vs rrf_ce</text><line x1="309.7" y1="285.0" x2="375.2" y2="285.0" class="ci s1"/><circle cx="342.0" cy="285.0" r="4.5" class="dot s1"><title>dense_vs_rrf_ce: Δ=+0.2228, CI [+0.1323, +0.3160]</title></circle><text x="610" y="289.0" class="tag s1">유의</text><text x="0" y="319.0" class="rlabel mono sm">rrf vs rrf_ce</text><line x1="242.5" y1="315.0" x2="360.0" y2="315.0" class="ci nul"/><circle cx="301.6" cy="315.0" r="4.5" class="dot nul"><title>rrf_vs_rrf_ce: Δ=+0.1095, CI [-0.0565, +0.2735]</title></circle><text x="610" y="319.0" class="tag nul">구분 불가</text></svg>
+<div class="legend"><span><span class="sw s1"></span>유의 — 차이 확인</span>
+<span><span class="sw nul"></span>구분 불가 — 0을 포함</span>
+<span style="color:var(--mut)">※ 판정기 라벨만 쓸 때와 결론이 달라진 비교</span></div>
+<div class="warnbox"><strong>rrf_ce의 우위는 확정되지 않았다.</strong>
+무작위·dense 대비로는 확실히 낫지만, <code>rrf</code>·<code>bm25</code>와는 구간이 겹친다.
+특히 <code>bm25_vs_rrf_ce</code>는 판정기 라벨에서는 유의했는데
+사람 라벨을 넣으면 유의성이 사라진다 — <strong>사람 검증이 오히려 근거를 약화시켰다.</strong>
+교차인코더는 질의당 0.836초로 다른 방식(0.006~0.04초)의 20배 이상 비싸다.
+현재 데이터로는 그 비용을 정당화할 수 없다.</div></section>
+<section><h2>절단 k=3에서 이 수치를 어디까지 믿을 수 있나
+<span class="n">해석 유효성</span></h2>
+<p class="lede">위 모든 점수는 <strong>상위 3건만</strong> 채점한 결과다. 이 절단이 타당한지,
+타당하다면 수치를 어떻게 읽어야 하는지를 따로 진단했다.</p>
+<div class="note"><strong>절단 자체는 옳게 골랐다.</strong> 생성부가 상위 3건을 컨텍스트로 사용 (ragas_prep.TOP_K=3) — 지표 k와 일치.
+지표의 절단은 <strong>시스템이 실제로 내리는 결정의 크기와 같아야</strong> 하고, 그 점에서 k=3은
+임의로 고른 숫자가 아니다. 문제는 타당성이 아니라 <strong>해상도</strong>다 — 아래 셋이
+절대 수치를 낙관 쪽으로 민다.</div>
+
+<h3>① 천장 포화 — 만점이 6/15질의</h3>
+<p class="lede">점 하나가 질의 하나다. 오른쪽 끝(1.00)에 뭉친 만큼은 <strong>이미 만점이라
+개선을 측정할 수 없는 구간</strong>이다.</p>
+<svg viewBox="0 0 700 264" role="img" class="chart" aria-label="질의별 nDCG@3 분포와 천장 포화"><line x1="92.0" y1="16" x2="92.0" y2="236" class="grid"/><text x="92.0" y="252" class="tick mid">0.00</text><line x1="221.5" y1="16" x2="221.5" y2="236" class="grid"/><text x="221.5" y="252" class="tick mid">0.25</text><line x1="351.0" y1="16" x2="351.0" y2="236" class="grid"/><text x="351.0" y="252" class="tick mid">0.50</text><line x1="480.5" y1="16" x2="480.5" y2="236" class="grid"/><text x="480.5" y="252" class="tick mid">0.75</text><line x1="610.0" y1="16" x2="610.0" y2="236" class="grid"/><text x="610.0" y="252" class="tick mid">1.00</text><line x1="610.0" y1="10" x2="610.0" y2="236" class="rule-crit"/><text x="610.0" y="6" class="rule-lbl crit mid">만점 = 측정 여지 없음</text><text x="0" y="50.0" class="rlabel mono sm">rrf_ce</text><text x="0" y="64.0" class="rsub">만점 6/15 · 값 7종</text><circle cx="92.0" cy="52.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.0000</title></circle><circle cx="92.0" cy="46.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.0000</title></circle><circle cx="411.8" cy="52.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.6173</title></circle><circle cx="436.3" cy="52.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.6646</title></circle><circle cx="456.6" cy="52.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.7039</title></circle><circle cx="488.5" cy="52.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.7654</title></circle><circle cx="488.5" cy="46.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.7654</title></circle><circle cx="549.2" cy="52.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.8827</title></circle><circle cx="549.2" cy="46.0" r="4" class="pt s1"><title>rrf_ce: nDCG@3 = 0.8827</title></circle><circle cx="610.0" cy="52.0" r="4" class="pt crit"><title>rrf_ce: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="46.0" r="4" class="pt crit"><title>rrf_ce: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="52.0" r="4" class="pt crit"><title>rrf_ce: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="58.0" r="4" class="pt crit"><title>rrf_ce: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="64.0" r="4" class="pt crit"><title>rrf_ce: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="40.0" r="4" class="pt crit"><title>rrf_ce: nDCG@3 = 1.0000</title></circle><text x="0" y="102.0" class="rlabel mono sm">rrf</text><text x="0" y="116.0" class="rsub">만점 5/15 · 값 10종</text><circle cx="92.0" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.0000</title></circle><circle cx="92.0" cy="98.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.0000</title></circle><circle cx="274.3" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.3520</title></circle><circle cx="290.2" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.3827</title></circle><circle cx="335.1" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.4693</title></circle><circle cx="367.4" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.5317</title></circle><circle cx="427.7" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.6480</title></circle><circle cx="436.3" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.6646</title></circle><circle cx="456.6" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.7039</title></circle><circle cx="549.2" cy="104.0" r="4" class="pt s1"><title>rrf: nDCG@3 = 0.8827</title></circle><circle cx="610.0" cy="104.0" r="4" class="pt crit"><title>rrf: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="98.0" r="4" class="pt crit"><title>rrf: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="104.0" r="4" class="pt crit"><title>rrf: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="110.0" r="4" class="pt crit"><title>rrf: nDCG@3 = 1.0000</title></circle><circle cx="610.0" cy="116.0" r="4" class="pt crit"><title>rrf: nDCG@3 = 1.0000</title></circle><text x="0" y="154.0" class="rlabel mono sm">bm25</text><text x="0" y="168.0" class="rsub">만점 1/15 · 값 12종</text><circle cx="92.0" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.0000</title></circle><circle cx="245.4" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.2961</title></circle><circle cx="306.1" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.4134</title></circle><circle cx="335.1" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.4693</title></circle><circle cx="411.8" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.6173</title></circle><circle cx="427.7" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.6480</title></circle><circle cx="436.3" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.6646</title></circle><circle cx="454.3" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.6994</title></circle><circle cx="456.6" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.7039</title></circle><circle cx="456.6" cy="150.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.7039</title></circle><circle cx="472.5" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.7346</title></circle><circle cx="488.5" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.7654</title></circle><circle cx="488.5" cy="150.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.7654</title></circle><circle cx="488.5" cy="156.0" r="4" class="pt s1"><title>bm25: nDCG@3 = 0.7654</title></circle><circle cx="610.0" cy="156.0" r="4" class="pt crit"><title>bm25: nDCG@3 = 1.0000</title></circle><text x="0" y="206.0" class="rlabel mono sm">dense</text><text x="0" y="220.0" class="rsub">만점 1/15 · 값 12종</text><circle cx="92.0" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.0000</title></circle><circle cx="92.0" cy="202.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.0000</title></circle><circle cx="213.5" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.2346</title></circle><circle cx="213.5" cy="202.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.2346</title></circle><circle cx="290.2" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.3827</title></circle><circle cx="335.1" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.4693</title></circle><circle cx="367.4" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.5317</title></circle><circle cx="411.8" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.6173</title></circle><circle cx="427.7" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.6480</title></circle><circle cx="456.6" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.7039</title></circle><circle cx="472.5" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.7346</title></circle><circle cx="488.5" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.7654</title></circle><circle cx="488.5" cy="202.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.7654</title></circle><circle cx="533.3" cy="208.0" r="4" class="pt s1"><title>dense: nDCG@3 = 0.8520</title></circle><circle cx="610.0" cy="208.0" r="4" class="pt crit"><title>dense: nDCG@3 = 1.0000</title></circle></svg>
+<div class="legend"><span><span class="sw s1"></span>측정 여지 있음</span>
+<span><span class="sw" style="background:var(--crit)"></span>만점 — 개선을 잴 수 없음</span></div>
+<div class="warnbox"><strong>"질의가 15종이라 검정력이 부족하다"는 진단은 절반만 맞았다.</strong>
+<code>rrf_ce</code>는 서로 다른 값이 7종뿐이고
+40%가 만점이다. 구성 간 우열이 안 갈리는 건 질의 수만의 문제가 아니라
+<strong>지표가 포화됐기 때문</strong>이다. 질의당 후보 29건 중 적합이 평균
+6.6건이니, 상위 3건에 적합을 넣는 건 애초에 어려운 과제가 아니었다.</div>
+
+<h3>② nDCG@3은 애매 판정에 절반을 준다 — P@3는 주지 않는다</h3>
+<p class="lede">사람 라벨 구성이 적합 99 · 애매 88 ·
+부적합 252건 — <strong>애매가 적합과 거의 맞먹는다.</strong>
+애매를 0점으로 처리하면 점수가 이만큼 내려간다.</p>
+<div class="scroll"><table><thead><tr><th>구성</th><th>nDCG@3 (애매=0.5)</th>
+<th>nDCG@3 (애매=0)</th><th>차이</th><th>P@3</th><th>도달가능 대비 P@3</th>
+</tr></thead><tbody>
+<tr><td class="num">rrf_ce</td><td class="num">0.7521</td>
+<td class="num best">0.6450</td>
+<td class="num">-0.1072</td><td class="num">0.6222</td>
+<td class="num">75.7%</td></tr>
+<tr><td class="num">rrf</td><td class="num">0.6423</td>
+<td class="num">0.5641</td>
+<td class="num">-0.0783</td><td class="num">0.5333</td>
+<td class="num">64.9%</td></tr>
+<tr><td class="num">bm25</td><td class="num">0.6164</td>
+<td class="num">0.4974</td>
+<td class="num">-0.1190</td><td class="num">0.4444</td>
+<td class="num">54.0%</td></tr>
+<tr><td class="num">dense</td><td class="num">0.5293</td>
+<td class="num">0.4014</td>
+<td class="num">-0.1279</td><td class="num">0.3778</td>
+<td class="num">46.0%</td></tr>
+</tbody></table></div>
+<div class="warnbox"><strong>nDCG@3의 약 0.11가 "애매한 공고"에서 나온
+점수다.</strong> 극단적 사례 — <code>SA11</code>(데이터 사이언티스트 Python TensorFlow (경력 2년))는
+<strong>적합 공고가 0건</strong>인데 nDCG@3이 <strong>0.70</strong>다
+(애매 14건을 상위에 올려 얻은 점수 · P@3는 0.00).
+적합한 게 하나도 없는 질의의 0.70을 "70% 잘했다"로 읽으면 완전히 잘못 읽는 것이다.
+<strong>운영 판단에는 P@3를, 순위 품질 비교에는 애매=0 열을 쓰는 게 안전하다.</strong></div>
+
+<h3>③ 정규화의 "0"은 표에 보이는 random 구성이 아니다</h3>
+<div class="note">무작위 기준선이 두 개다 — <strong>풀 내부 무작위
+0.3482</strong>(정규화의 분모)와 <strong>코퍼스 무작위
+0.0626</strong>(표의 random 구성). 정규화 점수의 0은 전자를 뜻하고,
+random 구성은 그보다 낮아 0으로 절단된다. 결과적으로 <strong>정규화 점수는 보수적</strong>이다 —
+이 지점은 수치를 부풀리지 않는다.</div>
+
+<h3>적합 공고가 3건 미만인 질의 — P@3가 1.0에 도달 불가</h3>
+<div class="scroll"><table><thead><tr><th>질의</th><th>적합 공고</th><th>P@3 상한</th><th>비고</th>
+</tr></thead><tbody>
+<tr><td class="num">SA10</td><td class="num">2</td>
+<td class="num">0.67</td><td>3건을 채울 적합 공고 부족</td></tr>
+<tr><td class="num">SA11</td><td class="num">0</td>
+<td class="num">0.00</td><td>적합 0건 — 옳은 동작은 "결과 없음"</td></tr>
+<tr><td class="num">SA13</td><td class="num">2</td>
+<td class="num">0.67</td><td>3건을 채울 적합 공고 부족</td></tr>
+<tr><td class="num">SA14</td><td class="num">0</td>
+<td class="num">0.00</td><td>적합 0건 — 옳은 동작은 "결과 없음"</td></tr>
+</tbody></table></div>
+<div class="note">15질의 중 <strong>4건이 구조적으로 만점 불가</strong>이고 그중
+2건은 적합 공고가 아예 없다. 이때 옳은 제품 동작은 3건을 내놓는 게 아니라
+<strong>"조건에 맞는 공고가 없습니다"</strong>인데, 현재 지표는 그걸 상 주지도 벌 주지도 않는다.</div>
+
+<h3>그래서 지금 수준은</h3>
+<div class="tiles">
+<div class="tile"><p class="k">운영 수치 · P@3</p><div class="v">0.622</div>
+<p class="s">3건 보여주면 1.9건이 적합</p></div>
+<div class="tile"><p class="k">도달가능 상한 대비</p><div class="v">75.7%</div>
+<p class="s">적합 28건 / 가능 37건</p></div>
+<div class="tile"><p class="k">nDCG@3 (애매=0)</p><div class="v">0.645</div>
+<p class="s">기본 0.752에서 하락</p></div>
+<div class="tile"><p class="k">코퍼스 무작위 P@3</p><div class="v">0.022</div>
+<p class="s">약 28배 차이</p></div>
+</div>
+<div class="warnbox"><strong>판정: "동작이 확인된 프로토타입" 수준이고, "성능 수치가 확정된
+시스템"은 아니다.</strong> 무작위 대비 28배, BM25 단독(P@3 0.444) 대비
+명확한 개선 — 방향은 맞다. 그러나 실서비스 기대치로 읽으면 <strong>낙관 편향이 세 겹</strong>이다:
+① 코퍼스가 작아 풀 내 적합 밀도가 높다(실서비스는 훨씬 희박하고, 희박해지면 상위 3건 확보가
+급격히 어려워진다) ② 40% 질의가 이미 만점이라 개선 여지가 지표에 없다
+③ 점수의 0.11가 애매 판정 몫이다.</div>
+
+<h3>지표 설계 보완 제안</h3>
+<ul class="tight">
+<li><strong>k=3은 운영 주장용으로 유지</strong>하되 P@3와 애매=0 nDCG@3를 헤드라인에 병기해
+애매 인정분을 숨기지 않는다. <em>(이 대시보드에 반영됨)</em></li>
+<li><strong>풀 depth를 늘려 nDCG@10 · Recall@10을 개발 감도용으로 추가</strong>한다. 천장 포화를
+벗어나야 개선이 측정된다. 단 풀 재구성은 앵커 시트를 재생성시켜 사람 라벨을 무효화하므로
+앵커·질의 확대와 <strong>한 번에</strong> 설계해야 한다.</li>
+<li><strong>적합 0건 질의는 "결과 없음이 정답"인 별도 케이스로 분리</strong> 채점한다.
+현재는 이 2건이 평균을 왜곡하기만 한다.</li>
+</ul></section>
+<section><h2>절단을 깊게 하면 달라지나 <span class="n">k = 1 · 3 · 5 · 10</span></h2>
+<p class="lede">추가 라벨링 없이 절단만 바꿔 다시 측정했다. 풀이 5개 구성의 상위 10건
+<strong>합집합</strong>으로 만들어져 각 구성의 상위 10건은 전부 판정돼 있다(750건 중 미판정 0건).
+<strong>사람 라벨은 그대로 유지되며 앵커셋과 무관하다</strong> — 앵커는 라벨 신뢰도를 재는
+별도 표본이고 절단 k와 상관이 없다.</p>
+
+<div class="scroll"><table><thead><tr><th>절단</th><th>만점 질의</th><th>값 종류</th>
+<th>구분된 비교</th><th>recall 천장</th><th>rrf_ce nDCG</th><th>rrf_ce recall</th>
+</tr></thead><tbody>
+<tr><td class="num">k=1</td>
+<td class="num">11/15</td><td class="num">3/15</td>
+<td class="num">4/10</td>
+<td class="num">0.210</td>
+<td class="num">0.8000</td><td class="num">0.1286</td></tr>
+<tr><td class="num">k=3</td>
+<td class="num">6/15</td><td class="num">7/15</td>
+<td class="num">6/10</td>
+<td class="num">0.553</td>
+<td class="num">0.7521</td><td class="num">0.3030</td></tr>
+<tr><td class="num">k=5</td>
+<td class="num">2/15</td><td class="num">13/15</td>
+<td class="num">6/10</td>
+<td class="num">0.717</td>
+<td class="num">0.7228</td><td class="num">0.4093</td></tr>
+<tr><td class="num" class="best">k=10</td>
+<td class="num">1/15</td><td class="num">15/15</td>
+<td class="num">7/10</td>
+<td class="num">0.935</td>
+<td class="num">0.7166</td><td class="num">0.6033</td></tr>
+</tbody></table></div>
+<div class="note"><strong>절단을 깊게 하면 지표가 되살아난다.</strong>
+만점 질의가 11/15(k=1) →
+6/15(k=3) → 1/15(k=10)로 줄고,
+질의별 값이 7종 → <strong>15종</strong>
+(전 질의가 서로 다른 값)으로 늘어난다. 구분되는 비교도
+6 → <strong>7</strong>개로 증가한다.
+<strong>진단·개발용으로는 k=10이 k=3보다 확실히 낫다.</strong>
+recall도 천장이 0.553 → 0.935로 올라 비로소 의미를 갖는다.</div>
+
+<h3>깊게 해도 안 갈리는 것 vs 갈리는 것</h3>
+<svg viewBox="0 0 700 288" role="img" class="chart" aria-label="절단 k별 구성 간 차이의 신뢰구간"><line x1="233.2" y1="22" x2="233.2" y2="260" class="grid"/><text x="233.2" y="276" class="tick mid">-0.1</text><line x1="300.9" y1="22" x2="300.9" y2="260" class="zero"/><text x="300.9" y="276" class="tick mid">+0.0</text><line x1="368.7" y1="22" x2="368.7" y2="260" class="grid"/><text x="368.7" y="276" class="tick mid">+0.1</text><line x1="436.4" y1="22" x2="436.4" y2="260" class="grid"/><text x="436.4" y="276" class="tick mid">+0.2</text><line x1="504.2" y1="22" x2="504.2" y2="260" class="grid"/><text x="504.2" y="276" class="tick mid">+0.3</text><text x="300.9" y="16" class="rule-lbl mut mid">차이 없음</text><text x="0" y="46" class="rlabel mono sm">rrf_ce vs rrf</text><text x="112" y="51.0" class="tick">k=1</text><line x1="210.6" y1="47.0" x2="526.7" y2="47.0" class="ci nul"/><circle cx="368.8" cy="47.0" r="4" class="dot nul"><title>rrf_vs_rrf_ce @k=1: Δ=+0.1001 CI [-0.1333, +0.3333]</title></circle><text x="600" y="51.0" class="tag nul">구분 불가</text><text x="112" y="77.0" class="tick">k=3</text><line x1="262.7" y1="73.0" x2="486.2" y2="73.0" class="ci nul"/><circle cx="375.1" cy="73.0" r="4" class="dot nul"><title>rrf_vs_rrf_ce @k=3: Δ=+0.1095 CI [-0.0565, +0.2735]</title></circle><text x="600" y="77.0" class="tag nul">구분 불가</text><text x="112" y="103.0" class="tick">k=5</text><line x1="277.3" y1="99.0" x2="419.4" y2="99.0" class="ci nul"/><circle cx="350.7" cy="99.0" r="4" class="dot nul"><title>rrf_vs_rrf_ce @k=5: Δ=+0.0734 CI [-0.0349, +0.1749]</title></circle><text x="600" y="103.0" class="tag nul">구분 불가</text><text x="112" y="129.0" class="tick">k=10</text><line x1="263.8" y1="125.0" x2="390.4" y2="125.0" class="ci nul"/><circle cx="335.8" cy="125.0" r="4" class="dot nul"><title>rrf_vs_rrf_ce @k=10: Δ=+0.0515 CI [-0.0548, +0.1321]</title></circle><text x="600" y="129.0" class="tag nul">구분 불가</text><text x="0" y="166" class="rlabel mono sm">rrf_ce vs bm25</text><text x="112" y="171.0" class="tick">k=1</text><line x1="210.6" y1="167.0" x2="549.4" y2="167.0" class="ci nul"/><circle cx="369.3" cy="167.0" r="4" class="dot nul"><title>bm25_vs_rrf_ce @k=1: Δ=+0.1009 CI [-0.1333, +0.3667]</title></circle><text x="600" y="171.0" class="tag nul">구분 불가</text><text x="112" y="197.0" class="tick">k=3</text><line x1="291.2" y1="193.0" x2="483.8" y2="193.0" class="ci nul"/><circle cx="392.5" cy="193.0" r="4" class="dot nul"><title>bm25_vs_rrf_ce @k=3: Δ=+0.1352 CI [-0.0144, +0.2700]</title></circle><text x="600" y="197.0" class="tag nul">구분 불가</text><text x="112" y="223.0" class="tick">k=5</text><line x1="319.2" y1="219.0" x2="438.0" y2="219.0" class="ci s1"/><circle cx="383.9" cy="219.0" r="4" class="dot s1"><title>bm25_vs_rrf_ce @k=5: Δ=+0.1224 CI [+0.0269, +0.2023]</title></circle><text x="600" y="223.0" class="tag s1">유의</text><text x="112" y="249.0" class="tick">k=10</text><line x1="304.7" y1="245.0" x2="411.8" y2="245.0" class="ci s1"/><circle cx="363.5" cy="245.0" r="4" class="dot s1"><title>bm25_vs_rrf_ce @k=10: Δ=+0.0923 CI [+0.0055, +0.1636]</title></circle><text x="600" y="249.0" class="tag s1">유의</text></svg>
+<div class="legend"><span><span class="sw s1"></span>유의</span>
+<span><span class="sw nul"></span>구분 불가</span></div>
+<div class="warnbox"><strong>교차인코더의 기여는 어느 절단에서도 입증되지 않는다.</strong>
+<code>rrf</code> 대비 차이가 k=1 · 3 · 5 · 10 <strong>전부</strong> 0선을 걸친다
+(k=10에서도 CI [-0.055,
++0.132]).
+앞서 이 결론을 "k=3의 천장 포화 때문일 수 있다"고 유보했는데, <strong>포화가 해소된 k=10에서도
+그대로다 → 절단 탓이 아니라 실제로 없는 차이</strong>로 봐야 한다. 질의당 0.836초를
+추가로 쓸 근거가 사라진다.
+<br><br><strong>반면 bm25 대비 우위는 깊게 하니 확인됐다</strong> — k=3에서는 구분 불가였으나
+k=5·k=10에서 유의해진다(k=10 CI [+0.005,
++0.164]). 즉 하이브리드의 가치는 실재하고,
+<strong>재순위 단계의 가치만 미확인</strong>이다.</div>
+
+<h3>구성별 성격 — recall이 드러내는 것</h3>
+<div class="scroll"><table><thead><tr><th>구성</th>
+<th>P@3</th><th>P@10</th><th>Recall@3</th><th>Recall@10</th><th>해석</th>
+</tr></thead><tbody>
+<tr><td class="num">rrf_ce</td>
+<td class="num">0.6222</td>
+<td class="num">0.4400</td>
+<td class="num">0.3030</td>
+<td class="num">0.6033</td>
+<td>상위 정밀도 최고. 다만 rrf 대비 우위는 미확인</td></tr>
+<tr><td class="num">rrf</td>
+<td class="num">0.5333</td>
+<td class="num">0.4000</td>
+<td class="num">0.2526</td>
+<td class="num">0.5662</td>
+<td>정밀도·재현율 모두 준수. 비용 대비 가장 합리적</td></tr>
+<tr><td class="num">bm25</td>
+<td class="num">0.4444</td>
+<td class="num">0.3400</td>
+<td class="num">0.2258</td>
+<td class="num">0.4527</td>
+<td>상위권은 버티지만 <strong>깊은 재현율이 최하</strong> — 놓치는 공고가 많다</td></tr>
+<tr><td class="num">dense</td>
+<td class="num">0.3778</td>
+<td class="num">0.3667</td>
+<td class="num">0.1710</td>
+<td class="num">0.5577</td>
+<td><strong>재현율은 rrf급인데 상위 정밀도가 낮다</strong> — 찾아내지만 위로 못 올린다</td></tr>
+</tbody></table></div>
+<div class="note"><strong>dense의 성격이 진단적이다.</strong>
+Recall@3은 0.171로 최하위권이지만 Recall@10은
+0.558로 <code>rrf</code>(0.566)에
+근접하고 <code>bm25</code>(0.453)를 앞선다.
+<strong>적합 공고를 찾아내기는 하는데 상위로 올리지 못한다</strong>는 뜻이다 —
+후보 생성기로는 좋고 최종 순위기로는 약하다. 하이브리드 구조가 실제로
+이 성질을 활용하고 있다는 증거이기도 하다.</div></section>
+<section><h2>천장을 100점으로 환산하면 <span class="n">도달률</span></h2>
+<p class="lede">"측정 가능한 최선"을 100점으로 두고 각 지표가 몇 점인지 본다.
+<strong>다만 천장이 지표마다 다르다</strong> — 이걸 섞으면 안 된다.</p>
+
+<div class="warnbox"><strong>κ의 천장 0.855를 검색 지표에 그대로 쓰면 안 된다.</strong>
+0.855는 <em>채점자끼리 얼마나 일치하는가</em>의 상한이고, nDCG·P@3의 상한이 아니다.
+서로 다른 것을 재는 지표라 분모를 공유하지 않는다. 아래는 지표군을 나눠 환산한 것이다.</div>
+
+<h3>A. 판정 신뢰도 — 천장 0.855 = 100점</h3>
+<div class="scroll"><table><thead><tr><th>판정자</th><th>κ</th><th>천장 대비</th>
+<th>95% CI (환산)</th></tr></thead><tbody>
+<tr><td>gemini-2.5-flash-lite (본판정 v3)</td><td class="num">0.5921</td>
+<td class="num best">69.3점</td>
+<td class="num">[50.8, 86.1]</td></tr>
+<tr><td>gemini-2.5-flash (§3-B 실험군)</td><td class="num">0.4535</td>
+<td class="num">53.0점</td>
+<td class="num">[32.9, 72.1]</td></tr>
+<tr><td>claude-fable-5 (기존 LLM 앵커)</td><td class="num">0.5289</td>
+<td class="num">61.9점</td>
+<td class="num">[42.6, 79.6]</td></tr>
+<tr><td><strong>게이트 통과 기준</strong></td><td class="num">0.60</td>
+<td class="num">70.2점</td><td class="num">—</td></tr>
+</tbody></table></div>
+<div class="note"><strong>본판정 judge는 69.3점, 통과선은 70.2점 — 0.9점 차이다.</strong>
+게이트 3이 얼마나 아슬아슬한지가 환산하면 더 분명해진다. 신뢰구간으로는 50.8~86.1점이라
+통과선을 걸친다.</div>
+
+<h3>B. 검색 지표 — 각자의 천장 = 100점</h3>
+<div class="scroll"><table><thead><tr><th>구성</th>
+<th>정규화 nDCG@3<br><span style="font-weight:400;text-transform:none">천장=완벽정렬</span></th>
+<th>P@3 / 도달가능<br><span style="font-weight:400;text-transform:none">천장=적합 수 한계 보정</span></th>
+<th>라벨잡음 보정<br><span style="font-weight:400;text-transform:none">천장=94.7%</span></th>
+<th>엄격 nDCG@3<br><span style="font-weight:400;text-transform:none">애매=0점</span></th>
+</tr></thead><tbody>
+<tr><td class="num">rrf_ce</td>
+<td class="num best">68.5점</td>
+<td class="num best">75.7점</td>
+<td class="num">79.9점</td>
+<td class="num">64.5점</td></tr>
+<tr><td class="num">rrf</td>
+<td class="num">54.6점</td>
+<td class="num">64.9점</td>
+<td class="num">68.5점</td>
+<td class="num">56.4점</td></tr>
+<tr><td class="num">bm25</td>
+<td class="num">44.7점</td>
+<td class="num">54.0점</td>
+<td class="num">57.1점</td>
+<td class="num">49.7점</td></tr>
+<tr><td class="num">dense</td>
+<td class="num">36.2점</td>
+<td class="num">46.0점</td>
+<td class="num">48.5점</td>
+<td class="num">40.1점</td></tr>
+</tbody></table></div>
+<div class="note"><strong>어느 환산을 쓰든 rrf_ce는 60~80점대다.</strong>
+가장 관대한 읽기가 라벨잡음 보정 79.9점,
+가장 엄격한 읽기가 애매=0 기준 64.5점이다.
+<strong>"측정 가능한 최선의 60~80%"</strong>가 현재 수준의 정직한 표현이고,
+이 폭 자체가 지표 설계에 따른 불확실성이다.</div>
+<div class="warnbox"><strong>세 번째 열(라벨잡음 보정)은 추정치다.</strong>
+재검사 19쌍의 이진 원일치율 94.7%를 "완벽한 시스템도 이 이상은 못 받는다"는
+천장으로 가정했다. 표본 19쌍으로 낸 값이라 정밀하지 않다 —
+제대로 하려면 앵커 전량을 두 번 라벨링해야 한다. 방향만 참고할 것.</div>
+
+<h3>C. RAGAS 축 — 둘은 환산 대상이 아니다</h3>
+<div class="scroll"><table><thead><tr><th>축</th><th>실측</th><th>천장</th><th>환산</th>
+<th>왜</th></tr></thead><tbody>
+<tr><td>context precision (ID)</td><td class="num">0.6222</td>
+<td class="num">—</td><td>중복</td>
+<td>P@3와 <strong>산식이 같다</strong>(상위 3건 중 적합 비율). 독립 지표가 아님</td></tr>
+<tr><td>context recall (ID)</td><td class="num">0.4057</td>
+<td class="num">0.6256</td>
+<td class="num best">64.8점</td>
+<td>k=3이라 적합 n건 중 최대 3건만 회수 가능 → 천장이 1.0이 아님</td></tr>
+<tr><td>faithfulness</td><td class="num">0.7115</td>
+<td class="num">—</td><td>환산 불가</td>
+<td>템플릿 응답 기준 하네스 확인값. 성능이 아니라 환산 의미 없음</td></tr>
+<tr><td>answer relevancy</td><td class="num">0.7814</td>
+<td class="num">—</td><td>환산 불가</td><td>위와 동일</td></tr>
+</tbody></table></div>
+<div class="note"><strong>context recall 0.41은 "낮다"가 아니다.</strong>
+적합 공고가 19건인 질의에서 상위 3건으로 회수할 수 있는 최대치는 0.158이다. 질의별 상한을
+평균하면 천장이 <strong>0.626</strong>이고, 실측 0.406은
+그 <strong>64.8%</strong>다.
+<strong>k=3에서 recall을 절대값으로 인용하면 반드시 오독된다</strong> — 이 지표는 절단이 작을수록
+구조적으로 낮게 나온다. recall을 제대로 보려면 k를 늘려야 한다(Recall@10 등).</div></section>
+<section><h2>어디서 잘하고 어디서 못하나 <span class="n">직군축</span></h2>
+<p class="lede">직군을 성격이 비슷한 축으로 묶은 정규화 nDCG@3. 축마다 질의가 2~4개뿐이라
+개별 수치는 잡음이 크지만, 축 사이의 격차는 뚜렷하다.</p>
+<div class="scroll"><table class="hm"><thead><tr><th>직군축</th><th>질의</th>
+<th style="text-align:center">rrf_ce</th>
+<th style="text-align:center">rrf</th>
+<th style="text-align:center">bm25</th>
+<th style="text-align:center">dense</th>
+<th style="text-align:center">random</th>
+</tr></thead><tbody>
+<tr><td>서버·백엔드</td><td class="num">3</td>
+<td class="c" data-step="3" title="서버·백엔드 / rrf_ce: 0.7918">0.792</td>
+<td class="c" data-step="3" title="서버·백엔드 / rrf: 0.6311">0.631</td>
+<td class="c" data-step="2" title="서버·백엔드 / bm25: 0.5164">0.516</td>
+<td class="c" data-step="1" title="서버·백엔드 / dense: 0.3392">0.339</td>
+<td class="c" data-step="0" title="서버·백엔드 / random: 0.0000">0.000</td>
+</tr>
+<tr><td>클라이언트</td><td class="num">4</td>
+<td class="c" data-step="4" title="클라이언트 / rrf_ce: 0.9067">0.907</td>
+<td class="c" data-step="3" title="클라이언트 / rrf: 0.7500">0.750</td>
+<td class="c" data-step="2" title="클라이언트 / bm25: 0.4905">0.490</td>
+<td class="c" data-step="2" title="클라이언트 / dense: 0.5251">0.525</td>
+<td class="c" data-step="0" title="클라이언트 / random: 0.0389">0.039</td>
+</tr>
+<tr><td>인프라·운영</td><td class="num">2</td>
+<td class="c" data-step="4" title="인프라·운영 / rrf_ce: 1.0000">1.000</td>
+<td class="c" data-step="3" title="인프라·운영 / rrf: 0.6679">0.668</td>
+<td class="c" data-step="2" title="인프라·운영 / bm25: 0.4399">0.440</td>
+<td class="c" data-step="3" title="인프라·운영 / dense: 0.6465">0.646</td>
+<td class="c" data-step="0" title="인프라·운영 / random: 0.0000">0.000</td>
+</tr>
+<tr><td>데이터·ML</td><td class="num">4</td>
+<td class="c" data-step="1" title="데이터·ML / rrf_ce: 0.3625">0.362</td>
+<td class="c" data-step="1" title="데이터·ML / rrf: 0.2826">0.283</td>
+<td class="c" data-step="2" title="데이터·ML / bm25: 0.4274">0.427</td>
+<td class="c" data-step="0" title="데이터·ML / dense: 0.1012">0.101</td>
+<td class="c" data-step="0" title="데이터·ML / random: 0.0000">0.000</td>
+</tr>
+<tr><td>품질·보안</td><td class="num">2</td>
+<td class="c" data-step="2" title="품질·보안 / rrf_ce: 0.4139">0.414</td>
+<td class="c" data-step="2" title="품질·보안 / rrf: 0.4139">0.414</td>
+<td class="c" data-step="1" title="품질·보안 / bm25: 0.3052">0.305</td>
+<td class="c" data-step="1" title="품질·보안 / dense: 0.3052">0.305</td>
+<td class="c" data-step="0" title="품질·보안 / random: 0.0000">0.000</td>
+</tr>
+</tbody></table></div>
+<div class="warnbox"><strong>데이터·ML 직군이 명확한 약점이다.</strong>
+데이터·ML 축에서 최고 구성도 0.362에 그치고,
+임베딩 검색 단독(<code>dense</code>)은 0.101로 거의 작동하지 않는다.
+직군명과 기술스택이 겹치는 인접 직군(데이터 엔지니어 / 사이언티스트 / ML 엔지니어 / 분석가)을
+구분하지 못하는 것으로 보인다 — 실제 서비스에서 오배치가 가장 많이 날 지점이다.</div></section>
+<section><h2>RAGAS 4축 <span class="n">보조 지표</span></h2>
+<p class="lede">업계 표준 RAG 평가 프레임워크의 4개 축. 위 두 축은 정답표만 있으면 계산이
+결정적으로 정해지고, 아래 두 축은 LLM이 채점한다.</p>
+<svg viewBox="0 0 700 214" role="img" class="chart" aria-label="RAGAS 4축 점수"><line x1="210.0" y1="14" x2="210.0" y2="186" class="grid"/><text x="210.0" y="202" class="tick mid">0.00</text><line x1="307.5" y1="14" x2="307.5" y2="186" class="grid"/><text x="307.5" y="202" class="tick mid">0.25</text><line x1="405.0" y1="14" x2="405.0" y2="186" class="grid"/><text x="405.0" y="202" class="tick mid">0.50</text><line x1="502.5" y1="14" x2="502.5" y2="186" class="grid"/><text x="502.5" y="202" class="tick mid">0.75</text><line x1="600.0" y1="14" x2="600.0" y2="186" class="grid"/><text x="600.0" y="202" class="tick mid">1.00</text><line x1="210" y1="186" x2="600" y2="186" class="axis"/><text x="0" y="35" class="rlabel sm">context precision (ID기반)</text><text x="0" y="49" class="rsub">결정적 · 표본 15/15</text><rect x="210" y="24" width="242.7" height="14" rx="4" class="bar s1"><title>context precision (ID기반): 0.6222 (표본 15/15)</title></rect><text x="459.7" y="36" class="val">0.622</text><text x="0" y="75" class="rlabel sm">context recall (ID기반)</text><text x="0" y="89" class="rsub">결정적 · 표본 15/15</text><rect x="210" y="64" width="158.2" height="14" rx="4" class="bar s1"><title>context recall (ID기반): 0.4057 (표본 15/15)</title></rect><text x="375.2" y="76" class="val">0.406</text><text x="0" y="115" class="rlabel sm">faithfulness</text><text x="0" y="129" class="rsub">LLM 판정 · 표본 13/15</text><rect x="210" y="104" width="277.5" height="14" rx="4" class="bar s2"><title>faithfulness: 0.7115 (표본 13/15)</title></rect><text x="494.5" y="116" class="val">0.712</text><text x="0" y="155" class="rlabel sm">answer relevancy</text><text x="0" y="169" class="rsub">LLM 판정 · 표본 15/15</text><rect x="210" y="144" width="304.7" height="14" rx="4" class="bar s2"><title>answer relevancy: 0.7814 (표본 15/15)</title></rect><text x="521.7" y="156" class="val">0.781</text></svg>
+<div class="legend"><span><span class="sw s1"></span>결정적 — 계산이 확정적</span>
+<span><span class="sw s2"></span>LLM 판정 — 채점자 편차 있음</span></div>
+<div class="warnbox"><strong>이 4축은 검색 성능의 독립적인 2차 검증이 아니다.</strong>
+정답표가 위와 <em>같은</em> 판정기 라벨이라, 판정기의 편향을 그대로 물려받는다.
+게다가 편향 방향이 축마다 반대다 — 적합 라벨이 과다하면 <strong>precision은 과대추정(상한),
+recall은 과소추정(하한)</strong>이 된다. 두 수치를 같은 신뢰도로 나란히 읽으면 안 된다.
+아래 두 축은 답변 생성부가 정식 연결되기 전 템플릿 응답 기준이라
+<strong>하네스 동작 확인값</strong>이고 성능이 아니다. 실패 2건은
+구조화 출력 파싱 실패로 해당 표본만 제외했다.</div></section>
+<section><h2>사람이 실제로 적용한 경계 기준 <span class="n">사후 역추출</span></h2>
+<p class="lede">채점 전에 확정하려 했던 경계 사례 판단 기준을, 완료된 라벨에서 거꾸로 읽어낸 것이다.
+불일치율이 높은 구간이 기준이 불명확했던 지점이다.</p>
+<div class="scroll"><table><thead><tr><th>질의 유형</th><th>쌍</th>
+<th>Correct</th><th>Ambiguous</th><th>Incorrect</th><th>판정기 불일치</th><th>불일치율</th>
+</tr></thead><tbody>
+<tr><td>신입 질의</td><td class="num">20</td>
+<td class="num">9</td><td class="num">1</td>
+<td class="num">10</td><td class="num">3</td>
+<td class="num">15.0%</td></tr>
+<tr><td>경력 질의</td><td class="num">86</td>
+<td class="num">28</td><td class="num">16</td>
+<td class="num">42</td><td class="num">19</td>
+<td class="num">22.1%</td></tr>
+<tr><td>풀스택 질의</td><td class="num">12</td>
+<td class="num">8</td><td class="num">1</td>
+<td class="num">3</td><td class="num">1</td>
+<td class="num">8.3%</td></tr>
+</tbody></table></div>
+<div class="note"><strong>경력 질의가 가장 불안정하다</strong>
+(경력 질의 불일치율 22.1%).
+연차 요건이 질의보다 높은 공고를 어디까지 허용하는지가 여전히 미정의 상태다.
+다음 라운드 전에 이 기준을 문서로 확정해야 사람 라벨끼리도 일관성이 올라간다.</div></section>
+<section><h2>질의별 상세 <span class="n">15종</span></h2>
+<details><summary>질의별 점수·정답 분포 펼치기</summary><div class="in">
+<div class="scroll"><table><thead><tr><th>ID</th><th>질의</th><th>판정</th><th>적합</th>
+<th>rrf_ce</th>
+<th>rrf</th>
+<th>bm25</th>
+<th>dense</th>
+<th>random</th>
+</tr></thead><tbody>
+<tr><td class="num">SA01</td><td>백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년)</td>
+<td class="num">29</td><td class="num">10</td>
+<td class="num best">0.558</td>
+<td class="num">0.443</td>
+<td class="num">0.443</td>
+<td class="num">0.001</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA02</td><td>백엔드 개발자 Python Django PostgreSQL (신입)</td>
+<td class="num">33</td><td class="num">9</td>
+<td class="num best">1.000</td>
+<td class="num">1.000</td>
+<td class="num">0.656</td>
+<td class="num">0.566</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA03</td><td>백엔드 개발자 Go Redis Kafka (경력 7년)</td>
+<td class="num">28</td><td class="num">3</td>
+<td class="num best">0.817</td>
+<td class="num">0.451</td>
+<td class="num">0.451</td>
+<td class="num">0.451</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA04</td><td>프론트엔드 개발자 React TypeScript Next.js (경력 2년)</td>
+<td class="num">30</td><td class="num">18</td>
+<td class="num best">1.000</td>
+<td class="num">1.000</td>
+<td class="num">0.335</td>
+<td class="num">1.000</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA05</td><td>프론트엔드 개발자 Vue JavaScript (신입)</td>
+<td class="num">31</td><td class="num">12</td>
+<td class="num best">1.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA06</td><td>풀스택 개발자 React Node.js MySQL (경력 4년)</td>
+<td class="num">30</td><td class="num">13</td>
+<td class="num best">1.000</td>
+<td class="num">1.000</td>
+<td class="num">1.000</td>
+<td class="num">0.474</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA07</td><td>안드로이드 개발자 Kotlin Android (경력 3년)</td>
+<td class="num">28</td><td class="num">9</td>
+<td class="num">0.627</td>
+<td class="num best">1.000</td>
+<td class="num">0.627</td>
+<td class="num">0.627</td>
+<td class="num">0.156</td>
+</tr>
+<tr><td class="num">SA08</td><td>DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년)</td>
+<td class="num">29</td><td class="num">8</td>
+<td class="num best">1.000</td>
+<td class="num">1.000</td>
+<td class="num">0.544</td>
+<td class="num">0.772</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA09</td><td>SRE 엔지니어 Kubernetes Linux Terraform (경력 4년)</td>
+<td class="num">25</td><td class="num">3</td>
+<td class="num best">1.000</td>
+<td class="num">0.336</td>
+<td class="num">0.336</td>
+<td class="num">0.521</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA10</td><td>데이터 엔지니어 Python Kafka SQL (경력 3년)</td>
+<td class="num">31</td><td class="num">2</td>
+<td class="num">0.574</td>
+<td class="num">0.405</td>
+<td class="num best">0.618</td>
+<td class="num">0.405</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA11</td><td>데이터 사이언티스트 Python TensorFlow (경력 2년)</td>
+<td class="num">28</td><td class="num">0</td>
+<td class="num best">0.405</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA12</td><td>머신러닝 엔지니어 Python PyTorch LLM (경력 3년)</td>
+<td class="num">29</td><td class="num">5</td>
+<td class="num best">0.472</td>
+<td class="num">0.106</td>
+<td class="num">0.472</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA13</td><td>데이터 분석가 SQL Python (신입)</td>
+<td class="num">30</td><td class="num">2</td>
+<td class="num">0.000</td>
+<td class="num best">0.620</td>
+<td class="num">0.620</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA14</td><td>QA 엔지니어 Python Git (경력 2년)</td>
+<td class="num">30</td><td class="num">0</td>
+<td class="num best">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+<td class="num">0.000</td>
+</tr>
+<tr><td class="num">SA15</td><td>보안 엔지니어 Linux (경력 3년)</td>
+<td class="num">28</td><td class="num">5</td>
+<td class="num best">0.828</td>
+<td class="num">0.828</td>
+<td class="num">0.610</td>
+<td class="num">0.610</td>
+<td class="num">0.000</td>
+</tr>
+</tbody></table></div></div></details></section>
+<section><h2>용어 해설 <span class="n">읽는 법</span></h2>
+<p class="lede">위 수치를 해석하는 데 필요한 용어만 모았다.</p>
+<div class="card" style="padding:0"><dl class="gloss">
+<div class="gi"><dt>정규화 nDCG@3<span class="en">normalized nDCG@3</span></dt><dd>상위 3건이 얼마나 잘 정렬됐는지를 0~1로 환산한 값. 0 = 무작위로 뽑은 수준, 1 = 이 후보 풀에서 이론상 가능한 최선. 질의마다 난이도가 달라 원점수를 그대로 평균하면 왜곡되므로, 무작위 바닥과 오라클 천장 사이에서 어디쯤인지로 바꾼 것이다.</dd></div>
+<div class="gi"><dt>nDCG@3<span class="en">normalized discounted cumulative gain</span></dt><dd>상위 3건의 적합도를 순위가 낮을수록 깎아서 더한 뒤, 이상적 정렬로 나눈 값. 1등에 적합한 게 오면 3등에 오는 것보다 높은 점수를 준다.</dd></div>
+<div class="gi"><dt>P@3<span class="en">precision at 3</span></dt><dd>상위 3건 중 적합한 것의 비율. 순서는 안 본다.</dd></div>
+<div class="gi"><dt>AP@3<span class="en">average precision at 3</span></dt><dd>상위 3건 안에서 적합한 항목이 나타난 위치까지의 정밀도를 평균한 값. 순서를 본다.</dd></div>
+<div class="gi"><dt>qrels<span class="en">query relevance judgments</span></dt><dd>정답표. 질의–문서 쌍마다 적합/애매/부적합 라벨을 붙여둔 것. 검색 점수는 전부 이 표에 상대적이라, 표가 틀리면 점수도 틀린다.</dd></div>
+<div class="gi"><dt>풀링<span class="en">pooling</span></dt><dd>여러 검색 방식의 상위 결과를 모아 그 합집합만 채점하는 방식. 전체 코퍼스를 다 채점할 수 없어 쓰는 표준 기법이지만, 어떤 방식도 못 찾은 적합 문서는 영원히 누락된다 — 그래서 recall의 절대값은 신뢰할 수 없다.</dd></div>
+<div class="gi"><dt>Cohen's κ<span class="en">Cohen's kappa</span></dt><dd>두 채점자가 얼마나 일치하는지를, 우연히 맞을 확률을 뺀 뒤 재는 값. 0 = 우연 수준, 1 = 완전 일치. 단순 일치율보다 엄격하다 — 라벨이 한쪽으로 치우쳐 있으면 찍어도 일치율은 높게 나오기 때문이다.</dd></div>
+<div class="gi"><dt>이진화<span class="en">binarization</span></dt><dd>3분류(적합/애매/부적합)를 '적합 대 나머지'로 접는 것. 본평가의 P@3가 적합만 적합으로 세므로, 신뢰도 게이트도 같은 기준으로 재야 앞뒤가 맞는다.</dd></div>
+<div class="gi"><dt>McNemar b, c<span class="en">McNemar's test</span></dt><dd>불일치가 한쪽으로 쏠렸는지 본다. b = 사람은 적합인데 판정기가 아니라 한 건, c = 그 반대. c가 b보다 크게 많으면 판정기가 적합을 남발하는 편향이 있다는 뜻이다.</dd></div>
+<div class="gi"><dt>쌍대 부트스트랩<span class="en">paired bootstrap</span></dt><dd>질의 집합을 복원추출로 수천 번 다시 뽑아 두 구성의 차이 분포를 만드는 방법. '이 15개 질의가 우연히 유리했을 가능성'을 수치로 바꿔준다.</dd></div>
+<div class="gi"><dt>95% 신뢰구간<span class="en">95% CI</span></dt><dd>참값이 있을 만한 범위. 차이의 구간이 0을 포함하면 '차이가 있다'고 말할 수 없다. 구간이 길다 = 표본이 적어 불확실하다.</dd></div>
+<div class="gi"><dt>유의 / 구분 불가<span class="en">significance</span></dt><dd>여기서 '구분 불가'는 '차이가 없다'가 아니라 '있는지 없는지 이 표본으로는 알 수 없다'는 뜻이다. 둘을 섞으면 결론이 과장된다.</dd></div>
+<div class="gi"><dt>자기일관성<span class="en">self-consistency</span></dt><dd>같은 채점자에게 같은 항목을 다시 보여줬을 때 같은 답을 내는 정도. 사람은 완벽하지 않고, 이 값이 정답표 품질의 실질적 상한이 된다.</dd></div>
+<div class="gi"><dt>잡음 천장<span class="en">noise ceiling</span></dt><dd>정답 자체가 흔들리는 만큼 어떤 모델도 그 위로 못 올라가는 한계선. 사람 자기일관성이 그 값이다. 이걸 모르면 '기준 0.60'이 쉬운지 어려운지 판단할 수 없다.</dd></div>
+<div class="gi"><dt>context precision / recall<span class="en">RAGAS</span></dt><dd>검색이 가져온 근거 중 실제 정답 문서의 비율(precision)과, 정답 문서 중 가져온 비율(recall). 여기서는 문서 ID 대조로 계산해 LLM이 개입하지 않는다 — 단 정답표 자체는 LLM이 만든 것이다.</dd></div>
+<div class="gi"><dt>faithfulness<span class="en">RAGAS</span></dt><dd>생성된 답변의 주장들이 검색된 근거에 실제로 있는지. 낮으면 없는 내용을 지어낸 것이다.</dd></div>
+<div class="gi"><dt>answer relevancy<span class="en">RAGAS</span></dt><dd>답변이 질문에 실제로 답하고 있는지. 근거에 충실하지만 질문과 상관없는 답변을 걸러낸다.</dd></div>
+<div class="gi"><dt>bm25<span class="en">arm</span></dt><dd>단어가 얼마나 겹치는지로 찾는 고전 어휘 검색. 표기가 정확히 일치할 때 강하다.</dd></div>
+<div class="gi"><dt>dense<span class="en">arm</span></dt><dd>문장을 벡터로 바꿔 의미가 가까운 것을 찾는 검색. 표현이 달라도 뜻이 비슷하면 찾아낸다.</dd></div>
+<div class="gi"><dt>rrf<span class="en">reciprocal rank fusion</span></dt><dd>bm25와 dense의 순위를 합치는 방법. 점수 척도가 달라도 순위만으로 섞을 수 있다.</dd></div>
+<div class="gi"><dt>rrf_ce<span class="en">cross-encoder rerank</span></dt><dd>rrf 결과 상위권을 질의와 함께 다시 읽어 정밀 재정렬하는 방식. 가장 정확할 수 있지만 가장 느리다(질의당 0.836초).</dd></div>
+<div class="gi"><dt>오라클 / 랜덤 바닥<span class="en">oracle / random floor</span></dt><dd>오라클 = 정답표를 다 알고 완벽히 정렬했을 때의 점수(천장). 랜덤 바닥 = 후보를 무작위로 뽑았을 때의 기대 점수. 정규화는 이 둘 사이 위치로 환산하는 것이다. 주의: 여기서 랜덤 바닥은 '풀 안에서' 무작위로 뽑은 값이라, 코퍼스 전체에서 무작위로 뽑는 random 구성보다 훨씬 높은(엄격한) 기준선이다.</dd></div>
+<div class="gi"><dt>절단 k<span class="en">metric cutoff</span></dt><dd>상위 몇 건까지 채점할지. 여기서는 3 — 생성부가 상위 3건을 근거로 쓰기 때문이다. 지표의 절단은 시스템이 실제로 내리는 결정의 크기와 같아야 한다.</dd></div>
+<div class="gi"><dt>천장 포화<span class="en">ceiling saturation</span></dt><dd>지표가 만점에 붙어버려 더 나아진 것을 표현할 수 없는 상태. 만점 질의가 많으면 구성 간 우열도 갈리지 않는다 — 검정력 부족의 원인이 표본 수가 아니라 지표일 수 있다.</dd></div>
+<div class="gi"><dt>도달가능 상한 대비 P@3<span class="en">attainable-adjusted P@3</span></dt><dd>적합 공고가 3건 미만인 질의는 P@3가 애초에 1.0에 도달할 수 없다. 질의별로 min(3, 적합 수)를 분모로 삼아 '맞출 수 있었던 것 중 얼마를 맞췄나'로 환산한 값.</dd></div>
+<div class="gi"><dt>등급 배점<span class="en">graded relevance</span></dt><dd>적합 2점 · 애매 1점 · 부적합 0점. nDCG는 이 배점을 쓰므로 애매 판정에서도 절반의 점수가 나온다. 반면 P@3·AP@3는 적합만 센다 — 그래서 같은 결과에서 nDCG가 P@3보다 후하게 나온다.</dd></div>
+</dl></div></section>
+<section><h2>이 결과가 말할 수 없는 것 <span class="n">한계</span></h2>
+<ul class="tight">
+<li><strong>어떤 검색 구성을 채택할지</strong> — 상위 3개 구성이 통계적으로 구분되지 않는다.
+질의 15종으로는 검정력이 부족하다. 대략 60~120종이 필요하다.</li>
+<li><strong>절대 성능 수치</strong> — 게이트 3이 판정 불가 상태다. 정답표의
+73%는 아직 사람 검증을 받지 않은 판정기 라벨이다.</li>
+<li><strong>recall의 절대값</strong> — 풀링 방식이라 어떤 검색 방식도 찾지 못한 적합 공고는
+집계에서 빠진다. 측정된 recall은 하한이다.</li>
+<li><strong>답변 생성 품질</strong> — faithfulness·answer relevancy는 템플릿 응답 기준
+하네스 확인값이다. 생성부를 정식 연결한 뒤가 본측정이다.</li>
+<li><strong>실서비스 대표성</strong> — 코퍼스가 작고, 질의도 직접 만든 정규화 고정형이다.
+실제 사용자 입력 분포와 같다는 보장이 없다.</li>
+<li><strong>자연어 질의 트랙과의 직접 비교</strong> — 사람 검증은 정규화 질의 트랙에서만
+이뤄졌다. 두 트랙의 신뢰도 수치를 서로 대입할 수 없다.</li>
+</ul>
+<div class="note"><strong>다음에 할 일 하나만 고르라면:</strong> 앵커 표본을 250~300쌍으로
+늘려 게이트 3의 판정 불가를 해소하는 것이다. 지금 CI 반폭이 ±0.15라 기준선을 배제하지 못한다.
+질의 수 확대(15 → 60+)는 구성 선택을 위해 별도로 필요하며, 두 작업은 함께 설계하는 게 낫다.</div>
+</section>
+<footer>생성 2026-07-29T07:50:21Z ·
+정답표 gemini-2.5-flash-lite v3 전량 판정 (439쌍) · 사람 검증 118쌍 ·
+판정 프롬프트 v3 ·
+수치는 report_spec.json / anchor_report_human.json / ragas_report.json에서 자동 주입</footer>
+</div>

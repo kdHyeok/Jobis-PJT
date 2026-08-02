@@ -1,38 +1,48 @@
 spring:
   application:
-    name: backend
-
-  # 프론트(HTML/JS)는 src/main/resources/static/ 에 번들되어 http://localhost:8080/ 루트로 서빙된다(기본 classpath).
-
-  # === DB 연결 — 값은 .env(로컬)/환경변수로 주입 (팀 규칙). local 프로필로 실행해야 .env를 읽는다. ===
+    name: jobiss-backend
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-
-  # === JPA / Hibernate ===
-  # 전환기: Hibernate가 엔티티에서 스키마를 생성(ddl-auto: update). 안정화되면 Flyway(Postgres)+validate로.
-  jpa:
-    hibernate:
-      ddl-auto: update
-    open-in-view: false        # 실무 권장(요청 끝까지 DB세션 여는 anti-pattern 끔)
-    show-sql: true             # 실행되는 SQL을 콘솔에 출력(학습용)
-    properties:
-      hibernate:
-        format_sql: true
-
-  # === Flyway ===
-  # MySQL 방언 마이그레이션(V1~V7)은 Postgres에서 못 도므로 끈다. 스키마는 Hibernate가 만든다.
+    url: ${DB_URL:jdbc:postgresql://localhost:55432/jobiss}
+    username: ${DB_APP_USER:jobiss_app}
+    password: ${DB_APP_PASSWORD:jobiss_app_dev}
+    hikari:
+      maximum-pool-size: 10
+      auto-commit: false
   flyway:
-    enabled: false
+    enabled: true
+    url: ${DB_URL:jdbc:postgresql://localhost:55432/jobiss}
+    user: ${DB_MIGRATOR_USER:jobiss_migrator}
+    password: ${DB_MIGRATOR_PASSWORD:jobiss_migrator_dev}
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
 
-# === JWT — secret 은 .env/환경변수로 주입(32자 이상 필수, 짧으면 서버 안 뜸) ===
-jwt:
-  secret: ${JWT_SECRET}
-  expiration-ms: 86400000   # 24시간
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: ${COOKIE_SECURE:false}
+        same-site: lax
 
-# === 가짜 AI 에이전트 서버 (별도 프로세스) ===
 jobiss:
-  agent:
-    url: ${AGENT_WS_URL:ws://localhost:8000}          # 실시간 분석 (WebSocket) — 기본값 있어 .env 없어도 동작
-    http-url: ${AGENT_HTTP_URL:http://localhost:8000} # 저장소 자료 파편화 (HTTP POST /extract)
+  web:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  auth:
+    jwt-secret: ${JWT_SECRET:local-development-secret-change-this-before-production}
+    access-token-seconds: ${ACCESS_TOKEN_SECONDS:3600}
+    cookie-secure: ${COOKIE_SECURE:false}
+  ai:
+    base-url: ${AI_SERVER_URL:http://localhost:8000}
+    shared-secret: ${AI_SHARED_SECRET:local-ai-secret}
+    worker-enabled: ${AI_WORKER_ENABLED:true}
+    poll-delay-ms: ${AI_POLL_DELAY_MS:3000}
+    request-timeout-seconds: ${AI_HTTP_TIMEOUT_SECONDS:660}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{requestId:-background}] %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.jobiss: DEBUG

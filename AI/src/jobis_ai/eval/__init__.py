@@ -34,6 +34,7 @@ def provenance(**extra: Any) -> dict[str, Any]:
         "provider": settings.llm_provider,
         "model": settings.active_model(),
         "modelLight": settings.active_model("light"),
+        "modelRouter": settings.active_model("router"),   # 플래너가 실제로 부르는 모델(D74)
         "temperature": settings.temperature,
         "measuredAt": datetime.now().isoformat(timespec="seconds"),
         **extra,

@@ -33,6 +33,85 @@ Postings:
 
 Output {n} JSON lines. No other text."""
 
+# v2: v1 판정이 기술 스택 겹침만 보고 직군을 무시하는 실패가 앵커 대조에서 확인됐다
+# ("Python QA 테스트 자동화" -> "AI 서비스 개발자"를 Correct로 판정). 직군 일치를
+# Correct의 필요조건으로 명시한다. 앵커에 맞춘 튜닝이 아니라 확인된 결함 1건만 수정.
+PROMPT_V2 = """You are an IR relevance judge for Korean job postings.
+
+Query: "{query}"
+
+The query states a desired JOB ROLE, plus optional tech / region / experience.
+
+Judge each posting:
+- Correct: the posting's job role matches what the query asks for, AND the
+  stated tech/region/experience conditions are broadly satisfied.
+- Ambiguous: the role matches but some stated condition clearly does not,
+  OR the role is adjacent but not the same (e.g. backend vs full-stack).
+- Incorrect: the job role is different from what the query asks for.
+
+Sharing a technology is NOT enough. A posting is Incorrect if its role differs,
+even when the tech stack overlaps heavily. Examples:
+- query "Python QA engineer test automation" vs posting "AI service developer
+  (Python)" -> Incorrect. Python matches but the role is not QA.
+- query "Python data analyst" vs posting "MLOps engineer (Python)" -> Incorrect.
+Decide the role first; only then check tech, region, and experience.
+
+Postings:
+{postings}
+
+Now output exactly {n} lines, one per posting, in this exact format:
+{{"id": "P1", "label": "Correct"}}
+
+Use the key names "id" and "label" verbatim. No code fences, no other text."""
+
+# v3: v2 A/B(앵커 112쌍)에서 직군 결함은 잡혔으나(binary 70.5%->79.5%) 잔여 불일치
+# 20건이 전부 경력 요건·지역 무시였다 ("부산 신입" -> "경력 4년^" Correct,
+# "3년차" -> "경력 10년^" Correct, "서울" -> 원주 근무지 Correct).
+# 경력·지역 양립을 Correct의 필요조건으로 명시한다. 역시 확인된 결함 단위 수정.
+PROMPT_V3 = """You are an IR relevance judge for Korean job postings.
+
+Query: "{query}"
+
+The query states a desired JOB ROLE, plus optional tech / region / experience.
+Judge in this order: role first, then region, then experience.
+
+1. ROLE: if the posting's job role differs from the query's role, label Incorrect.
+   Sharing a technology is NOT enough. Examples:
+   - query "Python QA engineer test automation" vs posting "AI service developer
+     (Python)" -> Incorrect. Python matches but the role is not QA.
+   - query "Python data analyst" vs posting "MLOps engineer (Python)" -> Incorrect.
+
+2. REGION: if the query names a region and the posting's workplace is in a
+   different city/province, label Incorrect. (e.g. query "서울" vs workplace
+   원주/부산/대구 -> Incorrect. 강남/판교 etc. count as their containing city.)
+
+3. EXPERIENCE: compare the query's experience level with the posting's requirement.
+   - Query "신입" but posting requires 3+ years -> Incorrect.
+   - Query "N년차" but posting requires far more (e.g. 3년차 vs 7년/10년 이상)
+     -> Incorrect.
+   - Requirement slightly above the query (within ~2 years, e.g. 3년차 vs
+     5년 이상) or the query says 경력무관 but the posting requires seniority
+     -> Ambiguous.
+   - Requirement at or below the query's level, or 무관/unstated -> compatible.
+
+Labels:
+- Correct: role matches AND region compatible AND experience compatible.
+- Ambiguous: role matches but one condition is borderline as defined above,
+  OR the role is adjacent but not the same (e.g. backend vs full-stack).
+- Incorrect: any rule above says Incorrect.
+
+Postings:
+{postings}
+
+Now output exactly {n} lines, one per posting, in this exact format:
+{{"id": "P1", "label": "Correct"}}
+
+Use the key names "id" and "label" verbatim. No code fences, no other text."""
+
+# 실제 판정에 쓰이는 프롬프트. 바꾸면 기존 judgments.json은 무효 -전량 재판정해야 한다.
+ACTIVE_PROMPT = PROMPT_V3
+PROMPT_VERSION = "v3"
+
 
 def _api_url() -> str:
     base = os.environ.get("GMS_BASE_URL",
@@ -79,22 +158,37 @@ def _format_posting(short_id: str, title: str, company: str, tech: list[str],
     return f"{short_id} | {company} - {title} | tech: {tech_str}\n{detail_snippet[:300]}"
 
 
+_ID_KEYS = ("id", "posting_id", "uid", "postingId")
+_LABEL_KEYS = ("label", "result", "relevance", "judgment", "verdict")
+
+
 def _parse_response(text: str, id_map: dict[str, str]) -> dict[str, str]:
-    """Parse LLM response. id_map: {short_id -> real_uid}."""
+    """Parse LLM response. id_map: {short_id -> real_uid}.
+
+    프롬프트가 길어지면 모델이 키 이름을 바꾸거나(id -> posting_id) 코드펜스로
+    감싸는 드리프트가 관찰됐다. 형식 변주를 흡수해 판정 자체를 잃지 않는다.
+    """
     labels = {}
     for line in text.strip().split("\n"):
-        line = line.strip()
-        if not line:
+        line = line.strip().strip("`")
+        if not line or line in ("json", "JSON"):
             continue
+        if line.startswith("```"):
+            continue
+        line = line.rstrip(",")
         try:
             obj = json.loads(line)
-            short_id = obj.get("id", "").strip()
-            label = obj.get("label", "")
-            real_uid = id_map.get(short_id)
-            if real_uid and label in ("Correct", "Ambiguous", "Incorrect"):
-                labels[real_uid] = label
         except json.JSONDecodeError:
             continue
+        if not isinstance(obj, dict):
+            continue
+        short_id = next((str(obj[k]).strip() for k in _ID_KEYS if k in obj), None)
+        label = next((str(obj[k]).strip() for k in _LABEL_KEYS if k in obj), None)
+        if short_id is None or label is None:
+            continue
+        real_uid = id_map.get(short_id)
+        if real_uid and label in ("Correct", "Ambiguous", "Incorrect"):
+            labels[real_uid] = label
     return labels
 
 
@@ -141,7 +235,7 @@ def judge_batch(conn, query_text: str, uids: list[str]) -> dict[str, str]:
         _format_posting(uid, d["title"], d["company"], d["tech"], d["snippet"])
         for uid, d in details.items()
     )
-    prompt = PROMPT_V1.format(
+    prompt = ACTIVE_PROMPT.format(
         query=query_text,
         postings=postings_text,
         n=len(details),
@@ -201,7 +295,7 @@ def judge_query(conn, qid: str, query_text: str, pool_uids: list[str]) -> dict[s
                 _format_posting(short_id, d["title"], d["company"], d["tech"], d["snippet"])
             )
         postings_text = "\n\n".join(postings_parts)
-        prompt = PROMPT_V1.format(query=query_text, postings=postings_text, n=len(batch_details))
+        prompt = ACTIVE_PROMPT.format(query=query_text, postings=postings_text, n=len(batch_details))
         response = _throttled_call(prompt)
         return _parse_response(response, id_map), batch
 

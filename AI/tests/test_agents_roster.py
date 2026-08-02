@@ -50,8 +50,9 @@ def test_resume_diagnosis_reports_evidence_split():
         },
     }
     result = run_diagnosis(session)
-    # 도구는 말하지 않는다 — 데이터만 낸다(0729 표현 분리).
-    assert result.reply == ""
+    # 대화형 승격(D97 의 짝) 후에도 **데이터는 그대로**다 — 루프는 이 사실을 근거로 말할 뿐
+    # 사실을 바꾸지 않는다. LLM 미설정(conftest)이라 문장은 결정론 폴백이 만든다.
+    assert result.reply, "승격 후에도 LLM 없이 답해야 한다(tool_render 폴백)"
     assert result.data["evidencedSkills"] == ["Python"]
     assert result.data["unverifiedSkills"] == ["Kubernetes"]
     assert "학력" in result.data["emptySections"]
@@ -61,6 +62,66 @@ def test_resume_diagnosis_reports_evidence_split():
     rendered, _ = render_resume_diagnosis(result.data, session)
     assert "Python" in rendered and "Kubernetes" in rendered
     assert "기재만 된 것" in rendered, "근거 없는 스킬은 그렇다고 말한다"
+
+
+def test_resume_diagnosis_loop_grounding(monkeypatch):
+    """D97 짝: 루프가 답하면 그 답이 전부고, **근거는 항목화 사실로 봉인**된다.
+
+    강점을 말할 근거는 `evidencedSkills`(경험 서술로 뒷받침되는 것)여야 한다 — 이력서에
+    이름만 적힌 스킬을 강점으로 세면 없는 근거를 만드는 것이다(§2-5).
+    """
+
+    from jobis_ai.agents import resume_diagnosis
+    from jobis_ai.agents.agent_loop import LoopOutcome
+
+    seen: dict = {}
+
+    def fake_loop(**kw):
+        seen.update(kw["facts"])
+        return LoopOutcome(reply="Python 강점이 프로젝트로 뒷받침돼요.")
+
+    monkeypatch.setattr("jobis_ai.agents.resume_diagnosis.run_agent_loop", fake_loop)
+    session = {"profile": {
+        "skills": [{"name": "Python"}, {"name": "Kubernetes"}],
+        "skillEvidence": {"Python": ["exp-1"]},
+        "projects": [{"id": "p1", "title": "API 서버"}],
+        "education": [], "experiences": [], "certifications": [],
+        "languages": [], "awards": [],
+    }}
+    result = resume_diagnosis.run(session)
+    assert result.reply == "Python 강점이 프로젝트로 뒷받침돼요."   # 항목 표를 덧붙이지 않는다
+    assert seen["evidencedSkills"] == ["Python"]
+    assert seen["unverifiedSkills"] == ["Kubernetes"]
+    assert seen["firstLook"] is False        # 프로필이 이미 있었다 = 후속 질문 턴
+
+    # 원문 검색 도구 — 없는 것은 없다고 돌려준다(빈 관찰이면 LLM 이 지어낸다).
+    from jobis_ai.agents.resume_diagnosis import _tool_read_resume
+
+    state = {"_text": "프로젝트: 결제 API 서버. 성과: 응답시간 40% 개선."}
+    assert "40%" in _tool_read_resume(state, "성과")[0]
+    assert "찾지 못했습니다" in _tool_read_resume(state, "Kafka")[0]
+
+
+def test_downstream_agents_read_posting_identity_from_whiteboard():
+    """하류 생성 에이전트가 **어느 회사·직무인지** 화이트보드에서 읽는다(D97 §4).
+
+    실측 결핍: `coverletter_draft` 의 facts 에 회사명·직무가 아예 없어 지원 대상을 모른 채
+    초안을 썼고, `application_plan` 은 `job_posting.get("company")` 로 찾아 늘 빈 값이었다
+    (그 자산은 {sourceType, value} 원천이라 회사명 칸이 없다).
+    """
+
+    from jobis_ai.agents._common import posting_identity
+
+    # 판정 전 — 공고만 정리된 상태에서도 회사·직무를 안다(파싱 결과가 출처).
+    assert posting_identity({
+        "posting_summary": {"companyName": "회사A", "jobTitle": "백엔드"},
+    }) == ("회사A", "백엔드")
+    # 판정 산출만 있어도 폴백한다.
+    assert posting_identity({
+        "analysis": {"companyName": "회사B", "roleTitle": "데이터"},
+    }) == ("회사B", "데이터")
+    # 원천 자산만 있으면 모른다 — 지어내지 않는다(회사명 추측 금지).
+    assert posting_identity({"job_posting": {"sourceType": "text", "value": "채용"}}) == ("", "")
 
 
 def test_interview_prep_consumes_analysis_only():

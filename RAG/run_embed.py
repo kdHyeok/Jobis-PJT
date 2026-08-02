@@ -1,7 +1,7 @@
 """청킹 -> 임베딩 -> pgvector 저장까지 배치 파이프라인 전체 실행.
 
 사용: python run_embed.py [입력JSON]
-사전조건: psql로 schema.sql 적용 완료, .env의 PG_DSN.
+사전조건: schema.sql 적용 완료 (run_setup_db.py), .env의 PG_DSN.
 """
 from __future__ import annotations
 

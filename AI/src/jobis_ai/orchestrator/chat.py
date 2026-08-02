@@ -26,14 +26,15 @@ from __future__ import annotations
 import contextvars
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from jobis_ai import llm_usage, trace
-from jobis_ai.agents import get_agent_registry
+from jobis_ai.agents import AgentResult, get_agent_registry
 from jobis_ai.contracts.api import ChatRequest, ChatResponse
 from jobis_ai.orchestrator import observe_rules
-from jobis_ai.orchestrator.attachment_kind import resolve_kind
+from jobis_ai.orchestrator.attachment_kind import MIN_ASSET_CHARS, resolve_kind
 from jobis_ai.orchestrator.planner import (
     CONFIDENCE_THRESHOLD,
     plan_agents,
@@ -42,13 +43,20 @@ from jobis_ai.orchestrator.planner import (
 from jobis_ai.orchestrator.router import (
     FALLBACK_AGENT,
     Dispatch,
+    agent_feasibility,
     agent_label,
+    asset_label,
     runnable_now,
     session_assets,
     validate_agent_args,
     validate_plan,
 )
-from jobis_ai.orchestrator.session import HISTORY_MAX_ITEMS, get_session_store
+from jobis_ai.orchestrator.session import (
+    HISTORY_MAX_ITEMS,
+    UNSUPPORTED_MAX_ITEMS,
+    get_session_store,
+)
+from jobis_ai.orchestrator.user_facts import extract_user_facts
 
 # 판단 궤적은 trace(창문) 외에 **로그로도** 남긴다. trace 이벤트는 턴이 끝나면 사라지므로
 # (SSE 중계·패널 조립용으로만 쓰인다) 사후에 "무엇을 왜 골랐나"를 볼 수단이 없었다.
@@ -82,29 +90,81 @@ _URL_RE = re.compile(r"https?://[^\s<>\"']+")
 # 주소(searchword=ai엔지니어)도 받는다. 실측(2026-07-30): 사람인 주소가 스킴이 없어
 # 감지되지 않았고 일반 대화로 흘러 "열람할 수 없어요"가 나갔다.
 _SCHEMELESS_URL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}/\S*$")
+# 문장 **속에** 섞인 스킴 없는 주소("saramin.co.kr/… 공고분석해줘")는 **채용 사이트
+# 도메인일 때만** 공고로 본다(D80) — 일반 도메인까지 받으면 언급만 한 링크("react.dev/learn
+# 참고했어요")가 공고 자산을 덮고 분석을 무효화한다. 발화 전체가 주소 한 토큰이면 위
+# 규칙(도메인 제한 없음)이 그대로 적용된다. 실측(2026-07-31): 사람인 주소 + "공고분석해줘"
+# 가 한 문장이라 감지되지 않았고, 대화 에이전트가 "URL 을 못 연다"는 즉흥 답을 냈다.
+JOB_SITE_HOSTS = ("saramin.co.kr", "jobkorea.co.kr", "wanted.co.kr", "programmers.co.kr",
+                  "jumpit.co.kr", "incruit.com", "rocketpunch.com", "catch.co.kr")
+_JOB_SITE_TOKEN_RE = re.compile(
+    r"(?:^|\s)((?:www\.)?(?:" + "|".join(h.replace(".", r"\.") for h in JOB_SITE_HOSTS)
+    + r")/\S+)")
 
 
-def detect_posting_url(message: str, session: dict) -> str:
-    """발화에 붙여넣은 공고 URL 을 찾는다 — **결정론(LLM 없음).**
+# 한 발화에서 받아 주는 공고 URL 상한 — 라이브러리 상한(5)보다 작게, 한 턴의 수집·파싱 폭주 방지.
+_MAX_URLS_PER_TURN = 3
 
-    URL 은 공고 전용(D62)이므로 주소만으로 공고 제출로 확정할 수 있다. 이미 세션의
-    공고가 같은 주소면(원문 승격 뒤에는 sourceUrl 로 남는다) 빈 문자열 — 같은 공고를
-    다시 등록해 분석 자산을 무효화하지 않는다.
+
+def detect_posting_urls(message: str, session: dict) -> list[str]:
+    """발화에 붙여넣은 공고 URL **전부**를 찾는다 — **결정론(LLM 없음).** (D94)
+
+    URL 은 공고 전용(D62)이므로 주소만으로 공고 제출로 확정할 수 있다. 실측(2026-07-31
+    16:01): 한 메시지에 URL 두 개("이 두개 공고 관심있어")를 보냈는데 첫 번째만 잡히고
+    두 번째는 조용히 버려졌다 — 사용자가 준 자료는 전부 접수한다. 이미 세션의 공고와
+    같은 주소는 뺀다(재등록으로 분석 자산을 무효화하지 않는다).
     """
 
     text = (message or "").strip()
-    match = _URL_RE.search(text)
-    if match:
-        url = match.group()
-    elif _SCHEMELESS_URL_RE.match(text):
-        url = f"https://{text}"   # 수집기가 열 수 있게 스킴을 붙여 정규화한다
-    else:
-        return ""
-    url = url.rstrip(".,;)]}>'\"")   # 문장 부호 꼬리 제거 ("…?Gno=123." 등)
+    found = list(_URL_RE.findall(text))
+    if not found and _SCHEMELESS_URL_RE.match(text):
+        found = [f"https://{text}"]   # 수집기가 열 수 있게 스킴을 붙여 정규화한다
+    found += [f"https://{m}" for m in _JOB_SITE_TOKEN_RE.findall(text)]   # 문장 속 채용 사이트(D80)
+
     posting = session.get("job_posting") or {}
-    if url in (posting.get("sourceUrl"), posting.get("value")):
+    known = {posting.get("sourceUrl"), posting.get("value")}
+    urls: list[str] = []
+    for url in found:
+        url = url.rstrip(".,;)]}>'\"")   # 문장 부호 꼬리 제거 ("…?Gno=123." 등)
+        if url and url not in known and url not in urls:
+            urls.append(url)
+    return urls[:_MAX_URLS_PER_TURN]
+
+
+def detect_posting_url(message: str, session: dict) -> str:
+    """단수 규약 유지용 — 첫 공고 URL (없으면 빈 문자열)."""
+
+    urls = detect_posting_urls(message, session)
+    return urls[0] if urls else ""
+
+# 이보다 짧은 글은 이력서 본문이라 보기 어렵다 (webbridge._POSTING_MIN_CHARS 와 같은 기준).
+_RESUME_MIN_CHARS = 180
+
+
+def detect_pasted_resume(message: str, session: dict) -> str:
+    """발화에 섞여 붙여넣어진 이력서 원문을 찾는다 — **결정론(LLM 없음).**
+
+    detect_posting_url(공고 URL)과 대칭인 인테이크다. 실측(2026-07-31): 한 메시지에
+    공고 URL + 이력서 원문 + "적합도 분석해줘"가 함께 오면 URL 만 자산이 되고 이력서는
+    "긴 대화"로 흘러 적합도 분석까지 못 갔다. URL 은 판정에서 빼고(공고 전용, D62) 남은
+    본문을 신호 어휘 스코어(detect_kind)로 판정한다 — 확신 있을 때만 이력서로 승격한다.
+
+    **메시지는 호출부가 비우지 않는다** — 요청 문장("적합도 분석해줘")은 플래너가 읽어야
+    한다. 같은 원문이 이미 이력서 자산이면 빈 문자열(재등록으로 파생 자산을 무효화하지
+    않는다 — detect_posting_url 과 같은 규약).
+    """
+
+    body = _URL_RE.sub(" ", (message or "")).strip()
+    if len(body) < _RESUME_MIN_CHARS:
         return ""
-    return url
+    from jobis_ai.orchestrator.attachment_kind import detect_kind
+
+    if detect_kind(body) != "resume":
+        return ""
+    if body == ((session.get("resume") or {}).get("value") or ""):
+        return ""
+    return body
+
 
 # 턴당 에이전트 실행 상한 — 관찰(call)이 실행을 무한히 잇는 폭주 방지
 # (Agent_Test 의 MAX_STEPS 가드와 같은 역할).
@@ -112,17 +172,31 @@ _MAX_AGENT_STEPS = 5
 
 
 def _apply_attachments(request: ChatRequest, session: dict,
-                       stage) -> tuple[list[str], list[str], list[dict]]:
-    """첨부를 세션 사본에 반영하고 (확인 문구, 저장된 kind, 경고) 를 돌려준다.
+                       stage) -> tuple[list[str], list[str], list[dict], list[str]]:
+    """첨부를 세션 사본에 반영하고 (확인 문구, 저장된 kind, 경고, 발화로 되돌린 텍스트) 를 돌려준다.
 
     프론트는 "직전에 요청한 자료"의 슬롯으로 다음 붙여넣기를 그대로 보내므로,
     공고를 기다리는 중에 이력서를 붙여넣으면 job_posting 으로 온다. 저장 전에
     내용을 보고(resolve_kind) 명백히 반대 종류면 바로잡는다.
+
+    **짧은 텍스트는 저장된 이력서를 교체하지 못한다(D98).** 자료 요청 슬롯이 열려 있는 동안
+    사용자가 "네" 같은 대답을 하면 그것이 `kind="resume"` 첨부로 도착한다 —
+    `resolve_kind` 는 `MIN_ASSET_CHARS` 미만이면 판정을 포기하고 claimed 를 그대로 돌려주므로,
+    저장 단계가 그걸 믿으면 한 줄이 이력서와 파생 자산(profile·analysis)을 통째로 지운다.
+    그래서 여기서 되돌린다 — 첨부가 아니라 **발화로** 취급해 호출부가 메시지에 되돌려 놓는다
+    (버리면 사용자가 방금 한 말이 사라져 플래너가 동의를 못 읽는다).
+
+    가드를 입구가 아니라 **여기**에 두는 이유: 모든 입구(v2bridge 승격·webbridge 첨부·
+    store_attachments)가 이 함수로 합류한다. 입구마다 길이 검사를 두면 다음 입구를 만드는
+    사람이 그것을 다시 지켜야 하고, 실제로 그렇게 흩어져 있던 동안 틈이 열려 있었다.
+
+    `resume_extra` 는 면제다 — 짧은 조각이 정상이고, 교체가 아니라 **덧붙이기**라 파괴가 없다.
     """
 
     acks: list[str] = []
     kinds: list[str] = []
     warnings: list[dict] = []
+    demoted: list[str] = []
     for att in request.attachments:
         kind = att.kind
         url_coerced = False
@@ -143,9 +217,29 @@ def _apply_attachments(request: ChatRequest, session: dict,
                     "claimed": att.kind, "resolved": kind, "chars": len(att.value),
                 })
         payload = {"sourceType": att.sourceType.value, "value": att.value}
+        if (kind == "resume" and att.sourceType.value == "text"
+                and (session.get("resume") or {}).get("value")
+                and len((att.value or "").strip()) < MIN_ASSET_CHARS):
+            # 저장된 이력서가 있는데 종류를 판정할 수 없을 만큼 짧다 — 교체하지 않는다(D98).
+            demoted.append((att.value or "").strip())
+            warnings.append({
+                "code": "short_resume_demoted",
+                "message": (f"{len((att.value or '').strip())}자 텍스트는 이력서로 저장하지 않고 "
+                            "발화로 처리했어요 — 저장된 이력서를 유지합니다."),
+            })
+            trace.emit("attachment_kind", "짧은 이력서 첨부를 발화로 되돌림(저장 이력서 보호)", {
+                "claimed": att.kind, "chars": len((att.value or "").strip()),
+                "threshold": MIN_ASSET_CHARS,
+            })
+            continue
         if kind == "resume":
-            # 이력서가 갱신되면 이전 이력서로 만든 파생 자산은 무효다.
-            stage({"resume": payload, "profile": None, "analysis": None})
+            # 이력서가 갱신되면 이전 이력서로 만든 파생 자산은 무효다. 다만 **이전 이력서
+            # 자체는 라이브러리로 회수한다**(D119) — 등록은 ensure_profile 이 하지만 그건
+            # 소비자가 돈 턴에만 돌아서, 붙여넣고 대화만 한 뒤 다음 이력서가 오면 사라졌다.
+            from jobis_ai.agents._common import preserve_active_resume
+
+            stage({"resume": payload, "profile": None, "analysis": None,
+                   "resume_library": preserve_active_resume(session)})
         elif kind == "resume_extra":
             # 추가 정보는 기존 이력서에 **덧붙인다** — 교체하면 몇 줄이 전체를 지운다.
             # 정보가 늘었으니 프로필·분석 파생 자산은 다시 만든다.
@@ -156,12 +250,14 @@ def _apply_attachments(request: ChatRequest, session: dict,
                 "profile": None, "analysis": None,
             })
         else:
-            stage({"job_posting": payload, "analysis": None})
+            # 새 공고가 오면 이전 공고의 파생 자산(분석·파싱 캐시)은 무효다 — 캐시를 남기면
+            # 다음 분석 전까지 조회 질문이 **이전 공고의 사실**로 답한다(D79 캐시의 짝).
+            stage({"job_posting": payload, "analysis": None, "posting_summary": None})
         acks.append(_ATTACHMENT_ACK_URL_COERCED if url_coerced
                     else _ATTACHMENT_ACK[kind] if kind == att.kind
                     else _ATTACHMENT_ACK_CORRECTED[kind])
         kinds.append(kind)
-    return acks, kinds, warnings
+    return acks, kinds, warnings, demoted
 
 
 def store_attachments(request: ChatRequest, session_id: str) -> list[str]:
@@ -178,7 +274,7 @@ def store_attachments(request: ChatRequest, session_id: str) -> list[str]:
         pending.update(updates)
         session.update(updates)
 
-    acks, _, _ = _apply_attachments(request, session, _stage)
+    acks, _, _, _ = _apply_attachments(request, session, _stage)
     if pending:
         store.update(session_id, pending)
     return acks
@@ -232,6 +328,25 @@ def parallel_group(queue: list[str], dispatched: list[str], session: dict) -> li
 # 첨부 kind → 그 첨부가 채우는 세션 자산 (resume_extra 는 기존 이력서에 덧붙는다).
 _KIND_TO_ASSET = {"resume": "resume", "resume_extra": "resume", "job_posting": "job_posting"}
 
+# 이번 턴 제출 kind → 그 자료를 정리해 보여주는 에이전트 (D71).
+_KIND_TO_REVIEWER = {"job_posting": "posting_analysis",
+                     "resume": "resume_diagnosis", "resume_extra": "resume_diagnosis"}
+
+
+def submission_review_inserts(queue: list[str] | tuple[str, ...],
+                              stored_kinds: list[str]) -> list[str]:
+    """판정(fit_analysis)이 예정된 큐에 끼울 정리 단계(D71) — 순수 함수.
+
+    평가 하네스(planner_harness)도 이 함수를 그대로 쓴다 — 프로덕션과 하네스의 삽입
+    기준이 갈리면 하네스가 프로덕션이 아닌 흐름을 재게 된다(dispatch_case docstring).
+    """
+
+    if "fit_analysis" not in queue:
+        return []
+    submitted_reviewers = {_KIND_TO_REVIEWER.get(k) for k in stored_kinds} - {None}
+    return [name for name in ("posting_analysis", "resume_diagnosis")
+            if name in submitted_reviewers and name not in queue]
+
 
 def _submission_grounds_plan(agents: tuple[str, ...] | list[str],
                              submitted_kinds: list[str]) -> bool:
@@ -257,6 +372,14 @@ def _submission_grounds_plan(agents: tuple[str, ...] | list[str],
     return bool((set(spec.preconditions) | set(spec.preconditions_any)) & submitted)
 
 
+def lead_text(changed_by: str, ack: str, note: str, steps: int, said: list[str]) -> str:
+    """계획 설명(lead) 문장 선택 — compose_reply 의 규칙 그대로. 출처 기록(replySources)이
+    같은 판단을 써야 해서 함수로 뽑았다(둘이 갈리면 출처가 거짓말을 한다)."""
+
+    return {"rule": "", "validator": note}.get(
+        changed_by, (ack or note) if (steps > 1 or not said) else "")
+
+
 def compose_reply(acks: list[str], said: list[str], *, ack: str = "", note: str = "",
                   steps: int = 1, changed_by: str = "") -> str:
     """턴의 사용자향 문장을 조립하는 **유일한 자리.** 순서: 첨부 확인 → 계획 설명 → 한 말.
@@ -275,9 +398,14 @@ def compose_reply(acks: list[str], said: list[str], *, ack: str = "", note: str 
         않았을 때만 `ack`. 하나가 스스로 말했으면 같은 말을 두 번 하는 셈이다.
     """
 
-    lead = {"rule": "", "validator": note}.get(
-        changed_by, (ack or note) if (steps > 1 or not said) else "")
+    lead = lead_text(changed_by, ack, note, steps, said)
     return " ".join(part for part in [*acks, lead, *said] if part).strip()
+
+
+def _src(agent: str, channel: str, text: str) -> dict:
+    """replySources 항목 하나 — 누가(agent) 어떤 경로(channel)로 이 문장을 말했나."""
+
+    return {"agent": agent, "channel": channel, "text": text}
 
 
 def handle_chat(request: ChatRequest) -> ChatResponse:
@@ -333,7 +461,8 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         pending["history"] = history[-HISTORY_MAX_ITEMS:]
         store.update(session_id, pending)
 
-    acks, stored_kinds, attach_warnings = _apply_attachments(request, session, _stage)
+    acks, stored_kinds, attach_warnings, demoted_texts = _apply_attachments(
+        request, session, _stage)
 
     # 발화에 붙여넣은 링크 — URL 은 공고 전용(D62)이므로 내용 판정 없이 결정론으로 공고
     # 자산에 올린다. 첨부와 같은 규약: 새 공고가 오면 이전 공고의 분석은 무효다.
@@ -341,19 +470,72 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # fit_analysis)가 ensure_posting_text 로 수집해 원문을 자산으로 승격한다. 플래너 전에
     # 수십 초 fetch 를 하면 계획도 없이 사용자를 기다리게 한다.
     if "job_posting" not in stored_kinds:
-        posting_url = detect_posting_url(request.message, session)
-        if posting_url:
-            _stage({"job_posting": {"sourceType": "url", "value": posting_url},
-                    "analysis": None})
-            acks.append(_ATTACHMENT_ACK_URL_POSTING)
+        posting_urls = detect_posting_urls(request.message, session)
+        # **저장된 분석이 있을 때만** 채용사이트로 알아볼 수 있는 주소로 제한한다. 등록하면
+        # 바로 아래 `_stage` 가 활성 공고를 바꾸고 `analysis` 를 무효화하는데, 대화 중에 붙인
+        # 깃허브·포트폴리오·블로그 링크가 수십 초짜리 판정을 **말없이** 지우는 것은 D98(짧은
+        # 텍스트가 저장 이력서를 못 지운다)이 이력서 쪽에서 막은 것과 같은 종류의 파괴다.
+        #
+        # 조건을 "공고 보유"가 아니라 **"분석 보유"** 로 좁힌 이유가 둘이다: ① 분석이 없으면
+        # 교체는 되돌릴 수 있어(다음 링크가 다시 덮는다) 막을 것이 없고, ② 회사 자체 채용
+        # 페이지(careers.*·*.im/career)는 화이트리스트에 없어서 넓게 걸면 **정상 공고를
+        # 놓친다.** 화이트리스트는 판별 수단이지 공고의 정의가 아니다.
+        #
+        # 버리지 않고 발화에 남긴다 — URL 은 메시지 원문에 그대로 있으므로 플래너가 읽는다
+        # (D98 이 되돌린 텍스트를 발화로 합친 것과 같은 규약).
+        if session.get("analysis"):
+            unknown = [u for u in posting_urls
+                       if not any(host in u for host in JOB_SITE_HOSTS)]
+            if unknown:
+                posting_urls = [u for u in posting_urls if u not in unknown]
+                attach_warnings.append({"code": "unknown_host_url_kept", "message": (
+                    f"채용 사이트로 알아볼 수 없는 주소 {len(unknown)}개는 공고로 등록하지 "
+                    "않았어요 — 저장된 적합도 분석을 유지합니다.")})
+                acks.append(
+                    "보내주신 링크는 채용 사이트로 알아보지 못해 공고로 등록하지 않았어요"
+                    " (기존 분석 결과를 지우지 않으려고요). 공고가 맞다면 본문을 붙여넣어 주세요.")
+                trace.emit("url_intake", "미확인 호스트 URL 을 공고 등록에서 제외(분석 보호)",
+                           {"kept": posting_urls, "skipped": unknown})
+                log.info("[%s] url_intake: 미확인 호스트 %s 제외(분석 보호)", session_id, unknown)
+        if posting_urls:
+            # 첫 URL 이 활성 공고(판정 대상), 나머지는 posting_analysis 가 같은 턴에 병렬
+            # 수집·파싱해 라이브러리로 승격한다(D94) — 턴 마커라 세션에 저장되지 않는다.
+            _stage({"job_posting": {"sourceType": "url", "value": posting_urls[0]},
+                    "analysis": None, "posting_summary": None})
+            if len(posting_urls) > 1:
+                session["_extraPostingUrls"] = posting_urls[1:]
+                acks.append(f"공고 링크 {len(posting_urls)}개를 받았어요.")
+            else:
+                acks.append(_ATTACHMENT_ACK_URL_POSTING)
             stored_kinds.append("job_posting")
-            trace.emit("url_intake", "발화의 URL 을 공고 자산으로 등록", {"url": posting_url})
-            log.info("[%s] url_intake: 발화 URL → job_posting 등록 %s", session_id, posting_url)
+            trace.emit("url_intake", "발화의 URL 을 공고 자산으로 등록",
+                       {"urls": posting_urls})
+            log.info("[%s] url_intake: 발화 URL %d개 → job_posting 등록 %s",
+                     session_id, len(posting_urls), posting_urls)
+
+    # 발화에 섞여 붙여넣어진 이력서 원문 — URL 인테이크와 대칭(결정론). 메시지는 그대로 둔다
+    # (요청 문장은 플래너의 입력이다). 같은 규약: 새 이력서가 오면 이전 파생 자산은 무효다.
+    if "resume" not in stored_kinds:
+        resume_text = detect_pasted_resume(request.message, session)
+        if resume_text:
+            from jobis_ai.agents._common import preserve_active_resume
+
+            _stage({"resume": {"sourceType": "text", "value": resume_text},
+                    "profile": None, "analysis": None,
+                    "resume_library": preserve_active_resume(session)})
+            acks.append(_ATTACHMENT_ACK["resume"])
+            stored_kinds.append("resume")
+            trace.emit("resume_intake", "발화의 이력서 원문을 자산으로 등록",
+                       {"chars": len(resume_text)})
+            log.info("[%s] resume_intake: 발화 본문 → resume 등록 (%d자)",
+                     session_id, len(resume_text))
 
     # 메시지 없이 첨부만 온 턴 — **멈추지 않는다.** 자료를 준 것 자체가 "이걸로 이어가 달라"는
     # 요청이므로, 발화를 합성해 플래너가 다음 단계를 고르게 한다. 첨부도 발화도 없으면
     # 플래너가 None 을 주고 대화형 에이전트가 턴을 받는다.
-    message = (request.message or "").strip()
+    # 자산으로 저장하지 않고 되돌린 첨부(D98)는 사용자가 방금 한 말이다 — 발화에 되돌려
+    # 놓아야 플래너가 그 대답("네")을 읽는다. 버리면 동의가 사라진다.
+    message = " ".join(t for t in [(request.message or "").strip(), *demoted_texts] if t).strip()
     if not message and acks:
         message = "방금 드린 자료로 이어서 진행해 주세요."
 
@@ -365,6 +547,12 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # 이게 없으면 첨부만 온 턴의 합성 발화("자료로 이어서…")만 보고 플래너가 이력서 제출과
     # 공고 제출을 구분하지 못한다. 프론트의 kind 가 아니라 **바로잡힌 kind** 를 준다.
     session["_submittedThisTurn"] = stored_kinds
+
+    # 지난 턴까지의 미완수 요청(D72) — 이번 턴에 새로 기억되는 것과 구분하기 위해 먼저 읽는다.
+    prior_pending = dict(session.get("pendingRequest") or {})
+    new_pending_staged = False
+    # 저확신으로 실행하지 않은 플래너 추측(D124) — 턴 끝에 확인 버튼으로 복구 경로를 만든다.
+    low_conf_guess: list[str] = []
 
     # 1) 플래너 — LLM 이 발화·상태를 보고 에이전트를 직접 고른다(자율 추론).
     plan, warnings = plan_agents(request.message, session)
@@ -385,6 +573,30 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         log.info("[%s] planner: 원안=%s 확신=%.2f 인자=%s 자산=%s", session_id,
                  list(plan.agents), plan.confidence, agent_args or "-",
                  _visible_assets(session))
+        # 청했지만 지금 못 하는 요청은 **기억한다**(D72) — 폐기하면 다음 턴 완수가 플래너
+        # 재량이 된다. 사람이 채울 수 있는 자산(이력서·공고) 결측일 때만: 그 자료가 오는
+        # 턴에 아래 재큐 블록이 결정론으로 이어서 완수한다.
+        for name in plan.blockedRequests:
+            missing = agent_feasibility(session).get(name)
+            if missing in ("resume", "job_posting"):
+                _stage({"pendingRequest": {"agent": name, "missing": missing, "turnsLeft": 3}})
+                new_pending_staged = True
+                trace.emit("pending_request", "실행 불가 요청을 기억", {
+                    "agent": name, "missing": missing})
+                log.info("[%s] pending_request: %s 기억(결측 %s)", session_id, name, missing)
+                break
+        # 로스터 밖 요청을 **세기만 한다**(D117) — 라우팅은 바꾸지 않는다. 여기서 흐름을
+        # 갈래로 나누면 아직 근거가 없는 판단을 코드로 못 박게 된다. 무엇이 실제로 오는지
+        # 첫 주 데이터를 보고 로스터 후보를 정하는 것이 순서다.
+        unsupported = (plan.unsupportedRequest or "").strip()
+        if unsupported:
+            kept = [*(session.get("unsupported_requests") or []), unsupported]
+            _stage({"unsupported_requests": kept[-UNSUPPORTED_MAX_ITEMS:]})
+            warnings.append({"code": "unsupported_request",
+                             "message": f"로스터로 처리할 수 없는 요청: {unsupported}"})
+            trace.emit("unsupported_request", "로스터 밖 요청을 기록", {"request": unsupported})
+            log.info("[%s] unsupported_request: %r", session_id, unsupported[:120])
+
         label = plan.agents[0] if plan.agents else "unclear"
         confidence = plan.confidence
         grounded = _submission_grounds_plan(plan.agents, stored_kinds)
@@ -393,7 +605,14 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
                      session_id, plan.confidence, CONFIDENCE_THRESHOLD, stored_kinds)
         if not plan.agents or (plan.confidence < CONFIDENCE_THRESHOLD and not grounded):
             # 무엇을 원하는지 확신이 낮으면 대화로 받는다 — 기능 목록만 읽어주고 끝내지 않는다.
+            # 단 **버리되 잃지 않는다**(D124): 전에는 저확신 계획이 조용히 폐기돼 사용자가
+            # 다시 말해야 했고 흔적도 0이었다. 추측한 계획을 확인 버튼 + pendingConsent 로
+            # 남긴다 — 다음 턴의 동의 한마디("응")면 플래너 규칙 2(동의 잇기)와 동의 게이트
+            # 통과 조건 ②가 그대로 이어받는다. 문턱 숫자는 안 내렸다: 현 baseline(08-01,
+            # 52케이스×3회) 케이스별 최저 확신이 0.793 이라 0.6 은 평가셋에서 아무것도 자르지
+            # 않는다 — 내릴 근거가 없고, 실사용의 저확신 구간은 여기서 세는 것이 먼저다.
             dispatch = Dispatch((FALLBACK_AGENT,))
+            low_conf_guess = [n for n in plan.agents if n != FALLBACK_AGENT]
         else:
             # 2) 검증기(순수 코드) — 전제 자산 확인·생산자 삽입·실행 불가 제거.
             dispatch = validate_plan(plan.agents, session, plan.requestedAgents)
@@ -419,6 +638,8 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             confidence=confidence, dispatched=[], results={},
             followUpQuestions=[{"field": "confirm_pipeline", "question": dispatch.ask}],
             warnings=warnings,
+            replySources=[_src("orchestrator", "attachment_ack", a) for a in acks]
+                         + [_src("orchestrator", "consent_gate", dispatch.ask)],
         )
 
     # 가시화 라벨은 **실제 실행 시퀀스**의 첫 에이전트 — 검증기가 생산자를 삽입/강등하면
@@ -451,12 +672,22 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # 넘긴다("" 없음 / "validator" 검증기 / "rule" 실행 중 규칙).
     changed_by = "validator" if plan_changed else ""
     replies: list[str] = []
+    # replies 와 나란히 쌓는 화자 기록 — reply 문장 하나에 출처 하나(오라우팅 디버깅용).
+    said_sources: list[dict] = []
     dispatched: list[str] = []
     results: dict[str, dict] = {}
     follow_up: list[dict] = []
 
     # 실행 큐 — 관찰(call)이 다음 실행을 끼워 넣을 수 있어 튜플 대신 큐로 돈다.
     queue: list[str] = list(dispatch.agents)
+
+    # **이번 턴의 계획을 에이전트에게 알린다**(자산이 아니라 사본에만 붙는 표식 —
+    # `_submittedThisTurn` 과 같은 규약). 자기 루프 에이전트는 자기가 턴을 독점한다고
+    # 가정하고 답하는데, 계획에 여러 담당이 있으면 그 가정이 사용자 눈에 모순으로 나온다:
+    # 실측(2026-08-01) — 사용자가 적합도를 청한 턴에 `resume_diagnosis`(정리 단계, D71)가
+    # "적합도는 제가 못 해요"라고 선언한 **직후** `fit_analysis` 가 등급을 냈다.
+    # 계획을 모르면 프롬프트로는 못 고친다 — 없는 사실을 지시로 메울 수 없기 때문이다.
+    session["_planThisTurn"] = list(queue)
 
     # URL 공고가 미수집 상태면 수집 도구를 **결정론으로** 맨 앞에 끼운다(D64). 플래너의
     # 판단이 아니다 — 자산 상태에서 따라 나오는 필연적 단계라서, manifest 에 없는
@@ -471,6 +702,47 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         log.info("[%s] dispatch: posting_fetch 삽입(URL 공고 미수집) 큐=%s",
                  session_id, list(queue))
 
+    # 지난 턴의 미완수 요청(D72) — 자산이 채워졌으면 결정론으로 이어서 완수한다. 이미 청한
+    # 일이므로 동의 게이트 대상이 아니다. 아직 못 채웠으면 수명(turnsLeft)을 줄이고 다 되면
+    # 잊는다 — 오래된 요청이 엉뚱한 턴에 무거운 작업을 말없이 되살리지 않게.
+    if prior_pending.get("agent"):
+        pending_name = str(prior_pending["agent"])
+        pending_spec = registry.get(pending_name)
+        if pending_name in queue or pending_spec is None:
+            if not new_pending_staged:
+                _stage({"pendingRequest": None})    # 플래너가 스스로 흐름을 이었다
+        elif runnable_now(pending_spec, session_assets(session)):
+            queue.append(pending_name)
+            notice = f"지난번에 요청하신 {agent_label(pending_name)}도 이어서 진행할게요."
+            replies.append(notice)
+            said_sources.append(_src("orchestrator", "notice", notice))
+            if not new_pending_staged:
+                _stage({"pendingRequest": None})
+            trace.emit("dispatch", "미완수 요청 재큐(자료 충족)", {
+                "inserted": pending_name, "queue": list(queue)})
+            log.info("[%s] dispatch: 미완수 요청 %s 재큐 큐=%s",
+                     session_id, pending_name, list(queue))
+        elif not new_pending_staged:
+            turns = int(prior_pending.get("turnsLeft") or 1) - 1
+            _stage({"pendingRequest":
+                    {**prior_pending, "turnsLeft": turns} if turns > 0 else None})
+
+    # 판정이 예정된 턴에 자료가 **방금 제출**됐으면 그 자료의 정리 단계를 판정 앞에 끼운다
+    # (D71) — 사용자는 판정만이 아니라 "무엇을 읽고 판정했는지"를 본다(접수 → 공고 분석 →
+    # 이력서 진단 → 적합도). 플래너 판단이 아니라 제출 사실에서 따라 나오는 표시 단계라
+    # 결정론으로 끼운다(D64 posting_fetch 와 같은 원리 — manifest 불변, 재측정 불필요).
+    # 셋은 서로 독립이라 parallel_group 이 같은 배치로 돌려 지연이 거의 늘지 않는다.
+    # 이미 세션에 있던 자산(지난 턴에 정리를 보여준 것)은 다시 정리하지 않는다.
+    inserts = submission_review_inserts(queue, stored_kinds)
+    if inserts:
+        fit_at = queue.index("fit_analysis")
+        queue[fit_at:fit_at] = inserts
+        trace.emit("dispatch", "제출 자료 정리 단계를 판정 앞에 삽입", {
+            "inserted": inserts, "queue": list(queue),
+        })
+        log.info("[%s] dispatch: 정리 단계 삽입 %s (이번 턴 제출 %s) 큐=%s",
+                 session_id, inserts, stored_kinds, list(queue))
+
     steps = 0
 
     def _execute(name: str, spec, sess: dict):
@@ -481,13 +753,28 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             "preconditions": list(spec.preconditions),
             "sessionAssets": _visible_assets(sess),
         })
-        outcome = spec.entry(sess)
-        # 도구는 말하지 않는다 — 데이터만 내고, 사용자향 문장은 표현 계층(spec.render)이 만든다.
-        # 그래서 문구를 고칠 때 계산 코드를 건드리지 않는다(AgentSpec docstring 의 tool/agent 구분).
-        # 표현 계층도 LLM 을 쓸 수 있으므로 경고를 함께 받는다(폴백 이유를 삼키지 않는다).
-        if spec.kind == "tool" and spec.render is not None:
-            outcome.reply, render_warnings = spec.render(outcome.data, sess)
-            outcome.warnings.extend(render_warnings)
+        try:
+            outcome = spec.entry(sess)
+            # 도구는 말하지 않는다 — 데이터만 내고, 사용자향 문장은 표현 계층(spec.render)이 만든다.
+            # 그래서 문구를 고칠 때 계산 코드를 건드리지 않는다(AgentSpec docstring 의 tool/agent 구분).
+            # 표현 계층도 LLM 을 쓸 수 있으므로 경고를 함께 받는다(폴백 이유를 삼키지 않는다).
+            if spec.kind == "tool" and spec.render is not None:
+                outcome.reply, render_warnings = spec.render(outcome.data, sess)
+                outcome.warnings.extend(render_warnings)
+        except Exception as exc:  # noqa: BLE001 — 멤버 하나의 결함이 턴 전체를 죽이면 안 된다 (D122)
+            # 격리하되 삼키지 않는다(§2-6): 경고 코드 + ERROR 스택 + 사용자향 한 문장.
+            # 크래시한 멤버의 산출 자산은 안 생기므로 그것에 기대는 후속 단계는 관찰 규칙
+            # (observe_rules.drop_unrunnable)이 정리하고, 청한 기능이 안 돌았으면
+            # request_not_fulfilled 가 턴 끝에 한 번 더 센다 — 격리가 은폐가 되지 않는다.
+            log.exception("[%s] agent: %s 실행 중 예외 — 이 단계만 건너뛴다", session_id, name)
+            trace.emit("agent_crashed", f"{name} 실행 중 예외 — 단계 건너뜀", {
+                "agent": name, "error": f"{type(exc).__name__}: {exc}",
+            })
+            return AgentResult(
+                reply=f"{agent_label(name)} 실행 중 문제가 생겨 이 단계는 건너뛰었어요.",
+                warnings=[{"code": "agent_crashed",
+                           "message": f"{name}: {type(exc).__name__}: {exc}"}],
+            )
         return outcome
 
     def _absorb(name: str, outcome) -> None:
@@ -510,6 +797,10 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             _stage(outcome.sessionUpdates)
         if outcome.reply:
             replies.append(outcome.reply)
+            # 도구는 말하지 않으므로(§2-3) 도구의 reply 는 표현 계층(render)이 만든 문장이다.
+            kind = registry[name].kind if registry.get(name) else "agent"
+            said_sources.append(_src(
+                name, "tool_render" if kind == "tool" else "agent_llm", outcome.reply))
 
     def _run_parallel(group: list[str]) -> dict[str, Any]:
         """서로 독립인 에이전트들을 동시에 돌린다.
@@ -543,6 +834,7 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
 
         copies: dict[str, dict] = {}
         futures = {}
+        started_at = time.perf_counter()
         with trace.muted_tokens(), ThreadPoolExecutor(max_workers=len(group)) as pool:
             for name in group:
                 sess = dict(session)
@@ -553,6 +845,10 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
                 ctx = contextvars.copy_context()
                 futures[name] = pool.submit(ctx.run, _execute, name, registry[name], sess)
             outcomes = {name: future.result() for name, future in futures.items()}
+        # 병렬의 이득을 수치로 남긴다(확장 계획 P3-4) — "몇 초 벽시계 vs 멤버 합산 몇 초"가
+        # 이 복잡도를 지고 가는 근거다. 합산은 로그로 추정 불가하므로 벽시계만 정확값이다.
+        log.info("[%s] parallel: %s 완료 — 벽시계 %.1f초 (동시 %d개)",
+                 session_id, list(group), time.perf_counter() - started_at, len(group))
 
         for name in group:      # 사본에 쌓인 캐시(ensure_profile 등)를 큐 순서대로 반영
             staged = copies[name].get("_stagedUpdates") or {}
@@ -569,6 +865,7 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             replies.append(
                 f"'{name}' 기능은 아직 준비 중이에요. 다른 기능(적합도 분석·공고 추천·이력서 진단·면접 준비)을 이용해 주세요."
             )
+            said_sources.append(_src("orchestrator", "notice", replies[-1]))
             warnings.append({"code": "agent_not_implemented",
                              "message": f"orchestrator: 미구현 에이전트 dispatch — {name}"})
             break
@@ -617,13 +914,73 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             # 규칙이 계획을 바꿨으면 이유를 말한다. 이유를 말한 화자가 있으므로 계획 설명은
             # compose_reply 에서 침묵한다 — 하지 않은 일을 하겠다고 말하게 되므로.
             replies.append(obs.note)
+            said_sources.append(_src("orchestrator", "rule_note", obs.note))
             changed_by = "rule"
         if obs.action == "finish":
             break
 
+    # 요청 완수 검증(M3) — 사용자가 직접 청한 에이전트가 실행되지도(dispatched),
+    # 기억되지도(pendingRequest) 않았으면 조용히 지나가지 않는다(§2-6). 어느 층도
+    # "청한 것이 답에 담겼나"를 보지 않던 구멍의 마지막 그물 — 경고는 로그·평가가 세는
+    # 신호이지 답변 차단이 아니다(이미 나간 문장은 관찰 규칙의 note 가 설명했다).
+    if plan is not None:
+        remembered = str((session.get("pendingRequest") or {}).get("agent") or "")
+        for name in plan.requestedAgents:
+            if name not in dispatched and name != remembered:
+                warnings.append({"code": "request_not_fulfilled",
+                                 "message": f"청한 에이전트가 실행·기억 어느 쪽도 되지 않음: {name}"})
+                log.warning("[%s] 요청 미완수 — %s (dispatched=%s)", session_id, name, dispatched)
+
+    # 발화의 지속 사실(목표·제약·상황)을 세션에 누적한다(D82) — 다음 턴의 그라운딩.
+    # 합성 발화(첨부만 온 턴)는 자료이지 발화가 아니므로 건너뛴다.
+    if (request.message or "").strip() and request.message != "방금 드린 자료로 이어서 진행해 주세요.":
+        facts, fact_warnings = extract_user_facts(request.message, session.get("user_facts"))
+        warnings.extend(fact_warnings)
+        if facts != [str(f).strip() for f in (session.get("user_facts") or [])]:
+            _stage({"user_facts": facts})
+            trace.emit("user_facts", "발화의 지속 사실을 세션에 누적", {"facts": facts})
+            log.info("[%s] user_facts: %d건 누적", session_id, len(facts))
+
+    # 저확신으로 실행하지 않은 추측 계획(D124) — 대화(career_chat)가 발화에 답한 뒤, 추측이
+    # 맞았을 때의 복구 경로를 **구조로** 남긴다: 확인 버튼(사용자 행동) + pendingConsent(다음
+    # 턴 동의 게이트 통과) + 경고(계수 — 실사용 저확신 구간의 크기와 적중률은 이 코드가 센
+    # 값으로만 알 수 있다, D117 과 같은 원리). 조용한 폐기는 흔적이 0이라 문턱 조정 근거를
+    # 영영 못 만든다.
+    if low_conf_guess and plan is not None:
+        guess_label = " · ".join(agent_label(n) for n in low_conf_guess)
+        if not any(str(q.get("field") or "") == "confirm_plan" for q in follow_up):
+            follow_up.append({"field": "confirm_plan", "question": (
+                f"혹시 원하신 작업이 {guess_label} 쪽이라면 말씀해 주세요 — 바로 진행할게요.")})
+        _stage({"pendingConsent": list(low_conf_guess)})
+        warnings.append({"code": "low_confidence_plan", "message": (
+            f"플래너 확신 {plan.confidence:.2f} < {CONFIDENCE_THRESHOLD} — "
+            f"추측 계획 {low_conf_guess} 을 실행하지 않고 확인 질문으로 대체")})
+        trace.emit("low_confidence_plan", "저확신 추측 계획을 확인 질문으로 보존", {
+            "agents": list(low_conf_guess), "confidence": plan.confidence})
+        log.info("[%s] low_confidence_plan: %s (확신 %.2f) → 확인 버튼·pendingConsent 보존",
+                 session_id, low_conf_guess, plan.confidence)
+
+    # 미완수 요청이 남아 있으면 부족한 자료의 되묻기를 **구조로 보장**한다(D72) — 대체
+    # 에이전트의 문장이 청했더라도 followUpQuestions(프론트 버튼)가 없으면 사용자는 무엇을
+    # 줘야 하는지 행동으로 이어가지 못한다. 이미 같은 자산을 묻고 있으면 겹쳐 묻지 않는다.
+    pending_now = session.get("pendingRequest") or {}
+    if pending_now.get("agent") and pending_now.get("missing"):
+        missing_field = str(pending_now["missing"])
+        if not any(str(q.get("field") or "") == missing_field for q in follow_up):
+            follow_up.append({"field": missing_field, "question": (
+                f"{asset_label(missing_field)}를 보내주시면 "
+                f"{agent_label(str(pending_now['agent']))}을 이어서 진행할게요.")})
+
     final_reply = compose_reply(acks, replies, ack=ack, note=dispatch.note,
                                 steps=len(dispatch.agents), changed_by=changed_by)
     _finish(final_reply)
+
+    # 문장별 화자 기록 — compose_reply 의 조립 순서(첨부 확인 → 계획 설명 → 한 말) 그대로.
+    lead = lead_text(changed_by, ack, dispatch.note, len(dispatch.agents), replies)
+    reply_sources = [_src("orchestrator", "attachment_ack", a) for a in acks]
+    if lead:
+        reply_sources.append(_src("orchestrator", "lead", lead))
+    reply_sources.extend(said_sources)
 
     # **이 답변이 폴백임을 로그에 못 박는다.** structured.py 가 호출 단위로 남기는 WARNING 과
     # 별개로 한 줄 더 남기는 이유: 07-29 사고의 증상은 "호출 하나가 실패"가 아니라 "층이 죽었는데
@@ -643,4 +1000,5 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         results=results,
         followUpQuestions=follow_up,
         warnings=warnings,
+        replySources=reply_sources,
     )

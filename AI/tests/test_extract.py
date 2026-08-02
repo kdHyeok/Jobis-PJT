@@ -108,3 +108,50 @@ def test_image_unsupported_extension_warns():
     r = ExtractResult(text="")
     assert clova_vlm_file("capture.gif", r) == ""
     assert any(w["code"] == "unsupported_image_type" for w in r.warnings)
+
+
+# --- 연차 상한 보존 (2026-08-01 리뷰 지적: grep maxYears → 0건이었다) ------------------
+def test_years_range_keeps_the_upper_bound():
+    """범위 표기의 **상한을 잃지 않는다** — "3~7년" 이 "3년 이상"으로만 남으면 안 된다.
+
+    상한이 있다는 것은 정보다("시니어는 안 뽑는다"). 전에는 하한만 남기고 버렸다.
+    """
+
+    from jobis_ai.rule_extractor import extract_rules
+
+    r = extract_rules("데이터 엔지니어 채용\n자격요건\n- 데이터 엔지니어링 경력 3~7년")
+    assert (r.minYears, r.maxYears) == (3, 7)
+    assert "3~7년" in r.yearsEvidence
+
+
+def test_open_ended_years_have_no_upper_bound():
+    """"이상"·"+" 는 상한이 **없는** 것이다 — 없는 상한을 만들면 없는 제약을 판정에 들인다(§2-1)."""
+
+    from jobis_ai.rule_extractor import extract_rules
+
+    assert extract_rules("자격요건\n- Java 경력 3년 이상").maxYears is None
+    assert extract_rules("자격요건\n- 백엔드 5년+").maxYears is None
+    assert extract_rules("자격요건\n- 신입 지원 가능").maxYears is None
+    # 연차 근거가 아예 없으면 둘 다 None (미상을 0 으로 찍지 않는다)
+    none_years = extract_rules("자격요건\n- 성실한 분")
+    assert (none_years.minYears, none_years.maxYears) == (None, None)
+
+
+def test_seniority_requirement_carries_max_years():
+    """합성 연차 요건까지 상한이 도달해야 판정·표현이 읽을 수 있다.
+
+    (파싱 전체를 태우는 검증은 LLM 이 필요하다 — conftest 가 미설정이라 mock 이 나온다.
+    그래서 룰 추출과 요건 조립을 각각 결정론으로 잠근다.)
+    """
+
+    from jobis_ai.graph.nodes import _seniority_requirement
+
+    reqs = _seniority_requirement({
+        "seniority": "mid", "minYears": 3, "maxYears": 7,
+        "yearsEvidence": "경력 3~7년", "roleCategory": "data",
+    })
+    assert len(reqs) == 1
+    assert reqs[0]["minYears"] == 3
+    assert reqs[0]["maxYears"] == 7, "상한이 요건 조립에서 사라졌다"
+    # 표기는 공고가 한 말을 그대로 쓴다 — 상한이 문장에 살아 있다.
+    assert "3~7년" in reqs[0]["text"]

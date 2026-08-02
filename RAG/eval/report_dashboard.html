@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG 검색 성능 평가 — v5 리포트</title>
+<style>
+:root {
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --rrf-ce:#2a78d6; --rrf:#1baf7a; --dense:#eb6834; --bm25:#eda100; --random:#898781;
+  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-400:#3987e5; --seq-550:#1c5cab; --seq-700:#0d366b;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --good-text:#006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+    --rrf-ce:#3987e5; --rrf:#199e70; --dense:#d95926; --bm25:#c98500; --random:#898781;
+    --seq-100:#104281; --seq-250:#1c5cab; --seq-400:#3987e5; --seq-550:#6da7ec; --seq-700:#b7d3f6;
+    --good-text:#0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+  --rrf-ce:#3987e5; --rrf:#199e70; --dense:#d95926; --bm25:#c98500; --random:#898781;
+  --seq-100:#104281; --seq-250:#1c5cab; --seq-400:#3987e5; --seq-550:#6da7ec; --seq-700:#b7d3f6;
+  --good-text:#0ca30c;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --rrf-ce:#2a78d6; --rrf:#1baf7a; --dense:#eb6834; --bm25:#eda100; --random:#898781;
+  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-400:#3987e5; --seq-550:#1c5cab; --seq-700:#0d366b;
+  --good-text:#006300;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--page); color:var(--ink);
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+}
+.wrap { max-width:1040px; margin:0 auto; padding:36px 24px 72px; }
+header.top { margin-bottom:20px; }
+.eyebrow { font-size:11.5px; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; font-weight:600; }
+h1 { font-size:27px; margin:6px 0 4px; letter-spacing:-.01em; text-wrap:balance; }
+.sub { color:var(--ink-2); font-size:14px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.chip { font-size:12px; padding:3px 10px; border:1px solid var(--ring); border-radius:999px; background:var(--surface); color:var(--ink-2); }
+.chip b { color:var(--ink); font-weight:600; }
+
+.banner {
+  display:flex; gap:12px; align-items:flex-start; margin:18px 0 26px;
+  background:var(--surface); border:1px solid var(--ring); border-left:4px solid var(--critical);
+  border-radius:8px; padding:14px 16px;
+}
+.banner .mark { font-weight:700; color:var(--critical); font-size:13px; white-space:nowrap; padding-top:1px; }
+.banner p { margin:0; font-size:13.5px; color:var(--ink-2); }
+.banner b { color:var(--ink); }
+
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:28px; }
+.tile { background:var(--surface); border:1px solid var(--ring); border-radius:8px; padding:14px 16px 12px; }
+.tile .k { font-size:11.5px; color:var(--muted); letter-spacing:.06em; font-weight:600; }
+.tile .v { font-size:30px; font-weight:700; letter-spacing:-.02em; margin-top:2px; }
+.tile .d { font-size:12px; color:var(--ink-2); margin-top:2px; }
+.tile .v .unit { font-size:14px; font-weight:500; color:var(--ink-2); }
+
+section.card { background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:20px 22px 18px; margin-bottom:22px; }
+section.card h2 { font-size:16.5px; margin:0 0 2px; }
+section.card .desc { font-size:13px; color:var(--ink-2); margin:0 0 14px; }
+svg text { font-family:inherit; }
+.legend { display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--ink-2); margin:2px 0 10px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
+
+.tt {
+  position:fixed; pointer-events:none; z-index:10; display:none; max-width:320px;
+  background:var(--surface); border:1px solid var(--ring); border-radius:6px;
+  box-shadow:0 4px 14px rgba(0,0,0,.18); padding:8px 10px; font-size:12.5px; color:var(--ink);
+}
+.tt .q { color:var(--ink-2); }
+.tt b { font-weight:650; }
+
+table { border-collapse:collapse; width:100%; font-size:13px; }
+th, td { padding:6px 10px; text-align:right; font-variant-numeric:tabular-nums; border-bottom:1px solid var(--grid); }
+th { color:var(--muted); font-weight:600; font-size:12px; }
+th:first-child, td:first-child { text-align:left; }
+details { margin-top:10px; }
+summary { cursor:pointer; font-size:13px; color:var(--ink-2); }
+.scroller { overflow-x:auto; }
+
+.bars3 { display:grid; grid-template-columns:150px 1fr 96px; gap:6px 12px; align-items:center; font-size:13px; }
+.bars3 .lab { color:var(--ink); }
+.bars3 .lab small { color:var(--muted); display:block; font-size:11.5px; }
+.bars3 .track { background:var(--grid); border-radius:4px; height:14px; position:relative; }
+.bars3 .fill { height:14px; border-radius:4px 3px 3px 4px; min-width:2px; }
+.bars3 .num { font-variant-numeric:tabular-nums; color:var(--ink-2); }
+.footnotes { font-size:13px; color:var(--ink-2); }
+.footnotes li { margin-bottom:6px; }
+.sig { font-weight:650; color:var(--ink); }
+.ns { color:var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .fill { transition: width .5s ease; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">job-rag-pipeline · eval v5</div>
+  <h1>RAG 검색 성능 평가 리포트</h1>
+  <div class="sub">정규화 nDCG@3 = (실측 − 랜덤바닥) / (풀오라클 − 랜덤바닥) · 풀링 qrels(TREC 방식) · 쌍대 부트스트랩 95% CI</div>
+  <div class="chips">
+    <span class="chip">판정 프롬프트 <b>v3</b> (gemini-2.5-flash-lite)</span>
+    <span class="chip">코퍼스 <b>1,172</b> 활성 공고</span>
+    <span class="chip">질의 <b>29</b> · 판정 <b>3,361</b>건</span>
+    <span class="chip">앵커 <b>Claude 교차모델</b> 120쌍</span>
+    <span class="chip">2026-07-28</span>
+  </div>
+</header>
+
+<div class="banner">
+  <span class="mark">⚠ GATE 3 FAIL</span>
+  <p><b>앵커 κ=0.25 &lt; 0.60 — 절대 수치는 상한선으로만 해석.</b> judge의 Incorrect 판정은 앵커와 100% 일치하지만 Correct 판정은 24%만 일치(양성 부풀림, McNemar b=1·c=38). 부풀림은 모든 arm에 공통이므로 <b>arm 간 순위·비교는 유효</b>하며, v4(다른 라벨)에서도 동일한 순위가 나와 라벨-강건성이 확인됐습니다. 앵커는 사람이 아닌 교차모델(Claude)입니다.</p>
+</div>
+
+<div class="tiles">
+  <div class="tile"><div class="k">헤드라인 · BEST ARM</div><div class="v">0.801</div><div class="d">rrf_ce (RRF+리랭커) 정규화 nDCG@3</div></div>
+  <div class="tile"><div class="k">유의한 쌍대 비교</div><div class="v">7<span class="unit"> / 10</span></div><div class="d">상위 3개 arm 간에는 유의차 없음</div></div>
+  <div class="tile"><div class="k">게이트</div><div class="v">4<span class="unit"> / 6</span></div><div class="d">FAIL: 앵커 κ · 자기일관성(N/A)</div></div>
+  <div class="tile"><div class="k">qrels Correct 비율</div><div class="v">28.8<span class="unit">%</span></div><div class="d">v4 42.5% → 판정 엄격화로 감소</div></div>
+</div>
+
+<section class="card">
+  <h2>arm별 정규화 nDCG@3</h2>
+  <p class="desc">1.0 = 풀 내 최적 정렬(오라클), 0 = 랜덤 수준. 괄호는 원시 nDCG@3.</p>
+  <div class="bars3" id="headlineBars"></div>
+</section>
+
+<section class="card">
+  <h2>쌍대 비교 — Δ nDCG@3와 95% CI</h2>
+  <p class="desc">부트스트랩 10,000회, 질의 단위 쌍대 재표집. CI가 0을 걸치면 비유의(n.s.) — 채워진 점 = 유의, 빈 점 = 비유의.</p>
+  <div id="forest"></div>
+</section>
+
+<section class="card">
+  <h2>축별 성능 — 질의 4축 × arm</h2>
+  <p class="desc">지역·기술·제약 축은 상한 근접, <b>난이도 축(희소·저자원 직군·파서 함정)이 약점</b>. 난이도 축은 유일하게 리랭커(rrf_ce)가 rrf보다 낮은 축.</p>
+  <div class="legend" id="axisLegend"></div>
+  <div id="axisChart"></div>
+</section>
+
+<section class="card">
+  <h2>질의별 상세 — 29질의 × 4 arm 히트맵</h2>
+  <p class="desc">진할수록 좋음(정규화 nDCG@3). rrf_ce 기준 오름차순 — 위쪽이 약한 질의. 셀에 올리면 질의 원문이 보입니다.</p>
+  <div class="scroller" id="heatmap"></div>
+  <details><summary>표로 보기</summary><div class="scroller"><table id="heatTable"></table></div></details>
+</section>
+
+<section class="card">
+  <h2>라벨 신뢰성 — judge(gemini) vs 앵커(Claude) 120쌍</h2>
+  <p class="desc">judge가 각 라벨을 냈을 때 앵커가 동의한 비율. <b>음성(Incorrect) 판정은 신뢰 가능, 양성(Correct)만 불신</b> — 절대 수치가 상한선인 이유.</p>
+  <div class="bars3" id="anchorBars"></div>
+  <p class="desc" style="margin-top:12px">이진 κ 0.252 · 사후가중 정확도 0.766 (v4: 0.717) · 불일치 38건 = 경계 사례 17건(재택 미확인·경력무관↔시니어) + judge 규칙 적용 실패 21건(직군 구분·신입↔N년↑·기술 부재)</p>
+</section>
+
+<section class="card">
+  <h2>v4 → v5 무엇이 달라졌나</h2>
+  <div class="scroller"><table>
+    <tr><th>항목</th><th>v4 (프롬프트 v1)</th><th>v5 (프롬프트 v3)</th></tr>
+    <tr><td>rrf_ce 헤드라인</td><td>0.806</td><td>0.801</td></tr>
+    <tr><td>arm 순위</td><td colspan="2" style="text-align:center">rrf_ce &gt; dense &gt; rrf &gt; bm25 &gt; random — <b>동일 (라벨-강건)</b></td></tr>
+    <tr><td>bm25</td><td>0.286</td><td>0.388</td></tr>
+    <tr><td>난이도 축 best</td><td>rrf 0.521</td><td>rrf 0.661</td></tr>
+    <tr><td>rrf vs rrf_ce</td><td>유의 (경계)</td><td><b>비유의 — 리랭커 기여 주장 철회</b></td></tr>
+    <tr><td>qrels Correct 비율</td><td>42.5%</td><td>28.8%</td></tr>
+    <tr><td>사후가중 라벨 정확도</td><td>0.717</td><td>0.766</td></tr>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2>이 평가가 말할 수 없는 것</h2>
+  <ol class="footnotes">
+    <li><b>사람 검증 부재.</b> 게이트 3의 κ는 LLM 간 일치도다. 사람 채점 전까지 어느 모델 기준이 옳은지는 미확정.</li>
+    <li><b>절대 수치는 상한선.</b> judge 양성 부풀림(앵커 동의 24%)으로 Correct qrels가 과다할 수 있음. 순위 결론만 인용 권장.</li>
+    <li><b>Recall 미측정.</b> 풀링 방식 — 풀 밖 정답은 Chapman 포획-재포획 하한 추정으로만 다룸 (보정비 구간 [3.7, 7.7]).</li>
+    <li><b>실입력 경로와 다름.</b> 이 29질의는 자연어(파서 스트레스 테스트). 명세서 실입력(직업명·profile JSON)은 별도 트랙 — Tier 0 계약 검사는 31/31 통과.</li>
+    <li><b>질의 자체 제작 · 코퍼스 1,172건.</b> 실사용 트래픽 대표성과 실서비스 규모 일반화는 보장 없음.</li>
+  </ol>
+</section>
+</div>
+
+<div class="tt" id="tt"></div>
+
+<script>
+const DATA = {"headline": {"random": 0.0191, "bm25": 0.3876, "dense": 0.7423, "rrf": 0.702, "rrf_ce": 0.801}, "raw_ndcg": {"random": 0.1379, "bm25": 0.4964, "dense": 0.8084, "rrf": 0.7889, "rrf_ce": 0.854}, "comparisons": [{"label": "random vs bm25", "d": 0.3584, "ci": [0.2019, 0.5097], "sig": true}, {"label": "random vs dense", "d": 0.6708, "ci": [0.5741, 0.7606], "sig": true}, {"label": "random vs rrf", "d": 0.6509, "ci": [0.5355, 0.7621], "sig": true}, {"label": "random vs rrf_ce", "d": 0.7164, "ci": [0.6448, 0.7873], "sig": true}, {"label": "bm25 vs dense", "d": 0.3124, "ci": [0.1541, 0.4643], "sig": true}, {"label": "bm25 vs rrf", "d": 0.2925, "ci": [0.1641, 0.424], "sig": true}, {"label": "bm25 vs rrf_ce", "d": 0.358, "ci": [0.2247, 0.4919], "sig": true}, {"label": "dense vs rrf", "d": -0.0199, "ci": [-0.1028, 0.0596], "sig": false}, {"label": "dense vs rrf_ce", "d": 0.0456, "ci": [-0.0206, 0.1107], "sig": false}, {"label": "rrf vs rrf_ce", "d": 0.0655, "ci": [-0.026, 0.1513], "sig": false}], "by_axis": [{"name": "기술", "n": 8, "scores": {"random": 0.0, "bm25": 0.3156, "dense": 0.7091, "rrf": 0.5783, "rrf_ce": 0.8307}}, {"name": "지역", "n": 7, "scores": {"random": 0.0126, "bm25": 0.4812, "dense": 0.9512, "rrf": 0.8019, "rrf_ce": 1.0}}, {"name": "제약", "n": 8, "scores": {"random": 0.0581, "bm25": 0.4101, "dense": 0.6872, "rrf": 0.7685, "rrf_ce": 0.7816}}, {"name": "난이도", "n": 6, "scores": {"random": 0.0, "bm25": 0.3444, "dense": 0.6165, "rrf": 0.6613, "rrf_ce": 0.5552}}], "per_query": [{"qid": "q04", "query": "서울 경력무관 TypeScript 쓰는 회사", "category": "tech_focus", "n": 82, "correct": 32, "arms": {"bm25": 0.6139, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q54", "query": "서울 3년차 React TypeScript 프론트엔드 개발자", "category": "multi_tech", "n": 77, "correct": 41, "arms": {"bm25": 1.0, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q03", "query": "서울 5년차 Python 데이터 엔지니어", "category": "tech_focus", "n": 82, "correct": 19, "arms": {"bm25": 0.0, "dense": 0.6536, "rrf": 0.0, "rrf_ce": 0.6536}}, {"qid": "q25", "query": "서울 3년차 스프링부트 하는 회사", "category": "tech_alias", "n": 87, "correct": 29, "arms": {"bm25": 0.0, "dense": 1.0, "rrf": 0.227, "rrf_ce": 0.8068}}, {"qid": "q28", "query": "경기 3년차 도커 쓰는 백엔드", "category": "tech_alias", "n": 78, "correct": 37, "arms": {"bm25": 0.0, "dense": 0.6878, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q27", "query": "서울 5년차 쿠버네티스 다루는 데브옵스", "category": "tech_alias", "n": 84, "correct": 7, "arms": {"bm25": 0.3731, "dense": 0.7229, "rrf": 0.8614, "rrf_ce": 1.0}}, {"qid": "q26", "query": "서울 신입 리액트 개발자", "category": "tech_alias", "n": 86, "correct": 42, "arms": {"bm25": 0.5381, "dense": 0.076, "rrf": 0.5381, "rrf_ce": 0.5381}}, {"qid": "q30", "query": "서울 경력무관 파이썬 데이터 분석가", "category": "tech_alias", "n": 82, "correct": 6, "arms": {"bm25": 0.0, "dense": 0.5324, "rrf": 0.0, "rrf_ce": 0.6474}}, {"qid": "q22", "query": "여의도 3년차 금융 IT Java 개발자", "category": "colloquial_region", "n": 70, "correct": 24, "arms": {"bm25": 0.6286, "dense": 1.0, "rrf": 0.5312, "rrf_ce": 1.0}}, {"qid": "q08", "query": "서울 3년차 Python 개발자 채용", "category": "region_focus", "n": 79, "correct": 30, "arms": {"bm25": 0.0, "dense": 1.0, "rrf": 0.7324, "rrf_ce": 1.0}}, {"qid": "q23", "query": "성남 신입 Spring 백엔드", "category": "colloquial_region", "n": 73, "correct": 22, "arms": {"bm25": 0.2711, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q21", "query": "분당 경력무관 Python 개발자 채용", "category": "colloquial_region", "n": 71, "correct": 18, "arms": {"bm25": 1.0, "dense": 0.6586, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q09", "query": "경기도 신입 Java 개발자", "category": "region_focus", "n": 81, "correct": 44, "arms": {"bm25": 0.0, "dense": 1.0, "rrf": 0.35, "rrf_ce": 1.0}}, {"qid": "q19", "query": "강남에서 3년차 Java 백엔드 개발자", "category": "colloquial_region", "n": 81, "correct": 33, "arms": {"bm25": 1.0, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q20", "query": "판교 신입 React 프론트엔드 개발자", "category": "colloquial_region", "n": 67, "correct": 27, "arms": {"bm25": 0.4686, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q32", "query": "경기 신입 React 프론트엔드", "category": "combo_balanced", "n": 78, "correct": 34, "arms": {"bm25": 0.7795, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q34", "query": "서울 신입 TypeScript 프론트엔드 개발자", "category": "combo_balanced", "n": 81, "correct": 26, "arms": {"bm25": 1.0, "dense": 0.5359, "rrf": 1.0, "rrf_ce": 0.6323}}, {"qid": "q57", "query": "서울 경력 1년차 Spring 백엔드 개발자", "category": "boundary_exp", "n": 86, "correct": 38, "arms": {"bm25": 0.5385, "dense": 0.0, "rrf": 0.1867, "rrf_ce": 0.0767}}, {"qid": "q39", "query": "서울 강남 스프링부트 3년차 백엔드", "category": "combo_dense", "n": 83, "correct": 29, "arms": {"bm25": 0.0, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q31", "query": "서울에서 3년차 Java Spring 백엔드", "category": "combo_balanced", "n": 81, "correct": 30, "arms": {"bm25": 0.0, "dense": 0.224, "rrf": 0.224, "rrf_ce": 0.806}}, {"qid": "q17", "query": "서울 경력무관 React 개발자 채용", "category": "exp_focus", "n": 83, "correct": 42, "arms": {"bm25": 0.0, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q41", "query": "부산 신입 Java 백엔드 개발자", "category": "combo_dense", "n": 40, "correct": 4, "arms": {"bm25": 0.2131, "dense": 0.7377, "rrf": 0.7377, "rrf_ce": 0.7377}}, {"qid": "q38", "query": "경기 5년차 Docker 데브옵스", "category": "combo_balanced", "n": 81, "correct": 27, "arms": {"bm25": 0.7495, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q63", "query": "서울 3년차 Python QA 엔지니어 테스트 자동화", "category": "low_resource_role", "n": 81, "correct": 1, "arms": {"bm25": 0.62, "dense": 1.0, "rrf": 1.0, "rrf_ce": 0.4852}}, {"qid": "q44", "query": "대구에서 5년차 Kubernetes 다루는 시니어 개발자", "category": "sparse_relax", "n": 41, "correct": 4, "arms": {"bm25": 0.6633, "dense": 0.0, "rrf": 0.1297, "rrf_ce": 0.3966}}, {"qid": "q49", "query": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까", "category": "freeform", "n": 81, "correct": 38, "arms": {"bm25": 0.4234, "dense": 1.0, "rrf": 1.0, "rrf_ce": 1.0}}, {"qid": "q48", "query": "경남 3년차 Go 시스템 프로그래머", "category": "sparse_relax", "n": 36, "correct": 3, "arms": {"bm25": 0.0, "dense": 0.2218, "rrf": 0.0, "rrf_ce": 0.4133}}, {"qid": "q64", "query": "서울 3년차 AWS SRE 엔지니어 채용", "category": "low_resource_role", "n": 80, "correct": 0, "arms": {"bm25": 0.0, "dense": 0.6052, "rrf": 1.0, "rrf_ce": 0.2923}}, {"qid": "q53", "query": "서울 golang 10년차 서버 개발자", "category": "parser_trap", "n": 77, "correct": 4, "arms": {"bm25": 0.3595, "dense": 0.8719, "rrf": 0.8384, "rrf_ce": 0.7439}}]};
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const ARM_ORDER = ["rrf_ce","dense","rrf","bm25","random"];
+const ARM_LABEL = {rrf_ce:"rrf_ce", dense:"dense", rrf:"rrf", bm25:"bm25", random:"random"};
+const ARM_DESC  = {rrf_ce:"RRF + 크로스인코더 재순위", dense:"임베딩 단독", rrf:"BM25+임베딩 융합", bm25:"키워드 단독", random:"무작위 기준선"};
+const ARM_VAR   = {rrf_ce:"--rrf-ce", dense:"--dense", rrf:"--rrf", bm25:"--bm25", random:"--random"};
+
+const tt = document.getElementById("tt");
+function showTT(html, ev){ tt.innerHTML = html; tt.style.display = "block"; moveTT(ev); }
+function moveTT(ev){
+  const pad = 14, w = tt.offsetWidth, h = tt.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8)  x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tt.style.left = x + "px"; tt.style.top = y + "px";
+}
+function hideTT(){ tt.style.display = "none"; }
+
+/* ── 헤드라인 바 ── */
+(function(){
+  const el = document.getElementById("headlineBars");
+  ARM_ORDER.forEach(a => {
+    const norm = DATA.headline[a], raw = DATA.raw_ndcg[a];
+    el.insertAdjacentHTML("beforeend", `
+      <div class="lab">${ARM_LABEL[a]}<small>${ARM_DESC[a]}</small></div>
+      <div class="track"><div class="fill" style="width:${(norm*100).toFixed(1)}%;background:var(${ARM_VAR[a]})"></div></div>
+      <div class="num"><b style="color:var(--ink)">${norm.toFixed(3)}</b> <span>(${raw.toFixed(3)})</span></div>`);
+  });
+})();
+
+/* ── 포레스트 플롯 ── */
+(function(){
+  const rows = DATA.comparisons;
+  const W = 960, LAB = 190, RG = 96, PW = W - LAB - RG, rh = 30, pad = 26;
+  const H = rows.length * rh + pad + 18;
+  const lo = Math.min(-0.15, ...rows.map(r => r.ci[0])), hi = Math.max(...rows.map(r => r.ci[1])) + 0.02;
+  const x = v => LAB + (v - lo) / (hi - lo) * PW;
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="쌍대 비교 포레스트 플롯">`;
+  [-0.2,0,0.2,0.4,0.6].filter(t => t >= lo && t <= hi).forEach(t => {
+    s += `<line x1="${x(t)}" y1="${pad-8}" x2="${x(t)}" y2="${H-16}" stroke="var(--grid)" stroke-width="1"/>`;
+    s += `<text x="${x(t)}" y="${H-3}" font-size="11" fill="var(--muted)" text-anchor="middle" style="font-variant-numeric:tabular-nums">${t===0?"0":t.toFixed(1)}</text>`;
+  });
+  s += `<line x1="${x(0)}" y1="${pad-8}" x2="${x(0)}" y2="${H-16}" stroke="var(--axis)" stroke-width="1.5"/>`;
+  rows.forEach((r, i) => {
+    const y = pad + i * rh + rh/2 - 4;
+    const c = r.sig ? "var(--rrf-ce)" : "var(--muted)";
+    s += `<text x="${LAB-10}" y="${y+4}" font-size="12.5" fill="var(--ink)" text-anchor="end">${r.label}</text>`;
+    s += `<line x1="${x(r.ci[0])}" y1="${y}" x2="${x(r.ci[1])}" y2="${y}" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`;
+    s += r.sig
+      ? `<circle cx="${x(r.d)}" cy="${y}" r="4.5" fill="${c}" stroke="var(--surface)" stroke-width="2"/>`
+      : `<circle cx="${x(r.d)}" cy="${y}" r="4.5" fill="var(--surface)" stroke="${c}" stroke-width="2"/>`;
+    s += `<text x="${W-4}" y="${y+4}" font-size="12" text-anchor="end" fill="${r.sig?"var(--ink)":"var(--muted)"}" style="font-variant-numeric:tabular-nums">${r.d>=0?"+":""}${r.d.toFixed(3)} ${r.sig?"유의":"n.s."}</text>`;
+  });
+  s += `</svg>`;
+  document.getElementById("forest").innerHTML = s;
+})();
+
+/* ── 축별 그룹 바 ── */
+(function(){
+  const leg = document.getElementById("axisLegend");
+  ARM_ORDER.forEach(a => leg.insertAdjacentHTML("beforeend",
+    `<span><i class="sw" style="background:var(${ARM_VAR[a]})"></i>${ARM_LABEL[a]}</span>`));
+  const axes = DATA.by_axis;
+  const W = 960, H = 250, padL = 40, padB = 34, padT = 12;
+  const gw = (W - padL - 16) / axes.length;
+  const bw = 13, gap = 2;
+  const y = v => padT + (1 - v) * (H - padT - padB);
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="축별 arm 성능">`;
+  [0,0.25,0.5,0.75,1].forEach(t => {
+    s += `<line x1="${padL}" y1="${y(t)}" x2="${W-8}" y2="${y(t)}" stroke="var(--grid)" stroke-width="1"/>`;
+    s += `<text x="${padL-6}" y="${y(t)+4}" font-size="11" fill="var(--muted)" text-anchor="end" style="font-variant-numeric:tabular-nums">${t}</text>`;
+  });
+  axes.forEach((ax, gi) => {
+    const x0 = padL + gi * gw + (gw - ARM_ORDER.length * (bw + gap)) / 2;
+    ARM_ORDER.forEach((a, i) => {
+      const v = ax.scores[a];
+      const bx = x0 + i * (bw + gap);
+      s += `<rect class="hm" data-tip="<b>${ax.name}</b> · ${ARM_LABEL[a]}: <b>${v.toFixed(3)}</b> (n=${ax.n})"
+             x="${bx}" y="${y(v)}" width="${bw}" height="${Math.max(2, y(0)-y(v))}" rx="3"
+             fill="var(${ARM_VAR[a]})" stroke="var(--surface)" stroke-width="1"/>`;
+    });
+    s += `<text x="${padL + gi*gw + gw/2}" y="${H-12}" font-size="12.5" fill="var(--ink-2)" text-anchor="middle">${ax.name} <tspan fill="var(--muted)" font-size="11">n=${ax.n}</tspan></text>`;
+  });
+  s += `<line x1="${padL}" y1="${y(0)}" x2="${W-8}" y2="${y(0)}" stroke="var(--axis)" stroke-width="1.5"/></svg>`;
+  document.getElementById("axisChart").innerHTML = s;
+})();
+
+/* ── 히트맵 ── */
+(function(){
+  const arms = ["bm25","dense","rrf","rrf_ce"];
+  const rows = [...DATA.per_query].sort((a,b) => a.arms.rrf_ce - b.arms.rrf_ce);
+  const cw = 118, ch = 22, labW = 300, W = labW + arms.length * cw + 8, H = rows.length * ch + 34;
+  const steps = ["--seq-100","--seq-250","--seq-400","--seq-550","--seq-700"];
+  const col = v => `var(${steps[Math.min(4, Math.floor(v * 5))]})`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="min-width:760px;width:100%;height:auto" role="img" aria-label="질의별 히트맵">`;
+  arms.forEach((a, i) => s += `<text x="${labW + i*cw + cw/2}" y="16" font-size="12" fill="var(--muted)" text-anchor="middle" font-weight="600">${a}</text>`);
+  rows.forEach((r, ri) => {
+    const yy = 26 + ri * ch;
+    const qshort = r.query.length > 26 ? r.query.slice(0,25) + "…" : r.query;
+    s += `<text x="${labW-8}" y="${yy + ch/2 + 4}" font-size="12" fill="var(--ink-2)" text-anchor="end">${r.qid} · ${qshort}</text>`;
+    arms.forEach((a, ci) => {
+      const v = r.arms[a];
+      const tip = `<span class="q">${r.qid} [${r.category}] — ${r.query}</span><br><b>${a}: ${v.toFixed(3)}</b> · 풀 ${r.n} · Correct ${r.correct}`;
+      s += `<rect class="hm" data-tip='${tip.replace(/'/g,"&#39;")}' x="${labW + ci*cw}" y="${yy}" width="${cw-2}" height="${ch-2}" rx="3" fill="${col(v)}"/>`;
+      if (v < 0.3 || v >= 0.999) {
+        const ink = v >= 0.6 ? "#ffffff" : "var(--ink-2)";
+        s += `<text x="${labW + ci*cw + cw/2 - 1}" y="${yy + ch/2 + 3.5}" font-size="10.5" fill="${ink}" text-anchor="middle" style="font-variant-numeric:tabular-nums;pointer-events:none">${v.toFixed(2)}</text>`;
+      }
+    });
+  });
+  s += `</svg>`;
+  document.getElementById("heatmap").innerHTML = s;
+
+  let t = `<tr><th>질의</th><th>축</th><th>bm25</th><th>dense</th><th>rrf</th><th>rrf_ce</th><th>Correct</th></tr>`;
+  rows.forEach(r => {
+    t += `<tr><td>${r.qid} ${r.query}</td><td style="text-align:right">${r.category}</td>` +
+      arms.map(a => `<td>${r.arms[a].toFixed(3)}</td>`).join("") + `<td>${r.correct}</td></tr>`;
+  });
+  document.getElementById("heatTable").innerHTML = t;
+})();
+
+/* ── 앵커 분해 바 ── */
+(function(){
+  const el = document.getElementById("anchorBars");
+  const rows = [
+    {k:"judge=Incorrect", n:50, rate:1.00, v:"--rrf"},
+    {k:"judge=Ambiguous",  n:20, rate:0.95, v:"--rrf"},
+    {k:"judge=Correct",    n:50, rate:0.24, v:"--dense"},
+  ];
+  rows.forEach(r => {
+    el.insertAdjacentHTML("beforeend", `
+      <div class="lab">${r.k}<small>표본 ${r.n}쌍</small></div>
+      <div class="track"><div class="fill" style="width:${r.rate*100}%;background:var(${r.v})"></div></div>
+      <div class="num"><b style="color:var(--ink)">${Math.round(r.rate*100)}%</b> 동의</div>`);
+  });
+})();
+
+/* 공용 hover */
+document.addEventListener("mousemove", ev => {
+  const el = ev.target.closest?.(".hm");
+  if (el) { showTT(el.dataset.tip, ev); } else hideTT();
+});
+</script>
+
+</body>
+</html>

@@ -285,5 +285,4 @@ profile 8건에 위 풀링 기계를 그대로 재사용하면 판정 약 440건
 - 백업: `<scratchpad>/eval_backup_20260728/` (eval/ + golden/ 전체, 3.9MB)
 - 보존: [golden/queries.py](../golden/queries.py) (질의 65건 — 자산), `eval/_archive/v3_exhaustive_3queries.json`
   (완전판정 3질의: q03/q05/q08, 기술·지역 축뿐 — 포획-재포획 편향 계수 교정용. 난이도 축 1질의를 신규 완전판정해 보강)
-- **해결됨**: [webapp/server.py](../webapp/server.py)가 v4 `report.json`을 읽고,
-  게이트를 통과한 기존 pool/judgments로만 재측정한다.
+- **깨진 의존성**: [webapp/server.py:19](../webapp/server.py:19) 가 `from eval import harness`. v4 `report.json`을 읽도록 교체 필요

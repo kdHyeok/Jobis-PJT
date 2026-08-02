@@ -1,0 +1,174 @@
+{
+  "framework": "ragas 0.4",
+  "llm_judge": "gemini-2.5-flash-lite",
+  "response_source": "template(top-3 검색결과 서술) — 생성부 부재 스탠드인",
+  "caveat": [
+    "reference는 gemini v3 judge 라벨 — 사람 채점 전까지 교차검증 기준",
+    "faithfulness/answer_relevancy는 response가 템플릿 스탠드인인 동안 하네스 검증값"
+  ],
+  "summary": {
+    "context_precision_id": 0.6222,
+    "context_recall_id": 0.4057,
+    "faithfulness": 0.7115,
+    "answer_relevancy": 0.7814
+  },
+  "n_samples": 15,
+  "n_failed": 2,
+  "scored_coverage": {
+    "context_precision_id": "15/15",
+    "context_recall_id": "15/15",
+    "faithfulness": "13/15",
+    "answer_relevancy": "15/15"
+  },
+  "failures": [
+    {
+      "qid": "SA05",
+      "metric": "faithfulness",
+      "attempts": 1,
+      "transient": false,
+      "error": "InstructorRetryException: Please return your response as a function call"
+    },
+    {
+      "qid": "SA06",
+      "metric": "faithfulness",
+      "attempts": 1,
+      "transient": false,
+      "error": "InstructorRetryException: Please return your response as a function call"
+    }
+  ],
+  "per_query": [
+    {
+      "qid": "SA01",
+      "question": "백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년)",
+      "category": "backend",
+      "context_precision_id": 0.6667,
+      "context_recall_id": 0.1818,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.8243
+    },
+    {
+      "qid": "SA02",
+      "question": "백엔드 개발자 Python Django PostgreSQL (신입)",
+      "category": "backend",
+      "context_precision_id": 1.0,
+      "context_recall_id": 0.3,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7968
+    },
+    {
+      "qid": "SA03",
+      "question": "백엔드 개발자 Go Redis Kafka (경력 7년)",
+      "category": "backend",
+      "context_precision_id": 0.6667,
+      "context_recall_id": 0.5,
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.7957
+    },
+    {
+      "qid": "SA04",
+      "question": "프론트엔드 개발자 React TypeScript Next.js (경력 2년)",
+      "category": "frontend",
+      "context_precision_id": 1.0,
+      "context_recall_id": 0.1579,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7881
+    },
+    {
+      "qid": "SA05",
+      "question": "프론트엔드 개발자 Vue JavaScript (신입)",
+      "category": "frontend",
+      "context_precision_id": 1.0,
+      "context_recall_id": 0.2308,
+      "answer_relevancy": 0.7844
+    },
+    {
+      "qid": "SA06",
+      "question": "풀스택 개발자 React Node.js MySQL (경력 4년)",
+      "category": "fullstack",
+      "context_precision_id": 1.0,
+      "context_recall_id": 0.2143,
+      "answer_relevancy": 0.7799
+    },
+    {
+      "qid": "SA07",
+      "question": "안드로이드 개발자 Kotlin Android (경력 3년)",
+      "category": "mobile",
+      "context_precision_id": 0.6667,
+      "context_recall_id": 0.25,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7569
+    },
+    {
+      "qid": "SA08",
+      "question": "DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년)",
+      "category": "devops",
+      "context_precision_id": 1.0,
+      "context_recall_id": 0.3333,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7969
+    },
+    {
+      "qid": "SA09",
+      "question": "SRE 엔지니어 Kubernetes Linux Terraform (경력 4년)",
+      "category": "sre",
+      "context_precision_id": 0.6667,
+      "context_recall_id": 0.6667,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.8001
+    },
+    {
+      "qid": "SA10",
+      "question": "데이터 엔지니어 Python Kafka SQL (경력 3년)",
+      "category": "data_engineer",
+      "context_precision_id": 0.3333,
+      "context_recall_id": 1.0,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7552
+    },
+    {
+      "qid": "SA11",
+      "question": "데이터 사이언티스트 Python TensorFlow (경력 2년)",
+      "category": "data_scientist",
+      "context_precision_id": 0.3333,
+      "context_recall_id": 0.5,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7877
+    },
+    {
+      "qid": "SA12",
+      "question": "머신러닝 엔지니어 Python PyTorch LLM (경력 3년)",
+      "category": "ml_engineer",
+      "context_precision_id": 0.3333,
+      "context_recall_id": 0.25,
+      "faithfulness": 0.0,
+      "answer_relevancy": 0.7783
+    },
+    {
+      "qid": "SA13",
+      "question": "데이터 분석가 SQL Python (신입)",
+      "category": "data_analyst",
+      "context_precision_id": 0.0,
+      "context_recall_id": 0.0,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7044
+    },
+    {
+      "qid": "SA14",
+      "question": "QA 엔지니어 Python Git (경력 2년)",
+      "category": "qa",
+      "context_precision_id": 0.3333,
+      "context_recall_id": 1.0,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7838
+    },
+    {
+      "qid": "SA15",
+      "question": "보안 엔지니어 Linux (경력 3년)",
+      "category": "security",
+      "context_precision_id": 0.3333,
+      "context_recall_id": 0.5,
+      "faithfulness": 0.75,
+      "answer_relevancy": 0.7886
+    }
+  ]
+}

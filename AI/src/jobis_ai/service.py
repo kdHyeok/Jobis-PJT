@@ -45,10 +45,19 @@ def request_to_state(request: AnalyzeRequest, analysis_id: str) -> GraphState:
 
 
 def run_pipeline(init_state: GraphState) -> AnalyzeResponse:
-    """초기 상태로 판정 파이프라인을 1회 실행한다.
+    """초기 상태로 판정 파이프라인을 1회 실행한다 (응답만 필요할 때)."""
+
+    response, _final_state = run_pipeline_with_state(init_state)
+    return response
+
+
+def run_pipeline_with_state(init_state: GraphState) -> tuple[AnalyzeResponse, dict]:
+    """판정 파이프라인 1회 실행 → (계약 응답, 최종 그래프 상태).
 
     run_analysis(HTTP 계약 경로)와 fit_analysis 에이전트(대화 경로)가 공유하는 실행부.
-    대화 경로는 resumeInput 등 내부 필드를 상태에 직접 실어야 해서 상태 단위 진입점이 필요하다.
+    대화 경로는 resumeInput 등 내부 필드를 상태에 직접 실어야 해서 상태 단위 진입점이 필요하고,
+    최종 상태를 함께 돌려주는 이유는 **그래프가 만든 지식(파싱·프로필)을 화이트보드(세션)로
+    승격**하기 위해서다(D84) — 응답 계약에는 없는 중간 산출물이 상태에만 있다.
     """
 
     app = _get_app()
@@ -76,7 +85,7 @@ def run_pipeline(init_state: GraphState) -> AnalyzeResponse:
         final_state = app.invoke(init_state)
 
     result = final_state.get("analysisResult") or {}
-    return AnalyzeResponse(**result)
+    return AnalyzeResponse(**result), dict(final_state)
 
 
 def run_analysis(request: AnalyzeRequest) -> AnalyzeResponse:

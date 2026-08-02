@@ -1,6 +1,6 @@
 """테스트용 웹 서버 — http.server, 외부 의존 최소화(crag-pipeline 관례와 동일).
 
-검색 결과를 GMS에 넘겨 1회 생성하고, v4 평가 리포트를 조회·재측정한다.
+Evaluator 없음 — 검색(하이브리드+재순위) 결과를 그대로 GMS에 넘겨 1회 생성.
 사용: python webapp/server.py [--port 8766] [--no-rerank]
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pgvector.psycopg import register_vector
 
-from eval.run import POOL_PATH, REPORT_PATH, check_gates, measure
+from eval import harness
 from jobrag.generate import generate_answer
 from jobrag.query_parser import load_region_vocab, parse_query
 from jobrag.search import hybrid_search
@@ -72,15 +72,10 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(html)
             return
         if self.path == "/api/eval":
-            if not REPORT_PATH.exists():
-                self._send_json(404, {
-                    "error": "v4 평가 리포트가 없습니다. eval.run으로 평가를 먼저 실행하세요."
-                })
+            if not harness.OUT.exists():
+                self._send_json(404, {"error": "아직 실행 안 됨 — '다시 계산' 버튼을 눌러줘"})
                 return
-            self._send_json(
-                200,
-                json.loads(REPORT_PATH.read_text(encoding="utf-8")),
-            )
+            self._send_json(200, json.loads(harness.OUT.read_text(encoding="utf-8")))
             return
         self._send_json(404, {"error": "not found"})
 
@@ -88,23 +83,15 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/eval/run":
             try:
                 _ensure_ready()
-                if not POOL_PATH.exists():
-                    self._send_json(409, {
-                        "error": "pool.json이 없습니다. python -m eval.run --build-pool을 먼저 실행하세요."
-                    })
-                    return
-
-                pool_data = json.loads(POOL_PATH.read_text(encoding="utf-8"))
-                gates = check_gates(pool_data)
-                failed = [gate for gate in gates if not gate["passed"]]
-                if failed:
-                    self._send_json(409, {
-                        "error": "평가 게이트가 실패하여 리포트를 생성하지 않았습니다.",
-                        "failed_gates": failed,
-                    })
-                    return
-
-                report = measure(_conn, pool_data)
+                report = {
+                    "generated_at": __import__("datetime").datetime.now().isoformat(),
+                    "search": harness.eval_search(_conn, _vocab),
+                    "discrimination": harness.eval_discrimination(_conn, _vocab),
+                    "parsing": harness.eval_parsing(_vocab),
+                    "latency": harness.eval_latency(),
+                    "chunking": harness.eval_chunking(_conn),
+                }
+                harness.OUT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
                 self._send_json(200, report)
             except Exception:
                 self._send_json(500, {"error": traceback.format_exc()})

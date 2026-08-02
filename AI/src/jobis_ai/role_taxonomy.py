@@ -183,22 +183,32 @@ class RoleTaxonomy:
     def classify_seniority(self, job_title: str, body: str = "", *, years: int | None = None) -> str:
         """직무명·본문·요구 연차 → 사다리 키.
 
-        우선순위: ① 명시 키워드("신입","시니어") → ② 요구 연차(years) 구간 → ③ 본문 연차 힌트.
+        우선순위: ① 요구 연차(years) → ② 명시 키워드("신입","시니어") → ③ 본문 연차 힌트.
         아무 근거도 없으면 빈 문자열 — **모르면 모른다고 둔다.** 여기서 "junior" 로 찍으면
         그건 근거 없는 판단이고, 뒤의 career_graph 가 그 위에 경로를 쌓아 오류가 증폭된다.
+
+        **연차가 키워드를 이긴다(D118).** 키워드는 본문 어디에 있든 걸리는 반면 years 는
+        "지원 자격으로 요구한 연차"를 읽어낸 값이라 근거가 분명하다. 실측(잡코리아
+        Gno=49638113): 경력 3년 공고가 회사 소개 "Global **Lead**ing DX Company" 때문에
+        `lead`(10년+)로 분류돼 4년 경력자가 미달로 판정될 수 있었다.
+
+        ASCII 별칭은 **단어 경계**로만 맞춘다 — 한글은 교착어라 경계가 없으므로 그대로 포함
+        검사한다("신입사원"의 "신입"은 맞는 매칭이다).
         """
 
         haystack = f"{job_title or ''} {body or ''}".lower()
-        for alias, key in _SENIORITY_ALIASES.items():
-            if alias in haystack:
-                return key
-
         if years is None:
             match = _YEARS_HINT.search(body or "")
             if match:
                 years = int(match.group(1))
         if years is not None:
             return self.seniority_from_years(years)
+
+        for alias, key in _SENIORITY_ALIASES.items():
+            hit = (re.search(rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])", haystack)
+                   if alias.isascii() else alias in haystack)
+            if hit:
+                return key
         return ""
 
     def seniority_from_years(self, years: int) -> str:

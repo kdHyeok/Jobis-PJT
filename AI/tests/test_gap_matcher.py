@@ -339,3 +339,64 @@ def test_pure_years_line_is_owned_by_seniority_requirement():
     assert "React 기반 SPA 개발 경험" in texts
     sen = [r for r in reqs if r.get("kind") == "seniority"]
     assert len(sen) == 1 and sen[0]["minYears"] == 2      # 연차는 합성 요건이 담당
+
+
+# --- D99 대체군 — OR 요구를 요구사항 하나로 센다 ------------------------------------
+def test_alternate_group_lookup():
+    """대체군 조회는 **표준화와 다른 연산**이다 — 키를 합치지 않고 군만 알려준다."""
+
+    from jobis_ai.skill_taxonomy import get_skill_taxonomy
+
+    tax = get_skill_taxonomy()
+    assert tax.alternate_group("pgvector") == tax.alternate_group("Pinecone") == "벡터 DB"
+    assert tax.alternate_group("Airflow") == "워크플로 오케스트레이터"
+    # 같은 군이어도 표준 키는 그대로 다르다(pgvector ≠ Pinecone).
+    assert tax.normalize("pgvector") != tax.normalize("Pinecone")
+    # 애매한 묶음은 군에 넣지 않았다(§3-1 — 갈리는 판단을 사전에 못 박지 않는다).
+    assert tax.alternate_group("Kafka") is None
+    assert tax.alternate_group("Python") is None
+
+
+def test_tech_stack_alternates_collapse_to_one_requirement():
+    """벡터DB 5종은 요구사항 **1건**이 되고, 군에서 하나만 요구했으면 묶지 않는다."""
+
+    from jobis_ai.graph.nodes import _tech_stack_requirements
+
+    reqs = _tech_stack_requirements({"techStack": [
+        "Python", "Pinecone", "Qdrant", "Milvus", "Weaviate", "pgvector", "Airflow",
+    ]}, [])
+    any_of = [r for r in reqs if r.get("anyOf")]
+    assert len(any_of) == 1, "택일 관계 5종이 요구사항 1건으로 묶여야 한다"
+    assert "벡터 DB 중 하나" in any_of[0]["text"]
+    # Airflow 는 그 군에서 혼자 요구됐다 — 대체가 아니라 지목이므로 묶지 않는다.
+    plain = {r["text"] for r in reqs if not r.get("anyOf")}
+    assert plain == {"Python", "Airflow"}
+
+
+def test_any_of_requirement_met_by_a_single_member():
+    """대체군은 하나만 있으면 met 이고, **나머지를 부족으로 세지 않는다.**
+
+    묶기 전에는 pgvector 만 아는 지원자가 벡터DB 자리에서 1/5(=partially_met)로 깎였고,
+    그 부푼 분모가 종합 점수·등급을 왜곡했다(실측 2026-08-01).
+    """
+
+    from jobis_ai.gap_matcher import GapMatcher
+
+    members = ["Pinecone", "Qdrant", "Milvus", "Weaviate", "pgvector"]
+    matcher = GapMatcher()
+
+    status, _ids, matched, missing, confidence, _reason = matcher._match_by_skills(
+        members, {"pgvector": ["exp-1"]}, {"pgvector"}, any_of=True)
+    assert status == "met"
+    assert matched == ["pgvector"]
+    assert missing == [], "요구하지 않은 것을 결핍으로 보고하면 로드맵까지 오염된다"
+    assert confidence == 1.0
+
+    # 하나도 없으면 not_met — 이때는 무엇이 없는지 전부 알려준다.
+    status, _ids, matched, missing, _c, _r = matcher._match_by_skills(
+        members, {}, set(), any_of=True)
+    assert status == "not_met" and matched == [] and missing == members
+
+    # any_of 가 아니면 기존 AND 판정 그대로다(0.8 임계).
+    status, *_ = matcher._match_by_skills(members, {"pgvector": ["exp-1"]}, {"pgvector"})
+    assert status == "partially_met"

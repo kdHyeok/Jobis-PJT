@@ -153,6 +153,8 @@ class GapMatcher:
         required_skills: list[str],
         skill_evidence: dict[str, list[str]],
         claimed_skills: set[str],
+        *,
+        any_of: bool = False,
     ) -> tuple[str, list[str], list[str], list[str], float, str]:
         """요구 기술 목록 vs 사용자 보유 → (status, evidenceIds, matched, missing, confidence).
 
@@ -184,7 +186,16 @@ class GapMatcher:
         matched = evidenced + claimed_only
         matched_ratio = len(matched) / total
 
-        if matched_ratio >= _MET_EVIDENCE_RATIO:
+        if any_of:
+            # 대체군(D99) — 공고가 "중 하나"로 요구한 것이다. 하나라도 있으면 충족이고,
+            # **나머지를 부족으로 세지 않는다.** missing 을 남기면 요구하지 않은 것을
+            # 결핍으로 보고하게 되고, 그 결핍이 로드맵·자소서 보완 문단까지 흘러간다.
+            status = "met" if matched else "not_met"
+            missing = [] if matched else list(required_skills)
+            # 분모도 1이다 — 다섯 중 하나를 채운 것은 요구사항 하나를 온전히 채운 것이다.
+            total = 1 if matched else total
+            evidenced, claimed_only = evidenced[:1], ([] if evidenced else claimed_only[:1])
+        elif matched_ratio >= _MET_EVIDENCE_RATIO:
             status = "met"
         elif matched:
             status = "partially_met"
@@ -389,7 +400,9 @@ class GapMatcher:
 
             if required_skills:
                 status, evidence_ids, matched, missing, confidence, reason = self._match_by_skills(
-                    required_skills, skill_evidence, claimed_skills
+                    required_skills, skill_evidence, claimed_skills,
+                    # 대체군으로 묶인 합성 요구사항(D99) — 하나만 충족돼도 met.
+                    any_of=bool(req.get("anyOf")),
                 )
                 report.matches.append(Match(
                     requirementId=req_id, type=req_type, text=text, status=status,

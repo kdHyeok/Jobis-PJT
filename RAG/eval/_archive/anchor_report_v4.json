@@ -1,0 +1,39 @@
+{
+  "anchor_source": "claude-fable-5 (LLM, judge와 다른 계열 -사람 채점 아님)",
+  "prompt_version": "v2",
+  "n_primary": 112,
+  "n_recheck": 20,
+  "binary_kappa": 0.2626,
+  "agreement_by_judge_label": {
+    "Correct": {
+      "n_sampled": 42,
+      "anchor_agrees": 10,
+      "rate": 0.2381
+    },
+    "Ambiguous": {
+      "n_sampled": 20,
+      "anchor_agrees": 20,
+      "rate": 1.0
+    },
+    "Incorrect": {
+      "n_sampled": 50,
+      "anchor_agrees": 49,
+      "rate": 0.98
+    }
+  },
+  "binary_agreement": 0.7054,
+  "self_consistency_kappa": 1.0,
+  "weighted_accuracy": 0.7171,
+  "mcnemar": {
+    "b_human_pos_llm_neg": 1,
+    "c_human_neg_llm_pos": 32,
+    "statistic": 27.2727,
+    "direction": "LLM inflates positives"
+  },
+  "fatigue": {
+    "measured": false,
+    "note": "no timestamps"
+  },
+  "gate3": "FAIL",
+  "gate3b": "N/A -LLM 앵커는 재검사 κ가 구조적으로 1.0. 피로도 검출 불가"
+}

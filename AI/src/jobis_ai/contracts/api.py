@@ -87,6 +87,10 @@ class ChatResponse(BaseModel):
     results: dict[str, dict] = Field(default_factory=dict)
     followUpQuestions: list[dict] = Field(default_factory=list)
     warnings: list[dict] = Field(default_factory=list)
+    # reply 를 구성한 문장별 화자 — {agent, channel, text}. channel 은 tool_render(도구 산출을
+    # 표현 계층이 렌더) / agent_llm(대화형 에이전트가 직접 생성) / 오케스트레이터 계열
+    # (attachment_ack·lead·rule_note·consent_gate·notice). 오라우팅 디버깅용으로 그대로 노출한다.
+    replySources: list[dict] = Field(default_factory=list)
 
 
 class ResponseMeta(BaseModel):

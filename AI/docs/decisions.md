@@ -702,3 +702,1666 @@ D61 의 iframe 이미지 VLM 과 같은 층을 로컬 파일로 넓힌 것.
 **출처**: `orchestrator/chat.py` · `tests/test_orchestrator.py`(면제 3건) ·
 `v2bridge/service.py` · 플래너 프롬프트는 손대지 않았다(§3-6 재측정 불요, 관문은 플래너
 뒤의 결정론 층이다).
+
+### D67 (07-31) 응답 문장별 화자(replySources)를 계약에 실어 UI 에 노출한다
+
+**결정**: `ChatResponse` 에 `replySources`([{agent, channel, text}])를 추가한다. channel 은
+`tool_render`(도구 산출을 표현 계층이 렌더) / `agent_llm`(대화형 에이전트가 직접 생성) /
+오케스트레이터 결정론 문장(`attachment_ack`·`lead`·`rule_note`·`consent_gate`·`notice`).
+v2bridge(`reply_sources`) → 백엔드(`AiContracts.ReplySource`, metadata jsonb 저장) →
+프론트(ChatView 말풍선 배지)로 그대로 통과시킨다.
+
+**왜**: 실측(2026-07-31) — 이력서를 붙여넣은 턴이 career_chat 으로 흘러 즉석 코칭·판정성
+문장("서류 통과 가능성…")이 나갔는데, 사용자는 그 답이 적합도 도구의 산출인지 대화형
+LLM 의 즉흥인지 화면에서 구분할 수 없었다. reply 는 여러 화자의 문장을 하나로 합치므로
+(compose_reply), 합치기 전의 화자 기록을 문장 단위로 남겨야 오라우팅을 화면에서 바로
+알아본다. 로그(`dispatch:`)에도 있지만 로그는 사용자·QA 가 못 본다.
+
+**하네스**: lead 선택 판단을 `lead_text()` 로 뽑아 compose_reply 와 출처 기록이 같은 함수를
+쓴다 — 둘이 갈리면 출처가 거짓말을 한다. 화자 판별은 레지스트리 선언(`spec.kind`)에서
+파생한다(§2-2, 새 판단 없음).
+
+**출처**: `orchestrator/chat.py` · `contracts/api.py` · `v2bridge/models.py`·`service.py` ·
+`backend AiContracts.java` · `frontend ChatView.vue`.
+
+### D68 (07-31) 표지어 없는 이력서 붙여넣기도 결정론 분류로 승격 + 합격 예측 우회 표현 금지
+
+**결정**: 둘 다 2026-07-31 실측(이력서 붙여넣기 → career_chat 즉흥 코칭·판정 유출)의 수정이다.
+1. v2bridge `promote_pasted_posting`: 공고 표지어(`_posting_in_message`)에 안 걸린 긴
+   붙여넣기(≥180자)도 `attachment_kind.detect_kind`(신호 어휘 스코어, **결정론·LLM 없음**)가
+   resume/job_posting 을 확신하면 첨부로 승격한다. 애매하면 기존대로 대화로 둔다.
+2. `FORBIDDEN_EXPRESSIONS` 에 합격 예측의 우회 표현 추가: "통과 가능성"·"합격 확률"·
+   "합격률"·"승산"·"노려볼 만". 유출 문장이 "서류 통과 가능성은 충분히 노려볼 만해요"였다 —
+   예측을 돌려 말해도 예측이다.
+
+**왜 이 순서인가**: 1이 근본 수정(이력서가 자산으로 승격되면 플래너 규칙 3 이 resume_diagnosis
+로 보낸다), 2는 마지막 방어선 보강이다. career_chat 프롬프트에 금지가 이미 있었지만 지켜지지
+않았다(§2-2: 금지는 프롬프트가 아니라 구조·검증으로). 승격 판별에 LLM 을 안 쓰는 이유:
+모든 긴 발화에 분류 비용을 태우게 되고, 애매한 글을 오승격하면 일반 상담 글이 이력서로
+저장된다 — 확신 있을 때만 뒤집는다는 resolve_kind 의 원칙 그대로.
+
+**재측정 관련**: 플래너 프롬프트·manifest 는 손대지 않았다(§3-6 해당 없음). FORBIDDEN 추가는
+eval/metrics 정책위반 지표가 같은 상수를 재사용하므로 지표에도 자동 반영된다.
+
+**출처**: `v2bridge/service.py` · `orchestrator/attachment_kind.py`(detect_kind) ·
+`verify_rules.py` · `tests/test_v2bridge_contract.py`(승격 2건·비승격 1건).
+
+### D69 (07-31) 혼합 메시지(공고 URL + 이력서 원문 + 요청 문장)는 엔진이 성분별로 승격한다
+
+**결정**: `handle_chat` 에 `detect_pasted_resume`(결정론, LLM 없음)를 추가한다 —
+`detect_posting_url` 과 대칭. 발화에서 URL 을 제외한 본문이 충분히 길고(≥180자)
+신호 어휘 스코어(`detect_kind`)가 이력서를 확신하면 resume 자산으로 승격한다.
+**메시지는 비우지 않는다** — 요청 문장("적합도 분석해줘")은 플래너의 입력이다.
+v2bridge 의 통짜 승격(D68)은 URL 이 섞인 메시지에서 손을 뗀다 — 통째 첨부는 URL 과
+요청 문장을 첨부 속으로 삼킨다.
+
+**왜**: 실측(2026-07-31, v2 실서비스 턴) — 한 메시지에 공고 URL + 이력서 전문 +
+"공고와 이력서 각각 분석하고 적합도 분석 진행해줘"가 왔는데 URL 만 자산이 되고 이력서는
+긴 대화로 흘렀다. 시스템은 "이력서가 없다"며 공고 분석만 하고 이력서를 되청했다 —
+사용자가 이미 준 것을 다시 달라고 한 것이다. 사용자 요청 완수의 첫 조건은 **준 자료를
+알아보는 것**이고, 이것은 플래너(LLM) 이전의 인테이크 층이 결정론으로 보장할 일이다.
+
+**함께 고침**: `validate_plan` 결측 안내문에서 같은 자산 중복("이력서, 이력서이…")을
+dedup 하고 조사를 "이(가)"로 바로잡았다.
+
+**출처**: `orchestrator/chat.py`(detect_pasted_resume) · `v2bridge/service.py`(URL 가드) ·
+`orchestrator/router.py` · `tests/test_orchestrator.py`(혼합 승격·오승격 방지) ·
+`tests/test_v2bridge_contract.py`(혼합 메시지 브릿지 통과).
+
+### D70 (07-31) 턴 내부 진행 궤적(progress)을 대화 응답에 실어 채팅 UI 에 노출한다
+
+**결정**: v2 `/v1/chat` 응답에 `progress`([{step, label, detail, elapsedMs}])를 추가한다.
+v2bridge 가 `trace.recording` 으로 턴의 이벤트(플래너 선택·실행 계획·에이전트별 실행과
+소요시간·판정 그래프 노드·재점검·LLM 사용량)를 담아 `mapping.progress_steps` 로 옮겨 적고,
+백엔드 metadata(jsonb) → 프론트 말풍선의 접이식 "진행 과정" 패널로 흐른다.
+`progress_steps` 는 **번역이지 재판정이 아니다** — 무엇을 보일지는 이벤트 종류로만 정한다.
+
+**왜**: 사용자 요청(2026-07-31) — "공고 분석→이력서 진단→적합도 대조 과정을 어느 에이전트가
+뭘 하는지 모두 대화로 내보내는 것이 에이전트를 UI 에 넣는 것". 이미 webbridge 관찰 UI 가
+같은 trace 를 쓰고 있었고(창문 규약), v2 경로만 이 창문이 없었다.
+
+**한계(의도적)**: 이것은 **턴 종료 후 타임라인**이지 실시간 스트리밍이 아니다. v2 채팅
+계약이 단건 요청-응답(백엔드 워커가 동기 호출)이라, 실시간은 AI→백엔드 스트리밍 계약
+(NDJSON 등) + 워커의 `chat_reply_jobs.stage` 중계가 필요하다 — 팀 공유 계약(`ai-server`
+호환 자리)의 변경이므로 별도 합의 후 진행한다. 프론트 폴링(2.5초)·stage 표시는 이미 있어
+그때 프론트 변경은 거의 없다.
+
+**출처**: `v2bridge/mapping.py`(progress_steps) · `v2bridge/models.py`·`service.py` ·
+`backend AiContracts.java` · `frontend ChatView.vue`·`base.css` ·
+`tests/test_v2bridge_contract.py`(타임라인 매핑).
+
+### D71 (07-31) 판정 턴에 방금 제출된 자료의 정리 단계를 결정론으로 끼운다
+
+**결정**: `fit_analysis` 가 실행 예정인 턴에 공고/이력서가 **이번 턴에 제출**됐으면, 그
+자료의 정리 에이전트(posting_analysis·resume_diagnosis)를 판정 앞에 오케스트레이터가
+결정론으로 삽입한다(chat.py, D64 posting_fetch 와 같은 원리 — 플래너 manifest 불변,
+재측정 불필요). 셋은 서로 독립이라 parallel_group 이 한 배치로 돌려 지연 증가가 거의 없다.
+이미 세션에 있던 자산(지난 턴에 정리를 보여준 것)은 다시 정리하지 않는다.
+
+**왜**: 사용자가 정의한 목표 흐름(2026-07-31) — "공고 접수 → 공고 분석 → 이력서 접수 →
+이력서 진단 → 두 분석 결과 표시 → 적합도 판정 → 점수별 솔루션". 실측에서 혼합 제출 턴에
+플래너가 fit 단독을 골라(판단 원칙 1 "정리를 거치지 않는다") 중간 분석이 화면에 없었다.
+프롬프트를 고쳐 유도하는 대신(재측정 비용 + 확률적) 제출 사실(결정론 신호)에서 표시
+단계를 파생시켰다 — §2-2(구조로)·§3-1(규칙 추가보다 좁은 결정론)의 적용.
+
+**기대값 갱신**: test_improvements(관찰 규칙)·test_trace_prototype(풀턴 트레이스)의
+dispatched 기대값을 [posting_analysis, resume_diagnosis, fit_analysis] 로 갱신 — 각 테스트의
+핵심 주장(전제 붕괴 시 자소서 미실행 / 트레이스 상세)은 불변.
+
+**출처**: `orchestrator/chat.py` · `tests/test_orchestrator.py`(삽입·비반복) ·
+`v2bridge/mapping.py`(진행 과정 라벨).
+
+### D72 (07-31) 요청 완수 보장 — 실행 불가 요청을 신고(blockedRequests)·기억(pendingRequest)·재큐한다
+
+**결정**: 세 층으로 "청한 것은 완수되거나, 완수에 필요한 자료가 청해진다"를 구조로 보장한다.
+1. **신고**: 플래너 스키마에 `blockedRequests` 추가 — 청했지만 [실행 불가]라 agents 에 못
+   넣은 에이전트를 적게 한다(판단 원칙 4에 한 문장). 금지·요구는 프롬프트가 아니라
+   스키마가 나른다(§2-2).
+2. **기억**: 결측이 사람이 채울 수 있는 자산(이력서·공고)이면 세션 `pendingRequest`
+   {agent, missing, turnsLeft:3} 로 기억하고, 그 자산의 되묻기(followUpQuestions)를 턴
+   종료 시 **구조로 보장**한다(대체 에이전트의 문장에 의존하지 않는다).
+3. **재큐**: 자산이 채워진 턴에 오케스트레이터가 결정론으로 큐에 붙여 완수한다 — 플래너가
+   흐름을 스스로 이으면(같은 이름이 계획에 있으면) 그냥 잊고, 3턴 안에 자료가 안 오면
+   만료한다(오래된 요청이 엉뚱한 턴에 무거운 작업을 되살리지 않게). 이미 청한 일이므로
+   동의 게이트 대상이 아니다.
+
+**왜**: 플래너 판단 원칙 4("실행 불가면 지금 할 수 있는 일을 대신 고른다")는 원요청을 어디에도
+남기지 않았다 — 다음 턴 완수가 전적으로 플래너 재량(원칙 2)이었고, 그 재량은 실측에서 흔들렸다.
+멀티에이전트 백로그 M2(작업로그/다음작업.md).
+
+**재측정(§3-6)**: 플래너 프롬프트·스키마 변경이므로 planner_dataset 46케이스 ×3회를
+claude_code(Claude CLI, sonnet)로 재측정 — `evals/planner_baseline_claude_blocked.json`.
+데이터셋의 fit-missing-*-degrade 2케이스에 `expectBlocked` 를 달아 신고 정확도를 따로 센다
+(하네스 `blocked_accuracy` — 시퀀스 정답과 섞지 않는다: 신고 실패는 다음 턴 완수의 결손이지
+이번 턴 라우팅 오답이 아니다). 비교 기준: planner_baseline_claude_requested.json
+(정확도 0.9783 · 안정성 1.0).
+
+**출처**: `orchestrator/planner.py` · `orchestrator/chat.py` · `orchestrator/session.py`
+(pendingRequest 키) · `eval/planner_harness.py` · `evals/planner_dataset.json` ·
+`tests/test_orchestrator.py`(기억·되묻기·재큐·만료).
+
+### D73 (07-31) 완수 검증·정리 산출물 검증·요약 덮어쓰기 금지 (백로그 M3·M5·M7)
+
+**결정**:
+- **M3**: 턴 종료에 결정론 검증 — 사용자가 직접 청한 에이전트(requestedAgents)가 실행되지도
+  (dispatched) 기억되지도(pendingRequest) 않았으면 `request_not_fulfilled` 경고 + WARNING 로그.
+  답변을 막지 않는다 — 경고는 로그·평가가 세는 신호다(LLM 사후판정은 도입하지 않음, §1).
+- **M5**: 정리 도구가 아무것도 못 읽으면 구조 경고 — posting_analysis `posting_unreadable`,
+  resume_diagnosis `resume_unreadable`. "정상처럼 보이는 빈 정리" 방지(§2-6).
+- **M7**: v2 커리어 요약은 붙여넣은 이력서 **원문**을 덮지 않는다 — 원천 우선순위:
+  원문 > 확정 요약. 요약 저장에 `origin: career_summary` 표식을 달아 요약끼리만 갱신한다.
+
+**재측정 결과(D72·M8)**: `docs/eval-records/2026-07-31_planner-blocked-requests.md` —
+blocked 신고 정확도 1.0, 혼합 제출 케이스 2건 stable-correct, 회귀 없음(flaky 2건은 경계
+발화 온도 흔들림). baseline: `evals/planner_baseline_claude_blocked.json` (claude_code/sonnet).
+
+**출처**: `orchestrator/chat.py`(M3) · `agents/posting_analysis.py`·`agents/resume_diagnosis.py`(M5) ·
+`v2bridge/service.py`(M7) · `tests/test_orchestrator.py`·`tests/test_v2bridge_contract.py`.
+
+### D74 (07-31) 라우팅 판정(플래너) 티어를 분리하고 최상급 모델(Opus 5)을 배정한다
+
+**결정**: `get_llm`/`active_model` 에 세 번째 티어 `"router"` 를 추가한다 — 플래너
+(`agent_planner`)처럼 "무엇을 실행할지"를 정하는 호출 전용. claude_code 프로바이더는
+`CLAUDE_CODE_MODEL_ROUTER`(현재 `claude-opus-5`)를 쓰고, 미지정이거나 다른
+프로바이더(openai/GMS)는 고급 티어로 폴백한다. `.env` 에 설정(개발 머신 전용, git 무시).
+
+**왜**: 라우팅 오판은 답 하나가 아니라 **턴 전체**를 엉뚱한 일에 쓰게 한다(0724 실측:
+경량 모델에서 정확도 100%→48.8% 붕괴 — 모델 품질이 스키마·검증기로 못 막는 유일한 자리).
+반대로 라우팅은 턴에 한 콜뿐이라 최상급 모델의 비용·지연 증가가 가장 작게 실리는 자리이기도
+하다. 사용자 지시(2026-07-31): "라우팅을 판정하는 LLM 은 Opus 5". CLI 가 `claude-opus-5`
+모델 id 를 받는 것을 실호출로 확인했다(~3초).
+
+**재측정**: 모델 변경도 판을 바꾸는 변경 — planner_dataset 48케이스 ×3회를 Opus 라우터로
+재측정해 `evals/planner_baseline_claude_opus_router.json` 에 저장(provenance 에 modelRouter
+필드 추가 — 플래너가 실제로 부른 모델이 baseline 에 박힌다).
+
+**출처**: `config.py` · `llm.py` · `orchestrator/planner.py`(tier="router") ·
+`eval/__init__.py`(provenance) · `tests/test_orchestrator.py`(티어 선택·폴백).
+
+### D75 (07-31) 진행 스트리밍(/v1/chat/stream)과 career_chat 원문 격리 (백로그 M4·M6)
+
+**결정**:
+- **M4**: AI 에 `/v1/chat/stream`(NDJSON) 을 **추가**한다 — 기존 `/v1/chat` 은 불변(팀
+  ai-server 호환 자리를 깨지 않는다). 줄 형식: progress×N → result 1건(실패는 error 1건).
+  엔진을 워커 스레드에서 돌리고 trace 이벤트를 큐로 중계해 생기는 즉시 내보낸다
+  (`service.chat_events` — 단건 chat() 도 같은 제너레이터를 소진하므로 두 경로가 갈리지
+  않는다). 백엔드 워커는 스트림 우선 + 진행 이벤트마다 `chat_reply_jobs.stage_message`
+  갱신, 404/405(`AI_STREAM_UNSUPPORTED`)면 단건으로 폴백. 프론트는 기존 폴링(2.5초)이
+  stage_message 를 이미 그리므로 변경 없음. 실시간 매핑은 타임라인과 **같은 클래스**
+  (`mapping.ProgressMapper`)를 쓰고, agent_start 는 "실행 중…" 단계로 나간다(사후
+  타임라인에서는 제외 — 거짓말이 되므로).
+- **M6**: career_chat 입력을 1000자에서 자른다(`_clip_message`) — 자산으로 승격되지 못한
+  긴 원문(문서 붙여넣기)이 통째로 대화 근거가 되는 것을 **구조로** 막는다(§2-5, 2026-07-31
+  이력서 원문 위 즉흥 코칭 유출의 이중 방어). 일반 상담 발화는 상한 아래라 영향 없다.
+
+**D74 재측정 결과(Opus 5 라우터, 48케이스×3)**: 정확도 0.9653(동일) · **stable-wrong 0건**
+(sonnet 1건) · blocked 신고 1.0 · 평균 확신 0.896 · 저신뢰 폴백 0.69%. 흔들린 3건은 전부
+"자료 없는 요청 → career_chat vs preference_intake" 경계로, Opus 가 대화 대신 선호 수집
+(능동 개입)을 고르는 경향 — 기대값(career_chat)이 낡았을 수 있어 OPEN 으로 남긴다.
+baseline: `evals/planner_baseline_claude_opus_router.json` (meta.modelRouter=claude-opus-5).
+
+**출처**: `v2bridge/app.py`·`service.py`(chat_events)·`mapping.py`(ProgressMapper) ·
+`backend AiAnalysisClient.java`(chatStream)·`ChatReplyWorker.java`(updateStage·폴백) ·
+`agents/career_chat.py` · `tests/test_v2bridge_contract.py`·`tests/test_orchestrator.py`.
+
+### D76 (07-31) 일관성 하네스를 멀티턴 시나리오로 확장한다 — "잇는 하네스"
+
+**결정**: `eval/consistency.py` 의 케이스를 "1턴"에서 **같은 세션의 턴 시퀀스**로 바꾼다.
+턴마다 (발화, 첨부, 판정 함수)를 두고 세션 자산·기억(pendingRequest·pendingConsent)이
+턴 사이를 잇는다. 멀티턴 시나리오 2개 추가: S8(되묻기→접수→적합도 완수, D72 흐름) ·
+S9(동의 게이트→동의→갭분석 실행). 궤적 키는 턴 경계를 ` || ` 로 보존한다.
+
+**왜**: "되묻기 → 접수 → 분석 → 종합"이 오케스트레이터의 존재 이유인데, 실 LLM 하네스
+둘(planner_harness·consistency)이 모두 케이스마다 새 세션 1턴이라 그 흐름을 잴 수 없었다
+— 결정론 층(D72)은 스텁 테스트로 고정되지만 사이사이의 플래너 판단(되묻기 답 해석,
+흐름 잇기)은 멀티턴 실측만이 근거다.
+
+**측정(2026-07-31, claude_code/sonnet + 라우터 opus, 9시나리오×3회)**: **이탈 0건.**
+- S8: 3/3 `posting_analysis || resume_diagnosis>fit_analysis` — 공고만 있는 판정 요청이
+  이력서 되묻기로, 이력서 제출이 정리+적합도 완수로 이어진다(D71·D72 실증).
+- S9: 3/3 `(없음) || fit_analysis>coverletter_draft` — 게이트가 묻고, 동의가 소진되며 실행.
+- **S5(KNOWN FAILURE 였던 게이트 구멍)가 3/3 안정** — Opus 라우터(D74) 이후 관측.
+  1회 측정이므로 코드의 KNOWN FAILURE 주석은 아직 지우지 않는다(재관측 후 정리).
+- 시나리오당 콜 평균 4.6 (S8 10.7 · S9 14.3 — 풀 파이프라인 포함).
+baseline: `evals/consistency_baseline_multiturn.json` (meta.modelRouter=claude-opus-5).
+
+**출처**: `eval/consistency.py` · `evals/consistency_baseline_multiturn.json`.
+
+### D77 (07-31) 자산 0 기능 요청의 오라우팅 — 기대값 유지, manifest 정의를 좁혀 고친다
+
+**결정**: resume-missing 계열(자산이 하나도 없는 기능 요청 → career_chat 기대)의 기대값을
+**바꾸지 않는다** — 07-29 판정(관측 preference_intake 는 규칙 4 위반: 자산 0이면 "가진
+자산으로 할 일" 자체가 없다)이 유효하다. 기록된 처방(규칙 추가가 아니라 정의 좁히기, §3-1)을
+실행했다:
+- career_chat 설명에 "가진 자산이 하나도 없어 청한 기능을 위한 어떤 준비도 지금 불가하면
+  여기가 턴을 받는다" 추가 — 기존 설명("기능 요청+자료 부족은 여기가 아니다")이 자산 0
+  케이스까지 밀어내던 결함 수정.
+- preference_intake 를 "**공고 추천·탐색을 위한** 선호 수집 — 진단·판정·로드맵의 대체가
+  아니다"로 좁힘 — 유일한 무전제 기능이라는 이유로 도피처가 되던 것을 차단.
+
+**재측정(48케이스×3, Opus 라우터, 같은 커밋)**: fit-missing-both 0.67→**1.00** ·
+roadmap-missing 0.33→**1.00** · resume-missing 0.33 유지(단 sonnet 의 stable-wrong 에서
+정답 등장 방향으로) · **파손 0** · 전체 0.9653→**0.9792** · fallback 0% · blocked 1.0.
+resume-missing 은 OPEN 유지 — 한 번에 하나(§3-2), 다음 시도도 어휘 방향.
+
+**출처**: `agents/__init__.py`(manifest 2건) · `evals/planner_dataset.json`(note) ·
+`evals/planner_baseline_claude_opus_router.json`(갱신).
+
+### D78 (07-31) resume-missing 완치 — preference_intake 의 "이력서 요청" 훅을 제거한다
+
+**결정**: preference_intake 설명에서 "충분히 모이면 이력서를 자연스럽게 요청"을 빼고
+"**공고를 찾아·추천해 달라는 요청에만** 쓴다 — 다른 기능의 자료가 없을 때 대신 고르는
+곳이 아니다(그때는 career_chat 이 자료를 청한다)"로 좁힌다. 그 문구는 에이전트의 내부
+행동 서술이지 선택 기준이 아닌데, 플래너에게는 "이력서가 없을 때 이력서를 받아내는
+경로"로 읽혀 자산 0 진단 요청의 도피처가 되고 있었다 — 스키마/manifest 가 곧 지시문이므로
+행동 서술도 선택을 오염시킨다.
+
+**재측정(48케이스×3, Opus 라우터, 동커밋)**: **resume-missing 0.33 → 1.00 안정·정답**
+(07-29 부터 OPEN 이던 결함 종결). 감시 대상(선호 계열) 무파손 — recommend-missing-resume·
+preference-followup 1.00 유지. 전체 0.9792 → **0.9861**, 일관 오답 0.
+관측 하나: recommend-paraphrase-2("어디 지원하면 좋을까?", resume 있음)가 1/3 회
+preference_intake 로 흔들림(첫 관측) — 다음 측정에서 지속되면 다룬다(§3-3 unstable).
+
+**출처**: `agents/__init__.py` · `evals/planner_dataset.json`(resume-missing RESOLVED) ·
+`evals/planner_baseline_claude_opus_router.json`(갱신).
+
+### D79 (07-31) 분석은 담아 두고 다시 본다 — 공고 파싱 캐시 + career_chat 사실 컨텍스트
+
+**결정**:
+1. posting_analysis 가 파싱 결과를 세션 `posting_summary` 에 원문 해시와 함께 캐시하고,
+   같은 원문이면 **재파싱하지 않는다**(sessionUpdates 경유 — §2-4). 원문이 바뀌면 해시가
+   갈리므로 무효화는 자동이다.
+2. career_chat 의 context 에 도구가 만들어 둔 정형 사실(postingFacts: 필수/우대/기술,
+   analysisFacts: 등급/강점/격차)을 싣고, "조회 질문은 이 사실만으로 답하고 재분석·창작
+   하지 않는다"를 시스템 프롬프트에 명시한다.
+
+**왜**: 실측(2026-07-31) — 앞 턴에 공고 분석을 끝냈는데 "공고에서 필요로 하는 항목들이
+뭐뭐 있었지?"를 묻자 LLM 파싱이 통째로 다시 돌고 전체 정리가 재낭독됐다. 분석은 데이터로
+담아 두고 다시 보는 것이지 매번 다시 하는 것이 아니다(§1: 판단은 데이터, LLM 은 말만).
+posting_summary 자산 키는 webbridge 패널 캐시로 이미 존재했으나 v2 경로에선 아무도
+쓰지 않았다 — 같은 키를 정본 캐시로 승격한 것.
+
+**출처**: `agents/posting_analysis.py` · `agents/career_chat.py` ·
+`tests/test_orchestrator.py`(캐시 재사용·무효화·사실 전달).
+
+### D80 (07-31) 문장 속 스킴 없는 채용 사이트 주소를 공고로 승격한다
+
+**결정**: `detect_posting_url` 에 세 번째 규칙 추가 — 문장 안에 섞인 스킴 없는 주소는
+**채용 사이트 도메인(사람인·잡코리아·원티드·프로그래머스·점핏·인크루트·로켓펀치·캐치)일
+때만** 공고로 승격한다(https 정규화). 발화 전체가 주소 한 토큰이면 기존 규칙(도메인 제한
+없음) 유지. LLM 보정이 아니라 결정론이다 — 일반 도메인까지 문장 속에서 받으면 언급만 한
+링크("react.dev/learn 참고")가 공고 자산을 덮고 분석을 무효화하므로, 위험한 쪽(문장 속)만
+어휘를 좁혔다.
+
+**왜**: 실측(2026-07-31, 실서비스) — "saramin.co.kr/…searchword=ai엔지니어… 공고분석해줘"
+한 문장이 기존 규칙(전체 발화 = 주소 한 토큰) 어디에도 안 걸려 career_chat 으로 흘렀고,
+"URL 을 열 수 없다"는 사실과 다른 즉흥 답이 나갔다(posting_fetch 는 열 수 있다).
+
+**출처**: `orchestrator/chat.py` · `tests/test_orchestrator.py`(문장 속 채용 사이트 승격·
+일반 도메인 비승격·단일 토큰 규칙 유지).
+
+### D81 (07-31) 이미 보여준 공고의 조회 질문은 물은 것만 골라 답한다
+
+**결정**: posting_analysis 가 캐시 재사용 턴임을 데이터로 신고(`fromCache`)하고, 표현 계층
+(render)이 그 턴에는 전체 목록 재낭독 대신 세션 발화를 보고 **물은 항목만** 골라 답한다
+(`_posting_recall_answer` — 스트리밍 LLM + 금지표현 검증, 실패 시 전체 목록 폴백).
+도구는 데이터만 내고 무엇을 말할지는 표현 계층이 고른다 — §2-3 의 자연스러운 연장.
+
+**왜**: 실측(2026-07-31 14:11) — D79 캐시로 재파싱은 사라졌지만, "필수요건 뭐라 했지?"에
+render 가 여전히 공고 정리 전체를 재낭독했다. render 는 사용자가 무엇을 물었는지 보지
+않았기 때문이다.
+
+### D82 (07-31) 발화의 지속 사실(user_facts)을 세션에 누적한다
+
+**결정**: 턴 종료에 사용자 발화에서 **이후 대화에도 유효한 취업 관련 사실**(목표·제약·상황)
+을 경량 LLM 로 추출해 세션 `user_facts` 에 병합·누적한다(상한 20, 중복·포함 제거, 문서
+붙여넣기 턴은 건너뜀). 소비: 플래너 [세션 자산 상태]의 "사용자 메모"(동적 블록 — 정적
+프롬프트 불변, 재측정 불요) · career_chat context.userFacts. 읽기 계층(§1)이며 추출 실패는
+턴을 막지 않는다(미설정 경고는 올리지 않음 — 브릿지 오판 방지).
+
+**왜**: 사용자 방향(2026-07-31) — "중요 발화·이력서·공고를 디테일하게 저장해야 에이전트
+성능이 오른다". 이력서·공고·분석은 자산으로 남는데 발화 속 사실("9월까지 취업", "야간
+불가")은 한 턴이 지나면 사라져 매번 백지에서 시작하고 있었다.
+
+**출처**: `agents/posting_analysis.py`·`agents/tool_render.py`(D81) ·
+`orchestrator/user_facts.py`·`chat.py`·`planner.py`·`session.py`·`agents/career_chat.py`(D82) ·
+`tests/test_orchestrator.py`(선별 답변·폴백 / 병합·중복·스킵 / 세션 누적·컨텍스트 전달).
+
+### D83 (07-31) 진행 로그가 실제 일과 일치하게 — "분석 자료 검토"와 "이전 대화 검토"
+
+**결정**: 진행 타임라인·스트리밍 라벨을 실제 행위로 구분한다(사용자 지시).
+- 캐시 재사용 턴(agent_end data.fromCache)은 "공고 분석"이 아니라 **"분석 자료 검토 —
+  저장된 공고 정리에서 조회"** 로 표시.
+- 저장 정보를 근거로 답한 경로는 trace kind `recall` → **"이전 대화 검토"** 로 표시:
+  posting recall 선별 답변(D81)과 career_chat 이 저장 사실(공고 정리·분석·사용자 메모)을
+  컨텍스트로 받은 턴.
+새 공고 제출 시 `posting_summary` 캐시도 즉시 무효화(analysis 와 동일 규약) — 남기면
+다음 분석 전까지 조회 질문이 이전 공고의 사실로 답한다.
+
+**출처**: `v2bridge/mapping.py`(ProgressMapper) · `agents/tool_render.py`·`career_chat.py`
+(recall emit) · `orchestrator/chat.py`(캐시 무효화) · 테스트 2건.
+
+### D84 (07-31) 화이트보드 완성 — 모든 에이전트가 같은 지식을 보고, 재생산하지 않는다
+
+**결정**: 이 구조의 화이트보드는 **세션 자산**(쓰기는 sessionUpdates 로 오케스트레이터 독점,
+§2-4)이다. 패턴은 있었으나 새는 곳 셋을 봉합했다:
+1. **보드 → 그래프**: fit_analysis 가 보드의 공고 파싱(posting_summary, 해시 대조)·프로필을
+   그래프 초기 상태에 실어 준다 — parse_job_posting 은 원래 멱등이었는데 실어 주는 배선이
+   없어 한 번도 발동하지 못했고, build_user_profile 에는 같은 멱등을 새로 달았다.
+   효과: 공고 정리를 이미 본 대화의 적합도 판정에서 파싱 LLM(~50초)·프로필 추출이 사라진다.
+2. **그래프 → 보드**: run_pipeline_with_state 로 최종 그래프 상태를 받아, 그래프가 새로
+   만든 파싱·프로필을 보드로 승격한다(내용이 실제로 있는 것만 — 빈 파싱·폴백 제외).
+3. **보드 → 자기 루프**: agent_loop 하네스가 user_facts(사용자가 직접 말한 지속 사실, D82)를
+   매 스텝 payload 에 싣는다 — 자소서·면접·선호 에이전트 셋이 한 배선으로 같은 기억을 본다
+   ("내가 했던 말을 에이전트가 기억 못하는 일이 없도록"). 규율에 "기억으로 존중하되 없는
+   개인 사실은 지어내지 않는다"를 명시.
+
+보드 지도(현재): resume/job_posting(원천) · posting_summary/profile(파싱, 해시 무효화) ·
+analysis/roadmap/application_plan/recommendations/coverletter/interview(산출) ·
+preferences/user_facts(발화 지식) · history/pendingRequest/pendingConsent(흐름 기억).
+소비: 플래너(자산 상태+사용자 메모) · career_chat(사실 컨텍스트) · 자기 루프(userFacts+이력)
+· 도구(전제 선언) — 생산·소비 선언의 단일 출처는 레지스트리와 이 항목이다.
+
+**출처**: `agents/fit_analysis.py` · `service.py`(run_pipeline_with_state) ·
+`graph/read_nodes.py`(프로필 멱등) · `agents/agent_loop.py`(userFacts) ·
+`tests/test_orchestrator.py`(웜/콜드 공유·멱등·루프 전달).
+
+### D85 (07-31) 연차 추출은 문서에서 먼저 나온 표기가 이긴다 + 잡코리아는 meta description 을 앞에 붙인다
+
+**결정**: 두 가지. (1) `rule_extractor._extract_years` 의 연차 패턴 경쟁을 패턴 우선순위가
+아니라 **숫자가 문서에서 먼저 등장한 위치**로 정한다(위치가 같으면 기존 우선순위 유지 —
+"경력 : 5년 이상"류의 evidence 표기가 바뀌지 않게). (2) `feat_url.fetch_job_posting` 이
+이미 받아오는 원본 HTML 의 `meta description`(또는 og:description)을 수집 본문 **맨 앞에**
+붙인다.
+
+**왜**: 실측(잡코리아 Gno=49564982, SI 파견 공고). 헤더 요약은 "경력 1~5년"인데 사용자에게
+"요구 연차 8년차 (공고 표기 그대로)"가 나갔다. 원인이 겹쳐 있었다 —
+① 잡코리아 헤더 요약 스트립(경력·학력·근무형태)은 JS 렌더라 jina 본문에 **아예 없다**.
+② 본문은 파견 프로젝트 수십 건의 나열이고, 각 프로젝트가 제각기 연차("RDBMS 8년 이상",
+"5년차 이상")를 적는다. `_extract_years` 가 `_YEARS_MIN` 을 `_YEARS_RANGE` 보다 먼저
+전문 검색하므로, 헤더에 "1~5년"이 있었더라도 본문 아무 데의 "N년 이상/N년차"가 이겼다.
+meta description 은 정적 HTML 에 있고 헤더 요약과 같은 값이라("경력 1년이상, 학력 : …")
+공고 대표 정보의 정본으로 쓸 수 있다. 위치 우선은 "공고 요약·헤더가 본문보다 앞"이라는
+관행에 기댄다.
+
+**출처**: `rule_extractor.py`(_extract_years) · `feat_url/__init__.py`(meta_description) ·
+`tests/test_rule_extractor.py`(earliest_mention) · `tests/test_feat_url.py`(meta prepend).
+
+### D86 (07-31) 공고 라이브러리 — 활성 공고가 바뀌어도 정리했던 공고를 잊지 않는다
+
+**결정**: 세션에 `posting_library`(정리된 공고 파싱 목록, 상한 5, 같은 원문은 교체)를
+추가한다. posting_analysis·fit_analysis 가 파싱을 승격할 때 라이브러리에도 올리고,
+career_chat 이 `postingLibrary` 로 **이 대화에서 정리했던 모든 공고**의 사실을 받아 이전
+공고 질문에 답한다("그 공고는 없다"고 하기 전에 반드시 라이브러리를 본다).
+**활성 공고(job_posting)는 여전히 하나다** — 판정·자소서·면접의 대상은 단일해야 하고,
+라이브러리는 조회 기억이지 판정 대상 전환이 아니다.
+
+**왜**: 실측(2026-07-31 14:37) — 에이아이스페라 공고를 분석한 뒤 포티투마루 공고를 주자
+단일 슬롯이 교체되며 첫 공고 지식이 소실, "에이아이스페라에서는?"에 "보유 공고와 무관한
+회사"라고 답했다. 사용자가 한 말(준 자료)을 에이전트가 잊으면 안 된다(D84 원칙의 연장).
+
+**한계(의도적)**: 이전 공고로 판정 대상을 되돌리는 것("에이아이스페라로 적합도 다시 봐줘")은
+활성 슬롯 전환이 필요한 별도 결정 — 라이브러리에서 원문 없이 파싱만 남으므로 재제출을
+청하거나 원문도 보관할지 정해야 한다(OPEN).
+
+**출처**: `agents/_common.py`(upsert_posting_library) · `orchestrator/session.py` ·
+`agents/posting_analysis.py`·`fit_analysis.py`·`career_chat.py` ·
+`tests/test_orchestrator.py`(상한·교체·라이브러리 전달).
+
+### D87 (07-31) 공고 조회(recall)도 라이브러리를 본다 — 지식은 보드에 있는데 조회가 못 보던 구멍
+
+**결정**: D81 의 선별 답변(`_posting_recall_answer`)이 활성 공고만이 아니라
+`posting_library`(D86) 전체를 payload 에 싣는다. 프롬프트에 "물은 회사가 라이브러리에
+있으면 그 사실로 답하고, 여러 공고를 물으면 회사별로 나눠 답한다"를 명시.
+
+**왜**: 실측(2026-07-31 14:55) — 오로라월드·원더스랩을 차례로 정리한 뒤 "두 회사 기술스택
+정리해줘"를 묻자, 라우팅이 posting_analysis(캐시)→recall 로 갔고 recall 은 활성 공고
+(원더스랩)만 봐서 오로라월드를 "정보 없음"으로 답했다. **세션 저장은 정상**(라이브러리에
+둘 다 있었음) — D86 이 career_chat 경로만 배선하고 recall 경로를 빠뜨린 것. 같은 지식은
+그것을 쓸 수 있는 **모든** 조회 경로에 배선돼야 화이트보드가 완성된다(D84 원칙).
+
+**출처**: `agents/tool_render.py` · `tests/test_orchestrator.py`(라이브러리 payload 검증).
+
+### D88 (07-31) 여러 공고 각각 판정 — fit_analysis 의 targets 인자와 도구 내부 반복
+
+**결정**: fit_analysis 에 `targets`(회사명 쉼표 구분) 인자를 추가한다. 플래너는 [세션 자산
+상태]에 새로 실리는 "정리된 공고 목록"의 회사명으로 지목하고, 도구가 **내부에서** 대상별로
+라이브러리(D86) 파싱본을 그래프에 시드해 반복 판정한다 — 오케스트레이터 루프(같은 턴 동일
+에이전트 재실행 금지)는 불변. 표현은 회사별 블록(등급·요약·주요 격차, 결정론 조립).
+`analysis` 자산은 **활성 공고의 판정일 때만** 승격한다 — 자소서·면접의 근거가 엉뚱한 공고와
+짝지어지는 사고를 구조로 차단. 미매칭 대상은 경고 + "링크 재제출" 안내.
+
+**왜**: 실측(2026-07-31 15:04) — "두 공고와 대조해서 각각 짚어줘"에 활성 공고 하나만
+판정됐다. 판정 대상 슬롯 단일 + 턴 내 재실행 금지 + 플래너에 지목 어휘 부재.
+
+**재측정(48케이스×3, Opus 라우터, 동커밋 §3-6)**: manifest 에 인자 한 줄 추가 —
+정확도 0.9861 유지 · 일관 오답 0 · blocked 1.0 · resume-missing 1.00 유지 · **회귀 없음**
+(흔들림은 기존 경계 2건, 3회 중 1회 이탈 그대로).
+
+**출처**: `agents/__init__.py`(params) · `agents/fit_analysis.py`(_run_multi) ·
+`agents/tool_render.py`(multiFit 블록) · `orchestrator/planner.py`(정리된 공고 목록) ·
+`evals/planner_baseline_claude_opus_router.json`(갱신) · `tests/test_orchestrator.py`.
+
+### D89 (07-31) 실 RAG 연결 — HttpRagAdapter 로 의미 검색이 키워드 검색을 대체한다
+
+**결정**: `feat/ai/rag` 의 인수인계 패키지(`RAG/rag_tool_handoff`)를 우리 브랜치로 가져와
+(원본 브랜치 불변) 독립 HTTP 서비스로 기동하고, `rag.py` 에 `HttpRagAdapter` 를 추가해
+`RAG_PROVIDER=http` 로 연결한다. 계약은 `RAG/RAG_입출력_명세서.md` 그대로 — 입력 직업명
+(str) 또는 profile(JSON), 출력 {"postings": [원본+score+match_reason]}. `evaluate=False` 로
+CRAG 평가자(LLM 채점)를 끈다(이 저장소의 LLM 규약은 Claude CLI 하나). 서버 실패 시
+경고(`rag_http_failed`)와 함께 LocalPostings(키워드) 폴백 — 폴백은 이유를 삼키지 않는다.
+소비처(job_recommend·find_alternatives)는 이미 어댑터 경유라 **코드 변경 없이 자동 승격**.
+
+**인프라 실측**: WSL 안에 RAG 담당자의 PostgreSQL 16(5432, pgvector)이 이미 있어 재활용 —
+55432(서비스 DB)와 별개다. 덤프 복원으로 공고 6,120건·청크 7,671건(임베딩 100%). 최초
+기동은 모델 다운로드 6.5GB(bge-m3 + bge-reranker-v2-m3) + warmup 890초.
+
+**E2E(§3-7, 실 플래너 Opus + 실 RAG)**: ① 어댑터 직접 — "데이터 엔지니어" 3건(score 1.0,
+연차 표기 포함). ② 풀턴 — 이력서 제출+"추천해줘" → job_recommend → 실 RAG 30건 →
+연차 필터 25건 제외(정직 고지) → 추천 5건(실 URL·역량 일치 수 표시).
+
+**출처**: `rag.py`(HttpRagAdapter) · `config.py`(rag_search_url) · `tests/test_rag_http.py` ·
+루트 `CLAUDE.md`(기동 순서 §2.5) · `RAG/`(feat/ai/rag 사본, 무수정).
+
+### D90 (07-31) RAG 폴백은 답변에 명시한다 — "어떤 검색으로 찾았는지"를 숨기지 않는다
+
+**결정**: 실 RAG(HttpRagAdapter) 호출이 실패해 키워드 폴백으로 찾은 결과에는 답변 문장에
+"(실시간 검색 서버(RAG)가 연결되지 않아, 저장된 공고 데이터에서 키워드 검색으로 찾은
+결과예요.)" 를 명시한다 — 공고 추천(render_job_recommend)과 대안 공고(_alternatives_block)
+둘 다. 신호는 어댑터의 `rag_http_failed` 경고에서 파생(job_recommend 는 data.ragFallback,
+fit 은 analysis warnings) — §2-6(폴백은 이유를 삼키지 않는다)의 사용자향 완성.
+문구를 "LLM 의 추천"이라 하지 않는 이유: 폴백도 LLM 생성이 아니라 저장 공고 DB 의 키워드
+검색이다(공고를 LLM 이 지어내는 것은 §2-5 금지) — 로그만이 아니라 문구도 사실이어야 한다.
+
+**출처**: `agents/job_recommend.py` · `agents/tool_render.py` · `tests/test_rag_http.py`.
+
+### D91 (07-31) 확장 계획 P1-a·P3 — application_plan 이 실공고를 위임으로 소비, 병렬은 수치만 보강
+
+**결정**:
+- **P1-a(1안)**: application_plan 의 "유사공고 병행" 경로가 job_recommend 를 **읽기 전용으로
+  직접 호출**해 실공고(상위 3건)를 relatedPostings 와 대화 답변에 싣는다. delegate_tool 의
+  가드를 수동 재현: 전제(resume|preferences) 미충족이면 실행하지 않고 `delegate_refused`
+  관찰(분모 기록), 상대 sessionUpdates·캐시는 버림(§2-4), 실패는 본 판정을 막지 않음.
+  루프 전환(2안)은 쓰지 않았다 — 같은 커밋의 D92 참조.
+- **P3**: 병렬 실행은 이미 구현돼 있음을 결정적 테스트로 고정(제출 턴의 정리 2+판정이 한
+  배치) + 병렬 벽시계 소요를 로그로 남긴다(`parallel: … 완료 — 벽시계 N초`) — 복잡도를
+  지고 가는 근거를 매 실행이 스스로 남기게. `_MAX_PARALLEL=3` 등 상한·제약은 계획대로 불변.
+
+manifest 불변(위임은 에이전트 내부) — 플래너 재측정 의무 미발동. application_plan 시스템
+프롬프트도 불변.
+
+**출처**: `agents/application_plan.py`(_related_postings·render) · `orchestrator/chat.py`
+(병렬 소요 로그) · `tests/test_orchestrator.py`(병렬 고정·위임 성공/거부) ·
+`작업로그/멀티에이전트-확장-계획.md`.
+
+### D92 (07-31) 확장 계획에서 "하지 않기로 한 것" 3건 — 근거와 함께 닫는다
+
+1. **application_plan 루프 전환 안 함(P2-b)**: 판정은 룰(점수 경계·하드 제약 정규식), 표현은
+   LLM 1회 — 결과를 보고 행동을 다시 고르는 동역학이 없다. P1-a 를 1안(직접 호출)으로
+   해결해 루프가 필요한 마지막 이유도 사라졌다.
+2. **interview_prep → resume_diagnosis 위임 안 함(P1-b)**: 기존 도구 `find_evidence`(이력서
+   근거 확인)·`pick_material`(판정 결과에서 소재)가 위임이 줄 정보(빈약 항목)와 겹친다 —
+   계획의 판정 기준("겹치면 하지 않는다") 그대로.
+3. **career_chat 루프 전환 안 함(P2-a)**: 계획이 제시한 대안(컨텍스트 주입)이 같은 날 이미
+   구현됐다 — postingFacts·analysisFacts·userFacts·postingLibrary(D79·D82·D86)로 조회
+   질문을 사실 데이터로 답한다. 도구가 "조회" 하나뿐이라 루프 기준 미달이고, 전환하면
+   토큰 스트리밍(통짜 대기 제거)을 잃는다 — 스트리밍 유지가 더 중요하다.
+
+**출처**: `작업로그/멀티에이전트-확장-계획.md` §P1-b·§P2 · `agents/interview_prep.py`(_TOOLS) ·
+`agents/career_chat.py`(사실 컨텍스트).
+
+### D93 (07-31) 진행 로그에 루프 스텝·위임·데이터 흐름까지 — 관찰 가능성의 마지막 층
+
+**결정**: ProgressMapper 가 그동안 버리던 trace 이벤트를 전부 사용자 로그로 옮긴다:
+- `agent_start` — **무슨 자료를 보고 시작했나**(sessionAssets → "입력: analysis, resume")
+- `agent_end` — **오케스트레이터에 무엇을 넘겼나**(sessionUpdates 키 → "넘김: coverletter")
+- `agent_step` — 자기 루프의 스텝 단위: "스텝2 · 도구 find_evidence 호출 — 관찰 요약" /
+  답변 작성 / 상한 도달 / 중단
+- `delegate`/`delegate_refused` — 에이전트 간 위임: "application_plan → job_recommend ·
+  결과 3건" / 거부 사유
+매핑은 번역이지 재판정이 아니다 — trace 가 이미 남기던 사실을 옮겨 적을 뿐(새 계측 없음).
+스트리밍(D75)과 사후 타임라인(D70)이 같은 매퍼를 쓰므로 실시간·사후 모두에 나온다.
+
+**왜**: 사용자 지시(2026-07-31) — "에이전트별 도구 호출·루프·어느 에이전트가 무슨 자료를
+보고 어떤 자료를 누구에게 넘기는지 전부 UI 로그에". 관찰 UI(webbridge)만 보던 창문을
+서비스 채팅 화면까지 연 것.
+
+**출처**: `v2bridge/mapping.py` · `tests/test_v2bridge_contract.py`(루프·위임·입출력 매핑).
+
+### D94 (07-31) 한 발화의 공고 URL 여러 개를 전부 접수하고 병렬로 정리한다
+
+**결정**: URL 감지를 단수(search)에서 **전부(findall, 상한 3)** 로 바꾼다. 첫 URL 이 활성
+공고(판정 대상 단일 규약 유지), 나머지는 턴 마커(`_extraPostingUrls`)로 posting_analysis 에
+전달돼 **병렬로 수집·파싱**(ThreadPoolExecutor + contextvars 복사 — 병렬 실행 규율 동일)되고
+라이브러리(D86)로 승격된다. 답변에는 각 공고의 정리 블록이 모두 실린다. 같은 원문(해시)이
+라이브러리에 있으면 재파싱하지 않는다(D79 규약).
+
+**왜**: 실측(2026-07-31 16:01) — "URL1 / URL2 나 이 두개 공고 관심있어"에서 두 번째 URL 이
+조용히 버려졌다. 사용자가 준 자료는 전부 접수한다(D69 원칙의 URL 판). 라이브러리에 둘 다
+오르므로 "두 회사 각각 적합도"(D88)로 바로 이어진다.
+
+**출처**: `orchestrator/chat.py`(detect_posting_urls) · `agents/posting_analysis.py`
+(_analyze_extra_urls 병렬) · `agents/tool_render.py`(추가 공고 블록) ·
+`tests/test_orchestrator.py`(다중 접수·병렬 승격·표현).
+
+### D95 (07-31) RAG 검색 타임아웃 30→90초 — 첫 장문 쿼리의 지연을 실패로 오판하지 않는다
+
+**결정**: HttpRagAdapter 의 타임아웃을 90초로 올리고, 10초를 넘는 검색은 지연 시간·쿼리
+길이를 WARNING 로그로 남긴다(빈도·정도를 실측할 수 있게).
+
+**왜(로그 대조로 확정)**: 16:38 첫 적합도 판정의 대안 검색이 30초를 넘겨 클라이언트가
+포기 → 키워드 폴백(D90 문구 표시·SM/SI 무관 공고). RAG 서버 로그에는 그 요청이 **결국
+200 으로 완료**된 기록이 있다(성공 5건 = 검증 3 + 타임아웃된 그 요청 1 + 재시도 1).
+서버 실측 warm 2.2초는 짧은 쿼리 기준 — 격차 정보가 실린 장문 쿼리의 첫 리랭킹은 더
+걸린다. 재시도(16:40)는 캐시가 데워져 정상 의미 검색으로 성공했다.
+
+**출처**: `rag.py` · RAG 서버 로그·대화 로그 대조(작업로그/0731.md 추가 16).
+
+### D96 (07-31) RAG 캐시 선제 예열 — 자산이 채워지는 순간 첫 쿼리 비용을 미리 지불한다
+
+**결정**: 공고가 새로 파싱되거나(직무+기술 쿼리) 이력서가 정리되면(스킬 쿼리) 그 자산 기반
+검색을 **백그라운드 데몬 스레드로 한 번 쏘고 결과는 버린다**(`rag.warm_search_async`).
+HTTP provider 일 때만, 비차단, 실패는 INFO 로그만 — 예열은 강화지 기능이 아니다.
+
+**왜(사용자 제안)**: D95 실측 — 콜드 상태의 첫 검색이 30초+ 걸렸고, 그 비용의 큰 몫은
+DB 페이지 캐시(검색할 데이터 근처를 만져야 데워짐)와 모델 첫 추론이다. 사용자 자산 기반
+예열 쿼리는 나중에 실제 검색(대안·추천)이 만질 데이터와 같은 영역을 만지므로 정확히
+유효하다. 사용자가 이력서를 읽고 판정을 기다리는 동안 예열이 끝난다.
+
+**한계**: 단일 워커 RAG 서버라 예열이 실쿼리와 겹치면 실쿼리가 뒤로 밀릴 수 있다 —
+지연 계측(D95 WARNING)으로 관찰하고, 문제가 되면 스로틀을 더한다.
+
+**출처**: `rag.py`(warm_search_async) · `agents/posting_analysis.py`·`resume_diagnosis.py`
+(예열 지점) · `tests/test_rag_http.py`.
+
+### D97 (08-01) 공고 정리를 **도구에서 대화형 담당으로 승격** — 근거는 원문에 봉인하고 표현에 자율성을 준다
+
+**결정**: `posting_analysis` 를 `kind="tool"` → 에이전트(자기 루프)로 올린다. 파싱·캐시(D79)·
+요약 조립은 그대로 결정론이고, 루프의 LLM 은 **파싱 사실 + `read_posting`(원문 키워드 검색)이
+준 것만으로** 공고에 관한 질문에 답한다. LLM 미설정·검증 실패면 승격 전과 동일하게
+`tool_render.render_posting_analysis` 로 폴백한다.
+
+**왜(실측 2026-07-31 로그)**: 공고를 정리한 뒤 사용자가 "이 공고 기준으로 어떤 스택을 공부하고
+어떤 프로젝트를 하면 좋을까"를 물었다. 어휘 11종에 그 질문의 담당이 없어 플래너가
+`fit_analysis`→`application_plan` 을 골랐고, 이력서가 얇아 `fit_analysis` 가 5개를 되묻고
+`analysis` 를 못 내 `application_plan` 이 전제 붕괴로 빠졌다(`요청 미완수 — application_plan`).
+**공고만으로 답할 수 있는 질문에 사용자 정보를 요구한 것이다.** 라우팅 결함이 아니라
+어휘의 빈칸이었다 — 플래너는 가진 것 중 최선을 골랐다.
+
+**대안으로 검토하고 접은 것**: 새 에이전트(`posting_prep`) 추가. 어휘를 늘리면 §3-1 이
+경고하는 방향(선택지 확장)이고, 이미 `job_posting` 만 전제로 도는 담당이 있는데 그 정의만
+좁으면 되는 상황이었다. 사용자 제안이 더 낫다 — 새 어휘 0개.
+
+**같이 정한 것 — 요약 표는 루프 성공 경로에서 뺀다.** 첫 구현은 결정론 요약 표를 앞에 붙이고
+루프가 뒤를 이어 쓰게 했는데, 실측(08-01)에서 루프가 같은 요건을 611자로 다시 정리한 뒤 제안을
+붙여 **사용자가 같은 목록을 두 번 봤다.** goal_system 에 "다시 나열하지 말라"고 적어 뒀지만
+안 지켜졌다 — **한 문장의 생산자가 둘이면 프롬프트로 못 막는다**(§2-2). 표는 폴백 경로에만
+남기고, 항목의 완전성은 산문이 아니라 우측 패널의 구조화 데이터가 보장한다.
+
+**같이 잡은 버그**: 한 턴에 공고 2개를 냈을 때(D94) 루프가 두 번째를 몰랐다 —
+`posting_library` 는 턴 끝에 반영되므로 같은 턴의 `extraPostings` 를 `otherPostings` 에
+직접 얹었다.
+
+**짝으로 `resume_diagnosis` 도 승격했다.** 같은 규율(프로필 빌드·항목화는 결정론,
+`read_resume` 로 원문 검색, 폴백은 `tool_render`). 항목화 사실만 내던 시절에는 "내 강점이
+뭐야"·"이 프로젝트를 어떻게 써야 해" 의 담당이 없었다 — `evidencedSkills`/`unverifiedSkills`
+는 있었지만 그것을 **강점으로 서술**하는 층이 없었다. 원문 검색은 두 담당이 같은 헬퍼
+(`_common.grep_source_lines`)를 쓴다.
+
+**화이트보드 적재는 대부분 이미 되어 있었다 — 확인하고 안 만들었다.** 계획은 "정리 산출물을
+자산으로 승격"이었는데 코드를 보니 `ASSET_KEYS` 에 `profile`(skillEvidence 포함)·
+`posting_summary`·`posting_library`·`analysis`·`last_message` 가 전부 있고 저장된다. 승격한
+두 루프의 "정리"는 그 자산의 **파생 뷰**라 따로 저장하면 출처가 둘로 갈린다. 그래서:
+
+- `produces=("posting_summary", …)` 선언 — **하지 않았다.** 그 자산을 `preconditions` 로
+  필요로 하는 에이전트가 없어서, 선언하면 검증기 자동 삽입·`redundant` 드롭만 바뀐다
+  (라우팅 변경 + 재측정 비용, 기능 이득 0).
+- `resumeSummary` 별도 저장 — 하지 않았다. `profile` 에서 결정론으로 파생된다.
+
+**대신 실제 결핍은 하류의 *읽기* 쪽에 있었다**: `coverletter_draft` 의 facts 에 회사명·직무가
+아예 없어 **어느 회사에 내는 자소서인지 모르고** 초안을 썼다. `application_plan` 은 읽으려
+했지만 `session["job_posting"].get("company")` 로 찾아 늘 빈 값이었다(그 자산은
+`{sourceType, value}` 원천이라 회사명 칸이 없다). 두 곳이 같은 것을 다르게 틀렸으므로 가드가
+아니라 **공용 읽기 함수**(`_common.posting_identity`, 출처 우선순위 `posting_summary` →
+`analysis`)로 합쳤다. `interview_prep` 도 같은 입력을 받는다.
+
+**교훈**: "자산을 공유하게 만들자"는 과제가 실제로는 "이미 있는 자산을 읽지 않는다"였다.
+저장 계층을 늘리기 전에 소비자가 무엇을 읽는지 grep 하는 것이 순서다.
+
+**출처**: `agents/posting_analysis.py` · `agents/resume_diagnosis.py` · `agents/__init__.py`(스펙) ·
+`agents/_common.py`(`grep_source_lines`·`posting_identity`) ·
+`agents/tool_render.py`(`posting_summary_block`·`posting_facts` 공개) ·
+`agents/coverletter_draft.py`·`interview_prep.py`·`application_plan.py`(하류 읽기) ·
+`tests/test_orchestrator.py`·`tests/test_agents_roster.py`(승격 경계·하류 읽기 4건).
+
+### D98 (08-01) 짧은 텍스트는 저장된 이력서를 교체하지 못한다 — 가드는 **입구가 아니라 합류점**에 둔다
+
+**결정**: `chat._apply_attachments` 에서 `kind="resume"` 텍스트 첨부가 `MIN_ASSET_CHARS`(40)
+미만이고 **세션에 이력서가 이미 있으면** 저장하지 않고 발화로 되돌린다(`short_resume_demoted`
+경고 + trace). 되돌린 텍스트는 **버리지 않고 메시지에 합친다** — 버리면 사용자의 대답("네")이
+사라져 플래너가 동의를 못 읽는다. 짝으로 `posting_analysis` 의 `field="resume"` 요청 카드에
+`hasResume` 게이트를 걸어 **이미 있는 이력서를 다시 청하지 않는다.**
+
+**왜**: `resolve_kind` 는 40자 미만이면 판정을 포기하고 claimed kind 를 그대로 돌려준다
+(신호가 부족해 정당하다). 그런데 저장 단계가 그걸 무조건 신뢰해
+`stage({"resume": payload, "profile": None, "analysis": None})` 로 **교체**했다 — 자료 요청
+슬롯이 열려 있는 동안의 "네" 한 줄이 이력서와 파생 자산을 통째로 지운다.
+
+**현 스택에서는 도달 불가였다**(감사 판정 정정): v2 계약에 `attachments` 필드가 없고
+(백엔드는 messages + CareerSummary 만 보낸다), v2bridge 가 첨부를 합성하는
+`promote_pasted_posting` 은 `len(text) >= _POSTING_MIN_CHARS` 게이트를 통과해야 한다.
+열린 입구는 webbridge `/chat`(클라이언트 선언 kind 를 길이 검사 없이 받는다) 하나이고
+이 브랜치에서 띄우지 않는다.
+
+**그래도 고친 이유는 심각도가 아니라 위치다.** 방어가 **입구 두 곳에 흩어진 길이 상수**로
+우연히 성립하고 있었다 — 다음 입구를 만드는 사람이 그것을 다시 지킬 근거가 없다. 모든
+입구가 합류하는 지점에 한 줄이 입구마다의 검사보다 작고, `MIN_ASSET_CHARS` 를 공개해
+"판정을 포기하는 경계"와 "믿지 않는 경계"가 같은 값을 보게 했다.
+
+`resume_extra` 는 면제다 — 짧은 조각이 정상이고 교체가 아니라 덧붙이기라 파괴가 없다.
+
+**출처**: `orchestrator/chat.py`(`_apply_attachments`) ·
+`orchestrator/attachment_kind.py`(`MIN_ASSET_CHARS`) · `agents/posting_analysis.py` ·
+`tests/test_orchestrator.py`(회귀 2건 — 짧은 대답 방어 + 정상 교체 유지).
+
+### D99 (08-01) 대체 가능한 기술은 **요구사항 하나로 센다** — 부푼 분모가 등급을 왜곡했다
+
+**결정**: `skill_taxonomy` 에 **대체군**(`_ALTERNATE_GROUPS`, 5군)을 두고,
+`_tech_stack_requirements` 가 같은 군의 기술 여러 개를 `anyOf: True` 표시가 붙은 요구사항
+**하나**로 묶는다. `gap_matcher._match_by_skills(any_of=True)` 는 하나만 충족돼도 `met` 이고
+**나머지를 missing 으로 세지 않는다**(분모도 1이다).
+
+**왜(실측 2026-08-01, 콘센트릭스 Agent 엔지니어 공고)**: 파서는 공고의 "A/B/C 중 하나"에서
+OR 관계를 잃고 techStack 을 평면 목록으로 만든다. 그 공고는 22개로 세어졌지만 실제 요구
+역량은 ~8개였다(벡터DB 5종·클라우드 3종·워크플로 3종·LLM 프레임워크 2종·LLM API 2종이 전부
+택일). 문제는 표시 숫자가 아니다 — `_tech_stack_requirements` 가 항목마다 합성 요구사항을
+만들고, 그것이 `_score_basis` 의 `techSkill` 카테고리 **분모**가 된다. pgvector 만 아는
+지원자가 벡터DB 자리에서 1/5 로 깎이고(`matched_ratio ≥ 0.8` 이 met 경계),
+`overall_fit` 이 그것을 가중평균해 **등급을 낮춘다.** 낮은 등급은
+`observe_rules ① 약한 판정` 을 발동시켜 사용자가 **청한** 자소서·면접을 큐에서 뺀다 —
+잘못된 산수 하나가 요청 거절까지 이어진다.
+
+**표준화(normalize)와 다른 연산이다.** 표준화는 같은 기술의 다른 표기를 한 키로 합치고
+(ReactJS = React), 대체군은 **다른 기술을 한 요구사항으로 센다**(pgvector ≠ Pinecone). 그래서
+키를 합치지 않는다 — `skill_taxonomy` 상단의 "React~Vue 처럼 관련은 있지만 다른 것까지
+합치면 안 된다"는 선은 그대로다.
+
+**군에서 하나만 요구된 경우는 묶지 않는다** — 대체가 아니라 지목이다.
+
+**명백한 것만 넣었다.** Kafka~RabbitMQ, Kubernetes~ECS 는 제외했다 — 공고가 특정 하나를
+원하는 경우가 많고, 갈리는 판단을 사전에 못 박는 것은 §3-1 이 경고하는 실수다. 군을 늘릴
+때는 "공고 문면에서 택일로 나오는 것이 관례인가"를 근거로 적는다.
+
+**계기**: 외부 리뷰(사용자 전달)가 지적. 같은 리뷰의 다른 제안 중 **받지 않은 것**은
+근거 없는 수치를 만드는 것들이다 — "우선순위 = 필수여부 × 갭 크기 ÷ 학습 비용", 제안마다
+"예상 소요" 필드. 학습 비용·소요 기간은 데이터가 없고, LLM 이 지어낸 값을 공식에 넣으면
+**감이 결정론처럼 보이는 점수**가 된다(§2-1). 리뷰가 "갭 매트릭스를 만들라"고 한 것은
+`fit_analysis`+`gap_matcher` 로 이미 있고, "6워커로 나누라"는 것도 현 구조다 — 출력 두 개만
+보고 내부를 추정한 항목들이다.
+
+**받은 것 중 아직 안 한 것(다음 작업)**: 제안의 **제네릭 점수**(서로 다른 공고에 같은 답이
+나오면 감점 — 출력 간 코사인 유사도로 자동 측정). 새롭고 싸고, 프롬프트 부탁이 아니라
+측정으로 잡는 방식이라 §3 의 순서와 맞다. `embed.py` 가 이미 있어 하네스만 쓰면 된다.
+
+**출처**: `skill_taxonomy.py`(`_ALTERNATE_GROUPS`·`alternate_group`) ·
+`graph/nodes.py`(`_tech_stack_requirements`) · `gap_matcher.py`(`_match_by_skills(any_of=)`) ·
+`tests/test_gap_matcher.py`(3건 — 군 조회·묶임·OR 판정).
+
+### D100 (08-01) 실 대화 검증에서 나온 3건 — 요청 문장 보존 · 이력서 판별 · 턴 계획 통보
+
+승격(D97)을 실 모델로 돌려보니(§3-7) 단위 테스트가 못 잡은 결함 셋이 드러났다. **셋 다
+"에이전트에게 사실이 도달하지 않는" 문제였고, 프롬프트로는 못 고칠 종류였다.**
+
+**① 자료 뒤에 붙은 요청 문장이 사라졌다.** 공고 원문 끝에 "이 공고 기준으로 어떤 스택을
+공부하고 어떤 프로젝트를 만들면 좋을까요?" 를 붙여 보냈는데 요약만 돌아왔다. 원인:
+`v2bridge.promote_pasted_posting` 이 전체 메시지를 첨부로 승격하고 **발화를 비운다.**
+`handle_chat` 이 중립 발화("방금 드린 자료로 이어서…")를 합성하므로 플래너도 루프도 사용자가
+무엇을 물었는지 모른다. → `_trailing_request` 로 꼬리 요청 문장만 떼어 발화로 남긴다
+(D69 가 URL 혼합 메시지에 한 보존을 붙여넣기 경로에도). **첨부는 자르지 않는다** — 자료
+본문을 잃는 것이 요청 한 줄이 원문에 남는 것보다 나쁘다.
+
+*처음에는 goal_system 을 고쳤다가 되돌렸다* — "정리해 보여준 뒤 답한다"는 두 지시 중 앞만
+지켜지는 문제로 오진했다. 프롬프트를 만지기 전에 **facts 에 무엇이 들어가는지 찍어봤어야**
+했다. 다만 그 과정에서 찾은 것 하나는 남겼다: 한 출력에 두 일을 시키면 하나가 떨어지므로,
+`firstLook` 의 정리는 **"물은 것이 없을 때의 답"** 으로 정의했다(611자 중복과 같은 병).
+
+**② 평범한 이력서를 판별하지 못했다.** "이력서 / 경력 / 프로젝트 / 기술 스택 / 학력" 형식이
+`_RESUME_SIGNALS` 중 "졸업" 하나만 맞아 `r>=2` 미달로 판정 포기됐다. 자산이 없으니 플래너가
+`resume_diagnosis` 를 **정확히 골랐는데도**(확신 0.95) 검증기가 전제 붕괴로 빼고 `career_chat`
+이 이력서 원문 위에서 답했다 — **D68 이 막으려던 그 사고가 다른 입구로 재현된 것이다.**
+그 답에는 근거 없는 시장 주장("핀테크·커머스 쪽에 잘 먹힙니다")이 섞여 있었다.
+→ 서술체 신호 추가(`재직중`·`담당했`·`구현했`·…). 이력서는 1인칭 과거 서술체이고 공고는
+개조식 명사형이다 — 공고에 "담당업무"는 나오지만 "담당했"은 나오지 않는다. 오탐 방어는
+기존 규칙(`r >= p + 2`)이 그대로 한다(테스트: "이력서를 제출해 주세요"가 든 공고는 안 뒤집힌다).
+
+**③ 에이전트가 자기가 턴을 독점한다고 답했다.** 사용자가 적합도를 청한 턴에 정리 단계로
+들어간 `resume_diagnosis`(D71)가 **"적합도는 제가 못 해요"라고 선언한 직후** `fit_analysis`
+가 등급을 냈다 — 사용자 눈에 자기모순이다. → 오케스트레이터가 `session["_planThisTurn"]`
+으로 이번 턴 큐를 사본에 싣고, 두 담당이 `_common.others_this_turn()` 으로 읽어
+"내 몫이 아닌 부분은 언급하지 말고 넘긴다". 실측 결과 "적합도 분석은 다른 담당이 이어서
+답해드릴게요"로 매끄럽게 이어졌다.
+
+**교훈**: ①②③ 모두 "지시가 안 지켜진 것"처럼 보였지만 실제로는 **에이전트가 그 사실을
+갖고 있지 않았다.** 없는 사실은 지시로 메울 수 없다 — §2-2("금지는 프롬프트가 아니라 구조로")
+의 대우(對偶)다. 프롬프트를 의심하기 전에 **facts 를 찍어본다.**
+
+**플래너 재측정은 하지 않았다.** 세 변경 모두 플래너 어휘(description)에 닿지 않는다 —
+①은 v2bridge 계층(하네스 밖), ②는 자산 승격 판별(하네스는 세션 자산을 직접 지정한다),
+③은 실행 중 facts 다. 어휘가 바뀐 D97 은 별도로 48/48 을 측정했다.
+
+**출처**: `v2bridge/service.py`(`_trailing_request`) ·
+`orchestrator/attachment_kind.py`(`_RESUME_SIGNALS`) · `orchestrator/chat.py`(`_planThisTurn`) ·
+`agents/_common.py`(`others_this_turn`) · `agents/posting_analysis.py`·`resume_diagnosis.py` ·
+`tests/test_v2bridge_contract.py`·`test_attachment_kind.py`·`test_orchestrator.py`(회귀 5건).
+
+### D101 (08-01) 평가 케이스는 **판별력을 검증한 뒤에** 센다 — 승격 전 어휘로 되돌려 돌린다
+
+**결정**: 새 평가 케이스를 추가할 때, 그 케이스가 **고치기 전 상태에서 실패하는지** 확인한다.
+확인 방법은 롤백이 아니라 **주입**이다 — `get_agent_registry` 를 감싸 문제의 선언(여기서는
+두 담당의 `description`)만 이전 문구로 `dataclasses.replace` 하고 하네스를 그대로 태운다.
+작업 트리를 건드리지 않아 안전하고, 케이스 몇 건이면 LLM 콜 열 번이 안 든다.
+
+**왜**: D97 승격 후 새 케이스 3건을 넣었더니 **3건 모두 3/3 통과했다.** 그대로 두면
+"승격이 검증됐다"의 근거가 됐을 것이다. 승격 전 description 을 주입해 다시 돌리니 **3건 모두
+여전히 3/3 통과** — 판별력이 0 이었다. 승격을 재는 게 아니라 구현을 따라가는 거울이었다.
+
+원인은 케이스의 **자산 설정**이었다. 원래 로그의 실패 턴 자산은 `[... job_posting, resume]`
+— **이력서가 있었다.** 나는 `["job_posting"]` 만으로 케이스를 만들었고, 공고만 있는 상황은
+애초에 라우팅이 맞던 쪽이다. 갈림길은 이력서가 있을 때다(그때 플래너가 무거운 판정으로
+끌려간다). 자산을 실제 실패 상황으로 바꾸니 판별력이 생겼다:
+
+| 케이스 | 자산 | 승격 전(주입) | 승격 후 |
+|---|---|---|---|
+| `posting-study-plan` | resume+job_posting | **ASK 3/3**(fit_analysis 동의 게이트) | posting_analysis 3/3 |
+| `posting-study-plan-with-analysis` | +analysis | **application_plan 3/3** | posting_analysis 3/3 |
+
+**판별력 없는 케이스는 지우지 않고 그렇다고 적는다.** `posting-detail-question`·
+`resume-strengths-with-posting` 은 승격 전에도 통과한다 — 다음에 description 을 좁히는
+사람이 그 라우팅을 깨지 않게 잠가 두는 값이라 남기되, `note` 에 "판별력 없음"을 명시해
+승격의 근거로 세지 못하게 했다.
+
+**이 실패가 드러낸 더 큰 것**: `posting-detail-question` 이 승격 전에도 통과했다는 사실은
+**승격이 바꾼 큰 부분이 라우팅이 아니라 답의 내용**임을 뜻한다. 같은 담당에게 갔어도 승격 전
+에는 요약만 냈고 지금은 학습 순서·프로젝트를 답한다. 그 차이는 플래너 하네스가 **원리적으로
+못 잰다** — 답변 품질 하네스가 따로 필요하다(제네릭 점수: 서로 다른 공고에 같은 답이 나오면
+감점, 출력 간 코사인 유사도). 다음 작업이다.
+
+**§3-5 의 짝이다.** §3-5 는 "평가셋을 관측에 맞추지 말라"(기대값을 구현에 맞춰 고치지 말라)
+였고, 이건 "**케이스가 무언가를 잡을 수 있는지 확인하라**"다. 둘 다 평가셋이 거울이 되는 것을
+막는 규칙이고, 후자가 없으면 통과율만 오르는 케이스를 계속 추가하게 된다.
+
+**측정**: 52케이스 × 3회 → 정확도 **1.0** · 안정성 **1.0** · stable_wrong **0** · unstable **0** ·
+ask/blocked **1.0** · 확신 0.901.
+
+**출처**: `evals/planner_dataset.json`(4건 추가, note 에 판별력 기재) ·
+`evals/planner_baseline_promoted_agents.json` ·
+`docs/eval-records/2026-08-01_planner-promoted-agents.md`(주입 방법·재현) ·
+`tests/test_planner_eval.py`(케이스 수 52).
+
+---
+
+### D102 (08-01) URL 은 **열어 본 뒤에** 공고가 된다 — 주소만으로 확정하지 않는다
+
+**결정**: 수집한 페이지에 공고 어휘가 하나도 없으면 원문 자산으로 **승격하지 않는다**.
+게이트는 `_common.ensure_posting_text` 안에 둔다 — `posting_fetch` 뿐 아니라
+`posting_analysis`·`fit_analysis` 도 이 함수로 수집하므로, 여기 한 곳이면 모든 소비자가
+덮인다.
+
+**왜**: D62 가 "URL 은 공고 전용"으로 정하면서 `detect_posting_urls` 가 **내용을 한 글자도
+보지 않고** 공고로 확정하게 됐다(정규식 `findall` 이 전부). 위키·기사·회사 소개 링크를
+붙여넣어도 공고 자산이 되고, 그 자리에서 `analysis`·`posting_summary` 가 함께 무효화된다
+(`chat.py` 의 `_stage`) — **페이지를 열어보기도 전에 기존 분석이 날아간다.**
+
+**왜 검출 시점이 아니라 수집 시점인가**: 검출 시점에는 주소밖에 없어 판단할 재료가 없다.
+본문을 손에 쥐는 첫 지점이 `ensure_posting_text` 다.
+
+**왜 LLM 이 아니라 키워드인가**: 여기는 "명백히 공고가 아닌 것"만 걷어내는 문턱이고,
+정밀한 판별은 뒤의 `posting_analysis` 가 LLM 으로 한다. 문턱을 일부러 느슨하게(어휘 하나만
+맞아도 통과) 둔 이유는 **진짜 공고를 거절하는 쪽이 훨씬 아프기 때문**이다 — 주 흐름이
+통째로 막힌다.
+
+**새 배관은 만들지 않았다.** 승격 거부는 기존 수집 실패 경로를 그대로 탄다: `fetched=False`
+→ `render_posting_fetch` 가 말하고 → `followUpQuestions` 카드가 나가고 → 관찰 규칙이
+`preconditions_broken` 으로 뒤의 공고 소비 단계를 걷어낸다. 다만 **문구는 갈랐다** —
+"못 읽었다"고 말하면 사용자는 같은 링크로 재시도하고 같은 결과를 받는다.
+
+**하지 않은 것**: `analysis: None` 무효화를 수집 성공 시점으로 미루는 것. 거부해도 이미
+검출 시점에 실행된 뒤다. 미루려면 플래너가 "공고 있음"을 보는 시점(플래너는 수집보다 먼저
+돈다)과 어긋나므로 별개 결정으로 남긴다.
+
+**출처**: `src/jobis_ai/agents/_common.py`(`_looks_like_posting`) ·
+`src/jobis_ai/agents/posting_fetch.py`(`notPosting`) ·
+`src/jobis_ai/agents/tool_render.py` · `tests/test_posting_fetch.py`(4건).
+플래너 manifest 불변 — 재측정 대상 아님.
+
+### D103 (08-01) 답변 품질은 **지표 두 개로** 잰다 — 하나는 서식에, 하나는 내용에 걸린다
+
+**결정**: 제네릭 점수 하네스(`eval/generic_score.py`)를 만든다. 서로 다른 공고 N개에 같은 질문을
+던져 두 값을 낸다:
+
+1. `genericScore` = mean(**답변 유사도 − 공고 유사도**). 원시 유사도는 해석 불가다 — 비슷한
+   공고가 비슷한 답을 받는 것은 정상이라 그 정상분을 빼야 한다. 낮을수록 좋다.
+2. `offPostingSkillRate` = 답변이 언급한 기술 중 **그 공고에 없는** 것의 비율.
+   `skill_taxonomy` 재사용(새 사전 없음).
+
+**왜 둘인가 — 하나면 오독한다(실측으로 확인).** `key-requirement` 질문은 ①에서 더 나빠 보였는데
+(+0.0800) ②는 **0.0000** 이었다. 답변을 열어 보니 네 개 모두 각 공고의 요건을 정확히 인용했고
+같은 것은 문장 틀뿐이었다("가장 중요한 요건은 필수 요건 3가지입니다 / … / 우대 사항(…)은 …").
+답변이 200자대라 틀이 임베딩을 지배했다. **①만 봤으면 프롬프트로 문장을 흔들었을 것이다.**
+거꾸로 ①만 쓰면 표현만 바꿔 점수를 올릴 수 있다(Goodhart) — ②가 그 문을 닫는다.
+
+**기준선을 한 번 틀렸고 고쳤다.** 처음엔 공고 **전문**끼리 비교했는데 도메인이 갈린 네 공고에서도
+유사도가 0.615 로 깔렸다(단순 문장 비교는 0.287) — 모든 공고가 "채용/담당업무/자격요건/전형절차"
+뼈대를 공유하기 때문이다. 부풀린 기준선을 빼면 **지표가 관대해진다**(전체 −0.0242 → +0.0511).
+서식 낱말만 지우고 요건·직무명은 남긴다(줄을 버리면 직무명까지 잃는다 — 직무명은 공고를 실제로
+가르는 내용이다).
+
+**②의 해석을 못 박는다: 0 이 아닌 것 자체는 결함이 아니다.** 실측에서 걸린 두 건은
+`EC2`(공고는 "AWS/GCP/Azure 중 하나")와 `Redux`(공고는 "상태 관리 라이브러리")로, 환각이 아니라
+**추상 요건의 정당한 구체화**다. 학습·프로젝트를 제안하려면 구체적 도구 이름이 필요하다.
+"0 이어야 한다"로 읽으면 다음 사람이 Redux 를 지워 답을 더 나쁘게 만든다. **절대값이 아니라
+변화를 보고**, 튀면 `answers`(baseline 에 전문 저장)를 열어 사람이 가른다.
+
+**답변 전문을 baseline 에 남긴다.** 수치만 있으면 "이 점수가 맞나"를 확인할 수 없고, 그러면 지표가
+근거 없이 신뢰받는다 — 위 세 판단(틀 지배·기준선 부풀림·구체화) 전부 답변을 읽어서 알았다.
+
+**측정(2026-08-01, 공고 4 × 질문 2)**: genericScore **+0.0647** · 공고 밖 기술 비율 **0.0491**.
+다음 작업(제안 스키마 `coversRequirements`)의 개선을 이 축으로 잰다 — **개선을 증명할 자를
+먼저 만든다**(§3 의 순서).
+
+**한계(열어 둔다)**: 쌍이 6개뿐이라 한 쌍이 평균을 흔든다 / `posting_analysis.run` 을 직접 불러
+플래너를 안 태운다(의도한 분리) / 1회 측정이라 흔들림을 모른다(`--runs` 는 지표가 실제로 쓰이기
+시작할 때 넣는다).
+
+**출처**: `eval/generic_score.py` · `evals/generic_dataset.json` · `evals/generic_baseline.json` ·
+`docs/eval-records/2026-08-01_generic-score.md` · `tests/test_generic_score.py`(7건).
+
+### D104 (08-01) 제안은 **커버하는 요구사항 ID 를 대야 기록된다** — 도구가 거부한다
+
+**결정**: `posting_analysis` 에 `save_plan` 도구를 추가한다. 프로젝트 제안은 이 도구로만 답변에
+실리고, 도구는 **커버하는 요구사항 ID**(`req-*`·`pref-*`)를 검증한다 — 빈 커버·공고에 없는 ID 는
+기록하지 않고 무엇이 틀렸는지 관찰로 돌려준다(쓸 수 있는 ID 목록 포함). 기록된 제안은 **결정론
+조립**으로 답변에 붙고, 커버는 ID 가 아니라 **요건 문장**으로 펼친다 — 사용자가 근거를 눈으로
+확인해야 한다.
+
+**왜 이 형태인가**: 외부 리뷰의 지적("제안된 프로젝트가 거의 모든 AI/데이터 공고에 나올 답")에
+리뷰가 붙인 처방은 "프롬프트에 근거 명시를 강제하라"였다. 그 방식은 §2-2·§3-1 이 실측으로
+부정했다. 대신 리뷰의 다른 문단이 말한 것을 택했다 — **구조화 출력을 강제하면 누락이 사라진다.**
+`coverletter_draft` 의 `save_draft` 와 같은 자리다: 산출물이 `state` 에서 나오므로 도구를 거치지
+않은 제안은 애초에 답변에 실리지 않는다.
+
+**예상 소요 기간 칸은 두지 않았다.** 리뷰가 제안했지만 데이터가 없어 LLM 이 지어내게 되고,
+지어낸 값이 계획처럼 보이면 §2-1 위반이다.
+
+**연차 요건은 커버 대상에서 뺀다.** 첫 실측에서 루프가 "상담 데이터 RAG 파이프라인" 이
+`req-1`("데이터 엔지니어링 또는 ML 엔지니어링 경력 3~7년")을 커버한다고 적었다 — **프로젝트로
+연차를 채울 수는 없다**(리뷰의 "포트폴리오가 연차를 대체할 수 없다"). 커버 목록에서 빼면 그렇게
+적을 수 없다(§2-2 — 하면 안 되는 것은 선택지에서 뺀다). 판정 기준은
+`graph.nodes._build_comparison_requirements` 와 같다(공고가 한 말 `yearsEvidence` 가 있고 기술
+토큰이 없으면 순수 연차 줄. 기술이 섞인 줄은 남긴다).
+
+**실측 확인**: 제안 2건이 기록되고 각각 커버 요건이 문장으로 펼쳐졌으며 완료 기준까지 들어왔다.
+`study-plan` 답변 길이가 502~667자 → 875~1363자로 늘었다(구조화된 제안 블록이 붙는다).
+
+**그런데 개선을 주장할 수 없었다 — 그게 이 결정의 절반이다.** D103 baseline(1회 측정)과
+비교했더니 전체 genericScore 가 +0.0647 → +0.0896 이었는데, **`save_plan` 을 쓰지도 않는 질문**
+(`key-requirement`)이 +0.0800 → +0.1288 로 더 크게 움직였다. LLM 이 매번 다르게 쓰기 때문이다.
+→ 하네스에 `--runs` 와 **noiseFloor**(질문별 값의 폭 중 최대)를 넣었다. **그 폭보다 작은 전후
+차이는 개선이라 부르지 않는다.** 1회 측정 baseline 으로 비교하려 한 것이 이번의 실수다.
+
+**바닥을 두 번 쟀더니 그것도 흔들렸다(0.0366 → 0.0829).** 같은 코드·같은 평가셋인데 runs=3
+두 회차의 폭이 2배 이상 벌어졌다. 즉 **이 지표는 지금 상태로 전후 비교 도구가 못 된다.**
+고치는 순서는 runs 를 늘리는 것이 아니라 **평가셋을 키우는 것**이다 — 공고를 8~12개로 늘리면
+쌍이 6 → 28~66 개가 되어 한 쌍의 영향이 줄고, 비용은 공고당 실행 1회씩만 늘어난다.
+
+**교훈**: 지표를 만들 때 "잴 수 있다"와 "**변화를 가릴 수 있다**"는 다르다. 후자는 노이즈
+바닥을 알아야 성립하고, 그것을 모르면 첫 비교에서 노이즈를 개선으로 읽는다.
+
+**출처**: `agents/posting_analysis.py`(`save_plan`·`requirement_index`) ·
+`eval/generic_score.py`(`--runs`·`noiseFloor`) · `tests/test_orchestrator.py`(회귀 3건).
+
+### D105 (08-01) 요구 연차 **상한을 보존한다** — 판정에는 아직 쓰지 않는다
+
+**결정**: `rule_extractor` 가 범위 표기("경력 3~7년")에서 상한을 함께 뽑아 `maxYears` 로 싣고,
+`NormalizedJobPosting` → 합성 연차 요건까지 전달한다. **판정 로직은 건드리지 않았다.**
+
+**왜**: `grep maxYears src/` 가 **0건**이었다(2026-08-01 외부 리뷰 지적). 파서가 "3~7년"에서
+하한만 남기고 상한을 버려 "3년 이상"으로만 남았다. 상한이 있다는 것은 정보다 — "시니어는 안
+뽑는다"를 뜻할 수 있고 그러면 지원 판단이 달라진다.
+
+**상한은 범위 표기에만 만든다.** "3년 이상"·"5년+"·"신입"은 상한이 **없는** 것이고, 없는 상한을
+채우면 없는 제약을 판정에 들이게 된다(§2-1 — 모른다를 값으로 채우지 않는다).
+
+**판정에 쓰는 것은 별 결정으로 남긴다.** 상한 초과를 미충족으로 세면 `gap_matcher` 의 연차
+판정이 바뀌고 `evals/baseline.json` 재측정이 필요하다 — 지금은 **정보를 잃지 않는 것**까지가
+범위다. 표기는 이미 `yearsEvidence`(공고가 한 말)를 쓰므로 화면에는 원래 "3~7년"이 나왔다.
+실제로 승격된 담당의 대화 실측에서도 "요구 연차(3~7년)"로 정확히 말했다 — 잃고 있던 것은
+**구조화된 값**이고, 그것을 이제 판정 계층이 읽을 수 있다.
+
+**출처**: `rule_extractor.py`(`_extract_years` → 3-튜플, `RuleExtraction.maxYears`) ·
+`contracts/domain.py` · `graph/read_nodes.py` · `graph/nodes.py`(합성 연차 요건) ·
+`tests/test_extract.py`(3건 — 범위 보존 / 상한 없음 / 요건 전달).
+
+### D106 (08-01) 제네릭 점수 평가셋을 공고 8개로 — **노이즈 바닥을 쓸 수 있게 만들었다**
+
+**결정**: 평가셋 공고를 4 → **8개**로 늘린다(인프라/SRE·iOS·정보보안·QA 추가). 쌍이 6 → 28 개가
+되고 비용은 실행 8 → 16회(runs=3 이면 48회)다. 그리고 `offPostingSkillRate` 에
+`_MIN_POSTING_SKILLS = 3` 가드를 넣는다 — 공고의 기술 어휘가 그보다 적으면 **비율을 만들지 않는다.**
+
+**왜 늘렸나**: D103·D104 에서 노이즈 바닥이 회차마다 두 배로 흔들려(0.0366 ↔ 0.0829) 전후 비교를
+할 수 없었다. `runs` 를 늘리는 것보다 **공고를 늘리는 쪽이 싸다** — 쌍은 제곱으로 늘고 실행은
+선형으로만 늘어난다(공고당 1회씩).
+
+**결과 — 바닥의 절대값이 아니라 *두 질문의 일치*가 근거다**:
+
+| 회차 | 공고 | study-plan 폭 | key-requirement 폭 | 두 폭의 차이 |
+|---|---|---|---|---|
+| 1차 | 4 | 0.0167 | 0.0366 | 2.2배 |
+| 2차 | 4 | 0.0554 | 0.0829 | 1.5배 |
+| 3차 | **8** | 0.0398 | 0.0350 | **1.14배** |
+
+바닥 절대값(0.0398)은 1차(0.0366)와 비슷해 "안 좋아졌다"로 읽힐 수 있다. 그런데 **독립된 두 질문이
+같은 폭을 내놓는지**가 추정의 안정성을 말한다 — 4개일 때는 같은 회차 안에서도 2.2배·1.5배로
+어긋났고 8개에서는 1.14배로 붙었다. 한 번의 측정으로 "재현된다"까지 주장하지는 않는다.
+
+**부수 효과 — 지표가 일하기 시작했다**: 도메인을 넓히자 공고 유사도(기준선)가 0.5423 → 0.5122 로
+내려갔는데 답변 유사도는 0.6161 로 남았다. **공고는 더 갈렸는데 답변은 그만큼 갈리지 않았다** —
+이게 이 지표가 잡으려던 것이고, 비슷한 IT 직무 4개에서는 안 보였다.
+
+**같이 고친 지표 편향**: study-plan 의 `offPostingSkillRate` 가 0.2808 로 튀어 답변을 열어 봤더니
+`security` 공고가 rate **1.0** 이었다 — taxonomy 가 아는 기술이 **0개**여서(OWASP·ISMS-P 는 사전에
+없다) 분모가 없고, 답변의 모든 기술이 "밖"으로 잡힌 것이다. **답변 결함이 아니라 지표 편향**이고,
+그 값이 전체 평균(0.14)을 끌어올려 품질 수치처럼 보였다. 가드 후 0.1244(전체 0.0622)로,
+공고 4개 시절(0.13~0.15)과 같은 자리다 — **0.28 은 새 결함이 아니라 분모 없는 공고의 산물**이었다.
+
+비율은 (답변, 공고)의 **순수 함수**라 LLM 재실행 없이 저장된 답변으로 다시 계산했다(baseline 의
+`meta.recomputedNote` 에 적었다).
+
+**쓰는 법이 바뀐 것**: `offPostingSkillRate` 는 **공고별로** 읽는다 — 전체 평균은 공고 구성에
+흔들린다. `key-requirement` 의 0.0000 은 좋은 감시 지표다(0 을 벗어나면 요건 인용이 느슨해졌다는
+신호).
+
+**교훈**: 지표의 분산이 크면 **표본을 늘리는 것이 반복 측정보다 싸다** — 쌍이 제곱으로 늘어서다.
+그리고 값이 튀었을 때 답변을 열어 보는 규율이 편향을 잡았다. 열어 보지 않았으면 0.28 을
+"품질 악화"로 기록했을 것이다.
+
+**출처**: `evals/generic_dataset.json`(공고 8개, 늘린 이유를 description 에) ·
+`eval/generic_score.py`(`_MIN_POSTING_SKILLS`) · `evals/generic_baseline_8postings.json` ·
+`docs/eval-records/2026-08-01_generic-score.md`(세 번째 측정) · `tests/test_generic_score.py`.
+
+### D107 (08-01) 평가셋을 **실공고**로 바꾸고 지표를 대칭으로 — 가설 하나가 틀렸다
+
+**결정 셋**:
+1. 제네릭 점수 평가셋을 합성 공고 8건 → **실공고 8건**으로(RAG DB 6,120건에서 결정론 선별).
+   출처(uid·회사·직무명·URL·role_category)를 각 항목에 남긴다.
+2. `_content_only` — 답변에서 **우리가 삽입한 조립 라벨**을 지운다(`프로젝트 제안`·
+   `커버하는 요건:`·`완료 기준:`). 공고 쪽 `_requirements_only` 와 **대칭**을 맞춘다.
+3. 하네스가 **실행마다 진행을 인쇄한다**(`flush=True`).
+
+**②의 근거는 대칭이다.** 공고에서는 공유 뼈대를 걷어내면서 답변에서는 안 걷어냈다 — 그 비대칭이
+delta 를 답변 쪽으로 부풀린다. 실측(8공고): 답변 8개 내용은 완전히 도메인별로 갈렸는데
+(OWASP/DVWA vs Swift/StoreKit/XCTest) 답변 유사도가 공고 유사도보다 높았고, 겹치는 것은
+`save_plan` 산출물 조립 라벨이었다(제안 수만큼 3~4회 반복).
+
+**제품에서 라벨을 빼는 것은 답이 아니다** — 그 라벨은 사용자가 근거를 확인하는 장치다(D104).
+지표 때문에 제품을 나쁘게 만드는 것이 정확히 Goodhart 다. 고칠 곳은 지표였다.
+
+**대조군이 ②를 증명했다**: `save_plan` 을 쓰는 질문은 답변 유사도가 0.5525 → 0.4961(**-0.0564**),
+쓰지 않는 질문은 0.5906 → 0.5908(**-0.0002**)이다. **우리 라벨만 정확히 지운다.**
+
+**틀린 가설 — 실공고 기준선이 합성보다 *높았다***:
+
+| | 합성 8공고 | 실공고 8건 |
+|---|---|---|
+| 공고 유사도(요건만) | 0.5122 | **0.5525** |
+
+"합성은 한 사람이 써서 문체까지 비슷하니 기준선이 실제보다 높게 깔린다"고 D106 에 적었는데
+반대였다. 실공고에는 **서식 상용구가 훨씬 많다** — 회사 소개·복리후생·근무조건·지원방법이 길게
+붙고 그 부분이 직무와 무관하게 닮았다. `_requirements_only` 는 섹션 제목 낱말 몇 개만 지우게
+만들어져(합성 공고에 맞춘 설계) 그것을 못 걷어낸다.
+
+**그래서 지금 지표는 관대하다.** 실공고 측정의 전체 genericScore 는 **-0.0120**(음수 = 답변이
+공고보다 더 갈린다)이지만, 그 음수는 부분적으로 **기준선 부풀림의 산물**이라 액면대로 읽으면 안
+된다. 제대로 하려면 파서가 뽑은 요건(`requiredRequirements`+`preferredRequirements`+`techStack`)
+으로 기준선을 재야 한다 — 그게 "공고의 요구가 얼마나 다른가"의 정확한 정의다. **다음 사람 몫으로
+남긴다**(코드 변경 + 재측정 1회).
+
+**③의 근거**: 48회 실행이 20분 넘게 **무출력**으로 돌아 진행을 알 수 없었다. 30초 하트비트를
+걸어 봤더니 "0줄"을 스무 번 반복 보고했다 — **관찰 가능성은 감시 쪽이 아니라 도구가 만든다.**
+출력 없는 도구는 감시해도 침묵이다(D56 "신호를 만드는 것이 아니라 신호를 남기는 것"과 같은 얘기).
+
+**측정(실공고 8건 × 질문 2 × 3회)**: genericScore **-0.0120** · 노이즈 바닥 **0.0712**
+(합성 8공고 0.0398 보다 커졌다 — 실공고가 다양해 회차 변동이 크다) · 공고 밖 기술 비율 0.0665 ·
+`key-requirement` 의 비율은 **실공고에서도 전 회차 0.0000**(가장 믿을 만한 감시 지표).
+데이터셋이 바뀌어 **이전 baseline 과는 비교 불가**다 — 이번이 새 기준선이다.
+
+**선별 규율(실공고)**: `role_category` 라벨을 그대로 믿지 않는다(실측: `data_analyst` 에 네트워크
+엔지니어가 섞여 있다) → 직무명으로 한 번 더 건다. **회사 중복 금지**(넛지헬스케어가 프론트·모바일에
+동시 등장 — 같은 회사는 서식이 같아 유사도를 부풀린다). 테스트가 출처·회사 중복·도메인 수를 잠근다.
+
+**교훈**: 이번에 내 가설이 틀린 방향으로 나왔고, **분리 측정이 그걸 알려줬다.** 두 변경을 함께
+넣었지만 답변 유사도가 저장된 답변의 순수 함수라 사후에 갈랐다 — 재측정 없이 원인을 나눌 수 있게
+설계해 두면(답변 저장, 순수 함수 지표) 함께 넣은 변경도 사후 분리가 된다.
+
+**출처**: `evals/generic_dataset.json`(실공고 8건 + 선별 근거) ·
+`evals/generic_baseline_real8.json` · `eval/generic_score.py`(`_content_only`·진행 인쇄) ·
+`docs/eval-records/2026-08-01_generic-score.md`(네 번째 측정) · `tests/test_generic_score.py`.
+
+### D108 (08-01) 기준선은 **파서가 뽑은 요구사항**이다 — 그리고 답변 쪽 근거와 대칭이어야 한다
+
+**결정**: 제네릭 점수의 공고 유사도 기준선을 "원문에서 서식 낱말 제거" → **파서 산출**로 바꾼다
+(`requirement_baseline_text`). 넣는 칸은 `jobTitle` + `requiredRequirements` +
+`preferredRequirements` + `techStack` + `domainKeywords` + `yearsEvidence` — **답변 쪽 근거
+(`tool_render.posting_facts`)와 같은 칸**이다. 그리고 `posting_baseline()` 이 공고를 **한 번만**
+파싱한다(질문·회차와 무관하므로 회차 간 기준선 변동이 원리적으로 사라진다).
+
+**왜 원문을 버렸나**: D107 에서 실공고로 바꾸자 공고 유사도가 합성 0.5122 → 실공고 **0.5525** 로
+**올라갔다.** 실공고에는 회사 소개·복리후생·근무조건·지원방법이 길게 붙고 그 부분이 직무와 무관하게
+닮았는데, 섹션 제목 낱말만 지우는 필터로는 못 걷어낸다. 부풀린 기준선을 빼면 지표가 관대해진다.
+
+**"비정형 데이터를 담는 칸을 하나 추가해야 하나"에 대한 답: 아니다(사용자 질문).** 실측이 답했다 —
+`mobile-flutter` 기준선이 **64자**로 나와 원문(610자)을 열어 보니 자격요건이 "학력무관" 한 줄뿐이었다.
+**파서가 놓친 게 아니라 공고에 요건이 없었다.** 그런데 그 공고를 가르는 정보(**Flutter 개발자**,
+**IoT·가전·헬스케어·고급 아파트**)는 담당업무 서술에 있었고 **파서가 이미 `jobTitle`·
+`domainKeywords` 로 정형화해 두고 있었다.** 새 칸이 필요한 게 아니라 **내가 있는 칸을 안 썼다.**
+
+**비정형 catch-all 칸은 만들지 않는다.** `rawChunks` 가 실제로 그 칸이고 파서가 **의도적으로
+비운다**("원문 청크는 상태 비대화 방지로"). 그 칸을 쓰면 회사 자랑·복리후생·유의사항이 다시 들어와
+기준선을 오염시킨다 — 원문 비교를 버린 이유가 그것이다. **회사명도 넣지 않는다**: 요구가 아니라
+신원이고, 회사명이 서로 완전히 달라 기준선을 인위적으로 낮춘다(지표를 엄격한 쪽으로 오염).
+
+**효과를 노이즈 0으로 갈랐다.** 기준선은 파서 산출의 함수이고 답변은 저장돼 있으므로 **같은 답변에
+대해** 두 기준선을 각각 계산했다 — LLM 재생성이 없어 비교에 노이즈가 없다:
+
+| 질문 | 빈약 기준선 | 확장 기준선 |
+|---|---|---|
+| study-plan | +0.0107 | **+0.0246** |
+| key-requirement | -0.0046 | **+0.0092** |
+
+delta 가 +0.014 씩 올랐다 = **지표가 엄격해졌다**(전체 +0.0095, 기준선 유사도 0.5271).
+폭은 거의 그대로다 — 기준선은 **한 측정 안에서는** 상수라 그 측정의 노이즈에 기여하지 않는다.
+
+> **부분 뒤집힘 (D109, 08-02)**: 원문은 "기준선은 상수라 노이즈에 기여하지 않는다"였는데 **틀렸다.**
+> 한 측정 *안에서는* 상수였지만 **측정 사이에는** 아니었다 — 파싱이 LLM 이라 기준선 유사도가
+> 0.5271 → 0.5156 으로 움직였고, 그게 delta 이동의 3분의 1을 만들었다. 전후 비교가 쓰는 것은
+> 후자다. 이제 기준선은 데이터셋에 박아 고정한다(D109).
+
+**정정: "바닥이 좁아졌다"고 말할 수 없다.** 4차(실공고·원문기준선) 폭 0.0712, 5차(실공고·파서
+기준선) 폭 0.0271 인데 **둘은 같은 데이터셋·같은 답변 생성 코드**다(기준선은 폭에 영향이 없다).
+2.6배 차이는 **바닥 추정 자체의 무작위성**이다. 관측 범위는 0.0186~0.0712 이고, 전후 비교에는
+**보수적으로 0.07 을 쓴다** — 작은 쪽을 쓰면 노이즈를 개선으로 읽는다. 공고를 8개로 늘려도 폭이
+안 줄었으므로, 안정시키려면 **runs 를 늘려야 한다**(runs=5 = 80회 실행 ≈ 50분, 비용 판단 필요).
+
+**교훈**: 이번 세션에서 **비대칭을 세 번 잡았다** — ① 공고만 서식 제거(답변은 안 함) ② 답변만
+라벨 제거(기준선 칸은 부족) ③ 기준선에 jobTitle·domainKeywords 누락. 지표는 **양쪽에 같은 규칙**을
+적용해야 하고, 그 확인 방법은 "한쪽에 한 처리를 다른 쪽에도 했는가"를 매번 묻는 것이다.
+
+**출처**: `eval/generic_score.py`(`requirement_baseline_text`·`posting_baseline`) ·
+`evals/generic_baseline_real8_parsedbase.json`(`meta.recomputedNote` 에 빈약 기준선 값) ·
+`docs/eval-records/2026-08-01_generic-score.md`(다섯 번째 측정) · `tests/test_generic_score.py`.
+
+---
+
+### D109 (08-02) 노이즈 바닥은 **범위가 아니라 SEM** 이고, 기준선은 **데이터셋에 고정**한다
+
+**결정**: 제네릭 점수의 전후 비교 문턱을 `range`(max−min) 대신 **합동 σ 로 정한 상수**
+(`comparison_threshold(runs) = 2 × 0.0199 / √runs`, runs=5 에서 **0.0178**)로 바꾼다. 그리고
+기준선(공고 요건 유사도)의 입력을 측정마다 LLM 으로 파싱하지 않고 **`evals/generic_dataset.json` 의
+`baselineText` 에 박아 둔다** — 갱신은 `--refresh-baseline` 으로 명시할 때만.
+
+**왜 — 세 결함이 같은 증상을 만들고 있었다.** D106~D108 은 "노이즈 바닥"을 범위로 정의하고
+"공고를 8개로 늘려도 안 줄었으니 runs 를 늘려야 한다"고 남겼다. runs 를 5로 늘려 실측하니 바닥이
+**더 나빠졌다**(0.0271 → 0.0375). 그 관측을 두 갈래로 뜯어 원인이 둘임을 확인했다.
+
+**① 추정량이 틀렸다 — 범위는 표본이 늘면 커진다.** 극단값을 만날 기회가 늘기 때문에, 범위는
+흩어짐이 그대로여도 n 과 함께 증가한다. 즉 **범위로는 "표본을 늘려 안정시켰다"를 원리적으로 보일
+수 없다.** 같은 데이터를 SEM 으로 다시 재니 runs 를 늘린 효과가 실제로 있었다:
+
+| 질문 | n=3 평균 / σ / SEM / 범위 | n=5 평균 / σ / SEM / 범위 |
+|---|---|---|
+| study-plan | +0.0172 / 0.0140 / **0.0081** / 0.0271 | +0.0151 / 0.0091 / **0.0041** / 0.0232 |
+| key-requirement | +0.0019 / 0.0102 / **0.0059** / 0.0185 | +0.0341 / 0.0160 / **0.0072** / 0.0375 |
+
+study-plan 은 SEM 이 **반으로 줄었다**. 범위만 보고 "안 줄었다"고 판단했던 것이다. 평균의
+불확실성은 SEM 이고, 전후 비교는 두 측정의 불확실성을 다 안으니 보수적으로 **2×SEM** 을 문턱으로 쓴다.
+`range`·`min`·`max` 는 진단용으로 남긴다(어느 회차가 튀었는지 보려면 필요하다).
+
+**② 눈금자가 상수가 아니었다.** ①로도 `key-requirement` 평균이 +0.0019 → +0.0341 로 움직인 것은
+설명되지 않는다(두 값 집합이 거의 겹치지 않는다: ≤0.0087 vs ≥0.0131). 기준선을 따로 꺼내 보니:
+
+| | runs=3 | runs=5 | 차이 |
+|---|---|---|---|
+| 기준선(공고) 유사도 | 0.5271 | **0.5156** | **−0.0115** |
+| 답변 유사도(평균) | ~0.5290 | ~0.5498 | +0.0210 |
+| → delta | +0.0019 | +0.0341 | +0.0322 |
+
+delta 는 답변에서 기준선을 뺀 값이므로, **답변이 하나도 안 변해도 기준선이 내려가면 점수가
+올라간다.** 이동분 +0.032 중 **0.0115(3분의 1)가 기준선 몫**이었다. 원인은 `posting_baseline()` 이
+측정마다 `posting_analysis._parse()` 를 다시 불러 **LLM 파싱이 매번 조금씩 달랐던 것**이다.
+
+D108 은 "기준선은 상수라 노이즈에 기여하지 않는다"고 적었는데 **그 문장이 틀렸다.** 같은 측정
+*안에서는* 상수였지만(질문·회차에 무관), **측정 사이에는 상수가 아니었다** — 그리고 전후 비교가
+쓰는 것은 후자다. 파싱은 읽기 계층이라 LLM 이 맞지만(§1), 그 산출을 **측정의 눈금자로 쓸 때는 한 번
+뽑아 고정해야 한다.** 지금은 데이터셋에 박고, 없으면 점수를 만들지 않고 **멈춘다**(§2-1 — 일부만
+비면 빈 문자열끼리 비슷해서 유사도가 조용히 왜곡된다).
+
+**대가**: 공고나 파서를 바꾸면 눈금자가 바뀌므로 `--refresh-baseline` 후의 값을 **이전 baseline 과
+직접 비교할 수 없다.** 그 사실을 갱신 시 콘솔에 인쇄한다. 부수 효과로 측정마다 파싱 LLM 8회가
+사라져 더 빠르다.
+
+**교훈**: **측정 장치가 측정 대상만큼 흔들리면 어떤 전후 비교도 성립하지 않는다.** 그리고 흩어짐을
+말할 때 어떤 추정량을 쓰는지가 결론을 바꾼다 — 같은 데이터가 범위로는 "악화", SEM 으로는 "절반
+개선"으로 읽혔다. 이 저장소의 §3-3("총계가 아니라 케이스별")에 하나를 더한다: **어떤 통계량으로
+보고 있는지도 확인한다.**
+
+**③ SEM 자체가 n=5 로는 못 믿을 추정치였다.** ①·②를 고치고 다시 재니(runs=5, 기준선 0.5265 고정)
+study-plan SEM 이 0.0041 → **0.0119**(3배), key-requirement 는 0.0072 → **0.0036**(반)으로 **반대
+방향으로 갈렸다** — 사전 등록한 판정 기준을 통과하지 못했다. 세 측정의 측정내 변동을 합동 계산하니:
+
+| 질문 | 측정별 σ (각 n=5) | 합동 σ (자유도 8) |
+|---|---|---|
+| study-plan | 0.0091 · 0.0267 | **0.0199** |
+| key-requirement | 0.0160 · 0.0080 | **0.0126** |
+
+n=5 에서 σ 추정의 90% 구간은 참값의 **×0.60~×2.37** 이다(χ², 자유도 4). 0.0091 vs 0.0267(2.9배)은
+노이즈 변화가 아니라 **추정 오차 안**이다. 그러므로 **측정마다 SEM 을 문턱으로 쓰면 문턱이 3배
+흔들린다** — "개선했다"의 기준이 매번 바뀐다. 그래서 문턱은 여러 측정의 합동 σ 로 정한 **상수**로
+두고, 측정마다 나오는 SEM·범위는 **진단용**으로만 인쇄한다. 좁히는 손잡이는 runs 하나뿐이고 √runs
+로만 줄어든다(runs=20 → 0.0089, 실행 320회 ≈ 3시간).
+
+**기준점**: 눈금자 고정 후 첫 측정이 이후 비교의 출발점이다 — study-plan +0.0255 / key-requirement
++0.0316 / 전체 **+0.0285**, 공고 밖 기술 비율 0.0655. **이전 다섯 측정과 직접 비교하지 않는다.**
+
+**출처**: `eval/generic_score.py`(`_POOLED_SD`·`comparison_threshold`·`_spread`·`posting_baseline`·
+`parse_baseline`·`refresh_baseline`) ·
+`tests/test_generic_score.py`(3개 추가) · `docs/eval-records/2026-08-01_generic-score.md`(여섯 번째
+측정) · `evals/generic_baseline_real8_frozen.json`.
+
+---
+
+### D110 (08-02) 자소서 근거는 **넓게 주고 LLM 이 좁힌다** — 강조 재작성 요청의 matcher 를 만들지 않았다
+
+**결정**: `coverletter_draft` 의 근거 재료를 프로필 전 섹션(특히 이력서 원문 문장 `evidenceMap`)
+으로 넓히고, `find_evidence` 의 인자를 **필터에서 정렬 힌트로 격하**한다(문자 일치 0건이어도
+전문을 함께 돌려준다). "강조 요청이 반영됐나"를 재는 **기계적 검사는 만들지 않는다.**
+
+**무엇이 문제였나**: 자소서의 실사용은 한 번 받고 끝이 아니라 "트러블슈팅 살려서 다시 써줘"다.
+그런데 그 요청은 이력서에 **그 단어가 없어도 성립한다** — 이력서엔 *장애 대응*·*성능 개선*·
+*디버깅* 으로 적혀 있다. 구버전은 두 겹으로 막혀 있었다: ① `_collect_facts` 가 네 섹션·20건만
+보고 `evidenceMap` 을 통째로 버렸다(재료에 아예 없다) ② `find_evidence` 가 substring 필터라
+0건이면 `"확인되지 않습니다"` 로 끝냈다.
+
+**왜 matcher 를 안 만들었나 — 처음 안이 그것이었고 버렸다.** `_check_report` 에 "focus 를
+반영했나"를 넣자는 안이 먼저 나왔지만, 그것은 substring 대조라 **지금 고치려는 문제(문자 대조의
+한계)를 검사 쪽에 그대로 복제한다.** taxonomy 를 "트러블슈팅"까지 넓히는 안도 같은 함정이다 —
+어휘를 아무리 늘려도 "좀 더 임팩트 있게" 같은 요청은 못 잡는다. **의미 판단을 하는 엔진은 이미
+있다(LLM). 좁은 것은 판단이 아니라 재료와 지시였다.** `_check_report` 는 셀 수 있는 것(문장
+수·금지표현·근거 없는 스킬·요건 커버리지)만 계속 센다. 세는 척하면 다시 좁아진다.
+
+**측정** (claude_code/sonnet, runs=5, 대조군은 HEAD `2103725` 파일 스왑 — 같은 공급자로 다시
+돌렸다. `evals/loop_baseline.json` 은 openai/gpt-4.1-mini 라 **비교 대상이 아니다**):
+
+| 케이스 | 지표 | 대조군 | 실험군 |
+|---|---|---|---|
+| `coverletter_emphasis`(신설) | 불변식 위반 | **5/5** | **0/5** |
+| | 궤적 안정성 / 스텝 / 콜 | 0.60 / 3.6 / 4.6 | **1.00 / 3.0 / 4.0** |
+| `coverletter_draft` | 불변식 위반 | 0/5 | 0/5 |
+| | 궤적 안정성 / 스텝 / 콜 | 0.60 / 4.2 / 6.0 | **0.80 / 3.2 / 4.4** |
+
+대조군 궤적에 대가가 찍혔다: `find_evidence` 2~3연타(0건 받고 인자 비워 재호출 — `_MAX_STEPS=7`
+에서 재작성 기회 하나와 맞바꾼 스텝)와, 1/5 는 저장 없이 종료해 **재작성 요청인데 이전 초안이
+그대로 다시 나갔다**(`_has_draft` 가 이전 턴 자산으로 True).
+
+**뜻밖의 결과 — 재료를 늘리는 쪽이 토큰을 덜 썼다.** 평범한 초안 요청에서 대조군은
+`ask_agent→resume_diagnosis` 를 **4/5 run** 에서 불렀다. 프롬프트가 "근거가 빈약하면 물어보라"고
+하는데 재료를 20건으로 좁혀 둔 탓에 실제로 빈약해 보였던 것이다. 넓히니 **1/5**, 콜 6.0 → 4.4.
+**좁은 재료가 LLM 을 추가 조회로 몰고 있었다.**
+
+**남은 것**: `coverletter_emphasis` 에서 `coverletter_check_unresolved` 가 **양쪽 arm 5/5** 로
+뜬다(이번 변경과 무관). 부분 수정 요청에서 손대지 않은 문단의 지적을 어떻게 다룰지는 별개
+결정이다 — 지금은 경고로 남긴다.
+
+**출처**: `agents/coverletter_draft.py`(`_collect_facts`·`_tool_find_evidence`·`_GOAL_SYSTEM`) ·
+`eval/loop_consistency.py`(`coverletter_emphasis` 케이스, `--case` 필터) ·
+`tests/test_coverletter_loop.py`(3개 추가·1개 계약 교체) ·
+`docs/eval-records/2026-08-02_coverletter-evidence-widening.md` ·
+`evals/loop_coverletter_control_claude.json` · `evals/loop_coverletter_after_claude.json`.
+
+---
+
+### D111 (08-02) 공고 지목이 **하나면 전환, 둘 이상이면 비교** — 라이브러리를 뚫는 대신 활성을 바꾼다
+
+**결정**: `fit_analysis` 의 `targets` 인자가 **하나**면 그 공고를 활성 공고로 갈아 끼우고
+(`job_posting` 원문 + `posting_summary` 를 함께 교체) 평소 단일 경로로 판정한다. **둘 이상**은
+비교이므로 D88 대로 활성을 건드리지 않는다. 라이브러리 항목에 원문(`_sourceText`)을 함께
+저장해 이 전환을 무손실로 만든다.
+
+**왜**: D86 으로 정리했던 공고들이 화이트보드에 남고, D88 로 그 공고들을 각각 **판정**할 수도
+있게 됐다. 그런데 `len(targets) >= 2` 라 **지목이 하나면 반복 판정 경로에 들어가지도 못하고
+활성 공고가 그대로 판정됐다** — 지목이 통째로 무시된 것이다. 결과가 조용히 틀린다:
+"예전에 본 그 공고로 자소서 써줘" 가 **다른 회사 자소서**를 냈다.
+
+**왜 라이브러리를 하류에 뚫지 않았나**: `coverletter_draft`·`interview_prep` 이 라이브러리를
+직접 보게 하는 것이 언뜻 자연스럽지만, 라이브러리 항목에는 **gaps 가 없다**. gaps 는 활성 공고
+기준으로만 계산되므로(D88 이 `analysis` 승격을 활성으로 제한한 이유가 그것이다) 공고만 갈아
+끼우면 보완 문단이 엉뚱한 격차를 다룬다 — 지금보다 나쁘다. 대상을 바꾸는 유일하게 일관된
+방법은 **활성 공고 자체를 바꾸는 것**이고, 그러면 하류는 한 줄도 고칠 필요가 없다.
+
+**대가**: 라이브러리가 공고 원문을 최대 5벌 들고 있게 된다(공고 하나 수 KB). 원문 없이는
+`job_posting` 을 되돌릴 수 없어 재파싱이 돌고(D79 캐시 무효) 원문 grep 도구가 죽는다 —
+자리표시자로 때우는 쪽이 더 비쌌다. 밑줄 키는 소비자가 전부 필드를 골라 쓰므로
+(`posting_facts`·`job_items`) 화면·프롬프트로 새지 않는다. 걸러 내는 조건은 이름 나열이 아니라
+`startswith("_")` 로 바꿨다 — 네 군데가 `_sourceHash` 만 걸러 내고 있었고, 밑줄 키가 하나 늘 때마다
+네 곳을 고쳐야 하는 구조였다.
+
+**안 한 것**(→ **뒤집힘: D119 이 이력서 라이브러리를 만들었다. 등록 구멍은 D121**):
+**이력서 라이브러리.** `resume`/`profile` 은 여전히 슬롯 하나라 "처음에 올린
+이력서로" 는 성립하지 않는다. 공고는 한 대화에서 여러 개를 훑는 것이 정상 사용이지만 이력서는
+그렇지 않다 — 실제로 여러 벌을 올리는 사용이 관측되면 그때 같은 방식(원문 포함 라이브러리)으로
+넓힌다.
+
+**출처**: `agents/fit_analysis.py`(`_switch_active`·`run`) · `agents/posting_analysis.py`
+(`_sourceText` 저장) · `agents/__init__.py`(`targets` 인자 설명 — 하나 지목의 뜻을 플래너에게 알린다) ·
+`tests/test_orchestrator.py::test_fit_analysis_single_target_switches_active_posting`.
+
+### D112 (08-02) 대안 공고 쿼리에서 **갭을 뺀다** — 식별자 노이즈도, 미충족 스킬도 싣지 않는다
+
+**결정**: `_build_alternative_query` 는 공고(직무·직군·techStack)와 하위 직업군만으로 쿼리를
+만든다. `gap` 인자를 지웠다. 전에는 미충족 요건을 `requirementId`("tech-3"·"req-5")로 실어
+**식별자가 검색어로 들어갔다.**
+
+**왜 키워드 검색에서는 안 보였나**: 점수가 `매칭 용어 수 / 전체 용어 수` 라 `tech-3` 은 모든
+후보를 똑같이 깎아 랭킹이 변하지 않았다 — 증상 없는 노이즈였다. D89 로 provider 가 의미
+검색(bge-m3 + 리랭커)으로 바뀐 순간 그 토큰이 쿼리 임베딩을 흐리는 실결함이 됐다.
+*검색 엔진을 갈면 쿼리 빌더의 잠재 결함이 깨어난다.*
+
+**그 자리를 미충족 스킬로 채우지 않은 이유 — 목적이 반대다**: 대안 공고의 가치는
+`reducedGaps`(= 목표 공고에선 부족했는데 **이 자리는 요구하지 않는** 역량)로 계산된다
+(`_alternatives_from_rag`). 부족한 스킬을 검색어로 넣으면 그 스킬을 **요구하는** 공고를 끌어와
+후단에서 감점될 후보로 pool 을 채운다. 미충족 스킬을 검색에 쓰는 것이 맞는 자리는
+`job_recommend`(적합 공고 추천)이고, 그쪽은 이미 **보유** 역량·선호로 쿼리를 만든다.
+
+**중간에 틀린 것**: 처음엔 `gaps[].text` 로 고쳤다. `Gap` 모델에 `text` 는 없다
+(`requirementStatus` 쪽에만 있다) — 실측에서 기술어가 빈 목록으로 나와 잡혔다. 뽑을 값이
+필요하면 `missingSkills`(gap_matcher 가 계산한 표준 스킬명)가 정본이다.
+
+**실측** (2026-08-02, 실 RAG 8765 warm. 백엔드 공고 1건 · Java/Spring 보유 · K8s/Kafka/Redis 미충족):
+
+| 쿼리 | 상위 점수 | 상위 5건의 성격 |
+|---|---|---|
+| OLD (`req-2 req-3 pref-1 seniority-1` 포함) | 0.961 | **경력 7년 이상 시니어 공고 2건** 포함 |
+| 갭 없음 (채택) | **0.994** | 신입·경력무관·3-5년 — 시니어 공고 빠짐 |
+| missingSkills 추가 | 0.998 | 상위 5건 전부 교체, 1위가 다시 "경력 7년 이상", K8s **요구** 공고 유입 |
+
+**한계**: 쿼리 1건·리랭커 점수 0.99 포화 구간이라 순위 차를 과신하지 않는다(§3-3). 채택 근거의
+무게는 점수가 아니라 **`reducedGaps` 와 방향이 반대**라는 구조에 있다.
+
+**남은 문제(OPEN)**: `find_alternatives` 에는 `job_recommend` 의 연차 필터가 없다 — OLD 쿼리가
+7년 이상 공고를 상위로 끌어와도 걸러지는 지점이 없었다. 별 결정이다.
+
+**출처**: `graph/nodes.py`(`_build_alternative_query`·`find_alternatives` 호출부) ·
+`tests/test_nodes_and_rag.py::test_build_alternative_query_uses_posting_only_not_gaps`.
+
+### D115 (08-02) 연차 필터는 **대안 공고에도** 적용한다 — 판정은 `postings_db` 한 곳에서
+
+**결정**: `find_alternatives` 도 검색 후보를 연차로 거른다. 판정 함수는 `job_recommend` 에서
+`postings_db.fits_experience` 로 **옮겨** 두 소비자가 같은 규칙을 쓰게 했다(관용 상한
+`OVER_YEARS_TOLERANCE=1.0` 도 함께 이동).
+
+**왜**: 필터가 추천 경로에만 있어서, 같은 사용자가 "공고 추천"에서는 연차로 걸러진 목록을
+받고 "대안 공고"에서는 요구 연차가 더 높은 공고를 받았다 — D112 실측에서 상위 5건에
+'경력 7년 이상' 2건이 들어와 있었다. 대안 경로는 정의상 **지금 갈 수 있는 자리**인데
+목표보다 높은 연차를 요구하는 공고는 대안이 아니다. 한쪽 호출부에만 가드를 두면 형제
+호출부는 계속 뚫려 있다 — 그래서 두 경로가 지나가는 자리에 한 번 둔다.
+
+**그래프에서는 프로필 추정만 쓴다**: `job_recommend` 는 대화로 말한 경력 수준(세션
+`preferences.experienceLevel`)을 먼저 보지만, 판정 그래프에는 세션이 없다. 프로필 추정
+(`estimate_experience_months`)만 쓰고 **모르면 거르지 않는다**(§2-1).
+
+**폴백 사유를 구분한다**: 연차로 후보가 전부 빠져 경로 유형만 남은 경우를 "RAG 미연결"로
+적으면 사유가 사라진다(§2-6). `experience_filtered` 경고와 별도 `uncertainties` 문장을 낸다.
+
+**실측** (2026-08-02, 실 RAG 8765): 이 쿼리의 상위 5건은 정형 표기가 전부 신입 가능
+(`신입`·`신입·경력`)이어서 제외 0건이었다 — D112 로 시니어 공고가 이미 상위에서 빠졌기
+때문이다. 필터는 그 위의 안전망이고, 실제로 무는 동작은 유닛 테스트가 고정한다.
+
+**남은 문제(OPEN)**: 정형 표기가 `신입·경력` 인데 제목이 "풀스택 개발자 - 경력 3년 이상"인
+공고가 통과했다. `posting_floor_years` 가 **신입 표기를 제목으로 뒤집지 않기로** 한 기존
+결정(제목은 올릴 때만, `floor > 0` 일 때만) 때문이다. 뒤집으면 '신입·경력' 공고를 신입에게서
+빼앗을 위험이 있어 이번에 손대지 않았다.
+
+**출처**: `postings_db.py`(`fits_experience`·`OVER_YEARS_TOLERANCE`) ·
+`agents/job_recommend.py`(중복 제거) · `graph/nodes.py`(`find_alternatives` 3-b 단계) ·
+`tests/test_nodes_and_rag.py::test_find_alternatives_excludes_experience_mismatch` ·
+`tests/test_improvements.py::test_fits_experience`.
+### D117 (08-02) **예상 밖 상황은 예측하지 말고 센다** — 폴백 계측 · 수확기 · 미확인 URL 가드
+
+**결정**: 셋을 함께 넣었다. 하나의 조사(출시 뒤 예상 못한 요청을 어떻게 받나)에서 나왔고
+근거가 같다.
+
+1. `career_chat` 이 **고정 안내문으로 강등할 때 `career_chat_fallback` 경고**를 올린다.
+2. `scripts/harvest_sessions.py` — 세션 저장소에서 어긋난 신호를 사후에 세는 읽기 전용 도구.
+3. 저장된 `analysis` 가 있을 때, **채용사이트로 알아볼 수 없는 주소는 공고로 등록하지 않는다.**
+
+**왜 (1)**: 폴백 원인 셋(미설정·호출 실패·금지표현 강등) 중 **금지표현·빈 응답만 무음**이었다
+— §2-6("폴백은 이유를 삼키지 않는다")을 어기는 마지막 자리였다. 실측(`sessions.sqlite3`
+133세션·275턴): 이 고정 문구가 **7건(2.5%)** 나갔는데 전부 **정상 요청**이었다("이 공고와 내
+자료로 적합도를 분석해 주세요"·"응, 진단해줘"·"위로해줘"). 범위 밖 질문이 메뉴를 받은 것이
+아니라 핵심 기능 요청이 메뉴를 받았다. 원인마다 처방이 다르므로(재작성 루프 vs 인프라)
+**세는 것을 먼저** 넣고, 분포를 보고 다음을 정한다 — 측정 없이 재작성 루프를 넣으면 원인이
+후자일 때 아무것도 고치지 못한다.
+
+**왜 (2)**: `eval/` 하네스 5종은 전부 **사전 정의 케이스**를 잰다. 그건 우리가 예상한 것만
+재는 것이고, 출시 뒤에 오는 것은 정의상 예상 밖이다. 반대편이 하나도 없었다. 읽는 곳이
+세션 `history` 인 이유는 그것이 **발화와 답변이 함께 영속하는 유일한 곳**이기 때문이다
+(로그는 stdout 전용이라 휘발하고, `warnings` 는 응답과 함께 사라지고, trace 는 턴 끝에
+소멸한다). 그래서 신호를 답변 **문구**로 잡을 수밖에 없고, 문구 지문은 문구가 바뀌면 **조용히
+0을 보고**한다 — 0 은 "괜찮다"로 읽히므로 그게 이 도구 최대의 실패다. `_assert_fingerprints_alive()`
+가 소스에 지문이 남아 있는지 확인하고 없으면 죽으며, 그 검사를 회귀 테스트로 묶어
+문구를 고치면 테스트가 먼저 깨지게 했다.
+
+**왜 (3)**: 발화의 URL 은 도메인 무제한으로 잡혀 곧바로 `job_posting` 을 교체하고
+`analysis` 를 무효화한다. 대화 중에 붙인 깃허브·포트폴리오 링크가 **수십 초짜리 판정을
+말없이 지운다** — D98(짧은 텍스트가 저장 이력서를 못 지운다)이 이력서 쪽에서 막은 것과 같은
+종류의 파괴인데 공고 쪽에는 짝이 없었다. 조건을 "공고 보유"가 아니라 **"분석 보유"** 로 좁힌
+이유가 둘: ① 분석이 없으면 교체는 되돌릴 수 있어(다음 링크가 다시 덮는다) 막을 것이 없고,
+② 회사 자체 채용페이지(`careers.*`)는 화이트리스트에 없어서 넓게 걸면 **정상 공고를 놓친다.**
+화이트리스트(`JOB_SITE_HOSTS`)는 판별 수단이지 공고의 정의가 아니다. 걸러낸 주소는 버리지
+않는다 — 메시지 원문에 그대로 있어 플래너가 읽는다(D98 의 되돌리기 규약과 같다).
+
+**측정이 우선순위를 뒤집었다**: 조사 시점의 순위는 (3)이 1위, (1)이 4위였다. 275턴 실측에서
+(3)의 해당 사례는 **0건**, (1)은 **7건**이었다. (3)을 남긴 것은 손실이 비가역이고 코퍼스가
+QA 스크립트(로스터를 아는 사람이 쓴 발화 121종 중 합성 76건)라 0 이 안전의 증거가 아니기
+때문이다 — **이 코퍼스로는 OOD 빈도를 원리적으로 못 잰다.** 실사용자 첫 주가 첫 측정
+기회다.
+
+**4. `unsupportedRequest` (함께 넣었다)**: `AgentPlan` 에 로스터 밖 요청을 **발화 원문으로**
+신고하는 자유 문자열 칸. 기존 `blockedRequests` 는 `list[AgentName]` — **Literal 이라 로스터에
+없는 요청은 신고할 칸 자체가 없었고**, 그래서 "연봉 협상"·"포트폴리오 리뷰" 류는 `career_chat`
+이 즉흥으로 받고 시스템에 흔적이 0이었다. 출시 뒤 무엇이 오는지 아는 유일한 방법이 사용자가
+실제로 청한 것을 세는 것인데 셀 자리가 없었다.
+
+- **라우팅은 바꾸지 않는다.** 이 칸이 채워져도 계획은 그대로 돈다. 무엇이 오는지 모르는 채로
+  갈래를 만들면 근거 없는 판단을 코드로 못 박게 된다 — **세기만 하고** 첫 주 데이터로 로스터
+  후보를 정한다.
+- **세션(`unsupported_requests`, 상한 20)에 남긴다.** 로그는 stdout 전용이라 휘발하고
+  `warnings` 는 응답과 함께 사라진다 — 남기지 않으면 이 칸이 아무것도 생산하지 못한다.
+  수확기가 읽는 **유일하게 문구 지문이 필요 없는 신호**다.
+- **판단 원칙에는 한 줄도 더하지 않았다** — §3-1 실측(규칙 추가 −0.022 / 선택지 정의 좁히기
+  +0.058)대로 스키마 description 만으로 지시한다.
+
+**재측정 (§3-6) — 회귀 없음, 단 대조군을 새로 떠야 했다**: 52 × 3 을 **네 판** 돌렸다.
+직전 기록(08-01)의 숫자는 대조군으로 못 쓴다 — 그 사이 D111(`4d04dbb`)이 `fit_analysis.targets`
+params 설명을 넓혀 **플래너 어휘가 이미 바뀌어 있었다.** 그래서 부모 커밋(`13d6957^`)에서
+직접 대조군을 냈다.
+
+| | 정확 | 안정 | blocked | unstable |
+|---|---|---|---|---|
+| 대조군 `13d6957^` | 0.9808 | 0.9872 | 0.8334 | 2 |
+| **내 변경 `13d6957`** | **0.9872** | **0.9936** | **1.0** | **1** |
+
+모든 지표가 같거나 낫다(n=3 이라 우위는 노이즈로 읽고 **동등**으로 판정). 흔들린
+`fit-missing-resume-degrade` 는 **대조군에서도 0.33/0.67 로 똑같이** 흔들리므로 이 필드가
+만든 flakiness 가 아니다. 상세·오염된 초기 두 판까지:
+`docs/eval-records/2026-08-02_planner-unsupported-request.md`.
+
+**함께 드러난 OPEN (이 커밋 소관 아님)**: `13d6957^` 에서 **이미** 정확 0.9808 · unstable 2 다
+— **08-01 의 "52케이스 1.0" 은 지금 성립하지 않는다.** `stable_wrong 0` 이라 명세 결함이 아니라
+flaky 이고(§3-3), 1순위 용의자는 플래너 어휘를 넓히고 재측정하지 않은 D111 이다. 단정하지
+않는다 — `4d04dbb^` 에서 같은 측정을 돌려야 지목할 수 있다. `다음작업.md` §2-H 1순위.
+
+**이 하네스가 못 잰 것도 적는다**(§3-5): 52케이스는 전부 로스터 안의 요청이라 잰 것은
+"기존 라우팅을 안 망가뜨렸다" 하나뿐이고, **이 필드가 노리는 능력(로스터 밖 요청을 알아보는
+것)은 재지 않았다.** 케이스를 넣어 재려 해도 *무엇을 넣을지가 곧 우리가 예상한 것*이라 예상
+밖 요청을 재지 못한다 — 첫 측정은 실사용자 첫 주의 수확기 집계다.
+
+**출처**: `agents/career_chat.py` · `scripts/harvest_sessions.py` ·
+`orchestrator/chat.py`(`JOB_SITE_HOSTS`·URL 인테이크) ·
+`tests/test_improvements.py::test_career_chat_fallback_reports_reason` ·
+`tests/test_improvements.py::test_harvest_fingerprints_still_exist_in_source` ·
+`tests/test_url_intake.py::test_unknown_host_url_does_not_destroy_analysis`.
+
+### D118 (08-02) 요구 연차는 **LLM 이 읽고**(근거 검증), 사다리 칸은 **룰이 정한다**
+**결정.** `minYears`/`maxYears`/`yearsEvidence` 를 파서 LLM 스키마(`_JobPostingRead`)에 넣고,
+`yearsEvidence` 가 원문에 **그대로** 있을 때만 채택한다. 검증 실패면 정규식 값으로 되돌리고
+`years_evidence_unverified` 경고를 올린다(§2-6). `seniority`(사다리 칸)는 그대로 룰이고,
+`classify_seniority` 의 우선순위를 **연차 → 키워드**로 뒤집었다. ASCII 별칭은 단어 경계로만
+맞춘다.
+
+**왜 — 정규식은 "숫자가 몇인가"는 알아도 "어디에 적혔나"를 모른다.** `rule_extractor` 주석에
+같은 오독이 넷 쌓여 있다(연도 "2025년"의 꼬리, "차세대"의 차, "학력무관", 프로젝트 나열 속
+"8년 이상"). 넷 다 패턴을 좁혀 막았지만 다섯 번째가 왔다 — 잡코리아 Gno=49638113 은 경력
+3년 공고인데 회사 소개 "Global **Lead**ing DX Company" 의 `lead` 가 별칭 매칭에 걸려
+`seniority=lead`(10년+)로 나갔고, 그 값이 `_seniority_requirement` 를 타고 gap_matcher 연차
+사다리로 들어간다. 4년 경력자가 3년 공고에서 미달로 판정될 수 있었다.
+
+**§1 위반이 아니다.** 비정형 → 정형 필드 추출은 읽기 계층이다. 판단(years → 5칸 사다리,
+사용자 연차와의 비교)은 결정론으로 남았다. 바뀐 것은 **읽기의 구현**뿐이다.
+
+**§2-5 는 검증으로 지킨다.** LLM 이 연차를 지어내는 것을 막는 것은 프롬프트가 아니라
+`evidence in text` 다 — 원문에 없는 근거를 대면 값 전체가 버려진다.
+
+**뒤집을 조건.** 근거 검증 실패율(`years_evidence_unverified`)이 눈에 띄게 오르면 룰 우선으로
+되돌린다. 실측: 잡코리아 Gno=49638113 재파싱에서 `minYears=3`, `yearsEvidence="경력 : 3년 이상"`,
+`seniority=mid`, 검증 통과. LLM 이 스스로 "'2027년 SM 전환 가능성' 등 계약 기간 서술은 요구
+연차와 무관하여 제외함"을 `uncertainties` 에 남겼다 — 정규식이 못 하는 구분이다.
+
+**같은 커밋의 짝 — 응답이 수집한 것을 더 말한다.** `posting_facts` 에
+`minYears`/`maxYears`/`yearsEvidence` 를 실었다(사다리 칸 "리드"는 공고에 없는 단어라
+루프가 공고가 한 말로 말할 수 있어야 한다). `posting_analysis` 의 firstLook 지시에 "필수·우대를
+빠짐없이, 파싱 칸이 없는 조건(고용형태·기간·근무지·마감·전형절차·복리후생)은 read_posting 으로
+확인해 함께" 를 넣었다. **"…는 기재가 없습니다"를 쓰지 못하게 막았다** — 실측(08-02): 근무시간·
+복리후생이 원문에 있는데 확인 없이 "없음"으로 나갔다(§2-1 — 못 찾은 것과 없는 것은 다르다).
+### D119 (08-02) 이력서도 **라이브러리**를 갖는다 — 슬롯 하나를 두고 세 원천이 서로를 덮던 것
+**결정.** `resume_library` 세션 자산(상한 5)을 만들고, 공고 쪽 기제를 축만 바꿔 그대로 옮겼다:
+`upsert_resume_library`(D86의 짝) · `resume_diagnosis.targets`·`fit_analysis.resumeTargets`
+지목(D88의 짝) · `switch_active_resume`(D111의 짝) · `facts.otherResumes`(D81의 짝).
+`fit_analysis` 는 이력서 축으로도 반복 판정한다(`_run_multi_resume`).
+
+**왜 — 공고는 기억하는데 이력서는 못 기억했다.** 이력서는 한 대화에 세 원천으로 들어온다:
+커리어 저장소 요약(백엔드가 매 요청에 실어 보냄) · 대화창 붙여넣기 · 파일 업로드. 셋이 슬롯
+하나를 두고 경쟁했고, 방어는 둘뿐이었다 — M7(요약이 원문을 못 덮음) · D98(짧은 텍스트가
+못 덮음). 그 밖에는 **새 이력서가 오면 이전 것이 사라졌다.** 그래서 셋 다 불가능했다:
+어느 이력서로 답했는지 밝히기 · 여러 개 보관 · 이력서 간 비교.
+
+**어느 것으로 답하는지를 먼저 고쳤다.** 커리어 요약은 조각 제목+완료 노드뿐이라 붙여넣은
+원문보다 훨씬 얇은데, 같은 질문에 다른 답이 나와도 이유가 화면에 없었다. `resume_identity`
+가 라벨을 주고 `facts.resumeLabel`·폴백 문장이 밝힌다.
+
+**표식을 새로 심지 않았다.** 파일 업로드는 `sourceType == "file"` 이 곧 증거이고, 커리어
+요약은 v2bridge 가 이미 `origin="career_summary"` 를 찍는다(무상태 계약의 부산물). 나머지는
+붙여넣기다. 입구마다 등록 코드를 심으면 **다음 입구를 만드는 사람이 그것을 다시 지켜야
+한다** — 공고 쪽에서 실제로 그렇게 흩어져 있었다. 등록은 `ensure_profile` 한 곳에서 한다
+(모든 이력서 소비자가 거기로 합류한다).
+
+**활성 전환은 `analysis` 를 무효화한다.** 판정은 이력서×공고의 함수라, 이력서가 바뀌면
+이전 판정은 다른 사람의 판정이다. 공고 전환(D111)에는 없던 조항이다.
+
+**두 축을 동시에 펼치지 않는다.** 공고 비교와 이력서 비교를 함께 청하면 조합이 곱으로 늘어
+읽을 수 없는 표가 된다. 공고 축이 이기고 이력서 축은 접되, `resume_axis_folded` 경고로
+접었다는 사실을 남긴다(§2-6).
+
+**D98·M7 의 뜻을 옮겼다(지우지 않았다).** 두 가드는 "슬롯이 하나라 덮어쓰면 파괴된다"에서
+나왔는데, 라이브러리가 생겨 파괴는 사라졌다. 그러나 **짧은 발화가 활성을 바꾸면 안 되는
+것은 여전하다** — 근거가 "교체 금지"에서 "활성 전환 금지"로 바뀌었을 뿐이다.
+
+**곁가지 수정.** `read_resume` grep 도구가 업로드 파일일 때 `resume["value"]`(경로 문자열)를
+원문이라고 훑고 있었다. `resume_source_text` 가 파일을 추출해서 준다.
+
+**측정.** 유닛 11건 신규(`tests/test_resume_library.py`), 전체 606 통과.
+
+manifest 에 인자 두 개(`resume_diagnosis.targets`·`fit_analysis.resumeTargets`)가 늘었으므로
+플래너를 재측정했다(§3-1 — 선택지의 정의가 플래너 정확도를 좌우한다). 기준선은 동일 provider·
+동일 52케이스인 `planner_baseline_promoted_agents.json`(08-01, seq 1.0 / unstable 0).
+
+| runs=3 | seq | stability | stable_wrong | unstable | fallback |
+|---|---|---|---|---|---|
+| 1회차 | 0.9872 | 0.9872 | 0 | 2 | 0.0128 |
+| 2회차 | 1.0 | 1.0 | 0 | 0 | 0.0064 |
+
+**노이즈로 판정한다.** 1회차의 두 이탈(`fit-missing-posting-degrade` 2/3,
+`preference-open` 2/3)은 2회차에서 재현되지 않았고, 어긋난 런은 `paths: fallback` —
+LLM 콜 실패로 폴백이 고른 것이다. n=6 합쳐 **두 런 다 `stable_wrong` 0** 이므로 명세 결함의
+증거가 없다(§3-3 — stable-wrong 과 unstable 은 처방이 다르다).
+
+한 가지 눈여겨볼 것: 흔들린 케이스가 하필 `fit-missing-posting-degrade`(= `resume_diagnosis`
+라우팅)였다. 이 케이스는 이 에이전트의 **역할 문장**에 민감하다는 실측이 이미 있다(D97 의 짝).
+인자 설명이 그 문장 뒤에 붙으므로, 앞으로 `resume_diagnosis` 의 manifest 항목을 더 늘릴
+때는 이 케이스를 먼저 본다.
+
+**실 모델 스모크**(§3-7, 이력서 2건 4턴): 보관·비교·지목 전환 모두 동작. 비교 답변은 항목
+차이로 말하고 "어느 쪽이 나은지는 공고 없이 판단할 수 없다"로 판정을 거절했다(규율 유지).
+스모크가 결함 하나를 드러냈다 — 같은 원천이 둘이면 라벨이 똑같아("붙여넣은 이력서" ×2)
+비교 답변이 어느 쪽을 말하는지 알 수 없었다. `_unique_label` 로 순번을 붙이고, `match_resume`
+는 정확 일치를 먼저 본다(접미사가 붙으면 부분 일치로는 갈리지 않는다).
+### D120 (08-02) 직군도 **LLM 이 고른다 — 단 사전 목록에서만.** 별칭 사전은 계속 지는 경주였다
+**결정.** `roleCategory` 를 파서 LLM 스키마에 넣되 **열린 생성이 아니라 닫힌 선택**으로 준다:
+필드 설명에 사전의 키+한국어 라벨 목록을 실어 그중 하나를 고르게 하고, **목록 밖 값은 버린다**
+(`role_pick_off_taxonomy` 경고). 확정 순서는 정밀한 것부터 셋이다 —
+① 직무명 별칭 정확 일치(룰) → ② LLM 이 고른 사전 키 → ③ 본문 빈도(룰, 마지막 수단).
+
+**왜 — 사전은 "표기"를 알지 "의미"를 모른다.** 실측(잡코리아 Gno=49638113): "AI Agent 개발자"가
+`role_unclassified` 로 떨어졌다. 사전에 `ai engineer`·`ai 엔지니어`·`머신러닝` 은 있는데
+`ai agent` 가 없어서다. 직군이 비면 `career_graph` 의 대체 경로 탐색과 RAG 직군 쿼리가 함께
+막힌다. **별칭을 계속 늘리는 것은 새 직무명이 생길 때마다 지는 경주다** — 비슷한 것을 묶는
+의미 유사도는 사전이 못 하는 일이고, 그건 LLM 이 잘하는 일이다.
+
+**§1 을 깨지 않는다.** 어휘(선택지)는 여전히 `role_taxonomy` 룰이 소유하고, LLM 은 그 목록에서
+고르기만 한다. 새 직군을 만들 권한은 주지 않았다 — `career_graph` 전이 관계와 RAG 쿼리가
+이 키를 쓰므로 없는 키가 들어오면 하류가 **조용히** 끊긴다. D118 과 같은 형태다: 읽기는
+LLM, 어휘·검증은 룰.
+
+**본문 빈도를 LLM 뒤로 내렸다.** ③ 은 직무명이 아니라 본문에서 직군어를 세는 휴리스틱이라
+오분류가 쉽다(담당업무에 "백엔드"가 몇 번 나온다고 백엔드 공고인 것은 아니다). 전에는 이게
+②의 자리에 있었다 — LLM 이 의미로 이을 수 있는 자리를 빈도수가 먼저 채우고 있었던 것이다.
+
+**스키마 강제(Literal) 대신 설명+사후검증을 골랐다.** enum 을 스키마로 강제하면 LLM 이 어긋난
+값 하나를 냈을 때 **파싱 전체가 실패**하고(재시도 → 빈 결과), 부수적인 필드 하나 때문에
+공고를 통째로 못 읽게 된다. 한 필드만 떨어뜨리는 쪽이 낫다.
+
+**측정.** 유닛 1건 신규(`test_taxonomy.py`), 전체 611 통과. 실 모델 재파싱 5회 —
+`role_unclassified` 0건, `roleCategory=ml_engineer` 정확, `minYears=3`/`seniority=mid` 유지.
+덤으로 required/preferred 경계가 5/5 안정(2/4)으로 나왔다 — D119 스모크 시점의 flaky(1/5 →
+"경력 3년 이상"이 우대로 갔던 것)가 이 실행들에서는 재현되지 않았다. n=5 라 해소로 단정하지
+않는다(§3-3 — unstable 은 표본이 작으면 안 보인다).
+
+---
+
+### D121 (08-02) 활성 슬롯에서 밀려난 **판정**과 **이력서**를 라이브러리가 받는다
+**결정.** ① `attach_analysis` — 판정 요약(등급·강점3·갭3·이력서 라벨)을 그 공고의
+`posting_library` 항목에 `_analyses`(이력서별, 상한 3)로 붙인다. `career_chat` 이
+`postingFacts.pastAnalyses` 로 읽는다. ② `preserve_active_resume` — 활성 이력서가 교체되기
+직전에 라이브러리로 회수한다(`chat.py` 의 이력서 등록 두 자리).
+
+**왜 — 무효화는 옳은데 소멸이 딸려 왔다.** 판정은 이력서×공고의 함수라 어느 축이 바뀌든
+이전 판정은 무효다(D111·D119). 그런데 무효화가 `analysis: None` 하나뿐이라 **수십 초짜리
+판정이 대화에서 지워졌다** — 공고 원문·파싱(`_sourceText`)은 남는데 판정만 없어서 "아까 A
+공고는 뭐였지?" 에 근거가 0이었다. 비교(D88·D119)로 돌린 판정은 애초에 활성이 아니라 승격도
+안 됐다 — n개를 돌리고 1개만 기억했다.
+
+**새 세션 키를 만들지 않았다.** 라이브러리 항목이 이미 그 공고의 원문·파싱을 들고 있고 상한
+(5)·수명·화면 필터(`startswith("_")`)가 전부 붙어 있다. 판정만 새 키로 빼면 같은 규약을 두 번
+쓰고 둘이 어긋나기 시작한다.
+
+**원본이 아니라 요약이다.** 로드맵·대안 공고까지 5공고×3이력서분을 세션에 넣으면 부푼다.
+조회에 필요한 것은 등급·강점·갭이고, 근거가 필요하면 활성 판정을 다시 돌린다.
+**복원(활성 슬롯 되돌리기)도 안 한다** — 단일 경로가 어차피 재판정하므로 복원 코드는 아무도
+읽지 않는 분기가 된다.
+
+**등록 지점이 하나라는 D119 규약의 예외를 열었다.** D119 는 이력서 등록을 `ensure_profile`
+한 곳으로 모았다(입구마다 심으면 다음 입구를 만드는 사람이 다시 지켜야 한다). 그건
+**소비자가 실제로 돈 턴에만** 돈다 — 이력서를 붙여넣고 대화만 하다 다음 이력서를 주면 이전
+원문은 라이브러리에 닿지 못한 채 사라졌다. `preserve_active_resume` 은 등록 지점이 아니라
+**파괴 직전의 회수 지점**이라 규약이 갈린다(멱등 — 이미 등록됐으면 목록을 그대로 돌려준다).
+
+**측정.** 유닛 5건 신규(`tests/test_analysis_archive.py`), 전체 620 통과. **플래너 재측정
+안 함** — manifest 인자·에이전트 목록·판단 원칙 어느 것도 안 건드렸다(§3-6 은 프롬프트 변경이
+조건이다). 늘어난 것은 `career_chat` 의 context 데이터 한 칸이고, 그건 §1 의 "정형 사실을
+말로 옮기는" 자리다.
+
+**출처**: `agents/_common.py`(`attach_analysis`·`preserve_active_resume`) ·
+`agents/fit_analysis.py`(`_archive` — 단일·공고비교·이력서비교 세 자리) ·
+`agents/career_chat.py`(`_posting_facts`) · `orchestrator/chat.py`
+
+---
+
+### D122 (08-02) 멤버 하나의 예외가 **턴을 죽이지 못한다** — 격리하되 삼키지 않는다
+
+**결정**: `chat.py::_execute` 가 에이전트 실행(entry·render)을 try/except 로 감싼다.
+예외 시 `agent_crashed` 경고 + ERROR 스택 로그 + 사용자향 안내 한 문장을 담은 빈
+`AgentResult` 를 돌려주고 턴은 계속된다.
+
+**왜**: 범용 멀티에이전트 대비 냉정 평가(`docs/개선사항.md`)에서 확인한 가장 큰 런타임
+갭. 기존엔 에이전트 하나의 결함이 턴 전체를 500 으로 죽였고, 병렬 구간
+(`future.result()`)에선 이미 성공한 멤버의 결과까지 함께 버렸다. 노드 단위 에러 정책은
+범용 프레임워크(LangGraph retry policy 등)의 표준이다.
+
+**격리가 은폐가 되지 않는 근거(§2-6·§3-7)**: ① 경고 코드와 원인이 응답에 남고
+② 스택은 ERROR 로그에 남으며 ③ 크래시 멤버의 산출 자산이 안 생기므로 후속 의존
+단계는 기존 관찰 규칙(`drop_unrunnable`)이 정리하고 ④ 청한 기능이 안 돌았으면
+`request_not_fulfilled` 가 턴 끝에 한 번 더 센다. 재시도는 넣지 않았다 — LLM 일시
+오류는 이미 `structured.py` 가 3회 재시도하므로, 여기까지 올라온 예외는 코드 결함이고
+같은 입력 재실행은 같은 예외다.
+
+**측정**: 유닛 1건 신규(`test_improvements.py::test_agent_crash_is_isolated`),
+전체 621 통과. **플래너 재측정 안 함** — 프롬프트·manifest 무변경(§3-6 조건 미해당).
+
+**출처**: `orchestrator/chat.py::_execute` · `docs/개선사항.md`
+
+---
+
+### D123 (08-02) 금지표현은 **문장 단위로만** 버린다 — 한 단어가 답변 전체를 강등시키지 않는다
+
+**결정**: `verify_rules.drop_forbidden_sentences()`(결정론 순수 함수)를 만들어, 재작성
+기회가 없는 두 지점 — `career_chat` 의 즉시 강등과 `agent_loop` 상한 도달 후 마지막 답변의
+전량 폐기 — 를 문장 단위 제거로 바꾼다. 남는 문장이 없을 때만 기존 폴백.
+
+**왜**: "하네스가 강해 발화에 유연하게 대처 못한다"는 증상의 관문 전수 조사
+(`docs/개선사항.md` 2차, 원인 9개 항목화)에서 나온 최대 결함. 금지표현 목록에는
+'반드시'·'보장'·'승산'처럼 코칭 문장에 자연스럽게 나오는 낱말이 있는데, substring 하나로
+답변 **전체**를 발화 무관 고정 메뉴 문구로 교체했다 — 실측(sessions.sqlite3 275턴) 강등
+7건(2.5%)이 전부 정상 요청이었다. agent_loop 는 루프 중에만 재작성 1회를 줬고(그 도입
+주석이 이미 같은 문제를 지적했다), 상한 도달 후와 career_chat 은 기회 없이 버렸다.
+
+**판정 원칙은 유지된다**: 금지표현이 든 문장은 여전히 나가지 않고, 제거는
+`career_chat_softened`/`loop_reply_softened` 경고로 남는다(§2-6). 목록 자체를 좁히는
+대안(예: '반드시' 제거)은 택하지 않았다 — 같은 낱말이 합격 단정 문장("반드시
+붙습니다")에도 나오므로 낱말이 아니라 **버리는 단위**가 문제였다. 짧은 마무리 문장
+생성부(tool_render·preference_intake)는 손대지 않았다 — 한두 문장 출력이라 문장 제거가
+곧 전량 제거이고 맥락 맞는 결정론 폴백이 이미 있다.
+
+**측정**: 유닛 4건 신규(`test_improvements.py` — 순수 함수 2·career_chat 행동 2),
+전체 625 통과. **플래너 재측정 안 함** — 프롬프트·manifest 무변경(§3-6 조건 미해당).
+경직 원인 9개 중 나머지 8개의 판정(유지 6·보류 2)과 근거는 `docs/개선사항.md` 2차 표에.
+
+**출처**: `verify_rules.py::drop_forbidden_sentences` · `agents/career_chat.py` ·
+`agents/agent_loop.py` · `docs/개선사항.md`
+
+---
+
+### D124 (08-02) 저확신 계획은 **버리되 잃지 않는다** — 문턱은 안 내리고 이항성을 고쳤다
+
+**결정**: 확신 < 0.6 으로 실행하지 않은 플래너 추측 계획을, 조용히 폐기하는 대신
+① career_chat 의 대화 응답(기존 유지)에 ② 확인 버튼(`confirm_plan` followUpQuestion)을
+붙이고 ③ `pendingConsent` 를 심어 다음 턴 동의 한마디로 게이트 없이 이어지게 하며
+④ `low_confidence_plan` 경고로 센다.
+
+**문턱 숫자는 내리지 않았다 — 측정이 근거다.** 현 baseline
+(`evals/planner_baseline_promoted_agents.json`, 08-01, 52케이스×3회, router=claude-opus-5)
+의 케이스별 최저 평균 확신 **0.793** · fallback_rate **0.0** — 0.6 은 평가셋에서 단 한
+케이스도 자르지 않는다. 내리면 이득은 측정 불가, 손해(정말 모르는 추측의 실행)만 가능하다.
+재측정도 안 했다 — 프롬프트·문턱·manifest 무변경(§3-6 조건 미해당)이고, 바뀐 것은 폐기
+이후의 결정론 처리뿐이다.
+
+**왜**: 경직 원인 조사(개선사항.md 2차 #2)에서 저확신 폐기가 **조용해서** 두 번 잃고
+있었다 — 사용자는 추측이 맞았어도 처음부터 다시 말해야 했고, 시스템에는 실사용 저확신
+구간의 크기·적중률을 셀 흔적이 0이라 문턱 조정 근거를 영영 만들 수 없었다(D117 "예측하지
+말고 센다"와 같은 원리). 동의 흐름은 새 장치가 아니라 기존 것을 재사용한다 — 플래너
+프롬프트 규칙 2(동의 잇기)와 동의 게이트 통과 조건 ②(pendingConsent)가 그대로 받는다.
+
+**측정**: 유닛 2건 신규(`test_improvements.py`), 전체 627 통과. 실사용
+`low_confidence_plan` 계수가 쌓이면(수확: D117) 그 데이터로 문턱을 다시 논한다.
+
+**출처**: `orchestrator/chat.py`(저확신 분기·턴 끝 보존 블록) · `docs/개선사항.md`
+
+---

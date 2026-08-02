@@ -18,7 +18,7 @@ from jobis_ai.agents import AgentResult
 from jobis_ai.agents._common import agent_arg, ensure_profile
 from jobis_ai.experience_estimator import estimate_experience_months
 from jobis_ai.gap_matcher import get_gap_matcher
-from jobis_ai.postings_db import experience_floor_years, posting_floor_years
+from jobis_ai.postings_db import experience_floor_years, fits_experience, posting_floor_years
 from jobis_ai.rag import get_rag_adapter
 from jobis_ai.role_taxonomy import get_role_taxonomy
 from jobis_ai.skill_taxonomy import get_skill_taxonomy
@@ -27,9 +27,6 @@ _MAX_QUERY_SKILLS = 8
 _MAX_RECOMMENDATIONS = 5
 # 검색은 넉넉히 받아서 연차로 걸러낸 뒤 자른다 — 5건만 받아 거르면 남는 게 없다.
 _SEARCH_POOL = 30
-# 경력자에게 허용하는 초과 연차. 3년차에게 4년 요구 공고는 보여줄 만하다(도전 가능).
-# 신입(0년)에는 적용하지 않는다 — 아래 _fits_experience 참고.
-_OVER_YEARS_TOLERANCE = 1.0
 
 
 def _user_experience_years(session: dict[str, Any], profile: dict) -> float | None:
@@ -49,18 +46,6 @@ def _user_experience_years(session: dict[str, Any], profile: dict) -> float | No
         if estimate.totalMonths is not None:
             return estimate.totalMonths / 12.0
     return None
-
-
-def _fits_experience(posting_floor: float | None, user_years: float | None) -> bool:
-    """공고 요구 연차가 사용자 연차에 맞는지. 어느 쪽이든 모르면 통과(거르지 않는다)."""
-
-    if posting_floor is None or user_years is None:
-        return True
-    if user_years <= 0:
-        # 신입에게는 "신입 지원 가능" 공고만. 연차 미표기 '경력' 공고(데이터의 최다 유형)도
-        # 경력자 채용이므로 제외한다 — 이게 신입에게 8년 요구 공고가 가던 원인이었다.
-        return posting_floor <= 0
-    return posting_floor <= user_years + _OVER_YEARS_TOLERANCE
 
 
 def _profile_role_category(profile: dict) -> str:
@@ -209,13 +194,15 @@ def run(session: dict[str, Any]) -> AgentResult:
 
     rag = get_rag_adapter().search(query, top_k=_SEARCH_POOL)
     warnings.extend(rag.warnings)
+    # 실 RAG 가 아니라 키워드 폴백으로 찾은 결과인지 — 표현 계층이 사용자에게 명시한다(D90).
+    rag_fallback = any(w.get("code") == "rag_http_failed" for w in rag.warnings)
 
     # 연차 불일치 공고를 랭킹 전에 걸러낸다 — "신입" 이라고 말한 사용자에게 경력 8년 요구
     # 공고를 추천하던 문제. 사용자 연차나 공고 표기를 모르면 거르지 않는다.
     user_years = _user_experience_years(session, profile)
     candidates = [
         c for c in rag.items
-        if _fits_experience(posting_floor_years(c.get("seniority"), c.get("title")), user_years)
+        if fits_experience(posting_floor_years(c.get("seniority"), c.get("title")), user_years)
     ]
     dropped = len(rag.items) - len(candidates)
     if dropped:
@@ -248,7 +235,7 @@ def run(session: dict[str, Any]) -> AgentResult:
               "preferenceTerms": pref_terms, "recommendations": recommendations,
               # 표현 계층이 문장을 고르는 데 쓰는 사실들(판단이 아니라 상태다)
               "profileKnown": profile_known, "droppedByExperience": dropped,
-              "userExperienceYears": user_years},
+              "userExperienceYears": user_years, "ragFallback": rag_fallback},
         warnings=warnings,
         sessionUpdates={"recommendations": recommendations},
     )

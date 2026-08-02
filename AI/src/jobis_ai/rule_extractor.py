@@ -76,6 +76,9 @@ class RuleExtraction:
 
     techStack       : 원문에 명시된 알려진 기술 (skill_taxonomy 표준명, 등장 순서)
     minYears        : 요구 최소 경력 연차. 신입/경력무관이면 0. 근거 없으면 None(추측 금지)
+    maxYears        : 요구 **상한** 연차. 범위 표기("3~7년")일 때만 값이 있고 그 밖에는 None.
+                      상한이 있다는 것은 정보다 — "시니어는 안 뽑는다"를 뜻할 수 있고, 그러면
+                      지원 판단이 달라진다. 전에는 하한만 남기고 버렸다(2026-08-01 리뷰 지적).
     yearsEvidence   : minYears 를 뽑은 원문 조각 (추적성)
     emails / urls   : 원문의 연락처·링크
     requiredSection : '자격요건' 섹션 본문 (없으면 "")
@@ -84,6 +87,7 @@ class RuleExtraction:
 
     techStack: list[str] = field(default_factory=list)
     minYears: int | None = None
+    maxYears: int | None = None
     yearsEvidence: str = ""
     emails: list[str] = field(default_factory=list)
     urls: list[str] = field(default_factory=list)
@@ -97,24 +101,34 @@ class RuleExtraction:
         return bool(self.requiredSection or self.preferredSection)
 
 
-def _extract_years(text: str) -> tuple[int | None, str]:
-    """요구 최소 경력 연차 + 근거 조각.
+def _extract_years(text: str) -> tuple[int | None, int | None, str]:
+    """요구 경력 연차 (하한, **상한**, 근거 조각).
 
     범위("3~5년")는 하한을, "이상"은 그 값을 최소로 본다. 신입/경력무관은 0.
     어느 패턴에도 안 걸리면 None — **연차 미상을 0 으로 찍지 않는다**(0 은 '신입 채용'이라는
     적극적 정보라서, 미상과 섞으면 seniority 판정이 틀어진다).
+
+    패턴들이 서로 다른 위치에서 걸리면 **문서에서 먼저 나온 표기**가 이긴다(실측 잡코리아
+    Gno=49564982: SI 파견 공고가 프로젝트 수십 건을 나열하는데, 헤더 요약 "경력 1~5년"보다
+    패턴 우선순위가 높은 "8년 이상"이 본문 한 프로젝트에서 걸려 공고 전체 요구 연차로
+    나갔다). 공고 요약·헤더가 본문보다 앞이라는 관행에 기댄다. 숫자 위치가 같으면(같은
+    표기를 여러 패턴이 잡은 것) 기존 우선순위를 유지한다.
     """
 
-    for pattern in (_YEARS_MIN, _YEARS_PLUS, _YEARS_RANGE, _YEARS_LABELED):
-        match = pattern.search(text)
-        if match:
-            return int(match.group(1)), match.group(0).strip()
+    matches = [(p, m) for p in (_YEARS_MIN, _YEARS_PLUS, _YEARS_RANGE, _YEARS_LABELED)
+               if (m := p.search(text))]
+    if matches:
+        pattern, best = min(matches, key=lambda pm: pm[1].start(1))
+        # 상한은 **범위 표기에만** 있다. "3년 이상"·"3년+"는 상한이 없는 것이고, 없는 상한을
+        # 만들면 없는 제약을 판정에 들이게 된다(§2-1 — 모른다를 값으로 채우지 않는다).
+        upper = int(best.group(2)) if pattern is _YEARS_RANGE else None
+        return int(best.group(1)), upper, best.group(0).strip()
 
     match = _NEWCOMER.search(text)
     if match:
-        return 0, match.group(0).strip()
+        return 0, None, match.group(0).strip()
 
-    return None, ""
+    return None, None, ""
 
 
 def _slice_section(text: str, start: int, end_candidates: list[int]) -> str:
@@ -125,7 +139,10 @@ def _slice_section(text: str, start: int, end_candidates: list[int]) -> str:
 
 
 # 요건 목록 줄의 표지 — 불릿 도형 또는 "1." "1)" 번호.
-_LIST_LINE = re.compile(r"^\s*(?:[-*•·▪◦∙‣■□]|\d{1,2}[.)])\s*\S", re.MULTILINE)
+# `ㆍ`(U+318D 아래아)는 가운뎃점 `·`(U+00B7)와 **다른 글자**인데 국내 공고가 불릿으로 흔히
+# 쓴다(잡코리아 상세요강·"이런 분들을 찾고 있어요" 형식 둘 다). 빠뜨리면 진짜 요건 목록이
+# 서술문으로 오인된다.
+_LIST_LINE = re.compile(r"^\s*(?:[-*•·ㆍ▪◦∙‣■□]|\d{1,2}[.)])\s*\S", re.MULTILINE)
 
 
 def _listlike(section: str) -> bool:
@@ -180,14 +197,20 @@ def _extract_sections(text: str) -> tuple[str, str]:
     required = _slice_section(text, req_match.end(), boundaries) if req_match else ""
     preferred = _slice_section(text, pref_match.end(), boundaries) if pref_match else ""
 
-    # 찾은 헤더의 섹션이 실질 내용 없이 비면 분리 전체를 신뢰하지 않는다 — 목차/표 컬럼
-    # 라벨("1. 필수사항 2. 자격요건 3. 우대사항")을 헤더로 오인한 것이다(실측 Gno=49638104:
-    # 필수 섹션이 "3." 두 글자로 확정돼 파서가 "그 섹션에서만" 지시로 필수요건을 통째로
-    # 놓쳤다). 확신이 없으면 뽑지 않는다 — 전문이 LLM 으로 가는 쪽이 낫다.
-    def _hollow(match: re.Match | None, section: str) -> bool:
-        return match is not None and len(section) < _MIN_SECTION_CHARS
+    # 찾은 헤더의 섹션이 **비었거나 요건 목록으로 보이지 않으면** 분리 전체를 신뢰하지 않는다.
+    # 둘 다 같은 증상의 다른 얼굴이다 — 헤더를 오인한 것이다:
+    # - 빈 섹션: 목차/표 컬럼 라벨("1. 필수사항 2. 자격요건 3. 우대사항")을 헤더로 읽었다
+    #   (실측 Gno=49638104: 필수 섹션이 "3." 두 글자로 확정됐다).
+    # - 서술문 섹션: 사이트 껍데기 라벨을 읽었다(실측 Gno=49638113: 잡코리아 사이드바
+    #   "지원자격" 뒤의 접수기간·지원자 통계 307자가 필수 섹션으로 확정됐다. 진짜 자격요건은
+    #   iframe 상세라 한 줄로 붙어 와 `^` 앵커에 안 걸린다).
+    # 둘 다 뒤 결과가 같다 — 파서가 "그 섹션에서만" 지시를 따라 요건을 통째로 놓친다.
+    # 확신이 없으면 뽑지 않는다: 전문이 LLM 으로 가는 쪽이 낫다.
+    def _untrustworthy(match: re.Match | None, section: str) -> bool:
+        return match is not None and (
+            len(section) < _MIN_SECTION_CHARS or not _listlike(section))
 
-    if _hollow(req_match, required) or _hollow(pref_match, preferred):
+    if _untrustworthy(req_match, required) or _untrustworthy(pref_match, preferred):
         return "", ""
     return required, preferred
 
@@ -202,12 +225,13 @@ def extract_rules(text: str) -> RuleExtraction:
     if not content.strip():
         return RuleExtraction()
 
-    min_years, years_evidence = _extract_years(content)
+    min_years, max_years, years_evidence = _extract_years(content)
     required_section, preferred_section = _extract_sections(content)
 
     return RuleExtraction(
         techStack=get_skill_taxonomy().find_in_text(content),
         minYears=min_years,
+        maxYears=max_years,
         yearsEvidence=years_evidence,
         emails=_dedup(_EMAIL.findall(content)),
         urls=_dedup(_URL.findall(content)),

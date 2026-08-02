@@ -1,0 +1,183 @@
+{
+  "generated_at": "2026-07-29T07:39:46.493747+00:00",
+  "ground_truth": "사람 손수 라벨 (2026-07-29)",
+  "judge_prompt_version": "v3",
+  "n_human_primary": 118,
+  "n_human_recheck": 20,
+  "human_label_dist": {
+    "Incorrect": 55,
+    "Correct": 45,
+    "Ambiguous": 18
+  },
+  "note_label_case": "사람 시트의 대소문자 변형 54건을 정규화해 반영",
+  "gate3": {
+    "threshold": 0.6,
+    "metric": "Cohen's κ (이진: Correct vs 그외), 본판정 judge 대 사람",
+    "value": 0.5921,
+    "verdict": "FAIL"
+  },
+  "gate3b_human_self_consistency": {
+    "n_overlap": 19,
+    "binary_kappa": 0.855,
+    "binary_agreement_raw": 0.9474,
+    "exact_3class_agreement": 0.7895,
+    "verdict": "PASS",
+    "note": "LLM 앵커는 temperature 0으로 κ가 구조적으로 1.0이라 무의미했다. 사람 재검사는 이 게이트가 실제로 작동하는 첫 사례다."
+  },
+  "noise_ceiling": {
+    "human_self_kappa": 0.855,
+    "judge_kappa": 0.5921,
+    "attainment_vs_ceiling": 0.6925,
+    "threshold_as_pct_of_ceiling": 0.7018,
+    "note": "사람의 이진 원일치율은 0.947 — 뒤집은 것은 5.3%다. (1-κ)=14.5%를 뒤집힘 비율로 읽으면 3배 과장된다. 그래도 이 잡음이 judge-사람 κ의 상한을 만든다."
+  },
+  "closest_to_human": "gemini-2.5-flash-lite (본판정 v3)",
+  "arms": [
+    {
+      "judge": "gemini-2.5-flash-lite (본판정 v3)",
+      "n_compared": 118,
+      "binary_kappa": 0.5921,
+      "binary_agreement": 0.8051,
+      "exact_3class_agreement": 0.6441,
+      "precision_vs_human": 0.7292,
+      "recall_vs_human": 0.7778,
+      "agreement_by_judge_label": {
+        "Correct": {
+          "n": 48,
+          "agrees": 35,
+          "rate": 0.7292
+        },
+        "Ambiguous": {
+          "n": 20,
+          "agrees": 16,
+          "rate": 0.8
+        },
+        "Incorrect": {
+          "n": 50,
+          "agrees": 44,
+          "rate": 0.88
+        }
+      },
+      "mcnemar": {
+        "b_human_pos_judge_neg": 10,
+        "c_human_neg_judge_pos": 13,
+        "statistic": 0.1739,
+        "direction": "judge inflates positives"
+      },
+      "gate3": "FAIL",
+      "kappa_ci_95": {
+        "lo": 0.4344,
+        "hi": 0.7362
+      }
+    },
+    {
+      "judge": "gemini-2.5-flash (§3-B 실험군)",
+      "n_compared": 118,
+      "binary_kappa": 0.4535,
+      "binary_agreement": 0.7542,
+      "exact_3class_agreement": 0.6271,
+      "precision_vs_human": 0.7353,
+      "recall_vs_human": 0.5556,
+      "agreement_by_judge_label": {
+        "Correct": {
+          "n": 34,
+          "agrees": 25,
+          "rate": 0.7353
+        },
+        "Ambiguous": {
+          "n": 20,
+          "agrees": 10,
+          "rate": 0.5
+        },
+        "Incorrect": {
+          "n": 64,
+          "agrees": 54,
+          "rate": 0.8438
+        }
+      },
+      "mcnemar": {
+        "b_human_pos_judge_neg": 20,
+        "c_human_neg_judge_pos": 9,
+        "statistic": 3.4483,
+        "direction": "judge deflates positives"
+      },
+      "gate3": "FAIL",
+      "kappa_ci_95": {
+        "lo": 0.281,
+        "hi": 0.6163
+      }
+    },
+    {
+      "judge": "claude-fable-5 (기존 LLM 앵커)",
+      "n_compared": 118,
+      "binary_kappa": 0.5289,
+      "binary_agreement": 0.7881,
+      "exact_3class_agreement": 0.6695,
+      "precision_vs_human": 0.7941,
+      "recall_vs_human": 0.6,
+      "agreement_by_judge_label": {
+        "Correct": {
+          "n": 34,
+          "agrees": 27,
+          "rate": 0.7941
+        },
+        "Ambiguous": {
+          "n": 26,
+          "agrees": 16,
+          "rate": 0.6154
+        },
+        "Incorrect": {
+          "n": 58,
+          "agrees": 50,
+          "rate": 0.8621
+        }
+      },
+      "mcnemar": {
+        "b_human_pos_judge_neg": 18,
+        "c_human_neg_judge_pos": 7,
+        "statistic": 4.0,
+        "direction": "judge deflates positives"
+      },
+      "gate3": "FAIL",
+      "kappa_ci_95": {
+        "lo": 0.364,
+        "hi": 0.6806
+      }
+    }
+  ],
+  "boundary_criteria_applied": {
+    "note": "사전 확정 대신 사람이 실제 적용한 기준을 사후 기록 (HANDOFF §3-A 1번 대체 이행)",
+    "by_query_type": {
+      "신입_질의": {
+        "n": 20,
+        "human_label_dist": {
+          "Correct": 9,
+          "Incorrect": 10,
+          "Ambiguous": 1
+        },
+        "judge_disagreements": 3,
+        "disagree_rate": 0.15
+      },
+      "경력_질의": {
+        "n": 86,
+        "human_label_dist": {
+          "Incorrect": 42,
+          "Ambiguous": 16,
+          "Correct": 28
+        },
+        "judge_disagreements": 19,
+        "disagree_rate": 0.2209
+      },
+      "풀스택_질의": {
+        "n": 12,
+        "human_label_dist": {
+          "Incorrect": 3,
+          "Correct": 8,
+          "Ambiguous": 1
+        },
+        "judge_disagreements": 1,
+        "disagree_rate": 0.0833
+      }
+    }
+  }
+}

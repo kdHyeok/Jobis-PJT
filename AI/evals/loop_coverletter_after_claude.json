@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-08-02T01:33:33",
+    "runs": 5,
+    "cases": [
+      "coverletter_draft",
+      "coverletter_emphasis"
+    ],
+    "arm": "treatment",
+    "note": "근거 재료를 전 섹션·60건(evidenceMap 포함)으로 넓히고 find_evidence 0건 시 전문 반환 + 강조 요청 지시 추가"
+  },
+  "totals": {
+    "invariantViolations": 0
+  },
+  "cases": [
+    {
+      "name": "coverletter_draft",
+      "stability": 0.8,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 3.2,
+        "max": 4,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>save_draft>check_draft": 4,
+        "find_evidence>ask_agent>save_draft>check_draft": 1
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 1,
+        "ok": 1,
+        "results": {
+          "ok:resume_diagnosis": 1
+        }
+      },
+      "llm": {
+        "callsMean": 4.4,
+        "retries": 1,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 22
+      }
+    },
+    {
+      "name": "coverletter_emphasis",
+      "stability": 1.0,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 3.0,
+        "max": 3,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>save_draft>check_draft": 5
+      },
+      "warnings": {
+        "coverletter_check_unresolved": 5
+      },
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 4.0,
+        "retries": 2,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 20
+      }
+    }
+  ]
+}

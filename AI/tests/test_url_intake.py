@@ -219,3 +219,30 @@ def test_detect_schemeless_dedupes_against_registered_posting():
     url = "https://saramin.co.kr/zf_user/jobs/view?rec_idx=1"
     session = {"job_posting": {"sourceType": "url", "value": url}}
     assert detect_posting_url("saramin.co.kr/zf_user/jobs/view?rec_idx=1", session) == ""
+
+
+# --- ⑦ 미확인 호스트 주소가 저장된 분석을 지우지 못한다 --------------------------
+def test_unknown_host_url_does_not_destroy_analysis(fresh_session_store):
+    """대화 중에 붙인 깃허브 링크가 활성 공고와 적합도 분석을 말없이 지우지 않는다.
+
+    D98(짧은 텍스트가 저장 이력서를 못 지운다)의 공고판. 링크는 버리지 않고 발화에
+    남으므로 플래너가 그대로 읽는다.
+    """
+
+    handle_chat(ChatRequest(sessionId="u9", message=_URL))
+    fresh_session_store.update("u9", {"analysis": {"status": "completed"}})
+    res = handle_chat(ChatRequest(
+        sessionId="u9", message="제 포트폴리오예요 https://github.com/me/portfolio"))
+
+    stored = fresh_session_store.get("u9")
+    assert stored["analysis"] == {"status": "completed"}     # 분석이 살아 있다
+    assert stored["job_posting"]["value"] == _URL            # 활성 공고도 그대로
+    assert any(w["code"] == "unknown_host_url_kept" for w in res.warnings)
+
+
+def test_unknown_host_url_allowed_when_no_analysis_to_protect(fresh_session_store):
+    """지킬 분석이 없으면 막지 않는다 — 교체는 되돌릴 수 있고, 회사 자체 채용페이지는
+    화이트리스트에 없어서 넓게 걸면 정상 공고를 놓친다."""
+
+    handle_chat(ChatRequest(sessionId="u10", message="https://careers.example.com/jobs/12"))
+    assert fresh_session_store.get("u10")["job_posting"]["value"].endswith("/jobs/12")

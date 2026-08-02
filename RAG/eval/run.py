@@ -123,7 +123,7 @@ def build_pool(conn) -> dict:
     for i, q in enumerate(queries, 1):
         print(f"\n[{i}/{len(queries)}] pool: {q['id']} - {q['text']}")
         spec = parse_query(q["text"], region_vocab)
-        [vec], _ = embed_texts([spec.text])
+        [vec], _ = embed_texts([spec.semantic_text])
 
         arms = {}
         arms["bm25"] = _run_arm_bm25(conn, spec, POOL_DEPTH)
@@ -319,8 +319,18 @@ def measure(conn, pool_data: dict) -> dict:
         conn, region_vocab,
     )
 
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM postings WHERE is_active")
+        n_corpus = cur.fetchone()[0]
+
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        # 평가셋 버전 스탬프 -프롬프트/코퍼스가 바뀌면 리포트 간 비교 불가하므로 명시
+        "version": {
+            "judge_prompt": judge.PROMPT_VERSION,
+            "n_corpus_active": n_corpus,
+            "pool_generated_at": pool_data.get("generated_at"),
+        },
         "headline": {
             "metric": "normalized_nDCG@3",
             "definition": "(actual - random) / (pool_oracle - random)",
@@ -346,7 +356,7 @@ def _pool_builder_for_calibration(conn, qid, region_vocab):
     if not q:
         return {}, [], []
     spec = parse_query(q["text"], region_vocab)
-    [vec], _ = embed_texts([spec.text])
+    [vec], _ = embed_texts([spec.semantic_text])
     bm25_uids = _run_arm_bm25(conn, spec, POOL_DEPTH)
     dense_uids = _run_arm_dense(conn, vec, spec, POOL_DEPTH)
     all_uids = set(bm25_uids) | set(dense_uids)

@@ -16,7 +16,7 @@ class LLMNotConfiguredError(RuntimeError):
     """API 키가 없어 실제 호출이 불가능할 때. 호출부가 잡아서 안내/폴백한다."""
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=4)
 def get_llm(tier: str = "default") -> Any:
     """설정에 맞는 LangChain Chat 모델을 생성해 반환한다.
 
@@ -27,6 +27,9 @@ def get_llm(tier: str = "default") -> Any:
     - "default": 고급 모델(LLM_MODEL). 긴 비정형 추출·사용자 대면 생성.
     - "light":   경량 모델(LLM_MODEL_LIGHT). 라벨 분류·이진 판정·짧은 요약 —
                  출력 스키마가 좁아 모델 성능 차이가 결과에 거의 안 실리는 곳.
+    - "router":  라우팅 판정(플래너 등 "무엇을 실행할지"를 정하는 호출) — 오판이 턴
+                 전체를 엉뚱한 일에 쓰게 하는 자리라 가장 강한 모델을 배정한다(D74).
+                 전용 모델 미지정 프로바이더는 default 로 폴백.
     """
 
     settings = get_settings()

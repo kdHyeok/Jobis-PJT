@@ -24,6 +24,7 @@ from jobis_ai.contracts.domain import (
 from jobis_ai.career_graph import get_career_graph
 from jobis_ai.cert_db import Certification, get_cert_db
 from jobis_ai.config import get_settings
+from jobis_ai.experience_estimator import estimate_experience_months
 from jobis_ai.gap_matcher import get_gap_matcher, overall_fit, to_gap_payload
 from jobis_ai.graph.node_common import (
     MAX_VERIFY_RETRY,
@@ -45,6 +46,7 @@ from jobis_ai.graph.read_nodes import (  # noqa: F401
 )
 from jobis_ai.graph.state import GraphState, Status
 from jobis_ai.nl_render import render_summary
+from jobis_ai.postings_db import fits_experience, posting_floor_years
 from jobis_ai.profile_completeness import build_completion_questions, find_missing_enum_fields
 from jobis_ai.project_template_db import ProjectTemplate, get_project_template_db
 from jobis_ai.rag import RagResult, get_rag_adapter
@@ -133,6 +135,12 @@ def _tech_stack_requirements(posting: dict, existing: list[dict]) -> list[dict]:
     requiredRequirements/preferredRequirements 문장 안에 "Spring Boot 3년" 처럼 이미
     녹아 있는 기술은 그쪽에서 이미 매칭되므로, techStack 에도 넣으면 같은 스킬을 두 번
     판정하게 된다.
+
+    **같은 대체군의 기술 여러 개는 요구사항 하나로 센다(D99).** 파서는 공고의 "A/B/C 중
+    하나"에서 OR 관계를 잃고 평면 목록을 만든다. 그걸 그대로 세면 요구 기술이 부풀고, 그
+    부푼 수가 곧 판정 점수의 분모가 된다 — 벡터DB 5종을 5개로 세면 pgvector 만 아는
+    지원자가 그 자리에서 1/5 로 깎인다. 묶은 요구사항은 `anyOf` 로 표시하고, gap_matcher
+    가 그 표시를 보면 **하나만 충족돼도 met** 으로 본다.
     """
 
     taxonomy = get_skill_taxonomy()
@@ -141,10 +149,28 @@ def _tech_stack_requirements(posting: dict, existing: list[dict]) -> list[dict]:
         mentioned.update(taxonomy.find_in_text(str(req.get("text", ""))))
 
     out: list[dict] = []
+    groups: dict[str, list[str]] = {}
     for i, skill in enumerate(posting.get("techStack", []), start=1):
         if skill in mentioned:
             continue
+        group = taxonomy.alternate_group(skill)
+        if group:
+            groups.setdefault(group, []).append(skill)
+            continue
         out.append({"requirementId": f"tech-{i}", "text": skill, "type": "preferred"})
+
+    for gi, (group, members) in enumerate(groups.items(), start=1):
+        if len(members) == 1:
+            # 공고가 그 군에서 **하나만** 요구했다 — 대체가 아니라 지목이다. 묶지 않는다.
+            out.append({"requirementId": f"tech-g{gi}", "text": members[0], "type": "preferred"})
+            continue
+        out.append({
+            "requirementId": f"tech-any-{gi}",
+            # 사용자에게 그대로 보이는 문장이다 — 공고가 택일로 요구했다는 사실을 적는다.
+            "text": f"{group} 중 하나 ({' / '.join(members)})",
+            "type": "preferred",
+            "anyOf": True,
+        })
     return out
 
 
@@ -184,6 +210,8 @@ def _seniority_requirement(posting: dict) -> list[dict]:
         "kind": "seniority",
         "seniority": seniority,
         "minYears": posting.get("minYears"),
+        # 상한도 실어 둔다 — 판정에 쓰지는 않지만(별 결정) 표현·대화가 읽을 수 있어야 한다.
+        "maxYears": posting.get("maxYears"),
         "yearsEvidence": evidence,
         "roleCategory": str(posting.get("roleCategory", "")),
     }]
@@ -530,19 +558,25 @@ def plan_roadmap(state: GraphState) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # find_alternatives  (Alternative Path Finder, 설계 14장, 2차 우선순위)
 # ---------------------------------------------------------------------------
-def _build_alternative_query(
-    posting: dict, gap: dict, sub_roles: list | None = None
-) -> str:
-    """설계 14.3-1 Query Build: 공고·gap·하위 직업군 기반 대체 경로 탐색 쿼리.
+def _build_alternative_query(posting: dict, sub_roles: list | None = None) -> str:
+    """설계 14.3-1 Query Build: 공고·하위 직업군 기반 대체 경로 탐색 쿼리.
 
     sub_roles(career_graph 도출)가 주어지면 '하위/징검다리 직업군' 라벨을 쿼리에 실어
     RAG(search)가 그 직업군들의 실존 공고를 검색하게 한다. (없으면 기존 동작과 동일)
+
+    **미충족 요건은 싣지 않는다**(D112). 전에는 `requirementId`("tech-3"·"req-5")를 실어
+    식별자가 쿼리에 섞였는데, 키워드 검색에서는 모든 후보 점수를 똑같이 깎아 랭킹이 안 변해
+    증상이 없었고 의미 검색(D89)에서는 쿼리 임베딩을 흐렸다. 그 자리를 미충족 스킬로
+    **채우지 않은** 이유는 목적이 반대이기 때문이다 — 대안 공고의 가치는
+    `reducedGaps`(= 목표 공고에서 부족했는데 이 자리는 요구하지 않는 역량)이므로, 부족한
+    스킬을 검색어로 넣으면 그 스킬을 **요구하는** 공고를 끌어와 후단에서 감점될 후보로
+    pool 을 채운다. 실측(2026-08-02, 실 RAG): 갭 항목을 뺀 쪽이 상위 점수 0.961→0.994,
+    7년 이상 시니어 공고 2건이 빠지고 신입·경력무관 공고가 들어왔다.
     """
 
     parts = [posting.get("jobTitle", ""), posting.get("roleCategory", "")]
     parts += [sr.label for sr in (sub_roles or [])]
     parts += posting.get("techStack", [])[:5]
-    parts += [g.get("requirementId", "") for g in gap.get("gaps", [])]
     return " ".join(p for p in parts if p).strip()
 
 
@@ -682,19 +716,44 @@ def find_alternatives(state: GraphState) -> dict[str, Any]:
     sub_roles = get_career_graph().derive_sub_roles(role_category, posting.get("seniority", ""))
 
     # 2) query build  3) candidate search — RAG hook ② (내부 벡터 → 부족 시 웹검색 폴백)
-    query = _build_alternative_query(posting, gap, sub_roles)
+    query = _build_alternative_query(posting, sub_roles)
     rag = get_rag_adapter().search(query)
     warnings.extend(rag.warnings)
     sources.extend(rag.sources)
 
+    # 3-b) 연차 불일치 공고 제외 (D115) — job_recommend 와 **같은 규칙**(postings_db).
+    # 대안 경로는 "지금 갈 수 있는 자리"인데, 목표보다 더 높은 연차를 요구하는 공고가 오면
+    # 그건 대안이 아니다(실측 2026-08-02: 상위 5건에 '경력 7년 이상' 2건). 사용자 연차는
+    # 프로필 추정만 쓴다 — 그래프에는 대화로 말한 경력 수준(세션)이 없다. 모르면 안 거른다.
+    estimate = estimate_experience_months(profile)
+    user_years = (
+        estimate.totalMonths / 12.0 if estimate.totalMonths is not None else None
+    )
+    candidates = [
+        c for c in rag.items
+        if fits_experience(posting_floor_years(c.get("seniority"), c.get("title")), user_years)
+    ]
+    dropped = len(rag.items) - len(candidates)
+    if dropped:
+        warnings.append({
+            "code": "experience_filtered",
+            "message": (f"find_alternatives: 연차 불일치로 공고 {dropped}건 제외"
+                        f"(사용자 {user_years:g}년 기준)."),
+        })
+
     # 4~6) 후보 → 매칭 계산 (실공고가 있으면 계산, 없으면 경로 유형만)
     result = AlternativePathResult(sources=rag.sources)
-    if rag.items:
-        result.alternativeJobs = _alternatives_from_rag(rag.items, profile, gap)
+    if candidates:
+        result.alternativeJobs = _alternatives_from_rag(candidates, profile, gap)
 
     if not result.alternativeJobs:
         result.alternativeJobs = _alternatives_from_sub_roles(sub_roles, gap)
+        # 왜 경로 유형만 남았는지를 구분해 말한다 — 연차로 전부 걸러진 것을 "RAG 미연결"로
+        # 적으면 사유가 사라진다(§2-6). 폴백 문장이 그럴듯하면 결함이 안 보인다.
         result.uncertainties.append(
+            f"검색된 공고 {dropped}건이 모두 요구 연차와 맞지 않아 제외됐습니다 — "
+            "경로 유형 제안이며 구체 공고는 미확정입니다."
+            if dropped and not candidates else
             "실제 공고 검색(RAG) 미연결 — 경로 유형 제안이며 구체 공고는 미확정입니다."
         )
         if not sub_roles:

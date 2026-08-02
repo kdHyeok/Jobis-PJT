@@ -1,27 +1,15 @@
-# syntax=docker/dockerfile:1
-# JOBIS backend — 빌드/런타임 2단계 이미지
-# CI가 이미 만든 jar을 재사용할 때는: docker build --build-arg PREBUILT_JAR=backend.jar .
+FROM eclipse-temurin:17-jdk-alpine AS build
+WORKDIR /workspace
+COPY gradlew settings.gradle build.gradle ./
+COPY gradle ./gradle
+RUN chmod +x gradlew
+COPY src ./src
+RUN ./gradlew bootJar --no-daemon
 
-# ── 1단계: 빌드 (Gradle) ──────────────────────────────────
-FROM eclipse-temurin:17-jdk AS build
-WORKDIR /build
-
-# 의존성 레이어를 소스와 분리해 캐시 (build.gradle이 안 바뀌면 재다운로드 없음)
-COPY gradlew build.gradle settings.gradle ./
-COPY gradle gradle
-RUN chmod +x gradlew && ./gradlew --no-daemon dependencies --quiet || true
-
-COPY src src
-RUN ./gradlew --no-daemon bootJar \
- && jar="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)" \
- && test -n "$jar" \
- && cp "$jar" /build/app.jar
-
-# ── 2단계: 런타임 (JRE만) ─────────────────────────────────
-FROM eclipse-temurin:17-jre
-RUN useradd --system --home-dir /app --shell /usr/sbin/nologin jobis
+FROM eclipse-temurin:17-jre-alpine
+RUN addgroup -S jobiss && adduser -S jobiss -G jobiss
 WORKDIR /app
-COPY --from=build /build/app.jar app.jar
-USER jobis
+COPY --from=build /workspace/build/libs/*.jar /app/jobiss-backend.jar
+USER jobiss
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/jobiss-backend.jar"]

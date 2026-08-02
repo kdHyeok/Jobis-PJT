@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import Any
 
 from jobis_ai.agents import AgentResult
-from jobis_ai.agents._common import agent_arg
+from jobis_ai.agents._common import agent_arg, posting_identity
 from jobis_ai.agents.agent_loop import ToolSpec, run_agent_loop
 from jobis_ai.skill_taxonomy import get_skill_taxonomy
 
@@ -336,8 +336,13 @@ def run(session: dict[str, Any]) -> AgentResult:
         return _fallback(session)
 
     asked = state["asked"]
+    company, role = posting_identity(session)
     facts = {
         "userMessage": state["_lastMessage"],
+        # 어느 회사·직무 면접인가 — 질문 소재는 analysis 에서 나오지만, 면접 맥락을 모르면
+        # 문장이 회사와 무관한 일반 질문처럼 읽힌다(화이트보드에 있는 것을 안 읽었을 뿐).
+        "company": company,
+        "role": role,
         "askedCount": len(asked),
         "lastQuestion": asked[-1]["question"] if asked else "",
         "answeredCount": len(state["answers"]),

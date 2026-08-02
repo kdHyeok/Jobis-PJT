@@ -62,29 +62,49 @@ def dispatch_case(case: dict) -> dict[str, Any]:
 
     되묻기(`asked=True`)의 정의는 **"실행 없이 사용자에게 되묻는다"** 다 — 동의 게이트가 여기
     해당하고, 저신뢰 폴백은 해당하지 않는다(에이전트가 실제로 돌아 말을 한다).
+
+    케이스의 `submitted`(이번 턴 제출 kind 목록)도 프로덕션 그대로 따라간다:
+    `_submittedThisTurn` 그라운딩 입력(플래너 프롬프트), 확신 문턱 면제(D66),
+    정리 단계 삽입(D71 — chat.submission_review_inserts 를 **같은 함수로** 쓴다).
     """
 
+    from jobis_ai.orchestrator.chat import (
+        _submission_grounds_plan,
+        submission_review_inserts,
+    )
+
     session = build_session(case.get("assets", []))
+    submitted = list(case.get("submitted") or [])
+    if submitted:
+        session["_submittedThisTurn"] = submitted
     message = case["message"]
 
     plan, _warnings = plan_agents(message, session)
     if plan is None:
         # LLM 미설정·실패 — 환경 문제라 정확도와 섞지 않고 따로 센다.
-        return {"agents": (), "asked": True, "path": "llm_failed"}
+        return {"agents": (), "asked": True, "path": "llm_failed", "blocked": []}
 
     selected = list(plan.agents)
-    if not plan.agents or plan.confidence < CONFIDENCE_THRESHOLD:
+    blocked = list(plan.blockedRequests)   # D72 — 청했지만 실행 불가로 미룬 요청 신고
+    grounded = _submission_grounds_plan(plan.agents, submitted)
+    if not plan.agents or (plan.confidence < CONFIDENCE_THRESHOLD and not grounded):
         # 프로덕션과 같다 — 대화형 에이전트가 턴을 받는다(고정 문구로 끝내지 않는다).
         return {"agents": (FALLBACK_AGENT,), "asked": False, "path": "fallback",
-                "selected": selected, "confidence": plan.confidence}
+                "selected": selected, "confidence": plan.confidence, "blocked": blocked}
 
     dispatch = validate_plan(plan.agents, session, plan.requestedAgents)
     if dispatch.ask:
         # 동의 게이트 — 이번 턴에는 실행하지 않고 묻는다.
         return {"agents": (), "asked": True, "path": "gate",
-                "selected": selected, "confidence": plan.confidence}
-    return {"agents": dispatch.agents, "asked": False, "path": "planner",
-            "selected": selected, "confidence": plan.confidence}
+                "selected": selected, "confidence": plan.confidence, "blocked": blocked}
+
+    agents = list(dispatch.agents)
+    inserts = submission_review_inserts(agents, submitted)
+    if inserts:
+        at = agents.index("fit_analysis")
+        agents[at:at] = inserts
+    return {"agents": tuple(agents), "asked": False, "path": "planner",
+            "selected": selected, "confidence": plan.confidence, "blocked": blocked}
 
 
 def outcome_key(outcome: dict[str, Any]) -> str:
@@ -120,9 +140,19 @@ def score_case(case: dict, outcomes: list[dict[str, Any]]) -> dict[str, Any]:
                else "stable-wrong" if stability == 1.0
                else "unstable")
 
+    # expectBlocked 가 있는 케이스만 blocked 신고 정확도를 따로 잰다(D72). 시퀀스 정답과
+    # 섞지 않는다 — 신고 실패는 "다음 턴 완수"의 결손이지 이번 턴 라우팅 오답이 아니다.
+    blocked_accuracy = None
+    if "expectBlocked" in case:
+        want_blocked = sorted(case.get("expectBlocked") or [])
+        blocked_accuracy = round(sum(
+            1 for o in outcomes if sorted(o.get("blocked") or []) == want_blocked
+        ) / runs, 4)
+
     return {
         "caseId": case.get("caseId", "?"),
         "runs": runs,
+        "blocked_accuracy": blocked_accuracy,
         # 1회 실행이면 예전 baseline 과 같은 값이 나온다(호환).
         "correct": accuracy == 1.0,
         "accuracy": round(accuracy, 4),
@@ -162,6 +192,11 @@ def aggregate(results: list[dict]) -> dict[str, Any]:
             / max(1, sum(r["runs"] for r in results)), 4),
         "mean_confidence": round(
             sum(r["mean_confidence"] for r in results) / n, 3),
+        # expectBlocked 케이스만의 평균 — 해당 케이스가 없으면 None (D72).
+        "blocked_accuracy": (round(
+            sum(r["blocked_accuracy"] for r in results if r["blocked_accuracy"] is not None)
+            / max(1, sum(1 for r in results if r["blocked_accuracy"] is not None)), 4)
+            if any(r["blocked_accuracy"] is not None for r in results) else None),
     }
 
 
@@ -196,6 +231,8 @@ def _print_report(results: list[dict], summary: dict) -> None:
         print(f"  [{mark}] {r['caseId']:32} 정확 {r['accuracy']:.2f} 안정 {r['stability']:.2f}")
         if r["verdict"] != "stable-correct":
             print(f"        기대={r['expected'] or '(없음)'}  관측={observed}")
+        if r.get("blocked_accuracy") is not None and r["blocked_accuracy"] < 1.0:
+            print(f"        blocked 신고 정확도 {r['blocked_accuracy']:.2f}")
     print("\n===== 전체 요약 =====")
     for k, val in summary.items():
         print(f"  {k}: {val}")

@@ -36,6 +36,9 @@ def run(session: dict) -> AgentResult:
             "fetched": fetched,
             "sourceUrl": url,
             "chars": len((promoted or {}).get("value") or "") if fetched else 0,
+            # 열지 못한 것과 열었는데 공고가 아닌 것은 사용자에게 할 말이 다르다 —
+            # render 가 갈라 말하도록 사유를 데이터로 넘긴다(경고는 표현에 안 닿는다).
+            "notPosting": any(w.get("code") == "not_a_posting" for w in warnings),
         },
         warnings=warnings,
         # 카드 질문은 결정론 — 수집 실패면 사용자가 대신 줄 수 있는 것을 청한다.

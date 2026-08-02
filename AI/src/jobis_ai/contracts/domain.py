@@ -29,6 +29,11 @@ class NormalizedJobPosting(BaseModel):
     # seniority 사다리는 이 값을 5칸으로 뭉갠 손실 요약이다 — 판정·표기는 이 원본을 우선한다
     # (0년과 2년이 같은 junior 칸에 들어가 "신입이 '2년 이상' 공고를 충족" 오판이 났던 원인).
     minYears: int | None = None
+    # 요구 **상한** 연차 — 범위 표기("경력 3~7년")일 때만 값이 있다. None = 상한 없음/미상.
+    # 상한이 있다는 것은 정보다("시니어는 안 뽑는다"). 전에는 파싱에서 버려져 "3년 이상"으로만
+    # 남았다(2026-08-01 리뷰 지적 — `grep maxYears src/` 가 0건이었다).
+    # **지금은 보존·노출만 한다.** 판정에 쓰는 것은 별 결정이다(평가셋 재측정이 필요하다).
+    maxYears: int | None = None
     # minYears 를 뽑은 원문 조각 ("경력 2년 이상") — 화면 표기는 공고가 한 말을 그대로 쓴다.
     yearsEvidence: str = ""
     requiredRequirements: list[Requirement] = Field(default_factory=list)

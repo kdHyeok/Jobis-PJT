@@ -89,8 +89,8 @@ def test_full_turn_produces_detailed_trace():
     assert {"requirementId", "status", "method", "reason"} <= set(first)
     # LLM 계층 — 미설정이면 미설정 이벤트로라도 기록된다 (누가 호출됐는지 항상 보임)
     assert any(e["kind"] == "llm_call" for e in rec.events)
-    # 응답은 정상
-    assert response.dispatched == ["fit_analysis"]
+    # 응답은 정상 — D71: 이번 턴 제출 자료의 정리 단계가 판정 앞에 끼워진다.
+    assert response.dispatched == ["posting_analysis", "resume_diagnosis", "fit_analysis"]
 
 
 def test_trace_events_are_ordered():

@@ -1,0 +1,20 @@
+{
+  "n_primary": 112,
+  "n_recheck": 20,
+  "binary_kappa": 0.2626,
+  "binary_agreement": 0.7054,
+  "self_consistency_kappa": 1.0,
+  "weighted_accuracy": 0.7171,
+  "mcnemar": {
+    "b_human_pos_llm_neg": 1,
+    "c_human_neg_llm_pos": 32,
+    "statistic": 27.2727,
+    "direction": "LLM inflates positives"
+  },
+  "fatigue": {
+    "measured": false,
+    "note": "no timestamps"
+  },
+  "gate3": "FAIL",
+  "gate3b": "PASS"
+}

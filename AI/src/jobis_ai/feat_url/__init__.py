@@ -90,6 +90,32 @@ def _drop_unrelated_tail(text: str, result: ExtractResult) -> str:
 # ---------------------------------------------------------------------------
 # 2층: iframe — src 수집 → 텍스트 크롤링 or 이미지 VLM
 # ---------------------------------------------------------------------------
+class _MetaDescCollector(HTMLParser):
+    """<meta name="description"|property="og:description"> 의 content 를 줍는다."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.desc = ""
+
+    def handle_starttag(self, tag: str, attrs: list) -> None:
+        if tag != "meta" or self.desc:
+            return
+        d = dict(attrs)
+        if d.get("name") == "description" or d.get("property") == "og:description":
+            self.desc = (d.get("content") or "").strip()
+
+
+def meta_description(html: str) -> str:
+    """페이지 메타 설명 — 잡코리아는 헤더 요약(경력·학력·급여)을 JS 로 그려서 jina 본문에
+    빠지는데, 정적 meta description 에 같은 요약이 있다(실측 Gno=49564982: 헤더 "경력
+    1~5년"이 본문에 없어 프로젝트 나열 속 "8년 이상"이 요구 연차로 나갔다). 본문 맨 앞에
+    붙여 파서가 공고 대표 정보를 먼저 보게 한다."""
+
+    parser = _MetaDescCollector()
+    parser.feed(html)
+    return parser.desc
+
+
 class _AttrCollector(HTMLParser):
     """지정 태그의 지정 속성값만 모으는 최소 파서 (iframe src / img src 공용)."""
 
@@ -308,7 +334,9 @@ def fetch_job_posting(url: str) -> ExtractResult:
         t for iframe_url in iframe_urls if (t := _iframe_text(iframe_url, url, result))
     ]
 
-    result.text = "\n\n".join(p for p in [main_text, *detail_parts] if p).strip()
+    result.text = "\n\n".join(
+        p for p in [meta_description(raw_html), main_text, *detail_parts] if p
+    ).strip()
     if not result.text:
         result.warn("empty_extract", "URL 에서 추출된 텍스트가 없습니다.")
     elif len(result.text) < _MIN_MEANINGFUL_CHARS:

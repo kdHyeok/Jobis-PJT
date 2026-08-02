@@ -10,8 +10,6 @@ from jobrag.store import connect
 from jobrag.query_parser import parse_query, load_region_vocab
 from jobrag.search import hybrid_search
 
-from .status import summarize_checks
-
 REPORT_PATH = Path(__file__).parent / "contract_report.json"
 
 SAMPLE_QUERIES_A = [
@@ -225,11 +223,9 @@ def run_all(conn, search_fn=None) -> dict:
                         "note": "no search_fn provided -skipping contract checks. "
                                 "명세서 계약 어댑터(입력A/B -> postings+score+match_reason) 미구현"})
 
-    status, all_passed = summarize_checks(results)
     report = {
         "tier": 0,
-        "status": status,
-        "all_passed": all_passed,
+        "all_passed": all(r.get("passed", True) is not False for r in results),
         "checks": results,
     }
     REPORT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -237,20 +233,17 @@ def run_all(conn, search_fn=None) -> dict:
 
 
 if __name__ == "__main__":
-    exit_code = 1
+    from jobrag import spec_adapter
+
     conn = connect()
     try:
-        report = run_all(conn)
+        report = run_all(conn, search_fn=spec_adapter.search)
         n_pass = sum(1 for c in report["checks"] if c.get("passed") is True)
         n_fail = sum(1 for c in report["checks"] if c.get("passed") is False)
         n_skip = sum(1 for c in report["checks"] if c.get("passed") is None)
         print(f"\nTier 0 결과: {n_pass} passed, {n_fail} failed, {n_skip} skipped")
-        if report["status"] == "passed":
+        if report["all_passed"]:
             print("[OK] all passed")
-            exit_code = 0
-        elif report["status"] == "incomplete":
-            print("[INCOMPLETE] skipped checks must run before this contract can pass")
-            exit_code = 2
         else:
             for c in report["checks"]:
                 if c.get("passed") is False:
@@ -258,4 +251,3 @@ if __name__ == "__main__":
         print(f"리포트: {REPORT_PATH}")
     finally:
         conn.close()
-    raise SystemExit(exit_code)

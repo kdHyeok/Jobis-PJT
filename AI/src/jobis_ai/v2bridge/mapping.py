@@ -342,6 +342,145 @@ def chat_intent(dispatched: list[str]) -> str:
     return "GENERAL_CAREER"
 
 
+# trace 이벤트 kind → 사용자에게 보일 단계 라벨. **번역이지 재판정이 아니다** — 무엇을
+# 보일지는 아래 progress_steps 가 이벤트 종류로만 정하고, 내용은 기록을 옮겨 적는다.
+_PROGRESS_LABEL = {
+    "planner": "계획 수립",
+    "fallback": "대화 전환",
+    "dispatch": "실행 계획",
+    "consent_gate": "실행 전 확인",
+    "observe": "실행 후 재점검",
+    "url_intake": "자료 접수",
+    "resume_intake": "자료 접수",
+    "recall": "이전 대화 검토",
+    "delegate": "에이전트 위임",
+    "delegate_refused": "위임 거부",
+    "llm_usage": "LLM 사용량",
+}
+
+
+class ProgressMapper:
+    """trace 이벤트 하나 → 진행 단계 하나(또는 None). **번역이지 재판정이 아니다.**
+
+    턴 종료 타임라인(progress_steps)과 실시간 스트리밍(/v1/chat/stream, D75)이 같은
+    매핑을 쓴다 — 상태는 agent_start 시각(소요시간 계산)뿐이라 인스턴스로 든다.
+    """
+
+    def __init__(self) -> None:
+        self._started: dict[str, int] = {}
+
+    def map(self, ev: dict) -> dict | None:
+        from jobis_ai.orchestrator.router import agent_label
+
+        kind = str(ev.get("kind") or "")
+        detail = ev.get("detail") or {}
+        ms = int(ev.get("elapsedMs") or 0)
+
+        def _step(step: str, label: str, text: str) -> dict:
+            return {"step": step, "label": label, "detail": text[:300], "elapsedMs": ms}
+
+        if kind == "planner":
+            sel = ", ".join(agent_label(a) for a in (detail.get("selectedAgents") or []))
+            return _step("planner", _PROGRESS_LABEL[kind],
+                         f"선택: {sel or '(없음)'} · 확신 {float(detail.get('confidence') or 0):.2f}")
+        if kind == "fallback":
+            return _step("fallback", _PROGRESS_LABEL[kind], "플래너 불가 — 대화형 에이전트가 턴을 받음")
+        if kind == "dispatch":
+            if detail.get("inserted"):
+                ins = detail["inserted"]
+                names = ins if isinstance(ins, list) else [ins]
+                return _step("dispatch", _PROGRESS_LABEL[kind],
+                             ", ".join(agent_label(str(n)) for n in names) + "을(를) 실행 계획에 추가")
+            if detail.get("agents") is not None:
+                seq = " → ".join(agent_label(a) for a in (detail.get("agents") or []))
+                return _step("dispatch", _PROGRESS_LABEL[kind], seq or "(실행할 것 없음)")
+            return None
+        if kind == "consent_gate":
+            return _step("consent_gate", _PROGRESS_LABEL[kind], str(detail.get("ask") or ""))
+        if kind in ("url_intake", "resume_intake"):
+            return _step(kind, _PROGRESS_LABEL[kind], str(ev.get("label") or ""))
+        if kind == "agent_start":
+            self._started[str(detail.get("agent") or "")] = ms
+            # 시작도 한 단계로 낸다 — 스트리밍에서 "지금 무엇을 하는 중"이 이 이벤트다.
+            # 어떤 자료(세션 자산)를 보고 시작하는지 함께 표기한다(D93).
+            name = str(detail.get("agent") or "")
+            assets = [str(a) for a in (detail.get("sessionAssets") or [])
+                      if not str(a).startswith("_")]
+            seen = f" · 입력: {', '.join(assets[:6])}" if assets else ""
+            return _step(f"start:{name}", agent_label(name), f"실행 중…{seen}")
+        if kind == "agent_end":
+            name = str(detail.get("agent") or "")
+            t0 = self._started.pop(name, None)
+            dur = f" · {(ms - t0) / 1000:.1f}초" if t0 is not None else ""
+            warn = len(detail.get("warnings") or [])
+            # 오케스트레이터에 무엇을 넘겼는지(sessionUpdates 키 = 상태 전이 요청, D93).
+            handed = [str(k) for k in (detail.get("sessionUpdates") or [])]
+            hand_note = f" · 넘김: {', '.join(handed[:5])}" if handed else ""
+            # 캐시 재사용 턴 — 새로 분석한 게 아니라 저장된 분석을 본 것이므로 라벨을
+            # "분석 자료 검토"로 구분한다(D83, 사용자 지시: 로그가 실제 일과 일치해야 한다).
+            if (detail.get("data") or {}).get("fromCache"):
+                return _step(name, "분석 자료 검토",
+                             "저장된 공고 정리에서 조회"
+                             + (f" · 경고 {warn}건" if warn else "") + dur)
+            return _step(name, agent_label(name),
+                         "완료" + (f" · 경고 {warn}건" if warn else "") + dur + hand_note)
+        if kind == "agent_step":
+            # 자기 루프의 스텝 단위(D93) — 어떤 도구를 왜 불렀고 무엇을 관찰했는지.
+            name = str(detail.get("agent") or "")
+            step_no = detail.get("step")
+            action = str(detail.get("action") or "")
+            if action == "use_tool":
+                obs = str(detail.get("observation") or "").strip()
+                text = (f"스텝{step_no} · 도구 {detail.get('tool')} 호출"
+                        + (f" — {obs[:80]}" if obs else ""))
+            elif action == "reply":
+                text = f"스텝{step_no} · 답변 작성"
+            elif action == "limit":
+                text = "도구 사용 상한 도달 — 지금까지 관찰로 답변 작성"
+            else:
+                text = "중단(판단 불가)"
+            return _step(f"loop:{name}", f"{agent_label(name)} 루프", text)
+        if kind == "recall":
+            return _step("recall", _PROGRESS_LABEL[kind], str(ev.get("label") or ""))
+        if kind == "delegate":
+            # 에이전트 간 데이터 이동(D93) — 누가 누구에게 물었고 무슨 데이터를 받았나.
+            src = str(detail.get("from") or "")
+            target = str(detail.get("target") or "")
+            keys = [str(k) for k in (detail.get("dataKeys") or [])]
+            got = (f" · 받은 데이터: {', '.join(keys[:5])}" if keys
+                   else (f" · 결과 {detail.get('results')}건"
+                         if detail.get("results") is not None else ""))
+            return _step("delegate", _PROGRESS_LABEL[kind],
+                         (f"{src} → {target}" if src else target) + got)
+        if kind == "delegate_refused":
+            return _step("delegate_refused", _PROGRESS_LABEL[kind],
+                         f"{detail.get('target')} — {detail.get('reason')}")
+        if kind == "node":
+            return _step(f"node:{detail.get('node')}", f"판정 노드 · {detail.get('node')}",
+                         f"{detail.get('durationMs')}ms" if detail.get("durationMs") else "")
+        if kind == "observe":
+            if str(detail.get("rule") or "none") not in ("none", "queue_empty"):
+                return _step("observe", _PROGRESS_LABEL[kind], str(detail.get("reason") or ""))
+            return None
+        if kind == "llm_usage":
+            tokens = (f" · 토큰 {detail.get('inputTokens')}→{detail.get('outputTokens')}"
+                      if detail.get("inputTokens") is not None else "")
+            return _step("llm_usage", _PROGRESS_LABEL[kind], f"LLM 콜 {detail.get('calls')}건{tokens}")
+        return None
+
+
+def progress_steps(events: list[dict]) -> list[dict]:
+    """trace 이벤트 → 채팅 UI 의 "진행 과정" 단계 목록 (턴 종료 후 타임라인).
+
+    타임라인에는 start:* 단계를 빼고 완료 단계만 싣는다 — 사후 목록에서 "실행 중…"은
+    거짓말이 된다(스트리밍에서만 의미가 있다).
+    """
+
+    mapper = ProgressMapper()
+    steps = [s for ev in events or [] if (s := mapper.map(ev))]
+    return [s for s in steps if not str(s["step"]).startswith("start:")][:60]
+
+
 def chat_actions(follow_ups: list[dict]) -> tuple[bool, list[SuggestedAction]]:
     """되묻기가 요구한 자산 → (공고 요청 여부, 제안 행동). 요구된 것만 옮긴다."""
 
