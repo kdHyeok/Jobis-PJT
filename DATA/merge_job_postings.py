@@ -40,12 +40,28 @@ def normalized_text(value: object) -> str:
     return re.sub(r"[^0-9a-z가-힣]+", "", str(value or "").lower())
 
 
+def clean_deadline(source: str, value: object) -> object:
+    """인크루트 deadline에 붙는 요일·시각·안내문을 제거하고 날짜만 남긴다.
+
+    인크루트 크롤러는 마감일 칸의 화면 텍스트를 그대로 저장해
+    '2026.07.31 (금) 23:59 마감일은 기업의 사정으로...'처럼 들어온다.
+    날짜 비교가 가능하도록 맨 앞의 YYYY.MM.DD만 남긴다. 다른 사이트는 건드리지 않는다.
+    """
+    if source == "인크루트" and value:
+        match = re.match(r"\s*(\d{4}\.\d{2}\.\d{2})", str(value))
+        if match:
+            return match.group(1)
+    return value
+
+
 def normalize_row(source: str, row: dict) -> dict:
     """입력 JSON의 키 순서와 누락 필드를 공통 스키마로 맞춘다."""
-    return {
+    normalized = {
         field: (source if field == "source" else row.get(field))
         for field in FIELDS
     }
+    normalized["deadline"] = clean_deadline(source, normalized["deadline"])
+    return normalized
 
 
 def duplicate_key(row: dict) -> tuple[str, ...]:
