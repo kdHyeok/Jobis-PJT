@@ -26,6 +26,18 @@ EASY_STRATA = {"pos_dense", "pos_sparse", "neg_top", "pool_tail"}
 AMBIG_STRATA = {"ambiguous"}
 RECHECK_N = 20
 
+# 앵커를 누가 매겼는지. 사람이 아니면 이 대조는 '사람 기준 검증'이 아니라
+# '독립 모델 간 일치도(cross-model adjudication)'다. judge 모델과 반드시 달라야 한다.
+ANCHOR_SOURCE = "claude-fable-5 (LLM, judge와 다른 계열 -사람 채점 아님)"
+
+
+def _judge_prompt_version() -> str:
+    try:
+        from .judge import PROMPT_VERSION
+        return PROMPT_VERSION
+    except Exception:
+        return "unknown"
+
 
 def _load_judgments() -> dict:
     return json.loads(JUDGMENTS_PATH.read_text(encoding="utf-8"))
@@ -96,7 +108,9 @@ def _fetch_context(conn, qid: str, uid: str, queries_map: dict) -> dict:
         "title": row[0],
         "company": row[1],
         "tech": row[2] or [],
-        "snippet": row[3][:600],
+        # 절단 금지: ambiguous 세션은 본문 전체를 읽어야 판정 가능하고,
+        # easy 세션도 300자 절단이 채점 정보 부족을 유발했다 (2026-07-28 확인)
+        "snippet": row[3],
     }
 
 
@@ -148,7 +162,7 @@ def _write_sheet(conn, path: Path, rows: list[tuple], queries_map: dict) -> None
             ctx = _fetch_context(conn, qid, uid, queries_map)
             w.writerow([
                 i, qid, ctx["query"], uid, ctx["company"], ctx["title"],
-                "|".join(ctx["tech"][:8]), ctx["snippet"][:300], "", "",
+                "|".join(ctx["tech"][:8]), ctx["snippet"], "", "",
             ])
 
 
@@ -168,7 +182,7 @@ def score(conn=None) -> dict:
                 label = row.get("label", "").strip()
                 ts = row.get("timestamp", "").strip()
                 if label and label in ("Correct", "Ambiguous", "Incorrect"):
-                    if session_file.name == "session_recheck.csv":
+                    if "recheck" in session_file.name:
                         human_labels[f"recheck:{pair_key}"] = label
                     else:
                         human_labels[pair_key] = label
@@ -237,14 +251,43 @@ def score(conn=None) -> dict:
     fatigue = _check_fatigue(timestamps)
 
     gate3 = "PASS" if kappa >= 0.60 else "FAIL"
-    gate3b = "PASS"
-    if self_kappa is not None and self_kappa < kappa:
-        gate3b = "FAIL -사람 자기일관성이 사람-LLM κ보다 낮음"
+
+    # 자기일관성 게이트는 원래 '사람 채점자의 피로·드리프트'를 잡으려던 것이다.
+    # 앵커를 LLM(temperature 0)이 매기면 같은 항목에 같은 답을 내므로 κ가 구조적으로
+    # 1.0에 붙고, 아무것도 검출하지 못한다. PASS로 표시하면 통과했다는 오해를 준다.
+    if self_kappa is None:
+        gate3b = "N/A -recheck 부족"
+    elif self_kappa >= 0.99:
+        gate3b = "N/A -LLM 앵커는 재검사 κ가 구조적으로 1.0. 피로도 검출 불가"
+    elif self_kappa < kappa:
+        gate3b = "FAIL -앵커 자기일관성이 앵커-judge κ보다 낮음"
+    else:
+        gate3b = "PASS"
+
+    # 판정기가 어느 라벨을 낼 때 신뢰할 수 있는지 -전체 κ보다 이 분해가 실용적이다.
+    # v1에서 "Incorrect"는 98% 일치, "Correct"는 24% 일치로 완전히 갈렸다.
+    per_label = {}
+    for judged_as in ("Correct", "Ambiguous", "Incorrect"):
+        sampled = [(k, h) for k, h in primary.items() if llm_labels.get(k) == judged_as]
+        if not sampled:
+            continue
+        if judged_as == "Correct":
+            agree = sum(1 for _, h in sampled if h == "Correct")
+        else:
+            agree = sum(1 for _, h in sampled if h != "Correct")
+        per_label[judged_as] = {
+            "n_sampled": len(sampled),
+            "anchor_agrees": agree,
+            "rate": round(agree / len(sampled), 4),
+        }
 
     report = {
+        "anchor_source": ANCHOR_SOURCE,
+        "prompt_version": _judge_prompt_version(),
         "n_primary": len(primary),
         "n_recheck": len(recheck),
         "binary_kappa": round(kappa, 4),
+        "agreement_by_judge_label": per_label,
         "binary_agreement": round(binary_agree / binary_total, 4) if binary_total > 0 else None,
         "self_consistency_kappa": round(self_kappa, 4) if self_kappa is not None else None,
         "weighted_accuracy": round(weighted_accuracy, 4),

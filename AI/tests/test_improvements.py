@@ -77,7 +77,10 @@ def test_rules_finish_when_preconditions_broke(monkeypatch):
     res = handle_chat(ChatRequest(sessionId="ob1", message="분석하고 자소서 써줘",
                                   attachments=[_resume(), _posting()]))
 
-    assert res.dispatched == ["fit_analysis"], "전제가 없는 뒤 단계는 실행되지 않는다"
+    # D71: 이번 턴 제출 자료의 정리 단계가 판정 앞에 끼워진다. 핵심 주장은 그대로다 —
+    # 판정이 실패해 analysis 가 없으면 자소서는 돌지 않는다.
+    assert res.dispatched == ["posting_analysis", "resume_diagnosis", "fit_analysis"], \
+        "전제가 없는 뒤 단계는 실행되지 않는다"
     assert not ran
     assert "진행하지 못했" in res.reply, "왜 못 했는지 사용자에게 말한다"
 
@@ -321,9 +324,10 @@ def test_experience_floor_years(text, expected):
     (None, 0.0, True),    # 공고 표기를 못 읽으면 거르지 않는다
 ])
 def test_fits_experience(posting_floor, user_years, fits):
-    from jobis_ai.agents.job_recommend import _fits_experience
+    # 판정은 postings_db 한 곳에 있다(D115) — job_recommend·find_alternatives 공용.
+    from jobis_ai.postings_db import fits_experience
 
-    assert _fits_experience(posting_floor, user_years) is fits
+    assert fits_experience(posting_floor, user_years) is fits
 
 
 def test_job_recommend_excludes_experience_mismatch(monkeypatch):
@@ -528,3 +532,211 @@ def test_alternatives_block_empty_when_none():
     from jobis_ai.agents.tool_render import _alternatives_block
 
     assert _alternatives_block([]) == ""
+
+
+# --- career_chat 폴백은 이유를 남긴다 (§2-6) -------------------------------------
+@pytest.mark.parametrize("reply,code_expected,in_message", [
+    ("이 공고는 합격 가능성이 높아요", True, "합격 가능"),   # 금지표현 강등
+    ("", True, "비어"),                                    # 빈 응답 강등
+    ("천천히 준비해 보면 좋겠어요.", False, ""),             # 정상 — 경고 없음
+])
+def test_career_chat_fallback_reports_reason(monkeypatch, reply, code_expected, in_message):
+    """고정 안내문으로 강등할 때 원인을 warnings 에 남긴다.
+
+    실측(sessions.sqlite3 275턴): 이 폴백이 7건 나갔는데 전부 정상 요청이었고, 원인
+    셋(미설정·실패·금지표현) 중 무엇이었는지 사후에 알 수 없었다 — 금지표현·빈 응답
+    강등만 무음이었기 때문이다. 처방이 원인마다 다르므로 세는 것이 먼저다.
+    """
+
+    from jobis_ai.agents import career_chat
+
+    monkeypatch.setattr(career_chat, "run_streaming_text",
+                        lambda *a, **k: (reply, []))
+    result = career_chat.run({"last_message": "위로해줘"})
+
+    codes = [w["code"] for w in result.warnings]
+    assert ("career_chat_fallback" in codes) is code_expected
+    if code_expected:
+        assert result.reply == career_chat._FALLBACK
+        assert in_message in next(w["message"] for w in result.warnings
+                                  if w["code"] == "career_chat_fallback")
+    else:
+        assert result.reply == reply
+
+
+# --- 수확기 지문이 소스와 함께 늙지 않게 ------------------------------------------
+def test_harvest_fingerprints_still_exist_in_source():
+    """`scripts/harvest_sessions.py` 의 문구 지문이 소스에 실재하는지.
+
+    수확기는 답변 **문구**로 신호를 센다(warnings 는 응답과 함께 사라지고 로그는 stdout
+    전용이라, 발화와 답변이 함께 영속하는 곳은 세션 history 뿐이다). 문구가 바뀌면 지문이
+    죽어 **조용히 0을 보고**하고, 0 은 "괜찮다"로 읽힌다 — 그게 이 스크립트 최대의 실패다.
+    그래서 지문 검사를 여기 묶는다: 문구를 고치면 이 테스트가 먼저 깨진다.
+    """
+
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "scripts" / "harvest_sessions.py"
+    spec = importlib.util.spec_from_file_location("harvest_sessions", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module._assert_fingerprints_alive()      # 지문이 죽었으면 SystemExit
+
+
+# --- 로스터 밖 요청을 센다 (D117) -------------------------------------------------
+def test_unsupported_request_is_recorded_without_changing_routing(monkeypatch,
+                                                                  fresh_session_store):
+    """플래너가 신고한 로스터 밖 요청은 **세션에 남고 라우팅은 그대로**다.
+
+    로그는 stdout 전용이라 휘발하고 warnings 는 응답과 함께 사라진다 — 출시 뒤 무엇이
+    오는지 알려면 영속하는 곳에 남아야 하고, 그 자리가 세션이다(수확기가 읽는다).
+    라우팅을 바꾸지 않는 이유: 무엇이 오는지 모르는 채로 갈래를 만들면 근거 없는 판단을
+    코드로 못 박게 된다. 먼저 센다.
+    """
+
+    stub_planner(monkeypatch, ["career_chat"])
+    plan = AgentPlan(agents=["career_chat"], confidence=0.9,
+                     unsupportedRequest="연봉 협상 어떻게 하는지 알려줘")
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
+                        lambda message, session: (plan, []))
+
+    res = handle_chat(ChatRequest(sessionId="oos-1", message="연봉 협상 어떻게 하는지 알려줘"))
+
+    assert res.dispatched == ["career_chat"]        # 라우팅 불변
+    assert fresh_session_store.get("oos-1")["unsupported_requests"] == [
+        "연봉 협상 어떻게 하는지 알려줘"]
+    assert any(w["code"] == "unsupported_request" for w in res.warnings)
+
+
+def test_unsupported_requests_are_capped(monkeypatch, fresh_session_store):
+    """무한 성장 방지 — 수확용이라 전부 필요하지 않다."""
+
+    from jobis_ai.orchestrator.session import UNSUPPORTED_MAX_ITEMS
+
+    fresh_session_store.update("oos-2", {"unsupported_requests":
+                                         [f"요청{i}" for i in range(UNSUPPORTED_MAX_ITEMS)]})
+    plan = AgentPlan(agents=["career_chat"], confidence=0.9, unsupportedRequest="새 요청")
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
+                        lambda message, session: (plan, []))
+    handle_chat(ChatRequest(sessionId="oos-2", message="새 요청"))
+
+    stored = fresh_session_store.get("oos-2")["unsupported_requests"]
+    assert len(stored) == UNSUPPORTED_MAX_ITEMS
+    assert stored[-1] == "새 요청" and stored[0] == "요청1"     # 오래된 것부터 버린다
+
+
+# --- 장애 격리 (D122): 멤버 하나의 예외가 턴 전체를 죽이지 않는다 ------------------
+def test_agent_crash_is_isolated(monkeypatch):
+    """에이전트가 예외로 죽어도 턴은 계속된다 — 경고 + 사용자향 안내 + 다음 멤버 실행."""
+
+    from dataclasses import replace
+
+    from jobis_ai.agents import get_agent_registry
+
+    stub_planner(monkeypatch, ["resume_diagnosis", "career_chat"])
+
+    real = get_agent_registry()
+
+    def boom(sess):
+        raise RuntimeError("의도된 폭발")
+
+    broken = dict(real)
+    broken["resume_diagnosis"] = replace(real["resume_diagnosis"], entry=boom)
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.get_agent_registry", lambda: broken)
+
+    res = handle_chat(ChatRequest(
+        sessionId="crash-1", message="이력서 진단하고 커리어 고민도 들어줘",
+        attachments=[_resume()],
+    ))
+
+    # 턴이 살아서 다음 멤버까지 돌았다 — 예외가 500 으로 새지 않는다.
+    assert res.dispatched == ["resume_diagnosis", "career_chat"]
+    # 격리는 은폐가 아니다(§2-6): 경고 코드와 원인이 남는다.
+    crashed = [w for w in res.warnings if w["code"] == "agent_crashed"]
+    assert crashed and "의도된 폭발" in crashed[0]["message"]
+    # 사용자도 그 단계가 건너뛰어졌음을 듣는다.
+    assert "건너뛰었어요" in res.reply
+
+
+# --- 금지표현 문장 단위 완화 (D123): 한 단어가 답변 전체를 강등시키지 않는다 -----------
+def test_drop_forbidden_sentences_keeps_clean_text():
+    from jobis_ai.verify_rules import drop_forbidden_sentences
+
+    text = ("면접 전에 회사 리서치를 하세요. 이건 반드시 합니다.\n"
+            "1. CS 기초를 복습하세요.\n"
+            "2. 합격 보장 코스를 들으세요.\n"
+            "\n"
+            "포트폴리오는 두 개면 충분해요.")
+    kept, hits = drop_forbidden_sentences(text)
+
+    assert "회사 리서치" in kept and "CS 기초" in kept and "포트폴리오" in kept
+    assert "반드시" not in kept and "보장" not in kept
+    assert "2." not in kept                      # 문장이 전부 걸린 줄은 줄째 사라진다
+    assert set(hits) == {"반드시", "보장"}
+
+
+def test_drop_forbidden_sentences_empty_when_all_forbidden():
+    from jobis_ai.verify_rules import drop_forbidden_sentences
+
+    kept, hits = drop_forbidden_sentences("무조건 붙습니다.")
+    assert kept == "" and hits
+
+
+def test_career_chat_softens_instead_of_full_fallback(monkeypatch):
+    """정상 문장이 남아 있으면 고정 메뉴 문구로 강등하지 않는다 — 실측 2.5% 강등의 처방."""
+
+    from jobis_ai.agents import career_chat
+
+    monkeypatch.setattr(
+        career_chat, "run_streaming_text",
+        lambda *a, **k: ("공감합니다, 힘드시겠어요. 반드시 붙습니다.", []))
+    res = career_chat.run({"last_message": "취업 너무 어렵다"})
+
+    assert "공감합니다" in res.reply
+    assert "반드시" not in res.reply
+    assert res.reply != career_chat._FALLBACK
+    assert any(w["code"] == "career_chat_softened" for w in res.warnings)
+
+
+def test_career_chat_falls_back_when_nothing_survives(monkeypatch):
+    from jobis_ai.agents import career_chat
+
+    monkeypatch.setattr(
+        career_chat, "run_streaming_text", lambda *a, **k: ("무조건 합격 가능해요.", []))
+    res = career_chat.run({"last_message": "나 붙을까?"})
+
+    assert res.reply == career_chat._FALLBACK
+    assert any(w["code"] == "career_chat_fallback" for w in res.warnings)
+
+
+# --- 저확신 계획 보존 (D124): 버리되 잃지 않는다 -------------------------------------
+def test_low_confidence_plan_kept_as_confirm(monkeypatch, fresh_session_store):
+    """확신 미달 계획은 실행하지 않되(기존 유지) 확인 버튼·동의권·계수로 남는다."""
+
+    plan = AgentPlan(agents=["fit_analysis"], requestedAgents=["fit_analysis"],
+                     confidence=0.4)
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
+                        lambda message, session: (plan, []))
+
+    res = handle_chat(ChatRequest(sessionId="lc-1", message="음 그거 어떻게 되려나"))
+
+    assert res.dispatched == ["career_chat"]            # 저확신 실행 금지는 그대로
+    assert any(q["field"] == "confirm_plan" for q in res.followUpQuestions)
+    assert any(w["code"] == "low_confidence_plan" for w in res.warnings)
+    # 다음 턴 동의 한마디로 이어지도록 동의 게이트 통과권이 남는다.
+    assert fresh_session_store.get("lc-1")["pendingConsent"] == ["fit_analysis"]
+
+
+def test_low_confidence_career_chat_guess_adds_no_button(monkeypatch, fresh_session_store):
+    """추측이 career_chat 뿐이면 확인할 것이 없다 — 버튼·경고를 만들지 않는다."""
+
+    plan = AgentPlan(agents=["career_chat"], requestedAgents=[], confidence=0.3)
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.plan_agents",
+                        lambda message, session: (plan, []))
+
+    res = handle_chat(ChatRequest(sessionId="lc-2", message="에휴"))
+
+    assert res.dispatched == ["career_chat"]
+    assert not any(q.get("field") == "confirm_plan" for q in res.followUpQuestions)
+    assert not any(w["code"] == "low_confidence_plan" for w in res.warnings)

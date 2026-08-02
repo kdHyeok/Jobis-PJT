@@ -285,6 +285,27 @@ class SuggestedAction(ContractModel):
     label: str = Field(min_length=1, max_length=80)
 
 
+class ReplySource(ContractModel):
+    """message 를 구성한 문장별 화자 — 오라우팅 디버깅용(엔진 ChatResponse.replySources 통과).
+
+    channel: tool_render(도구 산출을 표현 계층이 렌더) / agent_llm(대화형 에이전트 직접 생성) /
+    attachment_ack·lead·rule_note·consent_gate·notice(오케스트레이터 결정론 문장).
+    """
+
+    agent: str = Field(max_length=80)
+    channel: str = Field(max_length=40)
+    text: str = Field(default="", max_length=4_000)
+
+
+class ProgressStep(ContractModel):
+    """턴 내부 진행 단계 하나 — 어떤 에이전트/판정 노드가 언제 무엇을 했나(관찰용 타임라인)."""
+
+    step: str = Field(max_length=80)
+    label: str = Field(max_length=80)
+    detail: str = Field(default="", max_length=300)
+    elapsed_ms: int | None = None
+
+
 class ChatResponse(ContractModel):
     message: str = Field(min_length=1, max_length=4_000)
     intent: Literal[
@@ -297,6 +318,8 @@ class ChatResponse(ContractModel):
     ]
     should_request_posting: bool = False
     suggested_actions: list[SuggestedAction] = Field(default_factory=list, max_length=3)
+    reply_sources: list[ReplySource] = Field(default_factory=list, max_length=20)
+    progress: list[ProgressStep] = Field(default_factory=list, max_length=60)
 
 
 class EvidenceNode(ContractModel):

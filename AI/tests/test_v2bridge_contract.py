@@ -245,3 +245,274 @@ def test_pasted_resume_is_promoted_as_resume_not_posting():
     message, attachments = service.promote_pasted_posting(resume)
     assert message == ""
     assert attachments and attachments[0].kind == "resume"
+
+
+def test_pasted_resume_without_posting_markers_is_promoted():
+    """공고 표지어("주요 업무" 등)가 없는 이력서 — 표지어 판별(_posting_in_message)에 안
+    걸려 일반 대화로 흘렀고, career_chat 이 이력서 원문 위에서 즉흥 조언·판정을 만들었다
+    (2026-07-31 실측). 결정론 분류(detect_kind)가 확신하면 승격해야 한다."""
+
+    resume = (
+        "자기소개\n저는 SSAFY 에서 AI 서비스를 만든 개발자입니다. 멀티에이전트 오케스트레이션과 "
+        "RAG 파이프라인 설계를 맡았고, 팀 프로젝트 기여도 40% 로 백엔드 연동까지 구현했습니다.\n\n"
+        "프로젝트 경험\n① 취업 지원 멀티에이전트 서비스 (6인 팀)\n"
+        "- Stateful Multi-Agent 워크플로우 설계, LLM 판정 하네스 구축\n"
+        "- 평가셋 재현성 측정과 회귀 테스트 정비\n\n"
+        "링크\ngithub.com/example · 기술 블로그 운영\n\n학력\nOO대학교 컴퓨터공학과 졸업"
+    )
+    assert len(resume) >= 180
+    message, attachments = service.promote_pasted_posting(resume)
+    assert message == ""
+    assert attachments and attachments[0].kind == "resume"
+
+
+def test_career_summary_does_not_clobber_pasted_resume(monkeypatch):
+    """M7: 백엔드가 매 요청 싣는 커리어 요약이, 사용자가 붙여넣은 이력서 **원문**을 덮지
+    않는다(원천 우선순위: 원문 > 요약). 요약끼리(origin 표식)는 최신으로 갱신된다."""
+
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.contracts.api import ChatResponse as EngineChatResponse
+    from jobis_ai.orchestrator import session as session_mod
+    from jobis_ai.orchestrator.session import SessionStore
+    from jobis_ai.v2bridge.models import CareerSummary, ChatMessage
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    store = SessionStore()
+    monkeypatch.setattr(session_mod, "_STORE", store)
+    monkeypatch.setattr(
+        "jobis_ai.orchestrator.chat.handle_chat",
+        lambda req: EngineChatResponse(sessionId=req.sessionId, reply="네, 확인했어요."))
+
+    conv = _uuid4()
+    session_id = f"v2-chat-{conv}"
+    request = V2ChatRequest(
+        conversation_id=conv, display_name="신율",
+        messages=[ChatMessage(role="USER", content="안녕하세요")],
+        career=CareerSummary(completed_nodes=["Python 기초"]))
+
+    # 붙여넣은 원문이 있으면 요약이 덮지 않는다
+    store.update(session_id, {"resume": {"sourceType": "text", "value": "붙여넣은 이력서 원문"}})
+    service.chat(request)
+    assert store.get(session_id)["resume"]["value"] == "붙여넣은 이력서 원문"
+
+    # 요약끼리는 최신으로 갱신된다
+    store.update(session_id, {"resume": {
+        "sourceType": "text", "value": "옛 요약", "origin": "career_summary"}})
+    service.chat(request)
+    assert "Python 기초" in store.get(session_id)["resume"]["value"]
+
+
+def test_chat_events_streams_progress_then_result(monkeypatch):
+    """D75: chat_events 는 trace 이벤트를 진행 단계로 즉시 내보내고 마지막에 result 한 건을
+    낸다. 단건 chat() 은 같은 제너레이터를 소진하므로 두 경로의 처리가 갈리지 않는다."""
+
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.contracts.api import ChatResponse as EngineChatResponse
+    from jobis_ai.orchestrator import session as session_mod
+    from jobis_ai.orchestrator.session import SessionStore
+    from jobis_ai.v2bridge.models import ChatMessage
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    monkeypatch.setattr(session_mod, "_STORE", SessionStore())
+
+    def fake_handle_chat(req):
+        from jobis_ai import trace
+        trace.emit("agent_start", "공고 분석 실행 시작", {"agent": "posting_analysis"})
+        trace.emit("agent_end", "공고 분석 실행 종료",
+                   {"agent": "posting_analysis", "warnings": []})
+        return EngineChatResponse(sessionId=req.sessionId, reply="정리했어요.",
+                                  dispatched=["posting_analysis"])
+
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.handle_chat", fake_handle_chat)
+    request = V2ChatRequest(conversation_id=_uuid4(), display_name="신율",
+                            messages=[ChatMessage(role="USER", content="공고 분석해줘")])
+
+    items = list(service.chat_events(request))
+    assert [i["type"] for i in items] == ["progress", "progress", "result"]
+    assert items[0]["step"] == "start:posting_analysis"      # 실행 중… (실시간 전용)
+    assert items[1]["step"] == "posting_analysis"            # 완료
+    response = items[-1]["response"]
+    assert response.message == "정리했어요."
+    # 사후 타임라인에는 start:* 를 싣지 않는다
+    assert [s.step for s in response.progress] == ["posting_analysis"]
+
+    # 단건 계약도 같은 결과
+    assert service.chat(request).message == "정리했어요."
+
+
+def test_chat_stream_endpoint_emits_ndjson(monkeypatch):
+    """스트림 엔드포인트는 NDJSON 줄 단위로 진행·결과를 내보낸다 (기존 /v1/chat 불변)."""
+
+    import json as json_mod
+
+    def fake_events(request):
+        yield {"type": "progress", "step": "planner", "label": "계획 수립",
+               "detail": "선택: 공고 분석", "elapsedMs": 10}
+        from jobis_ai.v2bridge.models import ChatResponse as V2ChatResponse
+        yield {"type": "result", "response": V2ChatResponse(
+            message="정리했어요.", intent="POSTING_ANALYSIS")}
+
+    monkeypatch.setattr(service, "chat_events", fake_events)
+    with client.stream("POST", "/v1/chat/stream", json=chat_request(), headers=HEADERS) as res:
+        lines = [json_mod.loads(l) for l in res.iter_lines() if l]
+    assert lines[0]["type"] == "progress" and lines[0]["label"] == "계획 수립"
+    assert lines[1]["type"] == "result"
+    assert lines[1]["response"]["message"] == "정리했어요."
+
+
+def test_progress_steps_maps_trace_timeline():
+    """trace 이벤트 → 진행 과정 타임라인: 플래너 선택·실행 계획·에이전트별 소요시간·판정 노드가
+    사용자 라벨로 옮겨진다(재판정 없음 — 기록의 번역)."""
+
+    from jobis_ai.v2bridge.mapping import progress_steps
+
+    events = [
+        {"kind": "resume_intake", "label": "발화의 이력서 원문을 자산으로 등록",
+         "detail": {"chars": 900}, "elapsedMs": 5},
+        {"kind": "planner", "detail": {"selectedAgents": ["fit_analysis"], "confidence": 0.85},
+         "elapsedMs": 1200},
+        {"kind": "dispatch", "detail": {"agents": ["posting_analysis", "fit_analysis"]},
+         "elapsedMs": 1210},
+        {"kind": "agent_start", "detail": {"agent": "fit_analysis"}, "elapsedMs": 1300},
+        {"kind": "node", "detail": {"node": "match_requirements", "durationMs": 800},
+         "elapsedMs": 9000},
+        {"kind": "agent_end", "detail": {"agent": "fit_analysis", "warnings": []},
+         "elapsedMs": 15300},
+        {"kind": "observe", "detail": {"rule": "none"}, "elapsedMs": 15310},
+        {"kind": "llm_usage", "detail": {"calls": 6, "inputTokens": 1000, "outputTokens": 400},
+         "elapsedMs": 15400},
+    ]
+    steps = progress_steps(events)
+    labels = [s["label"] for s in steps]
+    assert labels == ["자료 접수", "계획 수립", "실행 계획", "판정 노드 · match_requirements",
+                      "적합도 분석", "LLM 사용량"]   # observe(변경 없음)는 숨긴다
+    assert "확신 0.85" in steps[1]["detail"]
+    assert "공고 분석 → 적합도 분석" == steps[2]["detail"]
+    assert "14.0초" in steps[4]["detail"]             # agent_start→end 소요시간
+    assert steps[5]["detail"] == "LLM 콜 6건 · 토큰 1000→400"
+
+
+def test_progress_shows_loop_steps_delegation_and_data_flow():
+    """D93: 루프 스텝(도구 호출·관찰), 에이전트 간 위임(누가→누구·받은 데이터),
+    입력 자산·세션 갱신(무엇을 보고 무엇을 넘겼나)이 전부 진행 로그에 실린다."""
+
+    from jobis_ai.v2bridge.mapping import ProgressMapper
+
+    mapper = ProgressMapper()
+    start = mapper.map({"kind": "agent_start", "elapsedMs": 10, "detail": {
+        "agent": "coverletter_draft", "sessionAssets": ["analysis", "resume"]}})
+    assert "입력: analysis, resume" in start["detail"]
+
+    step = mapper.map({"kind": "agent_step", "elapsedMs": 20, "detail": {
+        "agent": "coverletter_draft", "step": 2, "action": "use_tool",
+        "tool": "ask_agent", "observation": "빈약 항목: 수상"}})
+    assert step["label"] == "자소서 초안 루프"
+    assert "도구 ask_agent 호출" in step["detail"] and "빈약 항목" in step["detail"]
+
+    delegate = mapper.map({"kind": "delegate", "elapsedMs": 25, "detail": {
+        "from": "application_plan", "target": "job_recommend", "results": 3}})
+    assert delegate["label"] == "에이전트 위임"
+    assert "application_plan → job_recommend" in delegate["detail"]
+    assert "결과 3건" in delegate["detail"]
+
+    refused = mapper.map({"kind": "delegate_refused", "elapsedMs": 26, "detail": {
+        "target": "job_recommend", "reason": "preconditions_not_met"}})
+    assert refused["label"] == "위임 거부"
+
+    end = mapper.map({"kind": "agent_end", "elapsedMs": 5010, "detail": {
+        "agent": "coverletter_draft", "warnings": [],
+        "sessionUpdates": ["coverletter"]}})
+    assert "넘김: coverletter" in end["detail"]                   # 오케스트레이터로의 상태 전이
+
+
+def test_progress_labels_distinguish_recall_from_analysis():
+    """D83: 저장된 분석을 본 턴은 '공고 분석'이 아니라 '분석 자료 검토'로, 저장 정보를 대화
+    근거로 쓴 턴은 '이전 대화 검토'로 표시된다 — 로그가 실제 일과 일치해야 한다."""
+
+    from jobis_ai.v2bridge.mapping import progress_steps
+
+    steps = progress_steps([
+        {"kind": "agent_end", "detail": {"agent": "posting_analysis", "warnings": [],
+                                         "data": {"fromCache": True}}, "elapsedMs": 6400},
+        {"kind": "recall", "label": "저장된 공고 정리에서 물은 항목만 조회",
+         "detail": {}, "elapsedMs": 6500},
+    ])
+    assert steps[0]["label"] == "분석 자료 검토"
+    assert "저장된 공고 정리에서 조회" in steps[0]["detail"]
+    assert steps[1]["label"] == "이전 대화 검토"
+
+
+def test_mixed_url_and_resume_message_is_left_to_engine():
+    """URL + 이력서 + 요청 문장이 섞인 메시지는 브릿지가 통째로 첨부하지 않는다 —
+    통째 승격은 URL(공고)과 요청 문장을 첨부 속으로 삼킨다(실측 2026-07-31).
+    엔진이 URL/이력서를 각각 발화에서 승격하고 요청 문장은 플래너 입력으로 남긴다."""
+
+    mixed = (
+        "https://example.com/jobs/123 이게 내 목표공고이고, "
+        "자기소개\n저는 SSAFY 에서 AI 서비스를 만든 개발자입니다. 멀티에이전트 오케스트레이션과 "
+        "RAG 파이프라인 설계를 맡았고, 팀 프로젝트 기여도 40% 로 백엔드 연동까지 구현했습니다. "
+        "github.com/example · OO대학교 졸업 · 포트폴리오 별첨. "
+        "이게 내 이력서야. 공고와 이력서 각각 분석하고 적합도 분석 진행해줘"
+    )
+    assert len(mixed) >= 180
+    message, attachments = service.promote_pasted_posting(mixed)
+    assert message == mixed and attachments == []
+
+
+def test_long_ambiguous_chat_is_not_promoted():
+    """긴 발화라도 신호 어휘가 확실하지 않으면 대화로 남는다 — 애매한 글을 자산으로
+    승격하면 일반 상담 글이 이력서로 저장된다(보수 기준 유지)."""
+
+    long_chat = (
+        "요즘 백엔드 직군 준비를 하면서 고민이 많습니다. 스프링을 먼저 깊게 파야 할지, "
+        "아니면 CS 기초(운영체제, 네트워크, 데이터베이스)를 다시 정리해야 할지 순서를 못 정하겠어요. "
+        "주변에서는 프로젝트를 하나 더 하라고 하는데 시간이 부족하고, 코딩 테스트 준비도 병행해야 해서 "
+        "하루를 어떻게 나눠 써야 할지 모르겠습니다. 지금 상황에서 무엇부터 하는 게 좋을까요?"
+    )
+    assert len(long_chat) >= 180
+    message, attachments = service.promote_pasted_posting(long_chat)
+    assert message and attachments == []
+
+
+def test_pasted_posting_keeps_trailing_request_as_utterance():
+    """자료 뒤에 붙은 **요청 문장은 발화로 남는다**(D100).
+
+    실측(2026-08-01): 공고 원문 끝에 "이 공고 기준으로 어떤 스택을 공부하고 어떤 프로젝트를
+    만들면 좋을까요?" 를 붙여 보냈는데, 통째로 첨부되고 발화가 비워져 `handle_chat` 이 중립
+    발화를 합성했다 — 플래너도 에이전트 루프도 사용자가 무엇을 물었는지 모른 채 요약만 냈다.
+    D69 가 URL 혼합 메시지에 한 보존을 붙여넣기 경로에도 한다.
+    """
+
+    posting = (
+        "AI/Agent 엔지니어 채용\n\n담당업무\n- LLM 기반 에이전트 파이프라인 설계 및 운영\n"
+        "- 상담 데이터 수집·정제 ETL 파이프라인 구축\n\n자격요건\n"
+        "- 데이터 엔지니어링 또는 ML 엔지니어링 경력 3~7년\n- Python 기반 데이터 처리 실무 경험\n"
+        "- Airflow / Dagster / Prefect 중 하나 이상 운영 경험\n\n우대사항\n"
+        "- LangChain 또는 LlamaIndex 활용 경험\n- AWS / GCP / Azure 중 하나의 운영 경험"
+    )
+    request = "이 공고 기준으로 제가 어떤 스택을 공부하고 어떤 프로젝트를 만들면 좋을까요?"
+
+    message, attachments = service.promote_pasted_posting(f"{posting}\n\n{request}")
+    assert message == request, "요청 문장이 첨부 속으로 삼켜지면 안 된다"
+    assert len(attachments) == 1 and attachments[0].kind == "job_posting"
+    # 첨부는 자르지 않는다 — 자료 본문을 잃는 것이 꼬리 한 줄이 남는 것보다 나쁘다.
+    assert request in attachments[0].value
+
+    # 요청 없이 자료만 온 턴은 그대로 비운다(중립 발화 합성은 handle_chat 의 몫).
+    message, attachments = service.promote_pasted_posting(posting)
+    assert message == "" and len(attachments) == 1
+
+
+def test_posting_body_lines_are_not_mistaken_for_a_request():
+    """자료 본문 줄을 요청으로 오인해 발화로 새어 나가면 안 된다(보수 기준)."""
+
+    from jobis_ai.v2bridge.service import _trailing_request
+
+    # 개조식 공고 본문 — 요청 표지가 없다.
+    assert _trailing_request("자격요건\n- Python 3년\n- SQL 능숙") == ""
+    # 표지가 있어도 공고 표지어가 같은 줄에 있으면 본문으로 본다.
+    assert _trailing_request("경력 3년\n우대사항: 코드 리뷰 문화에 익숙하신 분이면 좋을까요?") == ""
+    # 물음표로 끝나는 짧은 꼬리는 요청이다.
+    assert _trailing_request("경력 3년\n\n분석해 주세요") == "분석해 주세요"

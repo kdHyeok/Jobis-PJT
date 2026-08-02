@@ -1,0 +1,446 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-08-01T20:47:21",
+    "dataset": "C:\\Users\\SSAFY\\Desktop\\S15P11C202-rag\\AI\\evals\\generic_dataset.json",
+    "runs": 3
+  },
+  "summary": {
+    "postings": 4,
+    "questions": 2,
+    "runs": 3,
+    "measured": 2,
+    "genericScore": 0.0822,
+    "meanOffPostingSkillRate": 0.075,
+    "noiseFloor": 0.0829,
+    "emptyAnswers": []
+  },
+  "results": [
+    {
+      "questionId": "study-plan",
+      "measured": true,
+      "runs": 3,
+      "genericScore": {
+        "mean": 0.0706,
+        "min": 0.0355,
+        "max": 0.0909,
+        "range": 0.0554
+      },
+      "offPostingSkillRate": {
+        "mean": 0.15,
+        "min": 0.0875,
+        "max": 0.2125,
+        "range": 0.125
+      },
+      "attempts": [
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0855,
+          "meanAnswerSim": 0.6278,
+          "meanPostingSim": 0.5423,
+          "worstPair": "frontend-react|data-analyst",
+          "worstDelta": 0.122,
+          "offPostingSkillRate": {
+            "ai-agent": 0.25,
+            "backend-commerce": 0.1,
+            "frontend-react": 0.5,
+            "data-analyst": 0.0
+          },
+          "meanOffPostingSkillRate": 0.2125,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6203,
+              "posting": 0.539,
+              "delta": 0.0813
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.5776,
+              "posting": 0.496,
+              "delta": 0.0816
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.623,
+              "posting": 0.5565,
+              "delta": 0.0665
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.6167,
+              "posting": 0.5629,
+              "delta": 0.0538
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.6672,
+              "posting": 0.5596,
+              "delta": 0.1076
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.662,
+              "posting": 0.54,
+              "delta": 0.122
+            }
+          },
+          "answerChars": [
+            1059,
+            1061,
+            1000,
+            772
+          ],
+          "answers": {
+            "ai-agent": "필수 요건부터 순서대로 잡으면 됩니다.\n\n1) 필수: Python 데이터 처리 + Airflow/Dagster/Prefect + Pinecone/Qdrant/Milvus/pgvector → 상담 문서를 Python으로 전처리해 Airflow DAG로 배치 처리하고 임베딩을 만들어 Qdrant에 적재하는 파이프라인이 핵심 학습 대상입니다.\n2) 우대: LangChain(또는 LlamaIndex)로 위 벡터 검색 결과를 체이닝해 답변 생성까지 이어보고, OpenAI/Anthropic API를 붙여 AWS 등 클라우드에 배포해보면 우대 사항까지 커버됩니다.\n\n이 순서로 프로젝트 2개(① 상담 문서 RAG 파이프라인, ② LLM API 연동 어시스턴트 + 클라우드 배포)를 기록해뒀습니다.\n\n프로젝트 제안\n1. **상담 문서 기반 RAG 파이프라인**\n   상담 로그/문서를 Python으로 전처리하고 Airflow DAG로 주기적 배치 처리, 임베딩을 생성해 Qdrant에 적재하는 데이터 파이프라인을 구축. 검색 결과를 LangChain으로 체이닝해 답변 생성 데모까지 구현\n   커버하는 요건: Python 기반 데이터 처리 실무 경험 · Airflow / Dagster / Prefect 중 하나 이상 운영 경험 · Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험 · LangChain 또는 LlamaIndex 활용 경험\n   완료 기준: Airflow DAG가 스케줄에 따라 문서를 수집→전처리→임베딩→Qdrant 적재까지 자동 실행되고, LangChain 체인으로 질의응답 결과를 반환하면 완료\n2. **LLM API 연동 상담 어시스턴트 + 클라우드 배포**\n   OpenAI 또는 Anthropic API를 호출하는 간단한 상담 어시스턴트 서비스를 만들고 AWS(EC2/Lambda 등)에 배포·운영\n   커버하는 요건: OpenAI 또는 Anthropic API 운영 경험 · AWS / GCP / Azure 중 하나의 운영 경험\n   완료 기준: 배포된 엔드포인트가 실제 API 키로 응답을 반환하고 로그/모니터링이 확인되면 완료",
+            "backend-commerce": "필수 요건 3개는 Spring Boot + Java/Kotlin으로 REST API 서버 만들면서 MySQL/PostgreSQL 스키마 설계·인덱스 튜닝까지 직접 해보는 걸로 커버됩니다. 우대 사항은 Kafka로 이벤트 드리븐 파이프라인(주문→정산 비동기 처리) 만들어보고, 그 서버를 Docker+Kubernetes로 배포해보면 순서대로 다 짚입니다. 학습 순서는 Java/Kotlin+Spring Boot+RDBMS → Kafka → Kubernetes 순이 자연스럽습니다. 프로젝트 3건을 기록해뒀으니 확인해보세요.\n\n프로젝트 제안\n1. **커머스 REST API 서버 (Spring Boot + Kotlin/Java)**\n   상품/주문/재고를 다루는 REST API를 Spring Boot와 Kotlin(또는 Java)으로 구현하고, MySQL 또는 PostgreSQL 스키마를 직접 설계해 인덱스·쿼리 튜닝까지 진행\n   커버하는 요건: Java 또는 Kotlin 백엔드 개발 경력 3년 이상 · RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험 · REST API 설계 경험\n   완료 기준: 상품 CRUD·주문 생성·재고 차감 API가 동작하고, 느린 쿼리 하나를 찾아 인덱스로 개선한 기록이 있으면 끝\n2. **Kafka 기반 주문-정산 이벤트 파이프라인**\n   주문 생성 시 Kafka로 이벤트를 발행하고, 별도 컨슈머가 정산 내역을 비동기로 처리하는 이벤트 드리븐 구조 구현\n   커버하는 요건: Kafka 기반 이벤트 드리븐 아키텍처 경험 · 결제/정산 도메인 경험\n   완료 기준: 주문 이벤트 발행부터 정산 컨슈머 처리까지 end-to-end로 동작하고 실패 시 재처리(재시도) 로직이 있으면 끝\n3. **Kubernetes 배포 파이프라인**\n   위 API 서버를 Docker로 컨테이너화하고 Kubernetes(로컬 minikube 등)에 배포, 롤링 업데이트와 헬스체크 구성\n   커버하는 요건: Kubernetes 운영 경험\n   완료 기준: Deployment/Service 매니페스트로 배포되고, 파드 재시작 시 무중단 롤링 업데이트가 확인되면 끝",
+            "frontend-react": "필수 요건부터 순서대로 잡으면 됩니다:\n\n1. React + TypeScript로 CRUD 대시보드 만들기 — 상태 관리 라이브러리(Redux나 Zustand)로 화면 간 전역 상태 공유까지 구현. React/TypeScript/상태관리 경험을 한 번에 증명.\n2. 위 프로젝트를 Next.js로 SSR 전환하고 WCAG 기준(시맨틱 태그, 키보드 내비게이션, 명도 대비) 적용.\n3. Storybook + Chromatic(또는 Playwright 스크린샷 비교)로 시각 회귀 테스트 파이프라인 구축.\n\n필수 요건 3개를 1번에서 한꺼번에 다루고, 우대 사항은 2·3번에서 순서대로 붙이는 흐름입니다.\n\n프로젝트 제안\n1. **React+TypeScript 상태관리 대시보드**\n   React와 TypeScript로 CRUD 대시보드를 만들고 Redux(또는 Zustand) 등 상태 관리 라이브러리로 전역 상태를 관리한다\n   커버하는 요건: React 기반 프론트엔드 개발 경력 2년 이상 · TypeScript 사용 경험 · 상태 관리 라이브러리 사용 경험\n   완료 기준: TypeScript 타입 에러 없이 상태 관리 라이브러리로 여러 화면 간 데이터 공유가 동작\n2. **Next.js SSR 블로그 + 접근성 대응**\n   위 대시보드 또는 별도 서비스를 Next.js로 SSR 전환하고 WCAG 기준(시맨틱 태그, 키보드 내비게이션, 명도 대비)을 적용\n   커버하는 요건: Next.js 서버 사이드 렌더링 경험 · 웹 접근성(WCAG) 대응 경험\n   완료 기준: SSR로 초기 HTML에 데이터가 렌더되고 스크린리더/키보드만으로 주요 기능 사용 가능\n3. **시각 회귀 테스트 파이프라인 구축**\n   위 프로젝트에 Storybook + Chromatic(또는 Playwright 스크린샷 비교)로 시각 회귀 테스트를 도입\n   커버하는 요건: 시각 회귀 테스트 도입 경험\n   완료 기준: UI 변경 시 스크린샷 diff가 자동으로 감지되어 CI에서 실패 처리됨",
+            "data-analyst": "필수 요건부터: SQL 윈도우 함수·조인 실습과 A/B 테스트 가설검정 분석으로 req-2, req-3을 채우고, 그다음 pandas + Tableau/Looker로 커머스 지표 대시보드를 만들어 우대 사항(pref-1~3)까지 커버하는 순서를 추천합니다. 세 프로젝트 제안을 아래에 기록해 뒀습니다.\n\n프로젝트 제안\n1. **SQL 윈도우 함수·조인 실습 리포트**\n   이커머스 스타일 원시 테이블(주문·유저·상품)을 만들어 윈도우 함수(RANK, LAG/LEAD, 누적합)와 다중 조인으로 재구매율·코호트 리포트를 SQL만으로 작성\n   커버하는 요건: SQL 능숙(윈도우 함수·복잡한 조인)\n   완료 기준: 복잡한 다중 조인·윈도우 함수 쿼리 5개 이상 작성 및 결과 해석 정리\n2. **A/B 테스트 가설검정 분석**\n   두 그룹 전환율 데이터를 만들어 t-검정/카이제곱검정으로 유의성 판단, p-value·신뢰구간 해석 문서화\n   커버하는 요건: 통계적 가설검정에 대한 이해\n   완료 기준: 가설 설정→검정→결론 도출 과정을 문서로 정리하고 재현 가능한 코드 제출\n3. **커머스 지표 대시보드**\n   pandas로 매출·재구매율·퍼널 전환율 등 커머스 핵심 지표를 집계한 뒤 Tableau 또는 Looker로 대시보드 구축 및 운영\n   커버하는 요건: Tableau 또는 Looker 대시보드 운영 경험 · Python(pandas) 분석 경험 · 커머스 도메인 지표 경험\n   완료 기준: 대시보드에 최소 3개 지표 시각화 및 pandas 분석 코드 공개"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 4
+          }
+        },
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0355,
+          "meanAnswerSim": 0.5781,
+          "meanPostingSim": 0.5425,
+          "worstPair": "backend-commerce|data-analyst",
+          "worstDelta": 0.0727,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.1,
+            "frontend-react": 0.5,
+            "data-analyst": 0.0
+          },
+          "meanOffPostingSkillRate": 0.15,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.5536,
+              "posting": 0.5392,
+              "delta": 0.0144
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.5287,
+              "posting": 0.4962,
+              "delta": 0.0325
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.611,
+              "posting": 0.5566,
+              "delta": 0.0544
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.5532,
+              "posting": 0.5636,
+              "delta": -0.0104
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.6331,
+              "posting": 0.5604,
+              "delta": 0.0727
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.5888,
+              "posting": 0.5393,
+              "delta": 0.0495
+            }
+          },
+          "answerChars": [
+            1121,
+            1141,
+            1064,
+            1084
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 순으로 잡으면 됩니다.\n\n필수(req) 먼저:\n- Python으로 상담 데이터를 수집·정제하는 배치 파이프라인을 Airflow(또는 Dagster/Prefect)로 구성\n- 생성한 임베딩을 pgvector 또는 Qdrant 같은 벡터 DB에 적재해 검색되게 만들기\n→ 이 과정을 하나의 프로젝트로 묶으면 req-2, req-3, req-4를 한 번에 다룹니다.\n\n우대(pref) 다음:\n- 위 벡터 DB를 LangChain(또는 LlamaIndex)으로 연결\n- OpenAI 또는 Anthropic API로 답변 생성까지 이어 RAG 챗봇 완성\n- AWS/GCP/Azure 중 한 곳에 배포\n→ pref-1, pref-2, pref-3까지 커버됩니다.\n\n두 프로젝트로 정리해 기록해뒀습니다. 다음으로 벡터 DB 중 어떤 걸 먼저 볼지(pgvector vs Qdrant) 정하는 게 좋을 것 같아요.\n\n프로젝트 제안\n1. **상담 데이터 RAG 파이프라인 구축**\n   상담 데이터를 수집·정제해 Airflow(또는 Dagster/Prefect)로 배치 파이프라인을 구성하고, 임베딩을 pgvector 또는 Qdrant에 적재해 벡터 검색이 되는 RAG 백엔드를 Python으로 구현\n   커버하는 요건: Python 기반 데이터 처리 실무 경험 · Airflow / Dagster / Prefect 중 하나 이상 운영 경험 · Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험\n   완료 기준: 상담 데이터 샘플이 파이프라인을 거쳐 벡터 DB에 적재되고, 쿼리 시 관련 문서가 검색되는 상태\n2. **LangChain 기반 RAG 챗봇 + 클라우드 배포**\n   위에서 구축한 벡터 DB를 LangChain(또는 LlamaIndex)으로 연결하고 OpenAI 또는 Anthropic API로 답변을 생성하는 RAG 챗봇을 만들어 AWS/GCP/Azure 중 하나에 배포\n   커버하는 요건: LangChain 또는 LlamaIndex 활용 경험 · OpenAI 또는 Anthropic API 운영 경험 · AWS / GCP / Azure 중 하나의 운영 경험\n   완료 기준: 배포된 엔드포인트에 질문을 보내면 상담 데이터 기반 답변이 돌아오는 상태",
+            "backend-commerce": "필수 요건인 Java/Kotlin + REST API + RDBMS 튜닝부터 커버하는 게 우선이라 이 순서를 추천합니다.\n\n1순위 (필수 요건 커버)\n- Spring Boot + Kotlin/Java로 커머스 REST API 서버 구현 (상품·주문·결제/정산 도메인)\n- MySQL/PostgreSQL 스키마 설계, 인덱스·쿼리 튜닝 직접 수행\n\n2순위 (우대 사항 커버)\n- Kafka로 주문→정산 이벤트를 비동기 처리하는 이벤트 드리븐 파이프라인 구축\n- 위 서비스를 Docker + Kubernetes(minikube 등)로 배포해 롤링 업데이트·헬스체크 경험 쌓기\n\n결제/정산 도메인은 1순위 프로젝트에 포함해서 같이 증명하는 게 효율적입니다.\n\n프로젝트 제안\n1. **커머스 REST API 서버 (Spring Boot + Kotlin/Java)**\n   상품·주문·결제/정산 도메인을 다루는 REST API 서버를 Spring Boot와 Java 또는 Kotlin으로 구현. MySQL 또는 PostgreSQL로 스키마를 설계하고 인덱스·쿼리 튜닝을 직접 수행해 정리\n   커버하는 요건: Java 또는 Kotlin 백엔드 개발 경력 3년 이상 · RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험 · REST API 설계 경험 · 결제/정산 도메인 경험\n   완료 기준: 주문/결제/정산 CRUD API가 동작하고, 느린 쿼리를 찾아 인덱스/쿼리 튜닝 전후 성능 비교 문서화\n2. **Kafka 기반 주문-정산 이벤트 파이프라인**\n   주문 생성 시 Kafka로 이벤트를 발행하고 별도 컨슈머가 정산 처리를 비동기로 수행하는 이벤트 드리븐 구조 구축\n   커버하는 요건: Kafka 기반 이벤트 드리븐 아키텍처 경험 · 결제/정산 도메인 경험\n   완료 기준: 주문 이벤트 발행부터 정산 컨슈머 처리까지 end-to-end 동작, 장애/재처리 시나리오 테스트\n3. **Kubernetes 배포 및 운영 경험 쌓기**\n   위에서 만든 Spring Boot 서비스를 Docker 이미지로 빌드하고 Kubernetes(로컬 minikube 등)에 배포, 오토스케일링·헬스체크 설정\n   커버하는 요건: Kubernetes 운영 경험\n   완료 기준: 클러스터에 서비스가 배포되어 롤링 업데이트와 파드 재시작이 정상 동작",
+            "frontend-react": "이 공고 기준 학습 순서와 프로젝트는 다음과 같습니다.\n\n1. 필수 요건부터: TypeScript 문법 및 타입 시스템, React 상태 관리 라이브러리(예: Redux) 학습 후 → TypeScript 기반 게시판/대시보드 SPA 제작 (CRUD + 전역 상태 관리 적용)\n2. 우대 사항: Next.js로 SSR 페이지 전환 + 웹 접근성(WCAG) 대응 작업\n3. 마지막으로 Storybook 등으로 시각 회귀 테스트 파이프라인 구축\n\n프로젝트 3건을 계획으로 기록해뒀습니다. 다음으로 각 프로젝트의 구체적 구현 범위를 잡아볼까요?\n\n프로젝트 제안\n1. **TypeScript 기반 게시판/대시보드 SPA (상태 관리 적용)**\n   React + TypeScript로 CRUD 게시판이나 대시보드를 만들고 Redux 등 상태 관리 라이브러리로 전역 상태(로그인, 필터, 캐시된 목록 등)를 관리. 컴포넌트 분리, 타입 정의, 액션/리듀서 구조를 명확히 잡아 React 실무 경력을 보여줌\n   커버하는 요건: React 기반 프론트엔드 개발 경력 2년 이상 · TypeScript 사용 경험 · 상태 관리 라이브러리 사용 경험\n   완료 기준: TypeScript 타입 에러 없이 빌드되고, 상태 관리 라이브러리로 전역 상태 최소 2개 이상 관리, CRUD 기능 동작\n2. **Next.js SSR 페이지 + 접근성 대응**\n   기존 SPA 중 일부 페이지를 Next.js로 이전해 SSR 적용, 시맨틱 태그/aria 속성/키보드 네비게이션 등 WCAG 기준 반영\n   커버하는 요건: Next.js 서버 사이드 렌더링 경험 · 웹 접근성(WCAG) 대응 경험\n   완료 기준: 페이지 소스보기에서 서버 렌더링된 HTML 확인 가능, Lighthouse 접근성 점수 90 이상\n3. **시각 회귀 테스트 도입**\n   위 프로젝트에 Storybook + Chromatic(또는 Playwright 스크린샷 비교)로 컴포넌트 단위 시각 회귀 테스트 파이프라인 구축\n   커버하는 요건: 시각 회귀 테스트 도입 경험\n   완료 기준: CI에서 컴포넌트 변경 시 스크린샷 diff가 자동으로 감지됨",
+            "data-analyst": "필수 요건부터 순서대로 정리하면 이렇습니다.\n\n먼저 채워야 할 것(필수):\n- SQL 심화(윈도우 함수, 복잡한 조인) — 이미 아신다면 실전 쿼리로 연습\n- 통계적 가설검정 개념(t-test, 카이제곱 등)\n\n그 다음(우대):\n- Tableau 또는 Looker 대시보드 운영\n- Python(pandas) 분석\n- 커머스 도메인 지표 이해\n\n제안 3건을 기록했습니다:\n1. 커머스 SQL 분석 리포트 — 공개 커머스 데이터셋으로 윈도우 함수·복잡한 조인 쿼리 작성 + 가설검정으로 지표 차이 검증 (SQL·통계 요건, 커머스 도메인까지 함께 커버)\n2. Tableau/Looker 커머스 대시보드 — 위 분석 결과를 대시보드로 시각화\n3. pandas 데이터 분석 파이프라인 — 전처리부터 집계·시각화까지 엔드투엔드 스크립트\n\n1번부터 시작해서 SQL·통계를 먼저 다지고, 이후 대시보드·pandas로 확장하는 순서를 추천드립니다.\n\n프로젝트 제안\n1. **커머스 SQL 분석 리포트**\n   공개 커머스 데이터셋(예: 온라인 리테일 주문 데이터)으로 윈도우 함수·복잡한 조인을 활용한 리텐션/코호트 쿼리 작성, A/B 테스트 형태의 지표 차이를 통계적 가설검정(t-test, 카이제곱)으로 검증\n   커버하는 요건: SQL 능숙(윈도우 함수·복잡한 조인) · 통계적 가설검정에 대한 이해 · 커머스 도메인 지표 경험\n   완료 기준: 윈도우 함수 3종 이상 사용한 쿼리, 가설검정 결과와 해석을 담은 리포트 완성\n2. **Tableau/Looker 커머스 대시보드**\n   위 SQL 분석 결과를 Tableau 또는 Looker로 연결해 매출·전환율 등 커머스 지표 대시보드 운영\n   커버하는 요건: Tableau 또는 Looker 대시보드 운영 경험 · 커머스 도메인 지표 경험\n   완료 기준: 필터·드릴다운 가능한 대시보드 배포 및 공유 링크 확보\n3. **pandas 데이터 분석 파이프라인**\n   pandas로 원본 데이터 전처리부터 지표 집계, 시각화까지 엔드투엔드 분석 스크립트 작성\n   커버하는 요건: Python(pandas) 분석 경험\n   완료 기준: 재현 가능한 노트북/스크립트와 최종 인사이트 요약 완성"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 4
+          }
+        },
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0909,
+          "meanAnswerSim": 0.6332,
+          "meanPostingSim": 0.5423,
+          "worstPair": "ai-agent|frontend-react",
+          "worstDelta": 0.1113,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.1,
+            "frontend-react": 0.25,
+            "data-analyst": 0.0
+          },
+          "meanOffPostingSkillRate": 0.0875,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6384,
+              "posting": 0.5389,
+              "delta": 0.0995
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.6072,
+              "posting": 0.4959,
+              "delta": 0.1113
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.6426,
+              "posting": 0.5566,
+              "delta": 0.086
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.6422,
+              "posting": 0.563,
+              "delta": 0.0792
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.6464,
+              "posting": 0.5597,
+              "delta": 0.0867
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.6225,
+              "posting": 0.54,
+              "delta": 0.0825
+            }
+          },
+          "answerChars": [
+            1156,
+            1099,
+            1175,
+            574
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 기준으로 아래 순서로 학습하면 됩니다.\n\n1. Python 데이터 처리 + Airflow(또는 Dagster/Prefect) 중 하나\n2. pgvector(또는 Pinecone/Qdrant/Milvus) 벡터DB\n\n이 둘을 묶어 상담 데이터를 배치로 정제·임베딩해 벡터DB에 적재하는 RAG 파이프라인을 먼저 만드는 걸 추천합니다. 그다음 우대 사항(LangChain/LlamaIndex + OpenAI/Anthropic API)으로 QA 챗봇을 얹고, 마지막으로 AWS/GCP/Azure 중 한 곳에 배포·운영해보면 필수·우대 항목을 순서대로 다 다뤄볼 수 있습니다. 프로젝트 제안 3건은 기록해두었습니다.\n\n프로젝트 제안\n1. **상담 데이터 RAG 파이프라인 구축**\n   상담 데이터를 Airflow(또는 Dagster/Prefect)로 배치 처리해 정제하고, pgvector(또는 Pinecone/Qdrant/Milvus)에 임베딩을 적재해 벡터 검색이 가능한 RAG 백엔드를 Python으로 구현\n   커버하는 요건: Python 기반 데이터 처리 실무 경험 · Airflow / Dagster / Prefect 중 하나 이상 운영 경험 · Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험\n   완료 기준: 상담 데이터가 배치 스케줄러로 정기 처리되어 벡터DB에 적재되고, 유사 상담 검색 API가 동작함\n2. **LangChain 기반 상담 QA 챗봇**\n   위에서 구축한 벡터DB를 LangChain(또는 LlamaIndex)으로 연결해 OpenAI 또는 Anthropic API로 답변을 생성하는 RAG 챗봇 구현\n   커버하는 요건: LangChain 또는 LlamaIndex 활용 경험 · OpenAI 또는 Anthropic API 운영 경험\n   완료 기준: 사용자 질문에 대해 관련 상담 데이터를 검색해 근거를 포함한 답변을 생성함\n3. **클라우드 배포 및 운영 자동화**\n   위 파이프라인과 챗봇을 AWS/GCP/Azure 중 한 곳에 배포하고 Airflow/Dagster/Prefect 워크플로우를 클라우드 환경에서 운영\n   커버하는 요건: AWS / GCP / Azure 중 하나의 운영 경험\n   완료 기준: 클라우드 상에서 파이프라인과 챗봇이 스케줄링·모니터링되며 실행됨",
+            "backend-commerce": "필수 요건은 Java/Kotlin + Spring Boot 백엔드 경력, RDBMS 설계·튜닝, REST API 설계라 이 세 가지를 하나로 묶은 '커머스 REST API 서버'를 먼저 만드는 게 좋습니다 — Spring Boot로 상품·주문 도메인 API를 만들고 MySQL/PostgreSQL 스키마를 직접 설계해 인덱스·쿼리 튜닝까지 해보는 프로젝트입니다.\n\n우대 사항까지 커버하려면 이어서 Kafka로 주문-정산 이벤트를 비동기 처리하는 파이프라인을 붙이고, 마지막으로 이 서비스들을 Kubernetes로 컨테이너 배포해보면 결제/정산 도메인 경험과 Kubernetes 운영 경험까지 자연스럽게 쌓입니다.\n\n제안한 프로젝트 3건을 정리해 기록해 두었습니다.\n\n프로젝트 제안\n1. **커머스 REST API 서버 (Spring Boot + JPA)**\n   Java/Kotlin과 Spring Boot로 상품·주문 도메인 REST API를 설계·구현하고, MySQL 또는 PostgreSQL 스키마를 직접 설계해 인덱스·쿼리 튜닝까지 진행\n   커버하는 요건: Java 또는 Kotlin 백엔드 개발 경력 3년 이상 · RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험 · REST API 설계 경험\n   완료 기준: 주문/상품 CRUD API가 동작하고 DB 스키마와 튜닝 근거(인덱스, 실행계획)를 문서로 정리\n2. **Kafka 기반 주문-정산 이벤트 파이프라인**\n   주문 생성 이벤트를 Kafka로 발행하고 별도 정산 서비스가 구독해 비동기로 정산 데이터를 처리하는 이벤트 드리븐 구조 구현\n   커버하는 요건: Kafka 기반 이벤트 드리븐 아키텍처 경험 · 결제/정산 도메인 경험\n   완료 기준: 주문 서비스와 정산 서비스가 Kafka 토픽으로 분리되어 통신하고, 정산 결과를 조회할 수 있음\n3. **위 서비스들을 Kubernetes로 배포**\n   앞서 만든 API 서버와 이벤트 파이프라인을 컨테이너화하고 Kubernetes 매니페스트(Deployment/Service)로 배포·운영\n   커버하는 요건: Kubernetes 운영 경험\n   완료 기준: 로컬 또는 클라우드 K8s 클러스터에 배포되어 서비스 간 통신이 정상 동작",
+            "frontend-react": "필수 요건부터 순서대로 잡으면 됩니다.\n\n1) TypeScript + React 상태관리 미니 프로젝트 — React/TypeScript 경력과 상태 관리 라이브러리(Redux, Zustand 등) 사용 경험을 함께 보여주는 CRUD형 앱(예: 할 일 관리)\n2) Next.js SSR 페이지 — 서버 사이드 렌더링 경험 확보용\n3) 웹 접근성(WCAG) 개선 작업 — 시맨틱 마크업·ARIA·키보드 네비게이션 적용\n4) 시각 회귀 테스트 도입 — Storybook + Chromatic/Percy로 UI 변경 감지 파이프라인 구성\n\n필수 요건(React/TS/상태관리)을 먼저 채우는 1번을 끝낸 뒤, 우대 사항인 2~4번을 순서대로 진행하는 걸 추천합니다.\n\n프로젝트 제안\n1. **TypeScript + React 상태관리 미니 프로젝트**\n   React와 TypeScript로 CRUD 앱(예: 할 일 관리)을 만들고 Redux 또는 Zustand 같은 상태 관리 라이브러리로 전역 상태를 다룬다\n   커버하는 요건: React 기반 프론트엔드 개발 경력 2년 이상 · TypeScript 사용 경험 · 상태 관리 라이브러리 사용 경험\n   완료 기준: 컴포넌트가 TypeScript로 타입 지정되고, 상태 관리 라이브러리로 전역 상태(필터/목록 등)를 관리하며 정상 동작\n2. **Next.js SSR 블로그/커머스 페이지**\n   Next.js로 서버 사이드 렌더링 페이지를 구현하고 SEO/초기 로딩 성능을 확인한다\n   커버하는 요건: Next.js 서버 사이드 렌더링 경험\n   완료 기준: getServerSideProps 또는 App Router 서버 컴포넌트로 데이터가 서버에서 렌더링되어 내려옴\n3. **웹 접근성 개선 작업**\n   기존 또는 새 컴포넌트에 시맨틱 마크업, ARIA 속성, 키보드 네비게이션을 적용해 WCAG 기준을 맞춘다\n   커버하는 요건: 웹 접근성(WCAG) 대응 경험\n   완료 기준: 스크린리더/키보드만으로 주요 기능 사용 가능, 접근성 검사 도구 통과\n4. **시각 회귀 테스트 도입**\n   Storybook + Chromatic 또는 Percy 같은 도구로 컴포넌트 UI 변경을 자동 감지하는 파이프라인을 구성한다\n   커버하는 요건: 시각 회귀 테스트 도입 경험\n   완료 기준: 컴포넌트 스냅샷이 저장되고 UI 변경 시 diff가 감지됨",
+            "data-analyst": "필수 요건부터: SQL 윈도우 함수·복잡 조인, 통계적 가설검정을 다지는 게 우선입니다. 우대 사항으로 Tableau/Looker 대시보드 운영, Python(pandas), 커머스 도메인 지표 경험이 있습니다.\n\n프로젝트 제안 2건을 기록해뒀습니다.\n\n프로젝트 제안\n1. **커머스 SQL 분석 프로젝트**\n   공개 커머스 데이터셋(주문·유저 테이블)으로 윈도우 함수·복잡한 조인 쿼리를 작성하고, A/B 테스트 형태의 가설검정(t-test 등)으로 지표 차이를 검증\n   커버하는 요건: SQL 능숙(윈도우 함수·복잡한 조인) · 통계적 가설검정에 대한 이해\n   완료 기준: 윈도우 함수 기반 리텐션/코호트 쿼리와 가설검정 결과 리포트 완성\n2. **커머스 지표 대시보드**\n   pandas로 매출·전환율 등 커머스 지표를 집계 후 Tableau 또는 Looker로 대시보드 구축 및 운영\n   커버하는 요건: Tableau 또는 Looker 대시보드 운영 경험 · Python(pandas) 분석 경험 · 커머스 도메인 지표 경험\n   완료 기준: 대시보드에서 핵심 커머스 지표를 필터링·드릴다운 가능한 상태로 배포"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 4
+          }
+        }
+      ]
+    },
+    {
+      "questionId": "key-requirement",
+      "measured": true,
+      "runs": 3,
+      "genericScore": {
+        "mean": 0.0937,
+        "min": 0.0461,
+        "max": 0.129,
+        "range": 0.0829
+      },
+      "offPostingSkillRate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "range": 0.0
+      },
+      "attempts": [
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.129,
+          "meanAnswerSim": 0.6713,
+          "meanPostingSim": 0.5423,
+          "worstPair": "backend-commerce|frontend-react",
+          "worstDelta": 0.1584,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.0,
+            "data-analyst": 0.0
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6339,
+              "posting": 0.5389,
+              "delta": 0.095
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.6487,
+              "posting": 0.4959,
+              "delta": 0.1528
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.6606,
+              "posting": 0.5566,
+              "delta": 0.104
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.7214,
+              "posting": 0.563,
+              "delta": 0.1584
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.7016,
+              "posting": 0.5597,
+              "delta": 0.1419
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.6618,
+              "posting": 0.54,
+              "delta": 0.1218
+            }
+          },
+          "answerChars": [
+            246,
+            223,
+            207,
+            260
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 중에서는 다음 세 가지가 핵심입니다.\n- Python 기반 데이터 처리 실무 경험\n- Airflow / Dagster / Prefect 중 하나 이상 운영 경험\n- Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험\n\n이 세 가지는 공고에 명시된 필수 요건이며, 우대 사항(LangChain/LlamaIndex, OpenAI/Anthropic API, 클라우드 운영)은 그다음 순위입니다.",
+            "backend-commerce": "필수 요건 3개 중 가장 중요한 건 \"Java 또는 Kotlin 백엔드 개발 경력 3년 이상\"입니다 — 연차 기준이라 다른 필수 요건(RDBMS 설계·튜닝, REST API 설계 경험)을 충족했는지 판단하는 전제가 되는 항목입니다. 그다음은 RDBMS 설계·튜닝 경험, REST API 설계 경험 순이고, 우대 사항(Kafka, Kubernetes, 결제/정산 도메인)은 필수 요건 다음 순위입니다.",
+            "frontend-react": "필수 요건 3가지 중 우선순위로 보면:\n1. React 기반 프론트엔드 개발 경력 2년 이상 — 가장 먼저 명시된 핵심 요건\n2. TypeScript 사용 경험\n3. 상태 관리 라이브러리 사용 경험\n\n이 3가지는 모두 '필수'로 분류되어 있어 우열 없이 다 갖춰야 하는 항목이고, 우대 사항(Next.js SSR, 웹 접근성, 시각 회귀 테스트)은 필수 다음 순위입니다.",
+            "data-analyst": "필수 요건 3가지 중 핵심은 다음과 같습니다.\n\n- SQL 능숙(윈도우 함수·복잡한 조인) — 실무 데이터 분석가 업무의 핵심 도구로 명시됨\n- 통계적 가설검정에 대한 이해 — 분석 결과의 신뢰도를 뒷받침하는 요건\n- 데이터 분석 경력 2년 이상 — 연차 기준\n\n우대 사항(Tableau/Looker, Python·pandas, 커머스 도메인 지표 경험)은 필수는 아니지만 SQL·통계 다음 순위로 두시면 됩니다. 다음으로 이 요건들을 증명할 프로젝트를 잡아볼까요?"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 4
+          }
+        },
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.1061,
+          "meanAnswerSim": 0.6485,
+          "meanPostingSim": 0.5423,
+          "worstPair": "ai-agent|backend-commerce",
+          "worstDelta": 0.1576,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.0,
+            "data-analyst": 0.0
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6965,
+              "posting": 0.5389,
+              "delta": 0.1576
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.5878,
+              "posting": 0.4959,
+              "delta": 0.0919
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.6733,
+              "posting": 0.5566,
+              "delta": 0.1167
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.6769,
+              "posting": 0.563,
+              "delta": 0.1139
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.645,
+              "posting": 0.5597,
+              "delta": 0.0853
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.6113,
+              "posting": 0.54,
+              "delta": 0.0713
+            }
+          },
+          "answerChars": [
+            362,
+            226,
+            214,
+            303
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 4개 중 우선순위를 매기면:\n- 데이터 엔지니어링/ML 엔지니어링 경력 3~7년 — 연차 기준 자체를 충족해야 지원 요건이 성립\n- Python 기반 데이터 처리 실무 경험 — 나머지 요건들의 전제가 되는 기본기\n- Airflow / Dagster / Prefect 중 하나 이상 운영 경험 — 파이프라인 오케스트레이션 실무 경험\n- Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험 — RAG 구조 특유의 벡터DB 경험\n\n우대 사항(LangChain/LlamaIndex, OpenAI/Anthropic API, AWS/GCP/Azure)은 이 필수 4개를 충족한 뒤 가산점으로 보시면 됩니다.",
+            "backend-commerce": "필수 요건 3개는 동등하게 필수라 우선순위가 매겨진 건 아니지만, 굳이 나누면:\n\n- Java/Kotlin 백엔드 개발 경력 3년 이상 — 연차 기준이 명시된 유일한 항목이라 지원 자격 자체를 가르는 요건\n- RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험\n- REST API 설계 경험\n\n우대 사항으로는 Kafka 이벤트 드리븐, Kubernetes 운영, 결제/정산 도메인 경험이 있습니다.",
+            "frontend-react": "필수 요건 3가지 중 가장 중요한 건 \"React 기반 프론트엔드 개발 경력 2년 이상\"입니다. 연차·직무 자체를 규정하는 항목이라 다른 요건(TypeScript, 상태 관리 라이브러리)보다 앞섭니다. 그다음이 TypeScript 사용 경험, 상태 관리 라이브러리 사용 경험 순이고, 우대 사항(Next.js SSR, 웹 접근성, 시각 회귀 테스트)은 필수 요건 다음 우선순위입니다.",
+            "data-analyst": "필수 요건 3개 중 가장 비중 있는 건 'SQL 능숙(윈도우 함수·복잡한 조인)'과 '데이터 분석 경력 2년 이상'이에요. 필수 항목은 셋 다 충족 여부가 우선 걸러지는 기준이라 순위를 매기기보다는 모두 필수로 봐야 하고, 그중 SQL은 실무 스킬 검증이 명확해서 스크리닝에서 가장 먼저 확인될 가능성이 높습니다. 통계적 가설검정 이해도 필수지만 SQL·경력 대비 상대적으로 개념 수준 확인에 그칠 수 있어요. 우대 사항(Tableau/Looker, Python·pandas, 커머스 도메인)은 필수를 충족한 뒤 차별화 요소로 보시면 됩니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 4
+          }
+        },
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.0461,
+          "meanAnswerSim": 0.5884,
+          "meanPostingSim": 0.5423,
+          "worstPair": "ai-agent|frontend-react",
+          "worstDelta": 0.1189,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.0,
+            "data-analyst": 0.0
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6373,
+              "posting": 0.5389,
+              "delta": 0.0984
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.6147,
+              "posting": 0.4958,
+              "delta": 0.1189
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.5744,
+              "posting": 0.5566,
+              "delta": 0.0178
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.608,
+              "posting": 0.5629,
+              "delta": 0.0451
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.5677,
+              "posting": 0.5596,
+              "delta": 0.0081
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.5281,
+              "posting": 0.5397,
+              "delta": -0.0116
+            }
+          },
+          "answerChars": [
+            349,
+            194,
+            223,
+            165
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 4개 중 핵심은 다음 두 가지입니다.\n- 데이터 엔지니어링/ML 엔지니어링 경력 3~7년 + Python 기반 데이터 처리 실무 경험 (기본 자격 요건)\n- Airflow / Dagster / Prefect 중 하나 이상 운영 경험 (파이프라인 오케스트레이션 도구, 실무 운영 경험을 명시적으로 요구)\n- Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험 (벡터 DB, AI/Agent 직무 특성상 필수로 명시됨)\n\n우대 사항(LangChain/LlamaIndex, OpenAI/Anthropic API, 클라우드)은 이 세 가지 필수 요건 위에 얹히는 가점 항목입니다.",
+            "backend-commerce": "필수 요건 3개 중에서는 'Java 또는 Kotlin 백엔드 개발 경력 3년 이상'이 가장 앞에 명시된 핵심 요건입니다. 이어서 RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험, REST API 설계 경험이 필수로 함께 요구됩니다. 우대 사항으로는 Kafka 이벤트 드리븐, Kubernetes 운영, 결제/정산 도메인 경험이 있습니다.",
+            "frontend-react": "필수 요건이 우선순위가 더 높습니다. 그중에서도:\n\n1. React 기반 프론트엔드 개발 경력 2년 이상 — 연차 기준이라 가장 우선 충족해야 할 항목\n2. TypeScript 사용 경험\n3. 상태 관리 라이브러리 사용 경험\n\n우대 사항(Next.js SSR, 웹 접근성 WCAG, 시각 회귀 테스트)은 필수 요건 다음 순위입니다.\n\n원하시면 이 요건들을 증명할 프로젝트 방향을 잡아드릴 수 있어요.",
+            "data-analyst": "필수 요건 3가지 중 실제로 검증 부담이 큰 건 SQL 능숙도(윈도우 함수·복잡한 조인)와 통계적 가설검정 이해입니다. '데이터 분석 경력 2년 이상'은 경력 연차 조건이라 학습 대상이 아니라 자격 기준에 가깝고, 나머지 두 개는 실무에서 바로 쓰는 기술/지식이라 준비 우선순위로 두시면 됩니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 4
+          }
+        }
+      ]
+    }
+  ]
+}

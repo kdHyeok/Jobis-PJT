@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-08-02T01:36:57",
+    "runs": 5,
+    "cases": [
+      "coverletter_draft",
+      "coverletter_emphasis"
+    ],
+    "arm": "control (HEAD 2103725)",
+    "note": "근거 재료를 4개 섹션·20건으로 좁히고 find_evidence 가 문자 일치 0건이면 '없습니다'로 끝내던 버전"
+  },
+  "totals": {
+    "invariantViolations": 5
+  },
+  "cases": [
+    {
+      "name": "coverletter_draft",
+      "stability": 0.6,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 4.2,
+        "max": 6,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>ask_agent>save_draft>check_draft>save_draft>check_draft": 1,
+        "find_evidence>save_draft>check_draft": 1,
+        "find_evidence>ask_agent>save_draft>check_draft": 3
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 4,
+        "ok": 4,
+        "results": {
+          "ok:resume_diagnosis": 4
+        }
+      },
+      "llm": {
+        "callsMean": 6.0,
+        "retries": 4,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 30
+      }
+    },
+    {
+      "name": "coverletter_emphasis",
+      "stability": 0.6,
+      "replied": 5,
+      "invariantViolations": 5,
+      "steps": {
+        "mean": 3.6,
+        "max": 5,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>find_evidence>save_draft>check_draft": 3,
+        "find_evidence": 1,
+        "find_evidence>find_evidence>find_evidence>save_draft>check_draft": 1
+      },
+      "warnings": {
+        "coverletter_check_unresolved": 5
+      },
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 4.6,
+        "retries": 5,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 23
+      }
+    }
+  ]
+}

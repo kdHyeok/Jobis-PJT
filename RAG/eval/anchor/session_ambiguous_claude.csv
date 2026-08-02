@@ -1,0 +1,862 @@
+﻿seq,qid,query,uid,company,title,tech,snippet,label,timestamp
+1,SA15,보안 엔지니어 Linux (경력 3년),사람인:54517463,(주)오픈소스컨설팅,리눅스 엔지니어,Kubernetes|Linux,"[회사] (주)오픈소스컨설팅
+[직무] 리눅스 엔지니어
+[핵심조건] 경력 무관/미상 · 서울 강남구 · None · 기술: Kubernetes(쿠버네티스), Linux(리눅스)
+리눅스 엔지니어
+서비스 소개
+""Sharing Technology, Growing Together""
+[우리가 하는 일]
+오픈소스컨설팅은 클라우드 및 워크 매니지먼트 전문 기업으로, 다년간 축적된 컨설팅 노하우와 기술력을 바탕으로 성공적인 클라우드 도입 및 협업 문화 구축을 위한 전문 솔루션과 서비스를 제공합니다.
+또한 클라우드 구축, DevOps, Agile, 컨테이너 아키텍처 등 최신 오픈소스 기술에 대한 전문성을 보유하고 있으며, Atlassian, monday.com 공식 파트너로 효율적인 협업 환경 구축을 위한 솔루션과 컨설팅을 제공하고 있습니다.
+오픈스택 및 쿠버네티스 기반 오픈소스 패키징 ‘Playce Cloud'
+CNCF 실버 회원사로 고객 환경에 최적화된 클라우드 네이티브 환경 구축 지원
+국내 1위의 아틀라시안 플래티넘 파트너
+국내 유일 Atlassian Partner of the Year: Marketing Innovator 2회 수상
+Atlassian Marketplace App 개발 및 공급
+업무 효율성 및 생산성 향상을 돕는 Flexible Apps 개발
+Scaled Agile Silver Transformation Partner
+국내 최대 규모의 애자일 코치진이 기업 맞춤형 애자일 컨설팅 및 코칭 교육 서비스 제공
+[우리의 조직 문화]
+오픈소스컨설팅이 추구하는 조직은 보다 능동적입니다.
+내가 스스로 일에 즐거움을 느끼고 그 즐거움을 다른 팀원들과 나눌 때, 나의 일이 우리의 일이 되고 우리의 일이 바로 오픈소스컨설팅이 해야하는 일이 됩니다.
+각 개인이 하는 일을 실현시켜 주는 곳이 바로 오픈소스컨설팅이고, 우리는 능동적인 개인의 꿈을 실현 시켜주는 것을 추구합니다.
+Cloud 기술 기반의 인프라 환경에서 고객의 성공을 이끄는 전문가를 찾습니다.
+오픈소스컨설팅은 OpenStack, Kubernetes, Ceph Storage 기반으로 자사 솔루션인 Playce Cloud를 설계·운영하며, 한 산업의 디지털 전환을 이끌고 있습니다.
+클라우드 인프라 환경을 함께 만들어갈 인프라 전문가를 기다립니다.
+이
+포지션의 AI 예상 면접 질문이
+궁금하다면 점핏에서 확인해보세요!
+모집부문 / 상세내용
+사용 기술
+Kubernetes
+Linux
+OpenStack
+주요업무
+Linux 기반 서버 구축 및 기술 지원 (RHEL, SUSE 등)
+고객사 인프라 유지보수 및 정기 점검
+OpenStack, Ceph, Kubernetes 환경에 대한 실무 참여 및 기술 습득",Incorrect,
+2,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),고용24:54514809,(주)코어로보틱스,AI 로보틱스 시뮬레이션 및 제어 알고리즘 개발자,TensorFlow|PyTorch|Python|Docker|Linux|Git|C++,"[회사] (주)코어로보틱스
+[직무] AI 로보틱스 시뮬레이션 및 제어 알고리즘 개발자
+[핵심조건] 경력 무관/미상 · 부산 기장군 · 정규직 · 기술: TensorFlow(텐서플로우), PyTorch(파이토치), Python(파이썬), Docker(도커), Linux(리눅스), Git, C++
+AI 로보틱스 시뮬레이션 및 제어 알고리즘 개발자
+AI 로보틱스 시뮬레이션 및 제어 알고리즘 개발자
+모집분야
+AI 로보틱스 시뮬레이션 및 제어 알고리즘 개발자(1명)
+📋 주요업무
+[주요 업무 (Responsibilities)]
+가상 환경 구축: NVIDIA Isaac Sim/Omniverse 기반의 정밀 물리 시뮬레이션 환경 및 가상 로봇 모델링(URDF/Asset) 구축.
+제어 전략 설계: 강화학습(RL) 및 모방학습(Imitation Learning)을 활용한 로봇 조작(Manipulation) 및 보행(Locomotion) 알고리즘 개발.
+알고리즘 최적화: 가상 환경에서 학습된 모델의 실시간성 확보 및 제어 성능 최적화.
+Sim-to-Real 구현: 시뮬레이션 결과를 ROS/ROS2 기반의 실제 로봇 제어 코드(C++/Python)로 연계 및 배포.
+디지털 트윈 연동: 실제 로봇의 센서 데이터를 가상 모델로 피드백하여 시뮬레이션 정확도를 높이는 디지털 트윈 고도화.
+[지원 자격 (Qualifications)]
+학력: 컴퓨터공학, 로봇공학, 기계공학 등 관련 분야 학사 이상.
+기술 스택:
+*Python 및 C++**를 이용한 알고리즘 구현 능력.
+PyTorch 또는 TensorFlow 기반의 심층 강화학습 모델 설계 경험.
+NVIDIA Isaac Sim/Gym 또는 MuJoCo, Gazebo 등 물리 시뮬레이터 운영 경험.
+ROS / ROS2 환경에서의 로봇 시스템 프로그래밍 숙련도.
+핵심 역량:
+물리 엔진(PhysX 등)의 특성을 이해하고 가상-실제 간의 간극(Reality Gap)을 줄이는 기술적 접근 능력.
+[우대 사항 (Preferred Skills)]
+NVIDIA Omniverse 생태계 및 확장(Extension) 개발 경험자.
+Point Cloud, Vision 데이터 기반의 로봇 인식 및 경로 계획(Motion Planning) 프로젝트 경험.
+Edge Device(NVIDIA Jetson 등) 대상의 모델 경량화 및 가속화(TensorRT) 경험.
+Sim-to-Real 전이 학습(Transfer Learning) 및 도메인 무작위화(Domain Randomization) 기법 적용 경험.
+관련 분야 글로벌 학회(ICRA, IROS, CVPR 등) 논문 게재 및 오픈소스 기여 경험.
+[기술 환경 (Tech Stack)]
+Simulation: NVIDIA Isaac Sim, Omniverse, Isaac Gym",Ambiguous,
+3,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49614412,㈜에너지어스,[에너지어스] 개발팀 개발자 채용,GitHub Actions|Spring Boot|PostgreSQL|Kubernetes|Node.js|Vue|Jenkins|Python,"[회사] ㈜에너지어스
+[직무] [에너지어스] 개발팀 개발자 채용
+[핵심조건] 경력 무관/미상 · 서울 강남구 · 정규직 · 기술: GitHub Actions, Spring Boot(스프링부트), PostgreSQL(포스트그레), Kubernetes(쿠버네티스), Node.js(노드), Vue, Jenkins(젠킨스), Python(파이썬)
+㈜에너지어스
+[에너지어스] 백엔드 개발자 채용
+에너지어스는 신재생에너지 모니터링 시스템을 넘어, 하드웨어와 AI가 결합된 `AI 기반 자율 능동형 에이전트` 시장을 개척하고 있습니다. 단순히 데이터를 쌓는 백엔드를 넘어, 태양광 발전량 예측, AI 예지보전, 비전 AI 기술을 현장에 고도화하고 서비스화할 핵심 인재를 모십니다.
+포지션 및 자격요건
+개발팀 백엔드 개발
+( 0 명 )
+백엔드 개발자 채용 공고  기술 요구사항 및 우대사항
+[담당 업무]
+서버 및 인프라 구축: Java(Spring Boot) 및 Go 기반 서버 애플리케이션 개발 및 마이크로서비스 아키텍처(MSA) 설계/유지보수
+데이터 파이프라인 수집 및 관리: IoT 센서/장비 연동, PostgreSQL 및 시계열 DB 기반의 고성능 대용량 데이터 모델링 및 수집·분석 시스템 개발
+AI 서비스 백엔드 구현: 태양광 발전량 예측 모델, AI 예지보전 알고리즘, 비전 AI 기반 위험(화재/이상 상황) 감지 파이프라인의 엔지니어링 및 서비스 연동
+AI 에이전트 & 챗봇 개발: 신재생에너지 데이터 기반의 자율 능동형 모니터링 AI 에이전트 및 고객 대응 troubleshooting 챗봇 서비스 개발 및 인프라 연동
+API 설계: 안정적인 외부 시스템 연동 및 고성능 RESTful API 설계
+[자격 요건]
+백엔드 개발 경력: Java(Spring Boot) 기반 백엔드 실무 개발 경험 3년 이상 또는 이에 준하는 역량 보유자
+언어 및 도구: Golang 기반 서비스 개발 경험 또는 이에 대한 깊은 이해가 있으신 분
+데이터베이스: RDBMS(PostgreSQL 등) 활용 능력 및 대용량 데이터 처리를 위한 시계열 데이터베이스(IoTDB, TDengine 등)에 대한 이해 및 경험
+AI/AX 엔지니어링: AI 모델(예측, 시각 인지 등)을 활용한 서비스 개발 경험 또는 AI 데이터 학습·파이프라인 구축에 관심이 깊으신 분
+기반 역량: Linux 환경에 대한 이해, Git 기반의 협업 및 형상 관리가 능숙하신 분
+[우대 사항]
+Cloud & DevOps: AWS 기반 인프라 구성·운영 및 Docker, Kubernetes, Nginx 등을 통한 컨테이너 오케스트레이션 경험",Incorrect,
+4,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49542627,㈜셀러허브,[셀러허브] 식스샵 기술지원팀 백엔드개발자 채용 (3년 이하),Spring Boot|JavaScript|Kubernetes|MyBatis|Jenkins|Kotlin|MySQL|Java,"[회사] ㈜셀러허브
+[직무] [셀러허브] 식스샵 기술지원팀 백엔드개발자 채용 (3년 이하)
+[핵심조건] 경력 무관/미상 · 서울 강남구 · 정규직 · 기술: Spring Boot(스프링부트), JavaScript(자바스크립트), Kubernetes(쿠버네티스), MyBatis(마이바티스), Jenkins(젠킨스), Kotlin(코틀린), MySQL, Java(자바)
+㈜셀러허브
+[식스샵] CX매니저 정규직 채용(신입)
+[식스샵은]
+식스샵은 ‘새로운 가치를 만들어가는 사람들의 성장을 돕는다`라는 미션으로 시작된, DTC(Direct to Consumer) 브랜드 판매자를 위한 올인원 이커머스 플랫폼 식스샵을 만들고 있는 팀입니다.
+식스샵을 사용하면 기술에 대한 전문 지식 없이 혼자서도 AI로 멋진 브랜드 웹사이트를 구축할 수 있고 온라인 판매에 필요한 각종 도구와 서비스를 한 곳에서 편리하게 이용할 수 있습니다.
+B2B | E-Commerce | SaaS 시장에 대해 함께 고민하고, 빠른 실험과 검증을 통한 사업의 성장을 경험하고 싶은 분과 함께하고 싶습니다.
+ㆍ이커머스 최고의 전문가들이 모여 미래의 커머스 서비스에 대해 고민합니다.
+ㆍ2026년 1월 기준 20,000개가 넘는 브랜드가 식스샵을 통해 브랜드를 알리고 비지니스를 성장시켜가고 있으며, 월 1,200만 명이 넘는 사람들이 식스샵으로 만들어진 웹사이트에서 브랜드 컨텐츠를 소비하고 상품을 구매하고 있습니다.
+ㆍ프라이머, 신한카드, 카카오, 비바리퍼블리카(토스) 등의 투자사들로부터 누적 100억 원 이상의 투자금을 유치했고, 이를 바탕으로 계속해서 성장해나가고 있습니다.
+포지션 및 자격요건
+백엔드
+[팀 소개]
+ㆍ식스샵의 주요 메이저 제품 식스샵(기존 제품)과 식스샵 프로(신버전)를 개발 및 운영합니다.
+ㆍ홈페이지와 쇼핑몰(이커머스) 도메인 전반의 프로세스를 경험하실 수 있으며, 다양한 3rd 파티(Meta, Instagram, Apple, 토스, 카카오, 네이버 등)와의 연동도 다루고 있습니다.
+ㆍ다년 간 쌓인 고객 층에서 발생하는 순간적인 방문/판매 트래픽을 경험해보실 수 있습니다.
+ㆍ백엔드 개발 외에도 인프라 구축과 운영을 포함하는 다양한 경험을 해보실 수 있습니다.
+주요 개발 환경 및 사용 서비스
+ㆍLanguage : Java, Kotlin
+ㆍFramework : Spring, Spring Boot, Spring Batch
+ㆍDB/ORM : MySQL, JPA, MyBatis
+ㆍInfrastructure : AWS (Aurora RDS, ElastiCache, ElasticBeantalk, EKS, CloudFront, S3, SQS 등)
+ㆍCI / CD : AWS CodeBuild, Jenkins",Incorrect,
+5,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49577794,㈜에프에스솔루션,시니어 AI 엔진 개발자 LLM · VLM · Computer Vision,Kubernetes|TensorFlow|FastAPI|PyTorch|Python|Docker|Linux|AWS,"[회사] ㈜에프에스솔루션
+[직무] 시니어 AI 엔진 개발자 LLM · VLM · Computer Vision
+[핵심조건] 경력 무관/미상 · 경기 성남시 · 정규직 · 기술: Kubernetes(쿠버네티스), TensorFlow(텐서플로우), FastAPI, PyTorch(파이토치), Python(파이썬), Docker(도커), Linux(리눅스), AWS(아마존웹서비스)
+㈜에프에스솔루션
+[10년경력이상] Computer Vision 및 딥러닝 Algorithm 개발(ADAS/DMS/..)
+WE ARE HIRING
+시니어 AI 엔진 개발자
+LLM · VLM · Computer
+Vision
+AI 기술을 실제 제품과 서비스로 완성할 동료를 찾습니다.
+경력
+5년 이상
+시니어
+포지션
+멀티모달
+AI
+제품·서비스
+중심
+우리가 찾는 개발자
+AI 모델을 넘어, 실제
+서비스의 완성도를 책임지는 시니어 개발자
+FS Solution은 Computer
+Vision, LLM, VLM 등 AI 기술을 기반으로 다양한 산업의 문제를 해결하는 AI 전문기업입니다. 외부 API를 단순 연동하는 수준을 넘어, 데이터 설계부터 모델 개발, 최적화, 배포, 운영까지 주도할 시니어 개발자를 찾습니다.
+이 포지션의 핵심
+AI 모델의
+성능뿐 아니라 응답 속도, 운영 비용, 안정성까지 함께
+설계합니다.
+PoC에
+머물지 않고 실제 제품과 서비스 출시까지 전 과정을 주도합니다.
+불확실한
+문제를 기술적으로 정의하고, 가장 적합한 해법을 제안합니다.
+주요 업무
+설계부터 상용화까지, AI 개발의 전체 사이클을 경험합니다
+●
+LLM, VLM, Computer Vision 기반 AI 엔진 설계 및 개발
+●  이미지, 영상, 텍스트 기반 멀티모달 모델 개발
+●  오픈소스 모델 선정, Fine-tuning 및 성능 개선
+●  객체 탐지, 분류, 세그멘테이션 및 영상 분석
+●
+RAG, Embedding, Vector DB, AI Agent 시스템 구축
+●  모델 경량화, 양자화 및 추론 속도 최적화
+●
+GPU 서버·클라우드 기반 AI Serving 환경 구축
+●  모델 배포, 모니터링 및 지속적인 성능 개선
+●  기획·백엔드·앱 개발팀과 협업하며 PoC부터
+상용화까지 주도
+자격 요건
+5년 이상의 실무 경험과 깊이 있는 전문 지식을 기대합니다
+●
+AI·머신러닝·딥러닝 개발 경력 5년 이상
+●
+Python 및 PyTorch 또는 TensorFlow 활용 경험
+●
+LLM, VLM, Computer Vision 중 하나 이상의 전문 역량
+●
+AI 모델 학습, 검증, 배포 및 운영 전 과정 경험
+●  데이터 전처리 및 학습 데이터셋
+구축 경험
+●  모델 성능을 정량적으로 평가하고",Ambiguous,
+6,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49469120,㈜멸치,[업계 최상위 대우] 오픈마켓 풀스텍 개발자를 모십니다.,Spring Boot|Python|Redis|Kafka|Java,"[회사] ㈜멸치
+[직무] [업계 최상위 대우] 오픈마켓 풀스텍 개발자를 모십니다.
+[핵심조건] 경력 무관/미상 · 서울 송파구 · 정규직, 계약직 · 기술: Spring Boot(스프링부트), Python(파이썬), Redis(레디스), Kafka(카프카), Java(자바)
+㈜멸치
+[업계 최상위 대우] 오픈마켓 풀스텍 개발자를 모십니다.
+㈜멸치는 2020년에 설립된 회사로 자본금 9,479만원, 매출액 48억 3,948만원, 사원수 22명 규모의 중소기업입니다. 서울 송파구 마천로 146 (오금동)에 위치하고 있으며, 오픈마켓 `멸치쇼핑`, 영상 편집 플랫폼 `멸치`, 배달 플랫폼 `공공배달`사업을 하고 있습니다.
+포지션 및 자격요건
+풀스텍 개발자
+( ○명 )
+담당업무
+ㆍ풀스텍 개발자
+스킬
+ㆍElasticStack, JAVA, Jira, Kafka, OracleDB, Python, Redis, Spring, Spring Boot, 풀스택
+핵심역량
+ㆍ
+계획성,
+성실성, 성취지향성, 꼼꼼함, 스트레스관리, 적응성, 협동심
+자격요건
+ㆍ학력 : 학력무관
+ㆍ경력 : 경력5년↑
+우대사항
+ㆍ일을 찾아서 하는 적극적인 인재
+전형절차
+ㆍ서류전형 > 1차면접 > 2차면접 > 임원면접 > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.",Ambiguous,
+7,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49597520,㈜씨엠엔피,[경력] AI 개발자 (AI Engineer) 채용,TensorFlow|LangChain|PyTorch|Python|Docker|AWS|GCP|LLM,"[회사] ㈜씨엠엔피
+[직무] [경력] AI 개발자 (AI Engineer) 채용
+[핵심조건] 경력 무관/미상 · 서울 서초구 · 정규직 · 기술: TensorFlow(텐서플로우), LangChain(랭체인), PyTorch(파이토치), Python(파이썬), Docker(도커), AWS(아마존웹서비스), GCP(구글클라우드), LLM
+㈜씨엠엔피
+[경력] AI 개발자 (AI Engineer) 채용
+㈜씨엠엔피는 2019년에 설립된 회사로 자본금 1억 8,646만원, 매출액 77억 4,892만원, 사원수 30명 규모의 중소기업입니다. 서울 서초구 방배천로2길 10 (방배동)에 위치하고 있으며, 대리운전/탁송 플랫폼사업을 하고 있습니다.
+포지션 및 자격요건
+AI 개발자 (AI Engineer)
+( 1명 )
+담당업무
+ㆍAI/ML 모델 연구 개발: AICC 및 자사 서비스에 적용될 자연어 처리(NLP), 음성 인식(STT/TTS) 등 인공지능 모델 설계 및 학습
+ㆍ생성형 AI 모델 최적화: 오픈소스 LLM 모델 파인튜닝(Fine-Tuning)  RAG(검색 증강 생성) 파이프라인 구축프롬프트 엔지니어링
+ㆍAI 서비스 API 개발 및 배포: 개발된 AI 모델의 실시간 서빙(Serving) 및 사내외 서비스 연동을 위한 백엔드 API 개발
+ㆍ성능 모니터링 및 고도화: 운영 중인 AI 모델의 성능을 지속적으로 모니터링하고 가설 검증을 통한 알고리즘 개선
+스킬
+ㆍ언어/프레임워크: Python, PyTorch, TensorFlow
+ㆍAI/ML 라이브러리: LangChain, Hugging Face 등 활용
+ㆍ백엔드/인프라:  CI/CD, Docker, 클라우드 환경(AWS, GCP 등) 경험
+핵심역량
+ㆍ새로운 AI 기술 논문 및 트렌드를 빠르게 학습하고 실무에 적용하는 기술 학습 능력
+ㆍ복잡한 문제를 정의하고 데이터를 기반으로 해결책을 도출하는 논리적 사고력
+ㆍ기획, 데이터 분석, 프론트/백엔드 개발 조직과의 원활한 커뮤니케이션 및 협업 능력
+자격요건
+ㆍ학력 : 대졸이상
+ㆍ경력 : 경력3년↑
+우대사항
+ㆍAICC(인공지능 컨택센터) 관련 챗봇/콜봇 개발 및 상용화 경험이 있으신분
+ㆍ초거대 언어모델 (LLM)파인튜닝 및 프롬프트 엔지니어링 실무 경험이 있으신분
+ㆍMLOps (데이터 수집-학습-배포-모니터링) 파이프라인 구축 경험이 있으신 분
+ㆍ컴퓨터 공학, 인공지능, 통계학 등 관련 전공 석사 학위 이상 보유자
+전형절차
+ㆍ서류전형 > 1차면접 > 2차면접(필요시) > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.
+복지제도
+ㆍ4대보험 가입
+ㆍ연1회 무료 건강검진 제공
+ㆍ경조사비, 각종 휴가 지원
+ㆍ점심식대 별도 지급
+ㆍ연간 60만원 명절상여금 지급
+ㆍ듀얼 모니터, 모션 데스크 제공
+ㆍ야간 교통비 지급
+ㆍ자유로운 연차 사용 가능
+ㆍ간식/음료/커피 무한 제공
+ㆍ사당역 초역세권 위치
+ㆍAI 업무툴(클로드) 지원
+ㆍ도서구매 지원",Ambiguous,
+8,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49502951,㈜엑셈,"[개발] Java, Golang",Spring Boot|PostgreSQL|MyBatis|Go|Redis|Kafka|Java|JPA,"[회사] ㈜엑셈
+[직무] [개발] Java, Golang
+[핵심조건] 경력 무관/미상 · 서울 강서구 · 정규직 · 기술: Spring Boot(스프링부트), PostgreSQL(포스트그레), MyBatis(마이바티스), Go(고랭), Redis(레디스), Kafka(카프카), Java(자바), JPA(하이버네이트)
+모집분야
+담당업무
+자격요건 및 우대사항
+Java
+개발자
+· Java 기반 서버 사이드 소프트웨어 개발
+· Spring framework 등을 활용한 RESTful API 설계 및 구현
+· Netty 기반 비동기 네트워크 서버 개발
+· 데이터 모델링 및 SQL 기반 데이터 처리/성능 최적화
+자격요건
+· 경력 : 2년 이상
+· Java 기반 백엔드 개발 경험 및 이해도가 높은 분
+· Spring 기반 백엔드 및 RESTful API 개발·운영 경험
+· Claude 등 AI 도구를 활용한 개발 생산성 향상 경험
+· Kafka, Redis 활용한 개발 경험
+· RDBMS에 대한 기본 이해
+· Git을 활용한 버전 관리 경험
+※ 수습기간 1개월 (최대 3개월까지 수습기간 연장 가능)
+우대사항
+· ClickHouse 등 컬럼 기반 OLAP DB 사용 경험
+· TCP/IP 기반 네트워크 프로그래밍 경험
+· gRPC 및 Protobuf 기반 서비스 개발 경험
+· 다양한 환경 및 기술 활용에 대한 경험
+Java
+개발자
+· 대시보드·알림·리포트 등 제품 기능을 위한 REST API 설계 및 개발 (Java / Spring Boot)
+· PostgreSQL(메타·구성·권한)과 ClickHouse(메트릭·시계열)를 아우르는 데이터 접근 계층 설계 (JPA / QueryDSL / MyBatis)
+· 멀티테넌시·인증·권한(RBAC) 모델 구현 및 도메인 전반의 권한 일관성 보장
+· 프론트엔드·게이트웨이와의 API 계약 정의·버전 관리, 무거운 OLAP 질의의 응답시간·비용 최적화
+자격요건
+· 경력 : 경력 무관
+· 백엔드 서비스 개발 경험 (Java/Spring Boot 또는 유사 스택)
+· REST API 설계 및 RDBMS(PostgreSQL 등)에 대한 실무 역량
+· 요구사항을 API 계약과 데이터 모델로 풀어내는 설계 경험
+· 복잡한 도메인을 구조적으로 정리하고 문제를 끝까지 추적하는 자세
+※ 수습기간 1개월 (최대 3개월까지 수습기간 연장 가능)
+우대사항
+· ClickHouse 등 OLAP/컬럼형 DB 질의 작성·튜닝 경험
+· 대규모 트래픽·멀티테넌트 환경에서의 인증·권한 설계 경험
+· gRPC, Kafka, Redis 등 연동 경험 및 Observability 도메인(메트릭/로그/트레이스/알림) 이해
+· 다른 사람의 의견을 존중하면서 본인의 생각을 제대로 표현하는 유연한 사고를 가지신 분
+Golang
+개발자
+· 백엔드 서비스 개발 및 운영 (Go 기반)
+· 대용량 이벤트·메트릭·시계열 데이터를 위한 저장 구조 및 데이터 모델 설계
+· 수집·적재 파이프라인 설계 및 구현 (Kafka, Redis 등 활용)
+· ClickHouse 기반 OLAP 스키마 설계 및 최적화
+자격요건
+· 경력 : 경력 무관
+· 백엔드 서비스 개발 경험 (Go 또는 유사 언어)
+· SQL 및 RDBMS(PostgreSQL 등)에 대한 실무 역량
+· 데이터를 다루는 시스템의 설계·트러블슈팅 경험
+· 데이터 흐름을 구조적으로 설계하고 문제를 끝까지 파고드는 자세
+※ 수습기간 1개월 (최대 3개월까지 수습기간 연장 가능)
+우대사항
+· ClickHouse 등 OLAP/컬럼형 DB 데이터 모델링 경험
+· Kafka 등 메시지 스트리밍 기반 파이프라인 운영 경험
+· Observability 도메인 경험 (메트릭/로그/트레이스 등)",Correct,
+9,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49613256,에이치엔에스,[공공 프로젝트] Java Spring Boot · Kubernetes 백엔드 개발자 (주니어),Spring Boot|PostgreSQL|Kubernetes|Jenkins|Docker|GitLab|Redis|Kafka,"[회사] 에이치엔에스
+[직무] [공공 프로젝트] Java Spring Boot · Kubernetes 백엔드 개발자 (주니어)
+[핵심조건] 경력 무관/미상 · 서울 종로구 · 계약직 · 기술: Spring Boot(스프링부트), PostgreSQL(포스트그레), Kubernetes(쿠버네티스), Jenkins(젠킨스), Docker(도커), GitLab(깃랩), Redis(레디스), Kafka(카프카)
+에이치엔에스
+채용제목을 입력해주세요
+포지션 및 자격요건
+클라우드 네이티브(Java/Spring Boot) 백엔드 개발자 (Junior)
+( 1명 )
+프로젝트
+범정부 서비스 통합 창구 3차 구축 프로젝트
+담당업무
+ㆍSpring Boot 기반 애플리케이션 개발 및 유지보수
+ㆍREST API 개발 및 시스템 연계 지원
+ㆍKubernetes 기반 애플리케이션 배포 및 운영 지원
+ㆍGit(GitLab/Gitea), Gradle/Maven 기반 형상관리 및 빌드 지원
+ㆍJenkins·Tekton 등 CI/CD 파이프라인 운영 지원
+ㆍ티베로 등 DB 이해
+ㆍ장애 분석 및 트러블슈팅 지원
+ㆍ프로젝트 산출물 작성 및 개발 표준 작성 지원
+자격요건
+ㆍ학력 : 학력무관
+ㆍJava 개발 경력 2~5년
+ㆍSpring Boot 또는 Spring Framework 개발 경험
+ㆍREST API 개발 경험
+ㆍGit 사용 경험
+ㆍSQL 작성 가능자
+ㆍLinux 환경에서 개발 및 운영 경험
+ㆍ원활한 커뮤니케이션 및 협업 능력
+우대사항
+ㆍKubernetes 또는 Docker 사용 경험
+ㆍGitLab/Gitea CI, Tekton, Argocd 등 CI/CD 경험
+ㆍSpring Boot 프로젝트 경험
+ㆍ공공기관 프로젝트 참여 경험
+ㆍ티베로 등 DB 사용 경험
+ㆍKafka, Redis 등 오픈소스 미들웨어 사용 경험
+ㆍDevOps 및 클라우드(NHN Cloud, AWS, NCP) 경험
+직급 : 주니어(Java Developer)
+경력 : 2~5년
+기술스택 : Java, Spring Boot, REST API, Git, Gradle, Linux
+우대기술 : Kubernetes, Docker, Jenkins, Tekton, PostgreSQL, Kafka
+프로젝트 유형 : 공공 SI, 금융 SI, 클라우드 네이티브, MSA
+ㆍ정보처리기사 등 IT 관련 자격증 보유
+전형절차
+ㆍ서류전형 > 1차면접  > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.",Ambiguous,
+10,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49508463,㈜비인텔리전스글로벌,시니어 AI 엔지니어(Computer Vision) (영어 필수),TensorFlow|FastAPI|PyTorch|Python|Docker|Azure|AWS|GCP,"[회사] ㈜비인텔리전스글로벌
+[직무] 시니어 AI 엔지니어(Computer Vision) (영어 필수)
+[핵심조건] 경력 무관/미상 · 인천 미추홀구 · 정규직, 계약직 · 기술: TensorFlow(텐서플로우), FastAPI, PyTorch(파이토치), Python(파이썬), Docker(도커), Azure, AWS(아마존웹서비스), GCP(구글클라우드)
+㈜비인텔리전스글로벌 · HumbleBeeAI
+시니어 AI 엔지니어 (Computer Vision) (영어 필수)
+채용인원 1명
+정규직 / 계약직
+경력 5년 이상
+영어 업무 가능자
+포지션 및 자격요건
+시니어 AI 엔지니어
+Computer Vision
+( 1명 )
+담당업무
+이미지·영상 기반 Computer Vision 모델 설계, 학습, 평가 및 배포
+객체 탐지(Object Detection), 분류(Classification), 세그멘테이션(Segmentation), 추적(Tracking), OCR, 이상 탐지 등 Vision AI 기능 개발
+Vision Transformer, CNN, Foundation Model, VLM 등 최신 모델을 활용한 Applied AI 시스템 구현
+데이터 수집, 정제, 라벨링 기준 수립, 학습 데이터셋 구성 및 품질 관리
+모델 평가 지표 설계 및 실서비스 기준의 성능 검증 체계 구축
+실시간 또는 대용량 이미지·영상 처리를 위한 추론 파이프라인 구축
+지연 시간, 처리량, GPU 사용량, 비용 최적화를 고려한 모델 서빙 및 운영
+Docker, FastAPI, 클라우드 환경 기반의 확장 가능한 모델 배포 시스템 구축
+Product, Data Science, LLM, Mobile, Software 팀과 협업해 Vision AI 기능을 실제 제품에 적용
+모델 운영 중 발생하는 오류, 성능 저하, 데이터 드리프트를 모니터링하고 개선
+주니어 엔지니어 멘토링 및 Computer Vision 엔지니어링 표준 관리
+스킬
+ㆍComputer Vision, Python, PyTorch/TensorFlow, OpenCV, FastAPI, Docker, Cloud
+핵심역량
+ㆍ윤리의식, 적응성, 협동심, 성실성, 계획성, 메타인지
+자격요건
+ㆍ학력 : 대졸이상
+ㆍ경력 : 경력5년↑
+모든 업무를 영어로 진행 가능한 분
+3년 이상 Computer Vision, Applied ML, Machine Learning 분야 실무 경험이 있는 분
+이미지·영상 기반 모델을 실제 서비스 또는 프로덕션 환경에 배포해 본 경험
+Python, PyTorch 또는 TensorFlow 기반 모델 개발에 능숙한 분
+OpenCV, NumPy, scikit-learn 등 이미지 처리 및 데이터 분석 도구 활용 경험
+객체 탐지, 분류, 세그멘테이션, 추적, OCR 중 하나 이상의 모델 개발 경험
+데이터 전처리, 라벨링 기준 수립, 학습 데이터셋 구성, 모델 평가 경험",Incorrect,
+11,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49606573,㈜디엠씨미디어,[디엠씨미디어] 애드테크 플랫폼 풀스택(AI Agentic) 개발자 경력 채용,Elasticsearch|PostgreSQL|Vue|FastAPI|Python|MySQL|Redis|Kafka,"[회사] ㈜디엠씨미디어
+[직무] [디엠씨미디어] 애드테크 플랫폼 풀스택(AI Agentic) 개발자 경력 채용
+[핵심조건] 경력 무관/미상 · 서울 강남구 · 정규직 · 기술: Elasticsearch(엘라스틱서치), PostgreSQL(포스트그레), Vue, FastAPI, Python(파이썬), MySQL, Redis(레디스), Kafka(카프카)
+모집부문 및 자격요건
+모집부문
+담당업무
+자격요건 및 우대사항
+풀스택 개발
+ㆍ광고 데이터 분석 플랫폼 및
+AI 관련 서비스(MCP) 개발
+ㆍClaudeCode 등 AI 코딩 에이전트를 활용한 설계
+및 시스템
+개발 구현
+ㆍAI 생성 코드 검수 및 UI 품질 관리
+ㆍMSA(Microservice Architecture) 기반 서비스 설계
+및 구축
+ㆍFastAPI(Python) 기반 API 서버 개발 및 운영
+ㆍKafka, Elasticsearch, Redis 기반 데이터 파이프라인
+구성 및 실시간 처리
+ㆍVue.js 기반 광고관리 및 리포팅 UI 개발
+ㆍ광고 트래킹, 리포팅, 매체 성과 분석 기능 개발
+ㆍ광고
+운영/기획 담당자와 협업을 통한 기능 개선
+및 신규 서비스 기획 참여
+[자격요건]
+ㆍ학력 : 무관
+ㆍIT경력 : FrontEnd 개발 +
+Backend 5년 이상(중급 이상)
+ㆍAI 코딩 툴(Claude Code 등) 활용 경험 또는
+적극적 도입 의지
+ㆍAI 생성 코드의 논리적 검토 및 품질 판단 능력
+ㆍ프롬프트 엔지니어링 및
+LLM API(OpenAI, Anthropic 등) 연동 경험
+ㆍPython (FastAPI) 또는 유사 웹 프레임워크 실무 경험
+ㆍVue.js, Nuxt.js 기반 프론트엔드 개발 경험
+ㆍMSA 아키텍처 이해 및 운영 경험
+ㆍKafka, Elasticsearch, Redis 등 분산 환경 활용 경험
+ㆍMySQL, PostgreSQL 데이터베이스 설계
+및 쿼리 튜닝 경험
+ㆍ광고 서비스(트래킹, 리포팅, 매체
+성과 등)에 대한 이해도
+ㆍ협업 툴(Git,
+Notion 등) 사용 능숙
+[우대사항]
+ㆍ광고 플랫폼 / 애드테크 / 트래킹 솔루션 개발 경험
+ㆍClaude Code 등 Agentic 개발 도구 실무 활용 경험
+ㆍ프롬프트 엔지니어링 및 AI 에이전트 워크플로우 설계 경험
+ㆍAWS, GCP 등 클라우드 배포 및 운영 경험
+ㆍRedis 캐시 설계 및 성능 튜닝 경험
+ㆍ시스템 설계 및 코드 리뷰
+경험 (리딩 가능자)
+ㆍSQL 튜닝 및 데이터 모델링 경험
+ㆍ기획과 개발의 경계를 유연하게 넘나드는 협업
+경험
+* DMC미디어 홈페이지 : 바로가기 (https://www.dmcmedia.co.kr)
+* DMC미디어 블로그 : 바로가기 (https://blog.naver.com/dmcmedia_official)
+전형절차
+* 면접일정은 추후 통보됩니다.
+근무조건
+근무형태 : 정규직(▶ 경력사원 역량평가 기간 적용 : 4개월(단, 경우에 따라 변동 될 수 있음))
+근무지 : 서울시 강남구 학동로 401 금하빌딩 5층., 11층
+제출서류
+이력서(경력기술서 포함), 자기소개서
+지원방법
+잡코리아 입사지원
+기타사항
+허위사실이 발견될 경우 채용이 취소될 수 있습니다.본 채용은 접수자 순으로 서류 검토가 진행되며, 先지원자에게 면접 기회가 우선 부여되므로 빠른 지원 바랍니다.",Ambiguous,
+12,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49585247,한국아이오티기술원,소프트웨어/통합 플랫폼 백엔드 개발자 모집,Spring Boot|PostgreSQL|MyBatis|MariaDB|Jenkins|Docker|MySQL|Redis,"[회사] 한국아이오티기술원
+[직무] 소프트웨어/통합 플랫폼 백엔드 개발자 모집
+[핵심조건] 경력 무관/미상 · 서울 금천구 · 정규직 · 기술: Spring Boot(스프링부트), PostgreSQL(포스트그레), MyBatis(마이바티스), MariaDB, Jenkins(젠킨스), Docker(도커), MySQL, Redis(레디스)
+한국아이오티기술원
+소프트웨어/통합 플랫폼 백엔드 개발자 모집
+한국아이오티기술원(KIOT)은 AI·IoT·GIS 기술을 기반으로 재난안전 통합플랫폼, 침수예경보 시스템, 침수차단 자동제어 시스템 등을 개발·공급하는 전문기업입니다.
+현재 의령군 재난통합플랫폼 구축사업을 비롯하여 다수의 지자체 재난안전 플랫폼 사업을 수행 중이며, 국민의 생명과 안전을 지키는 스마트 재난안전 플랫폼을 함께 만들어 갈 개발자를 모집합니다.
+포지션 및 자격요건
+백엔트개발자
+담당업무
+재난안전 통합플랫폼 서버 개발
+데이터 수집 및 연계 모듈 개발
+API 서버 구축
+MQTT/TCP/IP 통신 서버 개발
+CCTV 및 IoT 장비 연동
+데이터베이스 설계 및 운영
+스킬
+Java, Spring Boot, JPA, MyBatis, Netty, MQTT, Kafka, Redis
+Database
+PostgreSQL, PostGIS, MariaDB, MySQL
+DevOps, Linux, Docker, Git, Jenkins
+핵심역량
+ㆍ
+성실성,
+계획성, 꼼꼼함, 적응성, 협동심, 성장지향성
+자격요건
+경력 3년 이상
+Java 기반 개발 경험
+Spring Boot 개발 경험
+REST API 설계 경험
+MySQL 또는 PostgreSQL 경험
+Linux 서버 운영 경험
+우대사항
+Netty 기반 TCP 서버 개발 경험
+MQTT, Kafka 경험
+Redis 경험
+Docker 경험
+MSA 경험
+공공 SI 사업 경험
+*공통우대사항
+스마트시티 사업 경험
+재난안전 시스템 경험
+CCTV/VMS 연동 경험
+ONVIF 연동 경험
+GIS 기반 서비스 경험
+AWS 또는 클라우드 경험
+GS 인증 제품 개발 경험
+정보처리기사 보유자
+전형절차
+ㆍ서류전형 > 1차면접 > 2차면접 > 임원면접 > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.",Ambiguous,
+13,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49482418,㈜아이젝스,[경력] 백엔드 / 프론트엔드 개발자 채용 공고,Spring Boot|JavaScript|TypeScript|JPA|Vue|MariaDB|Kotlin|Docker,"[회사] ㈜아이젝스
+[직무] [경력] 백엔드 / 프론트엔드 개발자 채용 공고
+[핵심조건] 경력 무관/미상 · 서울 금천구 · 정규직 · 기술: Spring Boot(스프링부트), JavaScript(자바스크립트), TypeScript(타입스크립트), JPA(하이버네이트), Vue, MariaDB, Kotlin(코틀린), Docker(도커)
+㈜아이젝스
+[경력] 백엔드 / 프론트엔드 개발자 채용 공고
+포지션 및 자격요건
+백엔드 / 프론트엔드
+( ○명 )
+[백엔드]
+▷  지원자격
+- Java 기반 웹 애플리케이션 개발 5년 이상
+- Spring/Spring Boot 활용한 서비스 개발 및 운영 경험
+- MariaDB 또는 MySQL 등 RDBMS 모델링/쿼리 최적화 경험
+- REST API 설계 및 구현 경험
+- JPA/Hibernate 등 ORM 활용 경험
+- Git 기반 협업 경험
+▷ 우대 조건
+- 아래 항목 사용 경험
+ㄴ kotlin, docker, envoy, grpc, graphql, envoy, redis
+- 클라우드 환경 사용 경험
+- MSA 경험
+[프론트엔드 개발자]
+(Vue.js / Vue 3·TypeScript)
+▷ 주요 업무
+- Vue.js 기반 기업용 웹 관리 콘솔의 신규 기능 개발 및 유지보수
+- 기존 Vue 2·JavaScript 코드를 Vue 3·TypeScript 구조로 점진적으로 개선
+- 대용량 그리드, 트리, 검색 조건, 폼, 팝업 등 복잡한 업무 화면 개발
+- REST·GraphQL API 및 SSE·WebSocket 기반 실시간 기능 연동
+- 공통 컴포넌트, 상태 관리, API 계층 등 프론트엔드 구조 개선
+- 테스트, 타입 검사, 코드 리뷰를 통한 서비스 안정성 향상
+- 백엔드·기획·디자인 담당자와 요구사항 및 기술적 해결 방안 협의
+▷ 지원자격
+- 프론트엔드 개발 경력 3년 이상 또는 이에 준하는 실무 역량을 보유하신 분
+- HTML, CSS, JavaScript와 브라우저 동작 원리를 이해하고 계신 분
+- Vue.js를 활용한 SPA 개발 및 운영 경험이 있으신 분
+- Vue 3의 Composition API와 <script setup>을 활용할 수 있으신 분
+- TypeScript로 컴포넌트, 도메인 모델, API 요청·응답 타입을 설계할 수 있으신 분
+- ref, reactive, computed, watch, 라이프사이클 등 Vue 반응성 구조를 이해하고 계신 분
+- Props, Emits, Slots, v-model을 이용해 재사용 가능한 컴포넌트를 설계할 수 있으신 분
+- REST 또는 GraphQL API 연동과 비동기 처리, 로딩·오류·취소 상태 처리 경험이 있으신 분
+- Git을 이용한 협업과 코드 리뷰 경험이 있으신 분
+- 기존 코드를 분석하고 서비스 중단 없이 점진적으로 개선할 수 있으신 분
+전형절차
+ㆍ서류전형 > 1차면접 > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.",Incorrect,
+14,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49483067,에너자이,(병역특례 가능) AI 컴파일러 엔지니어,TensorFlow|PyTorch|AWS|LLM|C++,"[회사] 에너자이
+[직무] (병역특례 가능) AI 컴파일러 엔지니어
+[핵심조건] 경력 무관/미상 · 서울 강남구 · 정규직 · 기술: TensorFlow(텐서플로우), PyTorch(파이토치), AWS(아마존웹서비스), LLM, C++
+AI 컴파일러 엔지니어 (전문연구요원 가능)
+작은 기기에서도 최고의 AI를 누릴 수 있게 합니다.
+에너자이는 정확도 손실 없이 AI 추론 속도를 끌어올리는 온디바이스 AI 최적화 소프트웨어 기업입니다.
+인텔, 마이크로소프트, 엔비디아, 퀄컴, 삼성전자, Arm, Synaptics, Renesas Electronics 등 글로벌 대기업과 협력하며, 엣지 AI 분야에서 기술력을 검증받고 있습니다.
+담당 업무
+에너자이의 AI 컴파일러 엔지니어는 딥러닝 모델을 타겟 하드웨어에서 최대 성능으로 실행시킬 수 있도록, 프로그래밍 언어부터 그 컴파일러까지 직접 만드는 일을 합니다. 사내 자체 언어를 설계하고 그에 맞는 Lexer·Parser, 타입추론 등을 구현하는 일과, MLIR 기반으로 CPU부터 GPU·NPU 백엔드까지 확장되는 AI 컴파일러를 개발하는 일이 한 몸으로 맞물립니다. Kernel Fusion, Polyhedral Optimization, 튜닝 자동화 등 AI 도메인 특유의 최적화 기법을 연구·구현하며, 이론에 그치지 않고 실제 추론 성능으로 증명되는 컴파일러를 만들어가게 됩니다.
+사내 자체 언어 Nadya 개발
+문법, 의미구조 설계 관리
+Lexer, Parser 구현
+타입추론 알고리즘 구현
+그 외 사용환경 개선을 위한 동적/정적 분석기, 테스팅 프레임워크 개발
+AI compiler 개발
+MLIR 기반 컴파일러 개발
+CPU SIMD Intrinsic 지원
+GPU, NPU 타겟 확장을 위한 백엔드 개발
+Vectorization, Bufferization 개발
+Kernel Fusion, Polyhedral Optimization, Tiling 등 AI 도메인에서 중점적으로 활용되는 컴파일 최적화 기법 연구 및 구현
+튜닝 자동화를 위한 compile parameter 연구
+타겟 디바이스: Qualcomm, Broadcom, Synaptics 등 다양한 반도체사 제품들
+지원 자격
+C/C++을 활용한 프로젝트 개발 경험이 있으신 분
+딥러닝 프레임워크 (PyTorch, TensorFlow 등) 사용 경험이 있으신 분
+프로그래밍 언어론, 컴파일러 관련 교육 수강 또는 프로젝트 경험이 있으신 분
+풀어야 할 문제를 스스로 정의하고, 원인을 분석해 개선해 본 경험이 있으신 분
+※ 지원 시 참고 사항
+학부 4학년 이상
+해외 여행에 결격 사유가 없으신 분
+병역특례 지원 가능",Incorrect,
+15,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),원티드:373738,넥스트그라운드,[인턴] 백엔드 개발자,PostgreSQL|JPA|MongoDB|Spring|MySQL|Redis|Java|AWS,"[회사] 넥스트그라운드
+[직무] [인턴] 백엔드 개발자
+[핵심조건] 신입 가능 · 서울 강남구 · None · 기술: PostgreSQL(포스트그레), JPA(하이버네이트), MongoDB(몽고디비), Spring(스프링), MySQL, Redis(레디스), Java(자바), AWS(아마존웹서비스)
+넥스트그라운드는 월 ​200만명이 ​사용하는 ​부동산 정보 ​플랫폼 ‘집품’ 을 운영하고 ​있습니다.
+2024년 ​하반기부터 흑자 ​전환 상태이며, 2025년 ​Top-tier 투자사로부터 ​30억원의 ​투자를 유치하였습니다. ​
+성장성과 ​수익성을 ​모두 갖추며, 부동산 ​시장에서 ​혁신을 만들어가고 있습니다.
+---------------
+안녕하세요! 넥스트그라운드에서 개발팀 리드를 맡고 있는 음영현입니다.
+제가 합류한 이후 '집품'의 트래픽은 월평균 30% 이상 꾸준히 성장해왔습니다.
+백엔드 개발팀은 이러한 급성장 속에서도 사용자에게 안정적인 서비스를 제공하기 위해 매달 새로운 기술적 과제들을 해결해나가고 있습니다. 기존 기능 최적화부터 신규 기능의 안정적인 확장까지, 매 순간 도전하며 팀과 서비스가 함께 성장하고 있습니다.
+집품 개발팀은 비즈니스 임팩트를 위해 다양한 직군과 긴밀히 협업을 하고 있습니다.
+목표를 위해 주어진 시간에 기능을 완성할 뿐 아니라, 확장 가능한 구조를 고민하고 있습니다.
+새로운 것에 대한 두려움 없으신 분, 문제를 파악하고 개선할 의지가 있으신 분과 함께 성장하고 싶습니다.
+넥스트그라운드는 회사와 함께 성장해나가실 백엔드 개발자를 찾고 있습니다.
+많은 관심 부탁드립니다.
+주요업무• 집품 플랫폼의 전반적인 백엔드 개발 업무를 담당합니다.
+(비즈니스 로직 설계, DB 관리 및 성능최적화, RestfulAPI 제작)
+• 백엔드 API와 아키텍쳐에 대한 설계, 구현, 테스트, 문서화를 진행합니다.
+• 다양한 직군과 긴밀히 협업하여 비즈니스 임팩트를 만듭니다.
+• 서버 안정성과 API 속도향상을 위해 기능을 체크하고 개선점을 파악합니다.
+• AI를 활용하여 더 합리적이고 효율적인 개발을 진행합니다.
+자격요건• JAVA언어 기반의 Spring 개발 경험을 보유하신 분
+• MySQL 혹은 PostgreSQL과 같은 RDBMS를 활용 가능하신 분
+• RDBMS 구조를 설계하고 확장성 있는 DB 구조를 고민해 보신 분
+• Database ORM (JPA/Hibernate/Querydsl 등) 관련 기술에 대한 경험이 있으신 분
+• 캐시를 활용하여 서비스 성능개선을 경험해보신 분
+• 대학 졸업자 이상 (2027년 02월 졸업 예정자 포함)
+기술스택
+• Spring (Java)
+• MySQL, MongoDB, Redis, ES, Redis 등
+• Airflow, IaC
+• 모니터링 시스템 (Grafana 등)
+• 기타 AWS 인프라
+고용조건• 정규직전환형
+• 인턴 6개월
+근무 후 평가에 따른 정규직 전환 가능",Ambiguous,
+16,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49615765,㈜넥슨,[플랫폼본부] AI 기반 게임 등급 분류 R&D 개발 AI 엔지니어 (계약직),TensorFlow|PyTorch|Python|Docker|Git|LLM,"[회사] ㈜넥슨
+[직무] [플랫폼본부] AI 기반 게임 등급 분류 R&D 개발 AI 엔지니어 (계약직)
+[핵심조건] 경력 무관/미상 · 경기 성남시 · 계약직 · 기술: TensorFlow(텐서플로우), PyTorch(파이토치), Python(파이썬), Docker(도커), Git, LLM
+[플랫폼본부] AI 기반 게임 등급 분류 R&D 개발
+AI 엔지니어 (계약직)
+프로젝트 소개
+본 프로젝트는 인공지능(AI) 기술을 활용하여 신규 게임의 콘텐츠를 자동 분류하고 심사하는 원천 기술을 연구 개발하는 국가 연구 과제입니다.
+멀티모달 이미지·영상·텍스트 인식 기술을 바탕으로 게임 유해성 분석 자동화 모델(Agent)을 고도화하고, 다중 플랫폼 환경을 지원하는 안정적인 R&D 분석 플랫폼을 설계 및 구축할 기술 핵심 인재를 모십니다.
+주요 업무
+AI 에이전트 알고리즘 개발
+게임 등급 분류 기준(폭력성, 선정성, 사행성 등)을 정밀 분석하는 멀티모달(Vision-Language) AI 에이전트 핵심 알고리즘 개발
+비디오 및 멀티모달 인식 모델 개발
+게임 플레이 영상, 텍스트 데이터 및 기기 구동 신호 등의 멀티플랫폼 원천 데이터를 실시간/배치 분석하는 딥러닝 모델 설계
+R&D 플랫폼 및 파이프라인 구축
+자동 분석 모델을 구동하고 결과를 가시화 및 처리하는 AI 플랫폼 백엔드 아키텍처 및 파이프라인 개발
+데이터셋 구축 및 관리
+AI 모델 고도화를 위한 도메인 특화 데이터 수집, 정제 및 라벨링 프로세스 설계
+기술 문서 작성
+국가 과제 단계별 기술 보고서, 특허 출원, 학술지 논문 게재 등 연구 성과 증빙 자료 작성 및 검증 지원
+지원 자격
+Python 환경에서 PyTorch, TensorFlow 등을 활용한 딥러닝 모델 학습 및 배포 역량을 보유하신 분
+Computer Vision(객체 인식, 비디오 행동 분석, OCR 등) 혹은 NLP/LLM 관련 프로젝트 경험이 있으신 분
+Vision-Language Model(VLM) 혹은 최신 AI 에이전트(LLM Agent) 프레임워크 구현 능력을 갖추신 분
+Git을 통한 형상 관리 및 프로젝트 협업 도구(Slack, Notion, Confluence 등)에 능숙하신 분
+우대 사항
+오픈소스 LLM(Llama, Mistral 등)의 파인 튜닝(PEFT, LoRA, QLoRA 등) 및 경량화/서빙 최적화 경험이 있으신 분
+게임 분야 데이터(플레이 영상, 게임 자산, 유저 커뮤니티 데이터 등) 활용 및 분석 프로젝트 경험이 있으신 분
+AI 모델 서빙 최적화, Docker 기반 컨테이너 환경, MLOps 파이프라인(Kubeflow, MLflow 등) 설계가 가능하신 분
+정부 주도 R&D 국가 연구 과제 참여 경험 및 연구 산출물(논문, 특허 등) 작성 이력이 있으신 분
+게임의 동작 환경(PC/모바일/콘솔/아케이드)에 관심이 깊으며, 국내외 게임 등급 심사 프로세스에 이해도가 있으신 분
+전형 절차
+서류전형 → 면접전형  → 최종합격
+* 해당 절차는 후보자에 따라 변동이 있을 수 있습니다.
+기타 사항
+본 공고는 12개월 계약직 포지션이며, 채용 시점에 따라 다소 차이가 있을 수 있습니다.
+서류 검토 기간은 최대 1개월이 소요될 수 있으며, 서류 전형 이후 일정은 합격자에 한해 개별 안내 드립니다.
+국가보훈 대상자 및 장애인은 관련 법령에 의거하여 우대합니다.
+입사 후 3개월간 수습기간이 적용되며, 해당 기간 동안 급여, 인사제도 등은 모두 동일하게 제공됩니다.
+입사지원서 및 자격사항이 사실과 다르거나 부정행위가 발견되는 경우 입사가 취소될 수 있습니다.",Correct,
+17,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),사람인:54508743,(주)씨티브이,"웹 개발자 채용 (Java/Spring, React/Vue) - 신입/경력",Spring Boot|JavaScript|PostgreSQL|JPA|Next.js|Docker|React|MySQL,"[회사] (주)씨티브이
+[직무] 웹 개발자 채용 (Java/Spring, React/Vue) - 신입/경력
+[핵심조건] 경력 1년 이상 · 인천 부평구 · 정규직(수습 2개월) · 기술: Spring Boot(스프링부트), JavaScript(자바스크립트), PostgreSQL(포스트그레), JPA(하이버네이트), Next.js(넥스트), Docker(도커), React(리액트), MySQL
+웹 개발자 채용 (Java/Spring, React/Vue)  신입/경력
+모집분야
+백엔드 · 프론트엔드 개발자
+📋 주요업무
+[백엔드 분야]
+• HR 솔루션 핵심 비즈니스 로직 개발 및 유지보수 (근태, 급여, 인사평가 등)
+• RESTful API 설계, 구현 및 DB 모델링/쿼리 최적화
+[프론트엔드 분야]
+•HR 솔루션 웹 애플리케이션 사용자 화면(UI) 개발 및 유지보수
+• 백엔드 REST API 연동 및 컴포넌트 재사용성 개선
+📋 자격요건
+• 지원 대상: 신입 / 경력 1년 이상 ~ 5년 이하 (학력무관, 졸업 예정자 지원 가능)
+•아래 분야 중 하나 이상에 해당하시는 분:
+[백엔드]
+• Java 및 Spring Boot 기반 서버 개발 기본 지식을 갖추신 분
+• RDBMS(PostgreSQL, MySQL 등)에 대한 기본적인 이해와 SQL 작성 가능자
+[프론트엔드]
+• React 또는 Next.js 기반의 웹 애플리케이션 개발 경험이 있으신 분
+• HTML/CSS 및 JavaScript(ES6+) 기본 개념을 이해하고 계신 분
+[공통]
+•Git을 활용한 버전 관리 및 팀 협업이 가능하신 분
+•RESTful API 구조에 대한 기본적인 이해가 있으신 분
+•신입 / 경력(1년~5년 이하) 모두 지원 가능
+📋 우대사항
+백엔드: Spring Data JPA / Hibernate를 활용한 ORM 개발 경험, Spring Security 및 JWT 기반의 인증/인가 체계 구축 경험,
+Flyway를 활용한 DB 마이그레이션 및 버전 관리 경험, Docker / AWS / CI-CD 경험
+프론트엔드: Next.js 및 React 기반 웹 애플리케이션 개발 경험, Tailwind CSS를 활용한 반응형 UI 및 스타일링 경험
+공통: Turborepo / Gradle 등 빌드 도구에 대한 이해, 타 직군과의 원활한 소통 능력을 갖추신 분
+🏠 근무조건
+• 고용형태 : 정규직(수습 2개월)
+• 급여 : 면접 후 결정
+• 근무지 : 인천 부평구 주부토로 236 인천테크노밸리 U1센터 A동 S917호
+• 근무일수/시간 :
+🎁 복지 및 혜택
+• 직무 역량 교육 참여를 지원합니다
+• 프로젝트 성과에 따른 보상 제공합니다
+• 업무 장비 및 개발 환경 지원합니다
+• 연차 및 휴가 제도를 운영합니다
+• 경조사 지원 제도를 제공합니다
+🚀 채용절차
+접수기간 : 2026-07-20 13시 ~ 2026-08-19 24시
+제출서류 : 사람인 온라인 이력서
+접수방법 : 사람인 입사지원
+전형절차 : 서류전형 → 1차면접 → 2차면접 → 최종합격",Correct,
+18,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49367911,체크멀,리눅스 보안 개발자(주니어) 채용,JavaScript|TypeScript|MongoDB|Jenkins|Go|React|MySQL|Linux,"[회사] 체크멀
+[직무] 리눅스 보안 개발자(주니어) 채용
+[핵심조건] 신입 가능 · 경기 용인시 · 정규직 · 기술: JavaScript(자바스크립트), TypeScript(타입스크립트), MongoDB(몽고디비), Jenkins(젠킨스), Go(고랭), React(리액트), MySQL, Linux(리눅스)
+체크멀
+경력 채용 - 윈도우개발자
+포지션 및 자격요건
+리눅스 보안 어플리케이션 개발
+( 0명 )
+직무 공통사항
+체크멀은 이렇게 개발합니다.
+- 보안제품 요구사항에 맞는 아키텍처와 적절한 기술로 구현합니다.
+- C/C++, Golang, Typescript/Javascript(react) 언어로 개발합니다.
+- aws를 통해서 백엔드 인프라를 유지하고, 데이터베이스는 Mysql, MongoDB를 사용합니다.
+- CI/CD를 위해서 Jenkins를 사용합니다.
+- 우리는 설계 및 코드를 공유하고 리뷰합니다. 1주에 3시간 이상 같이 모여 코드를 리뷰합니다.
+- 최고의 기술과 최신의 트랜드를 지향하며 개발하지만, 오버엔지니어링 하지 않습니다.
+- Agile 방식을 선호합니다.
+- Sprint를 정하고 자신이 맡은 업무를 수행합니다. Jira를 사용합니다.
+- Sprint 회고를 통해 문제점을 개선합니다.
+- 체크멀은 하루 7시간 집중 근무합니다.
+체크멀 프러덕트는 다음의 개발영역이 있습니다.
+1. AppCheck 제품을 위한 MS윈도우 보안 어플리케이션을 개발합니다.
+- 랜섬웨어 사전탐지, 차단, 자동복구를 위한 윈도우 기반 에이전트를 개발합니다.
+- 윈도우 드라이버(커널)를 개발하고, 사용자 영역의 어플리케이션을 개발합니다.
+- 편리한 사용을 제공하는 화면 어플리케이션을 개발합니다.
+- 서버와 연동하는 네트워크 기능을 개발합니다.
+2. AppCheck Linux 제품을 위한 보안 어플리케이션을 개발합니다.
+- 랜섬웨어 사전탐지, 차단, 자동복구를 위한 리눅스 기반 에이전트를 개발합니다.
+- 리눅스 드라이버(커널)를 개발하고 사용자 영역의 어플리케이션을 개발합니다.
+- 서버와 연동하는 네트워크 기능을 개발합니다.
+3. AppCheck 통합 관리를 위한 CMS 시스템을 개발하고 운영합니다.
+- CMS는 AppCheck 에이전트를 통합 관리합니다.
+- CMS를 통해서 보안정책을 일괄 관리합니다.
+- CMS의 백엔드는 Golang으로 구현합니다. 프런트엔드는 react를 사용합니다.
+- CMS는 내부의 다양한 시스템과 연동합니다.
+4. 백오피스를 개발하고 운영합니다.
+- 3rd-Party 협력업체도 우리의 고객이며, 이들을 위한 백오피스를 개발하고 운영합니다.
+- 정보 보호를 위한 백오피스를 개발하고 운영합니다.
+주요 업무
+- AppCheck 리눅스 제품을 개발하고 운영합니다.
+- 리눅스 드라이버를 개발하고 변경 요청을 대응합니다.
+- 리눅스 네트워크 어플리케이션을 개발하고 운영합니다.(C/Golang)
+자격요건
+- C 언어에 대한 기본기를 갖추고, 이를 활용한 프로젝트(개인/팀 프로젝트 등) 경험이 있는 분
+- 리눅스 환경에서의 시스템 프로그래밍 개발에 관심이 있고, 기본적인 사용 경험(셸 명령어, gcc/make 빌드 등)이 있는 분
+- Golang에 대한 학습 경험이 있거나 배우고자 하는 의지가 있는 분
+- TCP/IP 네트워크의 기본 개념(소켓 통신, 프로토콜 등)을 이해하고 있는 분
+- 운영체제, 자료구조 등 CS 기초 지식을 갖춘 분
+우대요건
+- 리눅스 커널 모듈 프로그래밍에 대한 이해 또는 학습 경험
+- 리눅스 시스템 프로그래밍(프로세스, 스레드, IPC, 시스템 콜 등) 학습 또는 프로젝트 경험
+- 소켓 프로그래밍 등 네트워크 프로그래밍 학습/구현 경험
+전형절차
+→ 서류전형
+→ 과제수행(AI 활용 가능 / git에 코드 업로드)
+→ 1차면접(과제 수행 리뷰 및 기술면접 / 1차면접전에 현재 처우 확인)
+→ 2차면접(대표 및 주요 임원 참석)
+→ 처우협의
+→ 최종입사
+근무조건
+- 정규직(수습 3개월)
+- 근무일시: 주 5일(월~금) 탄력근무제, 하루 7시간 근무
+- 근무지역: 용인시 수지구 신수로 767 (신분당선 동천역 도보 3분 / 신분당선 오리역 700m 도보 10분)",Correct,
+19,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49610868,원소프트㈜,Backend 개발자(AI 프로젝트 경험자),Spring Boot|MyBatis|MariaDB|Oracle|Docker|Java|JPA|AWS,"[회사] 원소프트㈜
+[직무] Backend 개발자(AI 프로젝트 경험자)
+[핵심조건] 경력 무관/미상 · 서울 종로구 · 계약직 · 기술: Spring Boot(스프링부트), MyBatis(마이바티스), MariaDB, Oracle(오라클), Docker(도커), Java(자바), JPA(하이버네이트), AWS(아마존웹서비스)
+원소프트㈜
+Backend 중급 개발자(AI 프로젝트 경험자)
+원소프트㈜는 2011년에 설립된 회사로 자본금 1억원, 매출액 39억, 사원수 24명 규모의 중소기업입니다. 서울 강동구 천호대로 1024 (성내동, 힐스테이트천호역젠트리스)에 위치하고 있으며, SI 개발용역, 개발인력공급, 상용SW판매사업을 하고 있습니다.
+포지션 및 자격요건
+중급
+Backend 개발자
+1명
+담당업무
+*  Java/Spring Boot 기반의 백엔드 개발
+* 26. 8. 3 ~ 27.2.28( 7개월 근무)
+* 근무지 : 종각역 근처(삼일대로 385-1)
+스킬
+ㆍ개발환경
+1. Core : Java/Spring Boot 기반의 백엔드 개발 실무 경험, RESTful API 설계/개발 등
+2. Database : RDB(MariaDB, Oracle), MyBatis, JPA 실무 경험
+3. 개발환경 :  Docker 컨테이너 기반의 개발 및 실행 환경 구축 경험
+=> AWS Cloud 내 서버(인스턴스) 할당 후 사용예정
+4.우대사항 :   AI 프로젝트 경험자
+- LLM API 연동(제어)
+- RAG 시스템(색인설계/제어) 아키텍처에 대한 이해도 및 경험
+- 데이터 전처리(Parsing, Chunking) 관련 경험
+자격요건
+ㆍ학력 : 초대졸이상
+ㆍ등급 : 중급 개발자
+전형절차
+ㆍ서류전형 > 1차면접 > 2차면접 > 임원면접 > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.",Correct,
+20,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49583770,㈜더쇼소프웨어,풀스택 개발자 채용 공고 (해외 근무),GitHub Actions|Spring Boot|TypeScript|PostgreSQL|JPA|Next.js|Jenkins|Oracle,"[회사] ㈜더쇼소프웨어
+[직무] 풀스택 개발자 채용 공고 (해외 근무)
+[핵심조건] 경력 무관/미상 · 서울 강남구 · 정규직 · 기술: GitHub Actions, Spring Boot(스프링부트), TypeScript(타입스크립트), PostgreSQL(포스트그레), JPA(하이버네이트), Next.js(넥스트), Jenkins(젠킨스), Oracle(오라클)
+㈜더쇼소프웨어
+풀스택 개발자 채용 공고 (해외근무)
+㈜더쇼소프웨어는 2024년에 설립된 회사로 사원수 5명 규모의 중소기업입니다. 서울 강남구 역삼동에 위치하고 있으며, 게임 개발 및 서비스 제공사업을 하고 있습니다.
+포지션 개요
+필리핀 현지 사무실에서 근무할 경력 있는 풀스택 개발자를 모집합니다. 데이터베이스부터 프론트엔드까지 웹 애플리케이션 전반의 설계, 개발, 유지보수를 담당하게 됩니다.
+포지션 및 자격요건
+풀스택 개발자 채용 공고
+( 1명 )
+1. 풀스택 개발자 채용 공고
+근무지: 필리핀 (현지 상주) | 고용 형태: 정규직 | 경력: 6년 이상
+2. 포지션 개요
+필리핀 현지 사무실에서 근무할 경력 있는 풀스택 개발자를 모집합니다. 데이터베이스부터 프론트엔드까지 웹 애플리케이션 전반의 설계, 개발, 유지보수를 담당하게 됩니다.
+3. 자격 요건
+경력: 소프트웨어 개발 경력 4년~8년
+4. 필수 기술 스택
+RDBMS: MySQL, PostgreSQL, Oracle 등 관계형 데이터베이스
+Backend: Java Spring Boot (REST API 설계 및 개발)
+Frontend: Next.js / React (컴포넌트 기반 UI 개발)
+5. 기타 요건
+영어 커뮤니케이션 가능자 (비즈니스 레벨 우대)
+필리핀 현지 근무 가능자
+6. 우대 사항
+클라우드 서비스 경험 (AWS, GCP, Azure)
+CI/CD 파이프라인 및 DevOps 경험
+RESTful API / 마이크로서비스 아키텍처 경험
+Git 및 애자일(Agile) 방법론 숙지
+해외 근무 경험자
+7. 기술 스택 상세
+Backend: Java, Spring Boot, Spring Security, Spring Data JPA, Hibernate
+Frontend: React, Next.js, TypeScript, HTML5, CSS3, Tailwind CSS
+Database: MySQL, PostgreSQL, Oracle / Redis (Cache)
+Build / Deploy: Gradle / Maven, Docker, Jenkins / GitHub Actions
+Version Control: Git, GitHub / GitLab
+기타: REST API, Swagger, JUnit, Agile / Scrum
+8. 주요 업무
+Java Spring Boot 및 Next.js/React 기반 웹 애플리케이션 설계 및 개발
+관계형 데이터베이스 스키마 설계 및 쿼리 최적화
+프론트엔드-백엔드 연동을 위한 RESTful API 구축 및 유지보수
+코드 리뷰, 테스트, 디버깅
+디자인, PM, QA 등 유관 부서와의 협업
+아키텍처 의사결정 및 기술 문서 작성
+전형절차
+ㆍ서류전형 > 1차면접 > 임원면접 > 최종합격
+ㆍ면접일정은 추후 통보됩니다.
+유의사항
+ㆍ허위사실이 발견될 경우 채용이 취소될 수 있습니다.",Ambiguous,

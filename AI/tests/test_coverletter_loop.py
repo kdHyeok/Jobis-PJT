@@ -50,7 +50,7 @@ def _draft_arg(strengths: str = "재고 API 에서 백엔드를 맡아 Django �
 
 # --- 도구 (결정론) ---------------------------------------------------------------
 def test_find_evidence_is_the_only_source_of_resume_facts():
-    """이력서 근거는 도구만 준다. 없는 것은 없다고 말한다(지어낼 여지를 주지 않는다)."""
+    """이력서 근거는 도구만 준다. 없는 것을 만들어 주지는 않는다."""
 
     state = cl._draft_state({}, PROFILE, ANALYSIS)
 
@@ -60,8 +60,50 @@ def test_find_evidence_is_the_only_source_of_resume_facts():
     hit, _ = cl._tool_find_evidence(state, "Django")
     assert "재고 API" in hit
 
-    miss, _ = cl._tool_find_evidence(state, "Kafka")
-    assert "확인되지 않습니다" in miss
+    empty, _ = cl._tool_find_evidence(cl._draft_state({}, {}, ANALYSIS), "Django")
+    assert "확인된 사실이 없습니다" in empty
+
+
+def test_find_evidence_falls_back_to_everything_on_no_literal_match():
+    """문자 일치 0건이어도 전문을 준다 — 의미 매칭은 substring 이 아니라 LLM 의 일이다.
+
+    이력서는 요청과 다른 말로 적혀 있다("트러블슈팅" → "응답시간 40% 개선"). 여기서
+    "없습니다"로 끊으면 LLM 이 아무리 잘 읽어도 그 경험에 닿지 못한다.
+    """
+
+    state = cl._draft_state({}, PROFILE, ANALYSIS)
+
+    miss, _ = cl._tool_find_evidence(state, "트러블슈팅")
+    assert "응답시간 40% 개선" in miss, "0건이어도 판단 재료(전문)를 줘야 한다"
+    assert "지어내지" in miss, "없을 때 창작 금지를 함께 알려야 한다"
+
+    # 일부만 걸렸으면 그 목록이 전부가 아님을 알린다(문자 일치의 한계 고지)
+    partial, _ = cl._tool_find_evidence(state, "Django")
+    assert "표현이 다른" in partial and "전체" in partial
+
+
+def test_collect_facts_keeps_the_whole_resume():
+    """재료를 미리 좁히지 않는다 — 잘라 둔 것은 강조 요청이 와도 되살릴 수 없다.
+
+    특히 evidenceMap 은 이력서 **원문 문장**이라 구조화 항목이 요약하며 지운 표현이 남아 있다.
+    """
+
+    facts = cl._collect_facts({
+        "projects": [{"title": "재고 API", "projectType": "팀 프로젝트", "teamSize": "4명",
+                      "techStack": ["Python", "Django", "Redis", "Docker", "AWS", "Nginx"]}],
+        "experiences": [{"company": "A사", "role": "백엔드", "employmentType": "인턴"}],
+        "evidenceMap": [{"evidenceId": "ev-1", "source": "prj-1",
+                         "text": "재고 동기화 장애를 추적해 락 경합을 제거했습니다."}],
+        "bootcamp": [{"name": "SSAFY", "track": "Python"}],
+        "awards": [{"title": "우수상", "description": "교내 해커톤 1위"}],
+        "languages": [{"name": "영어", "testName": "토익", "score": "900"}],
+        "education": [{"school": "A대", "major": "컴퓨터공학", "degree": "학사"}],
+        "certifications": [], "skills": [],
+    })
+    blob = " / ".join(facts)
+    for expected in ("락 경합", "Nginx", "인턴", "SSAFY", "교내 해커톤", "토익", "컴퓨터공학"):
+        assert expected in blob, f"{expected} 가 재료에서 빠지면 안 된다"
+    assert len(facts) == len(set(facts)), "중복 사실은 접어야 한다"
 
 
 def test_save_draft_updates_only_given_paragraphs():

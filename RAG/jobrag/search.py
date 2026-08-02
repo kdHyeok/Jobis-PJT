@@ -284,7 +284,8 @@ def _apply_rerank(conn, spec: QuerySpec, result: SearchResult) -> None:
     pool, rest = result.hits[:RERANK_TOP_N], result.hits[RERANK_TOP_N:]
     texts = _fetch_rerank_texts(conn, pool)
     pairs = [(h.posting_uid, texts[h.posting_uid]) for h in pool if h.posting_uid in texts]
-    scores = reranker.rerank(spec.text, pairs)
+    # 재순위도 의미 축이다 — dense와 같은 질의를 쓴다(spec.semantic_text).
+    scores = reranker.rerank(spec.semantic_text, pairs)
     result.reranker_backend = reranker.backend()
     if scores is None:
         result.reranked = False
@@ -311,7 +312,8 @@ def hybrid_search(conn, spec: QuerySpec, top_k: int = 10,
     RRF 점수는 후보 풀이 다르면 서로 비교할 수 없으나, 정확 매치와 완화 결과를
     분리해 정렬하므로 각 계층 안에서는 같은 검색 결과끼리만 비교된다.
     """
-    [vec], _ = embed_texts([spec.text])
+    # 어휘 축(BM25)은 spec.text, 의미 축(dense·재순위)은 spec.semantic_text를 쓴다.
+    [vec], _ = embed_texts([spec.semantic_text])
 
     result = _search_once(conn, vec, spec, (), CANDIDATE_K)
 

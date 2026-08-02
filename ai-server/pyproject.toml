@@ -1,0 +1,27 @@
+[project]
+name = "jobiss-ai-server"
+version = "1.0.0"
+description = "Provider-neutral AI analysis boundary for JOBISS"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.104,<1",
+    "fastapi>=0.115,<1",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28,<1",
+    "pytest>=8.3,<9",
+    "ruff>=0.9,<1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

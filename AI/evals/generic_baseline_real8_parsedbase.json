@@ -1,0 +1,1189 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-08-01T22:56:37",
+    "dataset": "C:\\Users\\SSAFY\\Desktop\\S15P11C202-rag\\AI\\evals\\generic_dataset.json",
+    "runs": 3,
+    "recomputedNote": "기준선을 확장(jobTitle·domainKeywords·연차 추가)해 저장된 답변으로 다시 계산했다 - 기준선은 파서 산출의 함수이고 답변은 그대로이므로 LLM 답변 재생성이 필요 없다. 빈약 기준선(요건+techStack 만) 값: study-plan +0.0107 / key-requirement -0.0046."
+  },
+  "summary": {
+    "postings": 8,
+    "questions": 2,
+    "runs": 3,
+    "measured": 2,
+    "genericScore": 0.0095,
+    "meanOffPostingSkillRate": 0.0755,
+    "noiseFloor": 0.0271,
+    "emptyAnswers": [],
+    "meanPostingSim": 0.5271
+  },
+  "results": [
+    {
+      "questionId": "study-plan",
+      "measured": true,
+      "runs": 3,
+      "genericScore": {
+        "mean": 0.0172,
+        "min": 0.0016,
+        "max": 0.0287,
+        "range": 0.0271
+      },
+      "offPostingSkillRate": {
+        "mean": 0.1287,
+        "min": 0.1083,
+        "max": 0.1555,
+        "range": 0.0472
+      },
+      "attempts": [
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0287,
+          "meanAnswerSim": 0.5558,
+          "meanPostingSim": 0.5271,
+          "worstPair": "security-sol|qa-engineer",
+          "worstDelta": 0.1185,
+          "offPostingSkillRate": {
+            "ml-genai": 0.0,
+            "backend-erp": 0.0,
+            "frontend-web": 0.25,
+            "data-analyst": null,
+            "devops": 0.0,
+            "mobile-flutter": 0.4,
+            "security-sol": 0.0,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.1083,
+          "pairs": {
+            "ml-genai|backend-erp": {
+              "answer": 0.5793,
+              "posting": 0.5977,
+              "delta": -0.0184
+            },
+            "ml-genai|frontend-web": {
+              "answer": 0.5731,
+              "posting": 0.5344,
+              "delta": 0.0387
+            },
+            "ml-genai|data-analyst": {
+              "answer": 0.6076,
+              "posting": 0.5688,
+              "delta": 0.0388
+            },
+            "ml-genai|devops": {
+              "answer": 0.6023,
+              "posting": 0.5301,
+              "delta": 0.0722
+            },
+            "ml-genai|mobile-flutter": {
+              "answer": 0.4814,
+              "posting": 0.5358,
+              "delta": -0.0544
+            },
+            "ml-genai|security-sol": {
+              "answer": 0.6104,
+              "posting": 0.5076,
+              "delta": 0.1028
+            },
+            "ml-genai|qa-engineer": {
+              "answer": 0.5049,
+              "posting": 0.5046,
+              "delta": 0.0003
+            },
+            "backend-erp|frontend-web": {
+              "answer": 0.5713,
+              "posting": 0.5689,
+              "delta": 0.0024
+            },
+            "backend-erp|data-analyst": {
+              "answer": 0.5728,
+              "posting": 0.5379,
+              "delta": 0.0349
+            },
+            "backend-erp|devops": {
+              "answer": 0.5925,
+              "posting": 0.5227,
+              "delta": 0.0698
+            },
+            "backend-erp|mobile-flutter": {
+              "answer": 0.4611,
+              "posting": 0.5651,
+              "delta": -0.104
+            },
+            "backend-erp|security-sol": {
+              "answer": 0.5993,
+              "posting": 0.5622,
+              "delta": 0.0371
+            },
+            "backend-erp|qa-engineer": {
+              "answer": 0.5411,
+              "posting": 0.5607,
+              "delta": -0.0196
+            },
+            "frontend-web|data-analyst": {
+              "answer": 0.5783,
+              "posting": 0.4968,
+              "delta": 0.0815
+            },
+            "frontend-web|devops": {
+              "answer": 0.6406,
+              "posting": 0.5965,
+              "delta": 0.0441
+            },
+            "frontend-web|mobile-flutter": {
+              "answer": 0.5698,
+              "posting": 0.6201,
+              "delta": -0.0503
+            },
+            "frontend-web|security-sol": {
+              "answer": 0.5763,
+              "posting": 0.5198,
+              "delta": 0.0565
+            },
+            "frontend-web|qa-engineer": {
+              "answer": 0.5714,
+              "posting": 0.4948,
+              "delta": 0.0766
+            },
+            "data-analyst|devops": {
+              "answer": 0.5258,
+              "posting": 0.4657,
+              "delta": 0.0601
+            },
+            "data-analyst|mobile-flutter": {
+              "answer": 0.4044,
+              "posting": 0.3706,
+              "delta": 0.0338
+            },
+            "data-analyst|security-sol": {
+              "answer": 0.61,
+              "posting": 0.5688,
+              "delta": 0.0412
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.4598,
+              "posting": 0.449,
+              "delta": 0.0108
+            },
+            "devops|mobile-flutter": {
+              "answer": 0.4924,
+              "posting": 0.5417,
+              "delta": -0.0493
+            },
+            "devops|security-sol": {
+              "answer": 0.6472,
+              "posting": 0.5585,
+              "delta": 0.0887
+            },
+            "devops|qa-engineer": {
+              "answer": 0.604,
+              "posting": 0.5009,
+              "delta": 0.1031
+            },
+            "mobile-flutter|security-sol": {
+              "answer": 0.44,
+              "posting": 0.4544,
+              "delta": -0.0144
+            },
+            "mobile-flutter|qa-engineer": {
+              "answer": 0.5199,
+              "posting": 0.519,
+              "delta": 0.0009
+            },
+            "security-sol|qa-engineer": {
+              "answer": 0.6246,
+              "posting": 0.5061,
+              "delta": 0.1185
+            }
+          },
+          "answerChars": [
+            1288,
+            931,
+            950,
+            1492,
+            1514,
+            807,
+            1610,
+            858
+          ],
+          "answers": {
+            "ml-genai": "필수 요건부터 채우는 순서로 보면 됩니다.\n\n1순위 (필수): Python + LLM 구조 이해, LoRA(Llama2/Mistral) 파인튜닝 개념\n2순위 (우대): LangChain/LangGraph 기반 Agent, 프롬프트 엔지니어링\n3순위 (우대): Docker Compose/Kubernetes/Linux 운영, PostgreSQL\n\n이 순서대로 아래 3개 프로젝트를 기록해뒀습니다 — 1) 사내 문서 RAG 챗봇(LangChain/LangGraph + Agent), 2) 오픈소스 LLM LoRA 파인튜닝 실습(Llama2/Mistral), 3) 컨테이너 기반 LLM 서비스 배포(Docker Compose+K8s+PostgreSQL). 순서대로 하나씩 완성해가면 필수 요건과 우대 사항을 골고루 증명할 수 있습니다.\n\n프로젝트 제안\n1. **사내 문서 RAG 챗봇**\n   사내 규정/제조·건설 도메인 문서를 업로드하면 답변하는 RAG 시스템. LangChain+LangGraph로 검색-생성 파이프라인, 멀티턴 대화 Agent 구성\n   커버하는 요건: Python 등 AI 프로그래밍 숙련자 및 LLM 기술 구조 이해도 보유자 · LangChain, LangGraph 또는 Agent Framework 활용 경험 · 프롬프트 엔지니어링 및 LLM Agent 설계 경험\n   완료 기준: PDF 업로드 후 질의응답이 정확히 동작하고 Agent가 도구(검색, 계산 등)를 호출해 답을 조합하면 끝\n2. **오픈소스 LLM LoRA 파인튜닝 실습**\n   Llama2 또는 Mistral 오픈소스 모델을 특정 도메인(예: 고객상담 FAQ) 데이터로 LoRA 파인튜닝하고 전후 응답 품질 비교\n   커버하는 요건: Python 등 AI 프로그래밍 숙련자 및 LLM 기술 구조 이해도 보유자 · ML, LLM Fine-Tunning, LoRA(Llama2, Mistral 등) 오픈소스 모델 활용 개념 혹은 경험자\n   완료 기준: 파인튜닝 전/후 모델 응답을 같은 질문셋으로 비교한 결과표 제시\n3. **컨테이너 기반 LLM 서비스 배포**\n   파인튜닝한 모델 또는 RAG 서버를 Docker Compose로 컨테이너화하고 PostgreSQL에 대화 로그/임베딩 저장, Kubernetes로 배포\n   커버하는 요건: Kubernetes, Docker Compose, Linux 기반 운영 경험 · PostgreSQL 및 다중 DBMS 활용 경험\n   완료 기준: Docker Compose로 로컬 기동, Kubernetes 매니페스트로 배포 성공, PostgreSQL에 데이터 적재 확인",
+            "backend-erp": "우선순위는 필수 요건부터입니다.\n\n필수: Java + 전자정부 Framework, Gitlab, IT기획/개발/운영 경험\n우대: ERP(인사/급여, 회계/재무), Websquare5, PostgreSQL, ClipReport, Linux 서버 운영\n\n학습 순서 제안: Java·전자정부 Framework 기본기 → Websquare5로 화면 붙이기 → PostgreSQL 연동 → ClipReport로 리포트 출력 → Linux 서버에 배포, 전 과정을 Gitlab으로 형상관리.\n\n프로젝트 제안\n1. **전자정부 프레임워크 기반 사내 ERP 인사/급여 모듈**\n   Java + 전자정부 Framework + PostgreSQL로 인사/급여 관리 화면과 API를 만들고, 화면단은 Websquare5로 구현. Gitlab으로 형상관리 진행\n   커버하는 요건: Java 및 전자정부 Framework 가능 · ERP(인사/급여, 회계/재무) 개발 경험 · Websquare5 개발 경험자 · Java, Websquare5 · 전자정부 Framework · PostgreSQL · Gitlab 사용 경험이 있는 분\n   완료 기준: 인사/급여 CRUD와 조회 화면이 Websquare5-전자정부Framework-PostgreSQL 스택으로 동작하고 Gitlab에 커밋 이력이 남아있으면 끝\n2. **리포트 생성 + Linux 배포 환경 구축**\n   ClipReport로 급여명세서/실적 리포트를 생성하는 기능을 위 ERP 프로젝트에 추가하고, Linux 서버(예: 우분투/센토스)에 애플리케이션을 배포·운영해보는 과정을 정리\n   커버하는 요건: ClipReport · Linux 서버 운영 경험 · IT기획 / 개발 / 운영 경험이 있는 분\n   완료 기준: ClipReport로 리포트가 실제 출력되고, Linux 서버에 배포되어 접속 가능한 상태가 되면 끝",
+            "frontend-web": "필수 요건이 명시돼 있지 않아 우대 사항 중심으로 정리하면, 학습 순서는 이렇습니다.\n\n1. React Query, Zustand/Recoil 등 상태 관리 기술\n2. REST API, GraphQL 인터페이스 처리\n3. 함수형/객체지향 프로그래밍 패러다임 이해\n4. 유닛 테스트 + CI 경험\n\n이 순서에 맞는 프로젝트 2건을 기록해뒀습니다(상세 내용은 아래 참고). 여유가 되면 pref-7(사이드 프로젝트), pref-12(기술 블로그)처럼 코드 외적으로 챙기면 좋은 항목도 있습니다.\n\n프로젝트 제안\n1. **헬스케어 트래커 (상태관리 + API 연동)**\n   React Query로 REST API 데이터 패칭, Zustand/Recoil로 클라이언트 상태(필터, UI 상태) 관리, GraphQL 엔드포인트도 하나 붙여 두 방식의 차이를 보여주는 소규모 건강기록/습관 트래커 앱\n   커버하는 요건: React query, Zustand, Recoil 등의 상태 관리 기술 사용 경험을 보유하신 분 · REST API, GraphQL 등 다양한 인터페이스 사용 경험이 있으신 분\n   완료 기준: REST와 GraphQL 두 데이터 소스를 각각 React Query로 패칭하고, 전역 UI 상태를 Zustand(or Recoil)로 관리하는 화면이 동작\n2. **유닛 테스트 + CI 파이프라인 구축**\n   위 트래커 앱의 핵심 로직(상태 업데이트, API 응답 가공 함수)을 함수형/객체지향 스타일로 나눠 작성하고, 유닛 테스트를 붙인 뒤 GitHub Actions로 PR마다 테스트 자동 실행\n   커버하는 요건: Functional programming, OOP 등의 주요 프로그래밍 패러다임에 대한 이해가 있으신 분 · 유닛 테스트와 CI 경험이 있으신 분\n   완료 기준: 순수 함수로 분리된 로직에 대한 유닛 테스트가 통과하고, PR 생성 시 CI가 자동으로 테스트를 돌림",
+            "data-analyst": "필수 요건 순으로 먼저 시멘틱 레이어/온톨로지 개념(req-4)과 SQL 대용량 처리(req-2)를 잡고, 로우 데이터를 지표로 정의하는 연습(req-3), 그로스 프레임워크(req-5)를 함께 익히는 게 핵심입니다. 우대사항 쪽은 LLM 활용 Text-to-SQL(pref-2, pref-3), 로그 표준화 가이드라인(pref-4) 순으로 이어가면 됩니다. 구체적인 프로젝트 3건(시멘틱 레이어 미니 프로젝트, SQL+그로스 지표 대시보드, LLM 기반 Text-to-SQL 에이전트)을 기록해뒀으니 아래에서 확인하시면 됩니다.\n\n프로젝트 제안\n1. **시멘틱 레이어/온톨로지 모델링 미니 프로젝트**\n   서비스 로우 데이터(예: 유저 행동 로그, 결제 로그)를 두고 비즈니스 지표/의미 단위로 정의한 시멘틱 레이어를 설계. dbt metrics, Cube.js, LookML 중 하나로 실제 온톨로지/지표 정의를 구축하고 문서화\n   커버하는 요건: 로우 데이터를 비즈니스 지표/의미 단위로 해석하고 정의해 본 경험을 보유하신 분 · 시멘틱 레이어 또는 온톨로지 개념/모델링에 대한 이해도가 높으신 분 · 시멘틱/온톨로지 도구 실무 구축 경험을 보유하신 분 · 데이터의 기술적 관리 뿐만 아니라, 비즈니스적 의미 해석과 데이터 자산화에 흥미가 있고, 유관 부서와 원활한 소통이 가능하신 분\n   완료 기준: 로우 테이블 3개 이상을 지표 단위로 매핑한 시멘틱 레이어가 동작하고, 지표 정의 문서(용어집)가 완성됨\n2. **대용량 SQL 분석 + 그로스 지표 대시보드**\n   대용량 이벤트/로그 데이터셋(BigQuery 공개 데이터셋 등)으로 SQL 쿼리 최적화 연습을 하고, AARRR/그로스 루프 프레임워크 기반 지표(리텐션, 활성화율 등)를 계산해 대시보드로 정리. 데이터 엔지니어링 요구사항을 문서화해 협업 시나리오를 시뮬레이션\n   커버하는 요건: SQL에 능숙하며, 대용량 데이터를 다뤄본 실무 경험을 보유하신 분 · 그로스 루프 / 그로스 해킹 등 데이터 분석 프레임 워크에 대한 이해도가 높으신 분 · 데이터 엔지니어링 조직과 협업하며 요구사항을 구조화 모델로 번역할 수 있는 커뮤니케이션 역량을 보유하신 분\n   완료 기준: 대용량 데이터셋에서 그로스 지표 3개 이상을 SQL로 산출하고, 요구사항 정의 문서(스키마 요청서)를 작성함\n3. **LLM 기반 Text-to-SQL 분석 에이전트**\n   LLM을 활용해 자연어 질의를 SQL로 변환하는 에이전트를 구축하고, 스트리밍/유저 행동 로그 스키마에 대한 표준화 가이드라인을 함께 작성해 에이전트가 참조하도록 연결\n   커버하는 요건: LLM을 활용한 데이터 탐색, text 경험을 보유하신 분 · -to-SQL 분석 자동화 에이전트 구축, 설계 경험을 보유하신 분 · 서비스 원천 로그 (스트리밍, 유저 행동 데이터)의 표준화 가이드라인 수립 참여 경험을 보유하신 분\n   완료 기준: 자연어 질의 5개 이상을 정확한 SQL로 변환하는 에이전트가 동작하고, 참조 스키마 표준화 문서가 있음",
+            "devops": "필수 요건(CI/CD, DevOps 실무, 컨테이너 가상화)부터 다진 뒤 우대 사항(K8s, MSA, 관측 스택) 순서로 학습하시면 됩니다. 아래 4개 프로젝트로 순서를 잡아보세요.\n\n1. CI/CD 파이프라인 구축(Jenkins + ArgoCD) — 필수 요건인 CI/CD 설계·구축 증명, GitOps 배포 자동화까지 경험\n2. Docker 기반 MSA 전환 — 컨테이너 가상화 요건 + MSA 전환·Helm 차트 우대 사항 커버\n3. 관리형/구축형 K8s 클러스터 운영(EKS·OpenShift 등) — 우대 사항인 K8s 1년 이상 경험, 두 방식 클러스터 차이 이해\n4. 관측 스택 구축(Prometheus/Grafana/Loki/OpenTelemetry) — DevOps 실무 구축, 고급 기술 등급, 오픈소스 SW 활용 우대 사항 커버\n\n순서상 1→2를 먼저 하고 여유가 있으면 3, 4로 확장하는 걸 추천드립니다.\n\n프로젝트 제안\n1. **CI/CD 파이프라인 구축(Jenkins + ArgoCD)**\n   Jenkins로 빌드·테스트 자동화, ArgoCD로 GitOps 기반 배포 자동화까지 연결하는 파이프라인 구축\n   커버하는 요건: CI/CD 설계 및 구축 · CI/CD 1년 이상\n   완료 기준: 코드 push 시 Jenkins 빌드→이미지 push→ArgoCD가 자동 동기화해 K8s에 배포되는 흐름 시연\n2. **Docker 기반 MSA 전환**\n   모놀리식 예제 앱을 여러 서비스로 쪼개고 각 서비스별 Dockerfile 작성, Helm 차트로 배포 구성 관리\n   커버하는 요건: 컨테이너 가상화 기술 보유 · MSA 전환 사업 경험(Docker 파일 작성, Helm 차트 관리 등) · Docker 1년 이상\n   완료 기준: Helm 차트 하나로 전체 MSA 서비스가 K8s에 배포되고 values로 환경별 설정 분리\n3. **관리형/구축형 K8s 클러스터 운영 경험**\n   EKS(또는 NKS) 관리형 클러스터와 로컬 OpenShift/minikube 구축형 클러스터에 동일 앱 배포해 차이 정리\n   커버하는 요건: 구축형 K8s 사용 경험(OpenShift 등) · 관리형 K8s 사용 경험(NKS, EKS, AKS 등) · Kubernetes 1년 이상\n   완료 기준: 두 환경에 배포 완료하고 클러스터 구성·관리 방식 차이를 문서화\n4. **관측 스택 구축(Prometheus/Grafana/Loki/OpenTelemetry)**\n   K8s 클러스터에 메트릭·로그·트레이싱 수집 파이프라인 구축, ArgoCD/Vault/Harbor 등 오픈소스 도구 연동\n   커버하는 요건: DevOps 실무 구축 · 기술 등급 : 고급 이상 · K8s 관련 오픈소스 SW 적용 : ArgoCD, Jenkins, Harbor, Helm, Vault, Prometheus, Loki, Grafana, OpenTelemetry, OpenLens, MinIO, HAPROXY, Velero 등\n   완료 기준: 대시보드에서 앱 메트릭·로그·트레이스를 한 화면에서 확인 가능",
+            "mobile-flutter": "필수 요건은 학력무관이라 진입장벽은 낮고, 실질적으로 봐야 할 건 우대 사항 두 가지입니다.\n\n학습 순서:\n1. Flutter 기본기 — 위젯, 상태 관리, 비동기 처리\n2. Swift(iOS)·Kotlin(Android) 네이티브 개발 및 Flutter Platform Channel — 두 언어로 네이티브 모듈을 만들고 Flutter와 통신시키는 방법\n3. IoT 통신 프로토콜 — BLE, Wi-Fi 기반 기기 페어링/제어 (공고 도메인 키워드가 IoT·가전·헬스케어·아파트라 이 쪽 이해가 필요)\n\n프로젝트는 'IoT 가전 제어 Flutter 앱'으로 기록해뒀습니다. Flutter UI에서 Swift/Kotlin 네이티브 모듈을 Platform Channel로 연결해 실제(또는 에뮬레이터) IoT 기기와 페어링·상태 모니터링·원격 제어를 시연하는 구조입니다.\n\n프로젝트 제안\n1. **IoT 가전 제어 Flutter 앱**\n   Flutter로 앱 UI/앱 로직을 구성하고, Swift(iOS)·Kotlin(Android) 네이티브 모듈로 BLE/Wi-Fi 기반 IoT 기기(가전 등)와 통신하는 Platform Channel을 직접 구현. 기기 페어링, 상태 모니터링, 원격 제어 기능을 시연.\n   커버하는 요건: IoT앱개발 경험자 · Swift, Kotlin 네이티브 경험자\n   완료 기준: Flutter 앱에서 Platform Channel을 통해 iOS(Swift)·Android(Kotlin) 양쪽 네이티브 코드가 실제 기기(또는 BLE 에뮬레이터)와 통신해 상태를 주고받고 제어 명령이 반영되는 데모가 동작하면 완료",
+            "security-sol": "필수 요건과 우대 사항을 나눠서 정리하면:\n\n**필수 요건 기반 (먼저 다져야 할 것)**\n- 네트워크: TCP/IP, HTTP, 포트 체계 이해\n- Linux 운영체제 및 기본 시스템 운영 경험\n- 시스템/보안 로그 분석을 통한 장애 원인 추적 경험\n\n**우대 사항 기반 (다음 단계)**\n- EDR/EPP, IPS, APT, 이메일 보안 솔루션 구축·운영\n- 멀티 클라우드(AWS/Azure/GCP) 보안 서비스 운영\n- 패킷 분석(Wireshark, tcpdump)\n- PoC/BMT 수행 경험, 침해사고 대응/SOC 운영\n\n이 순서에 맞춰 프로젝트 4개를 아래에 정리해뒀습니다: Linux 서버 기반 로그 통합 분석 랩(필수 요건 3개 커버), Wazuh/Suricata로 EDR·IPS 재현하는 PoC 프로젝트, 멀티 클라우드 보안 운영 실습, 패킷 분석 트러블슈팅 케이스 스터디입니다.\n\n다음으로 정보보안기사 등 자격증 준비까지 함께 볼지 정해보시면 좋을 것 같습니다.\n\n프로젝트 제안\n1. **온프레미스 보안 로그 통합 분석 랩**\n   Linux 서버 여러 대를 구성해 syslog로 인증/방화벽/웹 로그를 중앙 수집하고, 장애·이상 접속 시나리오를 만들어 원인을 로그에서 역추적하는 실습. TCP/IP 포트 체계와 로그 분석 흐름을 문서화\n   커버하는 요건: 네트워크 프로토콜(TCP/IP, HTTP 등) 및 포트 체계에 대한 이해 · Linux 운영체제 및 기본 시스템 운영 경험 · 시스템 및 보안 로그 분석을 통한 장애 원인 분석 및 해결 경험\n   완료 기준: 최소 3종 로그 소스를 한 곳에 모으고, 임의로 발생시킨 장애 3건을 로그만으로 원인 규명한 보고서 작성\n2. **무료 EDR/IPS 대체 도구로 보안 솔루션 PoC 재현**\n   Wazuh(EDR 유사), Suricata(IPS/IDS)를 직접 설치·운영하며 실제 공격 트래픽(Kali 등)을 흘려 탐지 규칙을 검증. PoC 문서(요구사항-비교-결론 형식)로 정리\n   커버하는 요건: 보안 솔루션 PoC/BMT를 주도적으로 수행한 경험 · EDR/EPP, IPS, APT, 이메일 보안 솔루션 구축 및 운영 경험 · 시스템 및 보안 로그 분석을 통한 장애 원인 분석 및 해결 경험\n   완료 기준: 공격 시나리오 3가지에 대해 탐지 여부를 기록한 PoC 비교표 완성\n3. **멀티 클라우드 보안 서비스 운영 실습**\n   AWS와 GCP(또는 Azure) 각각에 VPC/방화벽 규칙, 보안 그룹, 로그 수집(CloudTrail/Cloud Logging)을 구성하고 두 클라우드의 보안 서비스 차이를 비교 정리\n   커버하는 요건: 멀티 클라우드(AWS, Azure, GCP) 환경에서 보안 서비스 운영 경험\n   완료 기준: 두 클라우드 환경에서 동일한 침입 시나리오를 재현하고 각 플랫폼의 탐지/대응 로그를 캡처\n4. **패킷 분석 트러블슈팅 케이스 스터디**\n   Wireshark/tcpdump로 정상 트래픽과 의심 트래픽(포트 스캔, DNS 터널링 등) 캡처본을 비교 분석해 트러블슈팅 리포트 작성\n   커버하는 요건: 패킷 분석(Wireshark, tcpdump 등) 및 트러블슈팅 경험\n   완료 기준: 캡처 파일 3개 이상에 대해 이상 여부와 근거를 정리한 분석 리포트 완성",
+            "qa-engineer": "필수 요건은 경력·학력·해외여행 결격 여부라 스택 공부와는 무관하고, 실질적으로 준비할 스택은 우대 사항에서 나옵니다.\n\n우선순위:\n1. CAN/Ethernet 차량 네트워크 검증 — 가장 핵심 기술 요건\n2. Android 기반 시스템 이해 및 자동화 — AVN/전장 검증 실무와 직결\n3. Jira, TestRail 등 테스트 관리 도구 — 검증 프로세스 운영 능력\n\n이 세 가지를 증명할 프로젝트 3건을 기록해뒀습니다.\n\n프로젝트 제안\n1. **차량 네트워크 프로토콜 분석/검증 툴**\n   CAN·Ethernet 메시지를 캡처·파싱해 DBC 기반으로 신호를 검증하는 스크립트 제작, 이상 신호 탐지 로그 출력\n   커버하는 요건: CAN 및 Ethernet 등 차량 네트워크에 대한 검증 경험자\n   완료 기준: CAN/Ethernet 로그 파일을 입력받아 정의된 규칙 위반을 리포트로 출력하면 완료\n2. **Android 기반 테스트 자동화 프레임워크**\n   Android 앱(AVN 유사 UI) 대상으로 UI 자동화 테스트 스크립트 작성, 반복 시나리오 자동 실행\n   커버하는 요건: 자동화 업무 대응 가능자 · Android 기반 시스템 사용 경험자\n   완료 기준: 정해진 시나리오 세트가 사람 개입 없이 실행되고 결과가 자동 기록되면 완료\n3. **테스트 케이스 관리 및 결함 추적 연동**\n   Jira/TestRail 계정으로 테스트 케이스 작성, 실행 결과 기록, 결함 이슈 생성까지 흐름을 실제로 운영\n   커버하는 요건: Jira, TestRail 등 테스트 관리 도구 사용 경험자\n   완료 기준: 테스트 케이스 실행 결과가 TestRail에 기록되고 실패 건이 Jira 이슈로 자동/수동 연결되면 완료"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_requirement_sections": 2,
+            "loop_reply_rewritten": 1,
+            "no_required_requirements": 1,
+            "no_company_name": 1
+          }
+        },
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0016,
+          "meanAnswerSim": 0.5287,
+          "meanPostingSim": 0.5271,
+          "worstPair": "frontend-web|qa-engineer",
+          "worstDelta": 0.1019,
+          "offPostingSkillRate": {
+            "ml-genai": 0.0,
+            "backend-erp": 0.0,
+            "frontend-web": 0.3333,
+            "data-analyst": null,
+            "devops": 0.0,
+            "mobile-flutter": 0.4,
+            "security-sol": 0.0,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.1222,
+          "pairs": {
+            "ml-genai|backend-erp": {
+              "answer": 0.6189,
+              "posting": 0.5977,
+              "delta": 0.0212
+            },
+            "ml-genai|frontend-web": {
+              "answer": 0.5261,
+              "posting": 0.5344,
+              "delta": -0.0083
+            },
+            "ml-genai|data-analyst": {
+              "answer": 0.5469,
+              "posting": 0.5688,
+              "delta": -0.0219
+            },
+            "ml-genai|devops": {
+              "answer": 0.534,
+              "posting": 0.5301,
+              "delta": 0.0039
+            },
+            "ml-genai|mobile-flutter": {
+              "answer": 0.4438,
+              "posting": 0.5358,
+              "delta": -0.092
+            },
+            "ml-genai|security-sol": {
+              "answer": 0.5815,
+              "posting": 0.5076,
+              "delta": 0.0739
+            },
+            "ml-genai|qa-engineer": {
+              "answer": 0.5297,
+              "posting": 0.5046,
+              "delta": 0.0251
+            },
+            "backend-erp|frontend-web": {
+              "answer": 0.5494,
+              "posting": 0.5689,
+              "delta": -0.0195
+            },
+            "backend-erp|data-analyst": {
+              "answer": 0.5214,
+              "posting": 0.5379,
+              "delta": -0.0165
+            },
+            "backend-erp|devops": {
+              "answer": 0.5264,
+              "posting": 0.5227,
+              "delta": 0.0037
+            },
+            "backend-erp|mobile-flutter": {
+              "answer": 0.4923,
+              "posting": 0.5651,
+              "delta": -0.0728
+            },
+            "backend-erp|security-sol": {
+              "answer": 0.6376,
+              "posting": 0.5622,
+              "delta": 0.0754
+            },
+            "backend-erp|qa-engineer": {
+              "answer": 0.6355,
+              "posting": 0.5607,
+              "delta": 0.0748
+            },
+            "frontend-web|data-analyst": {
+              "answer": 0.5447,
+              "posting": 0.4968,
+              "delta": 0.0479
+            },
+            "frontend-web|devops": {
+              "answer": 0.5716,
+              "posting": 0.5965,
+              "delta": -0.0249
+            },
+            "frontend-web|mobile-flutter": {
+              "answer": 0.5405,
+              "posting": 0.6201,
+              "delta": -0.0796
+            },
+            "frontend-web|security-sol": {
+              "answer": 0.495,
+              "posting": 0.5198,
+              "delta": -0.0248
+            },
+            "frontend-web|qa-engineer": {
+              "answer": 0.5967,
+              "posting": 0.4948,
+              "delta": 0.1019
+            },
+            "data-analyst|devops": {
+              "answer": 0.4801,
+              "posting": 0.4657,
+              "delta": 0.0144
+            },
+            "data-analyst|mobile-flutter": {
+              "answer": 0.3501,
+              "posting": 0.3706,
+              "delta": -0.0205
+            },
+            "data-analyst|security-sol": {
+              "answer": 0.5255,
+              "posting": 0.5688,
+              "delta": -0.0433
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.4819,
+              "posting": 0.449,
+              "delta": 0.0329
+            },
+            "devops|mobile-flutter": {
+              "answer": 0.4115,
+              "posting": 0.5417,
+              "delta": -0.1302
+            },
+            "devops|security-sol": {
+              "answer": 0.5102,
+              "posting": 0.5585,
+              "delta": -0.0483
+            },
+            "devops|qa-engineer": {
+              "answer": 0.4988,
+              "posting": 0.5009,
+              "delta": -0.0021
+            },
+            "mobile-flutter|security-sol": {
+              "answer": 0.443,
+              "posting": 0.4544,
+              "delta": -0.0114
+            },
+            "mobile-flutter|qa-engineer": {
+              "answer": 0.6052,
+              "posting": 0.519,
+              "delta": 0.0862
+            },
+            "security-sol|qa-engineer": {
+              "answer": 0.6053,
+              "posting": 0.5061,
+              "delta": 0.0992
+            }
+          },
+          "answerChars": [
+            1259,
+            1330,
+            1006,
+            1688,
+            1404,
+            286,
+            1025,
+            1449
+          ],
+          "answers": {
+            "ml-genai": "필수 요건부터 순서대로 잡으면:\n\n1. Python + LLM 구조 이해 (req-3) — LangChain/LangGraph로 파이프라인을 직접 짜보며 학습\n2. LLM Fine-Tuning/LoRA (req-4) — Llama2나 Mistral 같은 오픈소스 모델에 LoRA 적용해보기\n3. 우대 사항으로 Agent Framework(pref-1), 프롬프트 엔지니어링(pref-2), Kubernetes/Docker/Linux 운영(pref-3), PostgreSQL(pref-4) 순으로 확장\n\n이 순서를 그대로 반영한 프로젝트 2건(LoRA 파인튜닝 RAG 챗봇, LangGraph 멀티스텝 에이전트+운영 배포)을 기록해뒀습니다.\n\n프로젝트 제안\n1. **사내 문서 RAG 챗봇 (LoRA 파인튜닝 포함)**\n   Llama2 또는 Mistral 오픈소스 모델을 LoRA로 파인튜닝하고, LangChain으로 RAG 파이프라인을 구성해 사내 문서 기반 Q&A 챗봇을 만든다. Python으로 전체 파이프라인(데이터 전처리, 파인튜닝, 임베딩, 검색)을 구현한다.\n   커버하는 요건: Python 등 AI 프로그래밍 숙련자 및 LLM 기술 구조 이해도 보유자 · ML, LLM Fine-Tunning, LoRA(Llama2, Mistral 등) 오픈소스 모델 활용 개념 혹은 경험자 · LangChain, LangGraph 또는 Agent Framework 활용 경험 · 프롬프트 엔지니어링 및 LLM Agent 설계 경험\n   완료 기준: 문서 업로드 후 질의에 대해 근거 문서를 인용하며 답하고, 파인튜닝 전/후 응답 품질 비교 결과를 제시할 수 있으면 완료\n2. **LangGraph 기반 멀티스텝 에이전트 + 운영 환경 구축**\n   LangGraph로 여러 도구(검색, DB 조회, 코드 실행 등)를 오케스트레이션하는 Agent를 설계하고, PostgreSQL을 상태/로그 저장소로 연동한 뒤 Docker Compose와 Kubernetes로 배포한다.\n   커버하는 요건: LangChain, LangGraph 또는 Agent Framework 활용 경험 · 프롬프트 엔지니어링 및 LLM Agent 설계 경험 · Kubernetes, Docker Compose, Linux 기반 운영 경험 · PostgreSQL 및 다중 DBMS 활용 경험\n   완료 기준: 에이전트가 다단계 작업을 순서대로 수행하고, PostgreSQL에 실행 로그가 남으며, Docker Compose 및 K8s manifest로 배포/재현이 가능하면 완료",
+            "backend-erp": "필수 요건(Java, 전자정부 Framework, Gitlab)을 먼저 채우고 우대 사항(PostgreSQL, Websquare5, ClipReport, Linux)을 얹는 순서로 준비하시면 됩니다.\n\n학습 순서:\n- Java + 전자정부 프레임워크(egovframework) 기본기부터 익히기\n- PostgreSQL 연동 및 Gitlab로 버전관리 습관 들이기\n- 이후 Websquare5 화면 개발, Linux 서버 배포/운영 경험 추가\n\n위 순서를 반영한 프로젝트 4건(ERP 게시판/결재 모듈, 인사/급여 미니 ERP, Websquare5 UI 프로토타입, Linux 배포/운영 정리)을 기록해 두었습니다. 필수 요건 위주인 앞의 두 개부터 시작하는 걸 추천드립니다.\n\n프로젝트 제안\n1. **전자정부 프레임워크 기반 사내 ERP 게시판/결재 모듈**\n   Java + 전자정부 Framework(egovframework)로 게시판 또는 간단 전자결재 기능을 만들고, PostgreSQL을 DB로 연동, Gitlab으로 버전관리하며 커밋 이력을 정리\n   커버하는 요건: Java 및 전자정부 Framework 가능 · Gitlab 사용 경험이 있는 분 · 전자정부 Framework · PostgreSQL\n   완료 기준: CRUD와 결재 승인 흐름이 동작하고 Gitlab에 커밋 히스토리가 남아있으면 끝\n2. **인사/급여 미니 ERP 모듈**\n   직원 등록, 급여 계산, 근태 관리 등 인사/급여 도메인의 핵심 기능을 Java 백엔드로 구현하고 PostgreSQL에 데이터 적재\n   커버하는 요건: Java 및 전자정부 Framework 가능 · ERP(인사/급여, 회계/재무) 개발 경험 · PostgreSQL\n   완료 기준: 직원 등록부터 급여명세 조회까지 한 흐름이 동작하면 끝\n3. **Websquare5 화면 연동 UI 프로토타입**\n   전자정부 프레임워크 백엔드와 Websquare5로 화면을 구성해 데이터 조회/입력 폼을 만들어 프론트-백 연동 경험을 보여줌\n   커버하는 요건: Websquare5 개발 경험자 · Java, Websquare5 · Java 및 전자정부 Framework 가능\n   완료 기준: Websquare5 화면에서 입력한 데이터가 백엔드를 거쳐 DB에 저장/조회되면 끝\n4. **Linux 서버에 배포 및 운영 경험 정리**\n   위 프로젝트 중 하나를 Linux 서버에 직접 배포하고 서비스 등록/로그 관리 등 운영 작업을 진행\n   커버하는 요건: Linux 서버 운영 경험 · IT기획 / 개발 / 운영 경험이 있는 분\n   완료 기준: Linux 서버에서 서비스가 기동되고 배포/운영 절차를 문서로 정리하면 끝",
+            "frontend-web": "필수 요건은 병역특례 대상 여부뿐이라 스택 학습은 우대 사항 기준으로 짜면 됩니다.\n\n- 상태 관리: React Query(서버 상태) + Zustand(클라이언트 상태) — 우대 사항에 명시된 조합\n- 데이터 연동: REST API와 GraphQL 둘 다 한 번씩 붙여보기\n- 코드 스타일: 함수형 컴포넌트 위주로 작성하며 OOP/FP 패러다임 이해를 보여주는 구조\n- 테스트/CI: Jest + RTL로 유닛 테스트, GitHub Actions로 CI 자동화\n\n이 기준으로 프로젝트 2건을 정리해 기록해 뒀습니다 (헬스케어 습관 트래커, 테스트/CI 파이프라인 추가). 다음으로 블로그 정리나 오픈소스 기여 이력처럼 텍스트로 어필할 우대 항목도 같이 준비해볼지 생각해보세요.\n\n프로젝트 제안\n1. **헬스케어 습관 트래커 (React + Next.js)**\n   운동/식단 기록을 REST API와 GraphQL 두 방식으로 각각 붙여보고, 상태는 Zustand와 React Query로 분리(서버 상태는 Query, 클라이언트 상태는 Zustand)해서 관리. 코드는 함수형 컴포넌트와 순수 함수 위주로 작성.\n   커버하는 요건: React query, Zustand, Recoil 등의 상태 관리 기술 사용 경험을 보유하신 분 · REST API, GraphQL 등 다양한 인터페이스 사용 경험이 있으신 분 · Functional programming, OOP 등의 주요 프로그래밍 패러다임에 대한 이해가 있으신 분\n   완료 기준: REST/GraphQL 두 API 연동, 상태 관리 라이브러리 2종 사용, 배포된 데모 링크\n2. **위 프로젝트에 테스트/CI 파이프라인 추가**\n   Jest+React Testing Library로 유닛 테스트 작성, GitHub Actions로 PR마다 자동 테스트 실행되는 CI 구성\n   커버하는 요건: 유닛 테스트와 CI 경험이 있으신 분\n   완료 기준: 핵심 컴포넌트/훅 테스트 커버, CI가 PR에서 자동 실행되는 것을 스크린샷으로 확인",
+            "data-analyst": "필수 요건 기반으로 우선순위를 정리하면:\n\n1. **시멘틱 레이어/온톨로지 모델링 프로젝트** — SQL로 로우 데이터를 비즈니스 지표로 매핑하는 시멘틱 레이어를 dbt 등으로 구축. 지표 정의서와 데이터 모델 다이어그램까지 만들면 핵심 필수 요건(SQL 실무, 지표 해석, 온톨로지 개념, 협업 커뮤니케이션)을 가장 폭넓게 보여줍니다.\n2. **그로스 루프 기반 유저 행동 로그 표준화/분석** — 라이브 스트리밍 서비스의 유저 행동 이벤트(시청, 후원, 채팅)를 표준 스키마로 정의하고 그로스 루프(획득-활성화-리텐션-수익-추천) 프레임으로 대시보드를 만드는 프로젝트. 그로스 해킹 프레임 이해도와 우대 사항(로그 표준화, 스트리밍 도메인)까지 커버합니다.\n3. **Text-to-SQL 분석 자동화 에이전트** — LLM으로 자연어 질의를 SQL로 변환해 시멘틱 레이어를 조회하는 에이전트. 우대 사항(LLM 활용, text-to-SQL 자동화)에 해당하니 앞의 두 개를 먼저 마친 뒤 추가로 시도하면 좋습니다.\n\n스택은 SQL을 중심에 두고, 1번·2번은 dbt(또는 유사 모델링 도구), 3번은 LLM API 활용을 공부하는 순서를 추천합니다.\n\n프로젝트 제안\n1. **시멘틱 레이어 설계 및 온톨로지 모델링**\n   가상의 스트리밍 서비스 로우 데이터(시청 로그, 결제, 채팅 등)를 정의해 비즈니스 지표(시청 지속시간, 재방문율 등)로 매핑하는 시멘틱 레이어를 dbt 또는 유사 도구로 구축. 지표 정의서와 온톨로지 다이어그램 산출\n   커버하는 요건: SQL에 능숙하며, 대용량 데이터를 다뤄본 실무 경험을 보유하신 분 · 로우 데이터를 비즈니스 지표/의미 단위로 해석하고 정의해 본 경험을 보유하신 분 · 시멘틱 레이어 또는 온톨로지 개념/모델링에 대한 이해도가 높으신 분 · 데이터 엔지니어링 조직과 협업하며 요구사항을 구조화 모델로 번역할 수 있는 커뮤니케이션 역량을 보유하신 분\n   완료 기준: SQL 기반 시멘틱 레이어가 동작하고 지표 정의 문서와 데이터 모델 다이어그램이 완성됨\n2. **Text-to-SQL 분석 자동화 에이전트**\n   LLM을 활용해 자연어 질문을 SQL로 변환하고 시멘틱 레이어 스키마를 참조해 실행 결과를 반환하는 에이전트 구축\n   커버하는 요건: LLM을 활용한 데이터 탐색, text 경험을 보유하신 분 · -to-SQL 분석 자동화 에이전트 구축, 설계 경험을 보유하신 분 · SQL에 능숙하며, 대용량 데이터를 다뤄본 실무 경험을 보유하신 분\n   완료 기준: 자연어 질의 입력 시 정확한 SQL과 결과가 반환되는 데모 동작\n3. **그로스 루프 기반 유저 행동 로그 표준화 및 분석**\n   라이브 스트리밍 서비스의 유저 행동 이벤트(시청 시작/종료, 후원, 채팅)를 표준 스키마로 정의하고 그로스 루프 프레임워크(획득-활성화-리텐션-수익-추천)로 분석 대시보드 구축\n   커버하는 요건: 그로스 루프 / 그로스 해킹 등 데이터 분석 프레임 워크에 대한 이해도가 높으신 분 · 서비스 원천 로그 (스트리밍, 유저 행동 데이터)의 표준화 가이드라인 수립 참여 경험을 보유하신 분 · 데이터의 기술적 관리 뿐만 아니라, 비즈니스적 의미 해석과 데이터 자산화에 흥미가 있고, 유관 부서와 원활한 소통이 가능하신 분 · 라이브 스트리밍 서비스에 관심이 많거나 애청자이신 분\n   완료 기준: 표준화된 이벤트 스키마 문서와 그로스 루프 단계별 지표 대시보드 완성",
+            "devops": "필수 요건과 우대 사항을 순서대로 채우는 게 효율적입니다.\n\n1) Docker + K8s CI/CD 파이프라인 구축 — Jenkins로 빌드/배포 자동화 (필수인 CI/CD 설계·컨테이너 기술 증명)\n2) 관리형 K8s(EKS/NKS) 배포 및 모니터링 — Prometheus/Grafana/Loki로 MSA 샘플 서비스 운영 (우대 항목 다수 커버)\n3) GitOps 기반 배포 자동화(ArgoCD) — OpenShift/온프렘 K8s에서 선언적 배포 구성 (구축형 K8s·오픈소스 SW 적용 경험 확보)\n\n순서상 1번으로 CI/CD·컨테이너 기본기를 먼저 채우고, 2·3번으로 우대 사항인 K8s 운영·GitOps 경험을 넓혀가는 흐름이 자연스럽습니다.\n\n프로젝트 제안\n1. **Docker + K8s CI/CD 파이프라인 구축**\n   샘플 앱을 Docker로 컨테이너화하고 Helm 차트로 K8s에 배포, Jenkins로 빌드-테스트-배포 파이프라인 구성\n   커버하는 요건: CI/CD 설계 및 구축 · 컨테이너 가상화 기술 보유 · Docker 1년 이상 · CI/CD 1년 이상\n   완료 기준: git push 시 Jenkins가 이미지 빌드 후 K8s 클러스터에 Helm으로 자동 배포되면 종료\n2. **관리형 K8s(EKS/NKS) 배포 및 모니터링 구축**\n   EKS 또는 NKS에 MSA 구조 샘플 서비스 배포, Prometheus/Grafana/Loki로 모니터링·로그 수집 구성\n   커버하는 요건: 관리형 K8s 사용 경험(NKS, EKS, AKS 등) · MSA 전환 사업 경험(Docker 파일 작성, Helm 차트 관리 등) · K8s 관련 오픈소스 SW 적용 : ArgoCD, Jenkins, Harbor, Helm, Vault, Prometheus, Loki, Grafana, OpenTelemetry, OpenLens, MinIO, HAPROXY, Velero 등 · Kubernetes 1년 이상\n   완료 기준: 각 서비스의 메트릭·로그가 Grafana 대시보드에서 조회되면 종료\n3. **GitOps 기반 배포 자동화(ArgoCD)**\n   ArgoCD로 K8s 매니페스트를 Git 기반 선언적 배포로 전환, OpenShift 또는 온프렘 K8s에서 구축형 클러스터 운영 경험 확보\n   커버하는 요건: DevOps 실무 구축 · 기술 등급 : 고급 이상 · 구축형 K8s 사용 경험(OpenShift 등) · K8s 관련 오픈소스 SW 적용 : ArgoCD, Jenkins, Harbor, Helm, Vault, Prometheus, Loki, Grafana, OpenTelemetry, OpenLens, MinIO, HAPROXY, Velero 등\n   완료 기준: Git에 매니페스트 변경 커밋 시 ArgoCD가 자동 동기화하여 클러스터 상태가 반영되면 종료",
+            "mobile-flutter": "필수 요건은 학력무관뿐이라 진입장벽은 낮고, 우대 사항(IoT앱 경험, Swift/Kotlin 네이티브 경험)이 실제 경쟁력을 가릅니다.\n\n학습 순서:\n1. Flutter 기본기(상태관리, 위젯 트리, 플랫폼 채널) — 이 공고의 핵심 스택\n2. Swift(iOS), Kotlin(Android) 네이티브 기초 — Flutter 플랫폼 채널로 네이티브 기능 연동할 때 필요\n3. BLE/Wi-Fi 등 IoT 통신 프로토콜 — 공고의 IoT/가전 도메인과 직결\n\n이 방향으로 프로젝트 제안을 정리해서 기록해둘까요?",
+            "security-sol": "학습 순서는 필수 요건 위주로 잡으면 됩니다.\n\n필수 먼저:\n- Linux 시스템 운영 + syslog/보안 로그 분석\n- TCP/IP, HTTP, 포트 체계 등 네트워크 프로토콜 이해\n- 로그 기반 장애 원인 분석 경험\n\n우대 다음:\n- EDR/EPP, IPS 같은 보안 솔루션 구축/운영 경험\n- AWS/Azure/GCP 멀티 클라우드 보안 환경\n- Wireshark, tcpdump로 패킷 분석/트러블슈팅\n\n이걸 증명할 프로젝트 2개를 정리해 기록해뒀습니다. 다음으로 각 프로젝트를 어떤 순서로 진행할지 정해볼까요?\n\n프로젝트 제안\n1. **리눅스 기반 보안 로그 분석 및 장애 대응 실습**\n   Linux 서버에 syslog/보안 로그를 수집하고, TCP/IP·HTTP 트래픽을 tcpdump/Wireshark로 캡처해 이상 패턴(포트 스캔, 비정상 접속 등)을 탐지·분석하는 미니 프로젝트. 장애 발생 시나리오를 재현하고 로그로 원인을 추적하는 과정을 문서화\n   커버하는 요건: 네트워크 프로토콜(TCP/IP, HTTP 등) 및 포트 체계에 대한 이해 · Linux 운영체제 및 기본 시스템 운영 경험 · 시스템 및 보안 로그 분석을 통한 장애 원인 분석 및 해결 경험 · 패킷 분석(Wireshark, tcpdump 등) 및 트러블슈팅 경험\n   완료 기준: 로그 분석으로 원인 규명 리포트와 패킷 캡처 분석 결과를 정리해 제출\n2. **멀티 클라우드 보안 솔루션(EDR/IPS) PoC 구축**\n   AWS/Azure/GCP 중 최소 2개 환경에 오픈소스 EDR/IPS(예: Wazuh, Suricata)를 구축해 클라우드 간 보안 정책을 비교하고 PoC 형태로 결과 보고서를 작성\n   커버하는 요건: EDR/EPP, IPS, APT, 이메일 보안 솔루션 구축 및 운영 경험 · 멀티 클라우드(AWS, Azure, GCP) 환경에서 보안 서비스 운영 경험 · 보안 솔루션 PoC/BMT를 주도적으로 수행한 경험\n   완료 기준: 두 클라우드 환경에 솔루션을 배포하고 탐지 로그 비교 결과를 정리한 PoC 문서 완성",
+            "qa-engineer": "필수 요건(경력 8~13년, 학력무관, 해외여행 결격사유 없을 것)은 학습·프로젝트 대상이 아니라 자격 조건이니, 우대 사항 중심으로 준비 순서를 잡으면 됩니다.\n\n스택/학습 우선순위\n- 차량 네트워크: CAN, Ethernet(차량용) 프로토콜 이해\n- Android 기반 시스템: Android OS/앱 구조\n- 테스트 관리 도구: Jira, TestRail\n- 자격증: ISTQB(또는 CSTS)\n- 도메인: 자동차 전장·인포테인먼트·AVN 검증 지식\n\n위 스택을 실습으로 증명할 프로젝트 4건을 기록해뒀습니다(공고 우대 사항과 매칭).\n\n프로젝트 제안\n1. **차량 네트워크(CAN/Ethernet) 통신 로그 분석 및 자동 검증 툴**\n   CAN·Ethernet 트래픽을 캡처/파싱해 메시지 스펙 대비 이상치를 자동 검출하고 리포트를 생성하는 파이썬 도구. python-can 등으로 CAN 프레임을 다루고 Ethernet(DoIP/SOME-IP 유사 구조) 패킷 파싱까지 다뤄봄으로써 차량 네트워크 검증 경험을 실습\n   커버하는 요건: CAN 및 Ethernet 등 차량 네트워크에 대한 검증 경험자 · 자동화 업무 대응 가능자\n   완료 기준: 샘플 CAN/Ethernet 로그를 입력하면 스펙 위반 항목을 자동으로 표로 출력\n2. **Android 기반 AVN/인포테인먼트 앱 UI 자동화 테스트 스위트**\n   Android 에뮬레이터에서 동작하는 간단한 인포테인먼트(음악·내비 흉내) 앱을 만들고, Espresso 또는 UIAutomator로 화면 전환·터치·음성출력 트리거 등을 자동 검증하는 테스트 슈트 구축\n   커버하는 요건: 차량용 AVN 검증 경험자 · Android 기반 시스템 사용 경험자 · 전장/내비 소프트웨어 분야 검증 경험자 · 자동차 전장 및 인포테인먼트 시스템 경험자\n   완료 기준: 앱의 핵심 화면 3~4개에 대해 자동화 테스트가 통과/실패를 판정하고 결과를 남김\n3. **Jira/TestRail 연동 테스트 케이스 관리 및 결과 자동 업로드 파이프라인**\n   테스트 케이스를 TestRail API로 등록하고, 자동화 테스트 실행 결과를 Jira 이슈와 TestRail 실행 결과에 자동 반영하는 스크립트\n   커버하는 요건: Jira, TestRail 등 테스트 관리 도구 사용 경험자 · 자동화 업무 대응 가능자\n   완료 기준: 테스트 1회 실행 시 TestRail에 결과가 자동 기록되고 실패 건이 Jira에 이슈로 생성됨\n4. **ISTQB 학습 기반 테스트 설계 기법 정리 및 미니 테스트 계획서 작성**\n   ISTQB Foundation 커리큘럼(테스트 설계 기법, 결함 관리 프로세스)을 학습하며 위 AVN 프로젝트에 대한 테스트 계획서·테스트 케이스 문서를 실제로 작성\n   커버하는 요건: 관련 자격증 소지자 (CSTS, ISTQB)\n   완료 기준: 경계값분석·동등분할 등 기법을 적용한 테스트 케이스 문서 완성"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_requirement_sections": 2,
+            "loop_reply_rewritten": 1,
+            "no_company_name": 1
+          }
+        },
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0214,
+          "meanAnswerSim": 0.5485,
+          "meanPostingSim": 0.5271,
+          "worstPair": "backend-erp|qa-engineer",
+          "worstDelta": 0.1029,
+          "offPostingSkillRate": {
+            "ml-genai": 0.0,
+            "backend-erp": 0.0,
+            "frontend-web": 0.3333,
+            "data-analyst": null,
+            "devops": 0.0,
+            "mobile-flutter": 0.4,
+            "security-sol": 0.2,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.1555,
+          "pairs": {
+            "ml-genai|backend-erp": {
+              "answer": 0.5134,
+              "posting": 0.5977,
+              "delta": -0.0843
+            },
+            "ml-genai|frontend-web": {
+              "answer": 0.4734,
+              "posting": 0.5344,
+              "delta": -0.061
+            },
+            "ml-genai|data-analyst": {
+              "answer": 0.5628,
+              "posting": 0.5688,
+              "delta": -0.006
+            },
+            "ml-genai|devops": {
+              "answer": 0.5392,
+              "posting": 0.5301,
+              "delta": 0.0091
+            },
+            "ml-genai|mobile-flutter": {
+              "answer": 0.4424,
+              "posting": 0.5358,
+              "delta": -0.0934
+            },
+            "ml-genai|security-sol": {
+              "answer": 0.5115,
+              "posting": 0.5076,
+              "delta": 0.0039
+            },
+            "ml-genai|qa-engineer": {
+              "answer": 0.412,
+              "posting": 0.5046,
+              "delta": -0.0926
+            },
+            "backend-erp|frontend-web": {
+              "answer": 0.5854,
+              "posting": 0.5689,
+              "delta": 0.0165
+            },
+            "backend-erp|data-analyst": {
+              "answer": 0.5812,
+              "posting": 0.5379,
+              "delta": 0.0433
+            },
+            "backend-erp|devops": {
+              "answer": 0.6071,
+              "posting": 0.5227,
+              "delta": 0.0844
+            },
+            "backend-erp|mobile-flutter": {
+              "answer": 0.544,
+              "posting": 0.5651,
+              "delta": -0.0211
+            },
+            "backend-erp|security-sol": {
+              "answer": 0.6138,
+              "posting": 0.5622,
+              "delta": 0.0516
+            },
+            "backend-erp|qa-engineer": {
+              "answer": 0.6636,
+              "posting": 0.5607,
+              "delta": 0.1029
+            },
+            "frontend-web|data-analyst": {
+              "answer": 0.5677,
+              "posting": 0.4968,
+              "delta": 0.0709
+            },
+            "frontend-web|devops": {
+              "answer": 0.5826,
+              "posting": 0.5965,
+              "delta": -0.0139
+            },
+            "frontend-web|mobile-flutter": {
+              "answer": 0.5436,
+              "posting": 0.6201,
+              "delta": -0.0765
+            },
+            "frontend-web|security-sol": {
+              "answer": 0.495,
+              "posting": 0.5198,
+              "delta": -0.0248
+            },
+            "frontend-web|qa-engineer": {
+              "answer": 0.5413,
+              "posting": 0.4948,
+              "delta": 0.0465
+            },
+            "data-analyst|devops": {
+              "answer": 0.5559,
+              "posting": 0.4657,
+              "delta": 0.0902
+            },
+            "data-analyst|mobile-flutter": {
+              "answer": 0.4545,
+              "posting": 0.3706,
+              "delta": 0.0839
+            },
+            "data-analyst|security-sol": {
+              "answer": 0.6111,
+              "posting": 0.5688,
+              "delta": 0.0423
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.5136,
+              "posting": 0.449,
+              "delta": 0.0646
+            },
+            "devops|mobile-flutter": {
+              "answer": 0.5245,
+              "posting": 0.5417,
+              "delta": -0.0172
+            },
+            "devops|security-sol": {
+              "answer": 0.6238,
+              "posting": 0.5585,
+              "delta": 0.0653
+            },
+            "devops|qa-engineer": {
+              "answer": 0.5904,
+              "posting": 0.5009,
+              "delta": 0.0895
+            },
+            "mobile-flutter|security-sol": {
+              "answer": 0.5155,
+              "posting": 0.4544,
+              "delta": 0.0611
+            },
+            "mobile-flutter|qa-engineer": {
+              "answer": 0.5988,
+              "posting": 0.519,
+              "delta": 0.0798
+            },
+            "security-sol|qa-engineer": {
+              "answer": 0.5893,
+              "posting": 0.5061,
+              "delta": 0.0832
+            }
+          },
+          "answerChars": [
+            893,
+            1175,
+            1050,
+            1463,
+            1185,
+            667,
+            1234,
+            1130
+          ],
+          "answers": {
+            "ml-genai": "필수 요건부터: Python으로 LLM 구조·LoRA 파인튜닝 개념(Llama2/Mistral)을 익히는 게 우선입니다. 그다음 우대 사항인 LangChain/LangGraph 기반 Agent, Kubernetes/Docker Compose 운영, PostgreSQL 연동 순으로 넓히면 됩니다. 이 순서에 맞춰 프로젝트 2건을 기록해뒀습니다.\n\n프로젝트 제안\n1. **LoRA 기반 오픈소스 LLM 파인튜닝 실험**\n   Llama2 또는 Mistral 모델에 LoRA로 특정 도메인 데이터를 파인튜닝하고, 기존 모델과 응답 품질을 비교 평가한다. Python으로 학습/추론 파이프라인을 구현한다.\n   커버하는 요건: Python 등 AI 프로그래밍 숙련자 및 LLM 기술 구조 이해도 보유자 · ML, LLM Fine-Tunning, LoRA(Llama2, Mistral 등) 오픈소스 모델 활용 개념 혹은 경험자\n   완료 기준: LoRA 파인튜닝 전/후 성능 비교 결과와 학습 코드가 정리되면 끝\n2. **LangGraph 기반 RAG 에이전트 + 운영 환경 구축**\n   LangChain/LangGraph로 문서 검색·툴 호출이 가능한 RAG 에이전트를 만들고, PostgreSQL을 벡터/메타데이터 저장소로 연결한다. Docker Compose로 컨테이너화하고 Kubernetes에 배포한다.\n   커버하는 요건: LangChain, LangGraph 또는 Agent Framework 활용 경험 · 프롬프트 엔지니어링 및 LLM Agent 설계 경험 · Kubernetes, Docker Compose, Linux 기반 운영 경험 · PostgreSQL 및 다중 DBMS 활용 경험\n   완료 기준: 프롬프트 설계 문서, 에이전트 동작 데모, K8s 배포 매니페스트가 갖춰지면 끝",
+            "backend-erp": "필수 요건부터 우대 순으로 스택을 잡으면 됩니다.\n\n필수: Java + 전자정부 Framework, Gitlab, IT 기획/개발/운영 경험\n우대: ERP(인사/급여·회계) 개발, Websquare5, PostgreSQL, ClipReport, Linux 서버 운영\n\n프로젝트는 아래 3건으로 기록해뒀습니다.\n1) 전자정부 Framework + Java + PostgreSQL로 ERP 인사/급여 모듈 — 필수 스택과 우대 항목을 동시에 커버\n2) Websquare5 화면 + ClipReport 연동 게시판 — 프론트+리포트 우대 항목 커버\n3) 위 앱을 Linux 서버에 배포·운영 — 운영 경험 요건 커버\n\n순서상 1번(핵심 도메인+전자정부 Framework)부터 시작하고, 여유가 되면 2·3번으로 확장하는 걸 추천합니다.\n\n프로젝트 제안\n1. **전자정부 프레임워크 기반 ERP 인사/급여 모듈**\n   전자정부 Framework + Java + PostgreSQL로 사원 등록, 급여 계산, 인사 이력 관리 기능을 구현. Gitlab으로 형상관리하며 브랜치 전략 적용\n   커버하는 요건: Java 및 전자정부 Framework 가능 · Gitlab 사용 경험이 있는 분 · ERP(인사/급여, 회계/재무) 개발 경험 · 전자정부 Framework · PostgreSQL\n   완료 기준: 사원 CRUD, 급여 계산 로직, 급여명세서 조회 화면이 동작하고 Gitlab에 커밋 이력이 남아있으면 끝\n2. **Websquare5 화면 + ClipReport 연동 게시판**\n   Websquare5로 그리드형 게시판 UI를 만들고 ClipReport로 목록을 PDF/엑셀 출력하는 기능 추가\n   커버하는 요건: Websquare5 개발 경험자 · Java, Websquare5 · ClipReport\n   완료 기준: 게시판 CRUD 화면과 리포트 출력(PDF/엑셀)이 정상 동작하면 끝\n3. **Linux 서버 배포 및 운영 환경 구축**\n   위 ERP 애플리케이션을 Linux 서버에 배포하고 PostgreSQL 연동, 로그/프로세스 모니터링 스크립트 작성\n   커버하는 요건: PostgreSQL · Linux 서버 운영 경험 · IT기획 / 개발 / 운영 경험이 있는 분\n   완료 기준: Linux 서버에서 서비스가 기동되고 기본 운영(재시작, 로그 확인) 스크립트가 동작하면 끝",
+            "frontend-web": "필수 요건은 병역특례 대상자뿐이라 스택은 우대 사항 기준으로 방향을 잡으면 됩니다.\n\n공부할 것 (우선순위 순):\n- 상태 관리: React Query(서버 상태) + Zustand(클라이언트 상태) 조합\n- 인터페이스: REST API와 GraphQL 둘 다 다뤄보기\n- 프로그래밍 패러다임: 함수형/OOP 스타일 차이 이해\n- 테스트/CI: Jest 같은 유닛 테스트 도구 + GitHub Actions 등 CI 파이프라인\n\n이걸 다 엮어서 프로젝트 2개를 기록해뒀습니다 — 답변에 바로 붙어 나올 거예요. 다음으로 실제 코드 스켈레톤(폴더 구조, API 설계)까지 잡아드릴까요?\n\n프로젝트 제안\n1. **개인 건강기록 트래커 (Next.js + REST/GraphQL)**\n   Next.js와 React로 프론트를 만들고, REST API와 GraphQL 두 방식으로 백엔드 연동을 각각 구현해 데이터 페칭 방식 차이를 비교. 상태 관리는 React Query로 서버 상태, Zustand로 클라이언트 상태를 분리해 관리\n   커버하는 요건: React query, Zustand, Recoil 등의 상태 관리 기술 사용 경험을 보유하신 분 · REST API, GraphQL 등 다양한 인터페이스 사용 경험이 있으신 분 · 서비스를 만드는 일을 좋아하시는 분\n   완료 기준: REST/GraphQL 두 인터페이스로 동일 기능(기록 CRUD)이 동작하고, 상태 관리 라이브러리로 서버/클라이언트 상태가 분리되어 있으면 끝\n2. **유닛 테스트 + CI 파이프라인 구축**\n   위 프로젝트에 Jest/React Testing Library로 유닛 테스트를 작성하고 GitHub Actions로 PR마다 자동 테스트가 도는 CI를 구성. 함수형/OOP 스타일을 섞어 유틸 함수와 클래스 기반 모듈을 각각 작성해 두 패러다임 이해도를 드러냄\n   커버하는 요건: Functional programming, OOP 등의 주요 프로그래밍 패러다임에 대한 이해가 있으신 분 · 유닛 테스트와 CI 경험이 있으신 분\n   완료 기준: 테스트가 CI에서 자동 실행되고 통과하면 끝",
+            "data-analyst": "SOOP 데이터 분석가(시멘틱 레이어/온톨로지) 공고 기준으로 정리하면:\n\n학습 순서:\n1. SQL 심화 (필수, req-2) — 대용량 데이터 처리, 윈도우 함수, 쿼리 최적화\n2. 시멘틱 레이어/온톨로지 개념 (필수, req-4) — dbt Semantic Layer, LookML, 또는 RDF/OWL 온톨로지 모델링 기초\n3. 그로스 루프/그로스 해킹 프레임워크 (필수, req-5) — AARRR, 그로스 루프 이론\n4. LLM 활용 데이터 탐색 및 Text-to-SQL (우대, pref-2, pref-3)\n\n이 순서대로 학습하면서 아래 3개 프로젝트로 실습하시는 걸 추천드립니다:\n\n(제안은 시스템이 이어서 표시합니다)\n\n필수 요건(SQL·시멘틱레이어·그로스 프레임)을 먼저 채우고, 우대 사항인 LLM/Text-to-SQL은 그 위에 얹는 순서로 진행하시면 됩니다.\n\n프로젝트 제안\n1. **스트리밍 로그 시멘틱 레이어 설계**\n   유저 행동/스트리밍 원천 로그를 정의해 SQL로 적재하고, 로우 데이터를 지표(시청시간, 구독전환 등) 단위로 매핑하는 시멘틱 레이어(dbt metrics 또는 유사 YAML 스키마)를 구축. 지표 정의서와 데이터 딕셔너리 작성\n   커버하는 요건: SQL에 능숙하며, 대용량 데이터를 다뤄본 실무 경험을 보유하신 분 · 로우 데이터를 비즈니스 지표/의미 단위로 해석하고 정의해 본 경험을 보유하신 분 · 시멘틱 레이어 또는 온톨로지 개념/모델링에 대한 이해도가 높으신 분 · 서비스 원천 로그 (스트리밍, 유저 행동 데이터)의 표준화 가이드라인 수립 참여 경험을 보유하신 분\n   완료 기준: 원천 로그 → 표준 지표 매핑 문서와 SQL 뷰가 동작하고, 지표 정의 근거를 설명할 수 있으면 끝\n2. **그로스 루프 분석 대시보드**\n   가상 스트리밍 서비스의 유저 행동 데이터를 그로스 루프(획득-활성화-리텐션-수익) 프레임으로 나눠 SQL로 지표를 산출하고 대시보드로 시각화\n   커버하는 요건: SQL에 능숙하며, 대용량 데이터를 다뤄본 실무 경험을 보유하신 분 · 그로스 루프 / 그로스 해킹 등 데이터 분석 프레임 워크에 대한 이해도가 높으신 분 · 라이브 스트리밍 서비스에 관심이 많거나 애청자이신 분\n   완료 기준: 각 루프 단계별 핵심 지표 SQL과 시각화가 나오고 병목 구간을 설명할 수 있으면 끝\n3. **Text-to-SQL 분석 에이전트**\n   LLM에 시멘틱 레이어(지표/테이블 정의)를 컨텍스트로 주고 자연어 질문을 SQL로 변환해 실행하는 간단한 에이전트 구축\n   커버하는 요건: LLM을 활용한 데이터 탐색, text 경험을 보유하신 분 · -to-SQL 분석 자동화 에이전트 구축, 설계 경험을 보유하신 분 · 데이터 엔지니어링 조직과 협업하며 요구사항을 구조화 모델로 번역할 수 있는 커뮤니케이션 역량을 보유하신 분\n   완료 기준: 자연어 질문 몇 개에 대해 정확한 SQL을 생성·실행하고, 실패 케이스와 한계를 정리하면 끝",
+            "devops": "필수 요건 기준 우선순위:\n\n1. Docker/Kubernetes 컨테이너 기술 — req-3\n2. CI/CD 파이프라인 구축(Jenkins) — req-1, req-2\n3. GitOps 배포(ArgoCD) — req-1, req-2\n4. Helm 차트 작성, MSA 전환 경험 — pref-3, pref-4\n5. 관리형/구축형 K8s(EKS 또는 OpenShift) — pref-1, pref-2\n6. 모니터링/로깅(Prometheus, Grafana, Loki) — pref-4\n\n이 순서로 학습하면서 진행할 프로젝트 2건을 아래에 정리해 기록해 두었습니다.\n\n프로젝트 제안\n1. **MSA용 CI/CD 파이프라인 구축**\n   샘플 MSA 애플리케이션을 Docker로 컨테이너화하고, Jenkins로 빌드·테스트 파이프라인을 구성한 뒤 ArgoCD로 GitOps 기반 배포 자동화까지 연결\n   커버하는 요건: CI/CD 설계 및 구축 · DevOps 실무 구축 · MSA 전환 사업 경험(Docker 파일 작성, Helm 차트 관리 등) · K8s 관련 오픈소스 SW 적용 : ArgoCD, Jenkins, Harbor, Helm, Vault, Prometheus, Loki, Grafana, OpenTelemetry, OpenLens, MinIO, HAPROXY, Velero 등 · Docker 1년 이상 · CI/CD 1년 이상\n   완료 기준: 코드 푸시 시 Jenkins 빌드→이미지 등록→ArgoCD가 자동 배포까지 이어지는 파이프라인이 동작\n2. **관리형/구축형 K8s 클러스터에 애플리케이션 배포 및 모니터링**\n   EKS 또는 OpenShift 등에 Helm 차트로 애플리케이션을 배포하고 Prometheus·Grafana·Loki로 모니터링·로그 수집 구성\n   커버하는 요건: 컨테이너 가상화 기술 보유 · 구축형 K8s 사용 경험(OpenShift 등) · 관리형 K8s 사용 경험(NKS, EKS, AKS 등) · K8s 관련 오픈소스 SW 적용 : ArgoCD, Jenkins, Harbor, Helm, Vault, Prometheus, Loki, Grafana, OpenTelemetry, OpenLens, MinIO, HAPROXY, Velero 등 · Kubernetes 1년 이상\n   완료 기준: Helm으로 배포된 서비스의 메트릭·로그가 Grafana 대시보드에서 확인됨",
+            "mobile-flutter": "필수는 학력무관뿐이라 실질적으로는 우대 사항이 학습 기준입니다.\n\n1. Flutter — 이 공고의 핵심 스택, 크로스플랫폼 UI 구성 위주로 학습\n2. Swift, Kotlin 네이티브 연동 — Platform Channel로 iOS/Android 네이티브 코드를 Flutter와 연결하는 방법(우대: Swift, Kotlin 네이티브 경험자)\n3. IoT 통신 — BLE/Wi-Fi로 기기와 통신하는 법(우대: IoT앱개발 경험자), 가전·헬스케어·아파트 도메인과 연결됨\n\n이 순서대로 다룬 프로젝트 1건을 기록해뒀습니다.\n\n프로젝트 제안\n1. **Flutter 기반 IoT 스마트홈 제어 앱**\n   Flutter로 UI를 만들고 Swift(iOS)·Kotlin(Android) 네이티브 모듈을 Platform Channel로 연동해 가전기기(예: BLE/Wi-Fi 조명, 온습도 센서)를 제어하는 앱. 헬스케어나 아파트 관리 시나리오(기기 상태 모니터링, 원격 제어)로 확장 가능.\n   커버하는 요건: IoT앱개발 경험자 · Swift, Kotlin 네이티브 경험자\n   완료 기준: Flutter UI에서 Swift/Kotlin 네이티브 코드로 최소 1개 이상의 IoT 기기(BLE 또는 Wi-Fi 기반)를 연결·제어하고, 상태 값을 실시간으로 화면에 표시하는 데모가 동작하면 완료",
+            "security-sol": "필수 요건과 우대 사항 순서로 학습·프로젝트를 짜면 됩니다.\n\n1) 네트워크/시스템 기초 (req-7, 8, 9): TCP/IP, HTTP, 포트 체계, Linux 운영 경험이 먼저입니다.\n2) 보안 솔루션 실습 (pref-1, 2, 4): EDR/EPP·IPS·이메일 보안류를 오픈소스로 직접 구축해보고 Wireshark/tcpdump로 패킷 분석하는 경험.\n3) 멀티 클라우드 보안 (pref-3): AWS/Azure/GCP 중 두 곳 이상에서 보안 서비스 운영 실습.\n\n이 순서에 맞춰 프로젝트 3건을 정리해 기록해뒀습니다.\n\n프로젝트 제안\n1. **사내 미니 로그 분석 & 이상탐지 대시보드**\n   Linux 서버(Syslog)와 웹서버 액세스 로그를 수집해 Python으로 파싱하고, 비정상 접속 패턴(포트 스캔, 반복 실패 로그인 등)을 룰 기반으로 탐지해 대시보드로 시각화. TCP/IP 포트 체계 이해를 바탕으로 트래픽을 분류.\n   커버하는 요건: 네트워크 프로토콜(TCP/IP, HTTP 등) 및 포트 체계에 대한 이해 · Linux 운영체제 및 기본 시스템 운영 경험 · 시스템 및 보안 로그 분석을 통한 장애 원인 분석 및 해결 경험\n   완료 기준: Linux 서버에서 실제 로그를 수집해 이상 패턴 3종 이상을 탐지하고 대시보드로 확인 가능한 상태\n2. **오픈소스 EDR/IPS 룰 구축 및 PoC 리포트 작성**\n   Wazuh(오픈소스 EDR/XDR) 또는 Suricata(IPS)를 직접 설치해 탐지 룰을 구성하고, 모의 공격 트래픽을 Wireshark/tcpdump로 캡처·분석한 뒤 PoC 형태의 비교 리포트 작성.\n   커버하는 요건: EDR/EPP, IPS, APT, 이메일 보안 솔루션 구축 및 운영 경험 · 패킷 분석(Wireshark, tcpdump 등) 및 트러블슈팅 경험 · 보안 솔루션 PoC/BMT를 주도적으로 수행한 경험\n   완료 기준: 룰 기반 탐지 결과와 패킷 분석 스크린샷을 포함한 PoC 리포트 완성\n3. **멀티 클라우드 보안 그룹/로그 통합 관제 실습**\n   AWS와 Azure(또는 GCP) 계정을 각각 만들어 보안 그룹, WAF, CloudTrail 로그를 구성하고 두 클라우드 로그를 하나의 통합 로그 관리 도구(ELK 등)로 모아보는 실습.\n   커버하는 요건: 멀티 클라우드(AWS, Azure, GCP) 환경에서 보안 서비스 운영 경험\n   완료 기준: 두 클라우드 환경의 보안 이벤트 로그가 통합 대시보드에서 조회되는 상태",
+            "qa-engineer": "필수 요건(경력·학력·해외여행 결격)은 이력서 기준이라 학습으로 채울 수 있는 부분은 아니고, 우대 사항 위주로 스택을 잡으면 됩니다.\n\n공부할 스택 우선순위:\n1. CAN, Ethernet 등 차량 네트워크 통신 프로토콜 — 검증 경험이 가장 많이 언급된 우대 항목\n2. Android / Android Automotive 시스템 이해\n3. Jira, TestRail 같은 테스트 관리 도구 실습\n4. CSTS, ISTQB 같은 테스트 자격증도 우대 사항에 있어 참고할 만함\n\n이 기준으로 프로젝트 3건(CAN/Ethernet 검증 자동화, Android AVN UI 테스트 자동화, Jira/TestRail 연동 워크플로우)을 기록해 뒀습니다.\n\n프로젝트 제안\n1. **CAN/Ethernet 기반 차량 네트워크 검증 자동화 도구**\n   CAN 및 Ethernet 통신 로그를 분석하고 테스트 케이스를 자동 실행/검증하는 스크립트(Python + python-can 등) 제작. 결과를 리포트로 정리\n   커버하는 요건: CAN 및 Ethernet 등 차량 네트워크에 대한 검증 경험자 · 자동화 업무 대응 가능자\n   완료 기준: CAN 메시지 송수신 시나리오를 자동으로 검증하고 pass/fail 리포트를 생성하면 완료\n2. **Android 기반 AVN(차량용 인포테인먼트) UI 테스트 자동화**\n   Android Automotive 에뮬레이터 또는 실기기에서 AVN 앱 UI를 Espresso/UIAutomator로 자동 테스트, 내비게이션/미디어 기능 시나리오 커버\n   커버하는 요건: 차량용 AVN 검증 경험자 · Android 기반 시스템 사용 경험자 · 전장/내비 소프트웨어 분야 검증 경험자\n   완료 기준: 주요 AVN 화면 전환 및 기능 시나리오에 대한 자동화 테스트 스위트가 통과하면 완료\n3. **Jira/TestRail 연동 테스트 관리 워크플로우 구축**\n   TestRail에 테스트 케이스를 작성하고 Jira 이슈와 연동해 결함 추적, 테스트 실행 결과를 자동으로 TestRail에 업로드하는 스크립트 작성\n   커버하는 요건: Jira, TestRail 등 테스트 관리 도구 사용 경험자\n   완료 기준: 테스트 실행 결과가 API를 통해 TestRail에 자동 반영되면 완료"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_requirement_sections": 2,
+            "no_company_name": 1
+          }
+        }
+      ]
+    },
+    {
+      "questionId": "key-requirement",
+      "measured": true,
+      "runs": 3,
+      "genericScore": {
+        "mean": 0.0019,
+        "min": -0.0098,
+        "max": 0.0087,
+        "range": 0.0185
+      },
+      "offPostingSkillRate": {
+        "mean": 0.0222,
+        "min": 0.0,
+        "max": 0.0667,
+        "range": 0.0667
+      },
+      "attempts": [
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.0067,
+          "meanAnswerSim": 0.5339,
+          "meanPostingSim": 0.5271,
+          "worstPair": "security-sol|qa-engineer",
+          "worstDelta": 0.1207,
+          "offPostingSkillRate": {
+            "ml-genai": 0.0,
+            "backend-erp": 0.0,
+            "frontend-web": 0.0,
+            "data-analyst": null,
+            "devops": 0.0,
+            "mobile-flutter": 0.0,
+            "security-sol": 0.0,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ml-genai|backend-erp": {
+              "answer": 0.6244,
+              "posting": 0.5977,
+              "delta": 0.0267
+            },
+            "ml-genai|frontend-web": {
+              "answer": 0.4345,
+              "posting": 0.5344,
+              "delta": -0.0999
+            },
+            "ml-genai|data-analyst": {
+              "answer": 0.5755,
+              "posting": 0.5688,
+              "delta": 0.0067
+            },
+            "ml-genai|devops": {
+              "answer": 0.5121,
+              "posting": 0.5301,
+              "delta": -0.018
+            },
+            "ml-genai|mobile-flutter": {
+              "answer": 0.5241,
+              "posting": 0.5358,
+              "delta": -0.0117
+            },
+            "ml-genai|security-sol": {
+              "answer": 0.5294,
+              "posting": 0.5076,
+              "delta": 0.0218
+            },
+            "ml-genai|qa-engineer": {
+              "answer": 0.5071,
+              "posting": 0.5046,
+              "delta": 0.0025
+            },
+            "backend-erp|frontend-web": {
+              "answer": 0.51,
+              "posting": 0.5689,
+              "delta": -0.0589
+            },
+            "backend-erp|data-analyst": {
+              "answer": 0.5717,
+              "posting": 0.5379,
+              "delta": 0.0338
+            },
+            "backend-erp|devops": {
+              "answer": 0.5915,
+              "posting": 0.5227,
+              "delta": 0.0688
+            },
+            "backend-erp|mobile-flutter": {
+              "answer": 0.6704,
+              "posting": 0.5651,
+              "delta": 0.1053
+            },
+            "backend-erp|security-sol": {
+              "answer": 0.6249,
+              "posting": 0.5622,
+              "delta": 0.0627
+            },
+            "backend-erp|qa-engineer": {
+              "answer": 0.6115,
+              "posting": 0.5607,
+              "delta": 0.0508
+            },
+            "frontend-web|data-analyst": {
+              "answer": 0.4646,
+              "posting": 0.4968,
+              "delta": -0.0322
+            },
+            "frontend-web|devops": {
+              "answer": 0.4503,
+              "posting": 0.5965,
+              "delta": -0.1462
+            },
+            "frontend-web|mobile-flutter": {
+              "answer": 0.466,
+              "posting": 0.6201,
+              "delta": -0.1541
+            },
+            "frontend-web|security-sol": {
+              "answer": 0.4512,
+              "posting": 0.5198,
+              "delta": -0.0686
+            },
+            "frontend-web|qa-engineer": {
+              "answer": 0.4314,
+              "posting": 0.4948,
+              "delta": -0.0634
+            },
+            "data-analyst|devops": {
+              "answer": 0.4839,
+              "posting": 0.4657,
+              "delta": 0.0182
+            },
+            "data-analyst|mobile-flutter": {
+              "answer": 0.4811,
+              "posting": 0.3706,
+              "delta": 0.1105
+            },
+            "data-analyst|security-sol": {
+              "answer": 0.5861,
+              "posting": 0.5688,
+              "delta": 0.0173
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.491,
+              "posting": 0.449,
+              "delta": 0.042
+            },
+            "devops|mobile-flutter": {
+              "answer": 0.4982,
+              "posting": 0.5417,
+              "delta": -0.0435
+            },
+            "devops|security-sol": {
+              "answer": 0.6042,
+              "posting": 0.5585,
+              "delta": 0.0457
+            },
+            "devops|qa-engineer": {
+              "answer": 0.4738,
+              "posting": 0.5009,
+              "delta": -0.0271
+            },
+            "mobile-flutter|security-sol": {
+              "answer": 0.5616,
+              "posting": 0.4544,
+              "delta": 0.1072
+            },
+            "mobile-flutter|qa-engineer": {
+              "answer": 0.5907,
+              "posting": 0.519,
+              "delta": 0.0717
+            },
+            "security-sol|qa-engineer": {
+              "answer": 0.6268,
+              "posting": 0.5061,
+              "delta": 0.1207
+            }
+          },
+          "answerChars": [
+            289,
+            224,
+            235,
+            402,
+            225,
+            195,
+            378,
+            278
+          ],
+          "answers": {
+            "ml-genai": "필수 요건 중 핵심은 이 세 가지입니다.\n\n1. Python 등 AI 프로그래밍 숙련 + LLM 기술 구조 이해도\n2. ML, LLM Fine-Tuning, LoRA(Llama2, Mistral 등) 오픈소스 모델 활용 개념/경험\n3. 관련 경력 5년 이상\n\n이 세 개가 실무 역량을 직접 검증하는 항목이라 우선순위가 높고, 그 외 학력·커뮤니케이션은 자격 요건 성격입니다. 우대 사항 중에서는 LangChain/LangGraph·Agent Framework 경험이 필수 요건과 가장 맞닿아 있어 다음으로 중요합니다.",
+            "backend-erp": "필수 요건 중 핵심은 두 가지입니다.\n\n- Java 및 전자정부 Framework 가능\n- IT기획/개발/운영 경험\n\n여기에 Gitlab 사용 경험, 타 부서 협업 능력도 필수로 명시되어 있습니다. 학력은 무관이라 조건에서 빠집니다.\n\n우대 사항 쪽에서는 ERP(인사/급여, 회계/재무) 개발 경험과 Websquare5 개발 경험이 핵심으로 반복해서 강조되고 있어, 필수 요건 다음으로 비중이 큽니다.",
+            "frontend-web": "이 공고의 필수 요건은 사실상 하나뿐입니다: **병역특례 대상자**(req-1)여야 지원 가능합니다. 이것만 충족하면 되고, 나머지 항목들은 전부 우대사항(pref-1~18)이며 상태관리 라이브러리, REST API/GraphQL, 프로그래밍 패러다임 이해, 유닛테스트/CI 경험 등 기술적인 것부터 커뮤니케이션·책임감 같은 태도 관련까지 다양하게 나열되어 있습니다. 우대사항 중 우선순위를 정해 학습 계획을 세워볼까요?",
+            "data-analyst": "필수 요건 중 핵심은 세 가지입니다.\n\n1. 데이터 분석/모델링 실무 경력 6년 이상 + SQL, 대용량 데이터 처리 경험 — 이 공고가 요구하는 연차와 기술 기반\n2. 시멘틱 레이어/온톨로지 개념·모델링 이해도 — 직무명(시멘틱 레이어/온톨로지 엔지니어)에 직접 걸린 요건으로, 이 공고의 정체성에 해당\n3. 로우 데이터를 비즈니스 지표/의미 단위로 해석·정의한 경험 + 데이터 엔지니어링 조직과 협업해 요구사항을 구조화 모델로 번역하는 커뮤니케이션 역량 — 기술과 비즈니스를 잇는 역할이라는 점을 보여줌\n\n그로스 루프/그로스 해킹 프레임워크 이해도도 필수 요건에 있지만, 위 세 가지가 직무 정의의 핵심 축입니다.\n\n이 중 어떤 요건을 어떻게 준비할지(예: 시멘틱 레이어/온톨로지 학습 방향) 이어서 정리해드릴까요?",
+            "devops": "필수 요건 중 핵심은 아래 4가지입니다.\n\n- CI/CD 설계 및 구축\n- DevOps 실무 구축\n- 컨테이너 가상화 기술 보유\n- 기술 등급 : 고급 이상\n\n우대 사항 중에서는 Kubernetes 관련 경험(구축형/관리형 K8s, ArgoCD·Helm 등 오픈소스 스택)과 MSA 전환 경험이 비중 있게 나열되어 있어, 필수 요건 위에 K8s 실무 경험을 얹는 방향이 이 공고에서 강조하는 흐름입니다.",
+            "mobile-flutter": "필수 요건은 '학력무관'뿐이라 사실상 진입장벽이 없는 자리입니다. 대신 우대 사항 두 가지가 실질 변별 기준입니다: IoT 앱 개발 경험, Swift/Kotlin 네이티브 경험. 도메인이 IoT·가전·헬스케어·아파트 쪽이라 이 우대 사항이 실무에서는 필수처럼 작용할 가능성이 높습니다. 원하시면 이 두 우대 사항을 증명할 프로젝트를 제안해 드릴게요.",
+            "security-sol": "필수 요건이 여러 줄이지만, 이 공고에서 가장 중심에 놓인 건 다음 세 가지입니다.\n\n- 보안 솔루션 구축/운영/기술지원 경력 3년~10년 (경력 연차 자체가 지원 자격의 기준선)\n- 네트워크 프로토콜(TCP/IP, HTTP 등) 및 포트 체계 이해 + Linux 운영체제 경험 — 실무 기본기로 명시됨\n- 시스템/보안 로그 분석을 통한 장애 원인 분석·해결 경험 — 실제 업무(엔지니어링) 역량을 직접적으로 요구\n\n우대 사항 중에서는 EDR/EPP·IPS·APT·이메일 보안 솔루션 구축/운영 경험과 멀티 클라우드(AWS/Azure/GCP) 보안 운영 경험이 기술 스택과 가장 밀접하게 연결됩니다.\n\n원하시면 이 요건들을 증명할 수 있는 학습·프로젝트 계획을 정리해드릴까요?",
+            "qa-engineer": "필수 요건은 경력 8~13년, 학력무관, 해외여행 결격사유 없음인데, 이 중 실제로 지원 가능 여부를 가르는 건 경력 연차(8~13년)입니다.\n\n우대 사항 중에서는 직무 성격상 다음이 핵심으로 보입니다.\n- 전장/내비 소프트웨어 검증 경험 (pref-4), 차량용 AVN 검증 경험 (pref-7)\n- CAN·Ethernet 등 차량 네트워크 검증 경험 (pref-3)\n- Android 기반 시스템 경험 (pref-8)\n\n나머지(자격증, 영어, 테스트 관리 도구 등)는 보조적인 우대 조건입니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_requirement_sections": 2,
+            "no_company_name": 1
+          }
+        },
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": -0.0098,
+          "meanAnswerSim": 0.5173,
+          "meanPostingSim": 0.5271,
+          "worstPair": "security-sol|qa-engineer",
+          "worstDelta": 0.1892,
+          "offPostingSkillRate": {
+            "ml-genai": 0.0,
+            "backend-erp": 0.0,
+            "frontend-web": 0.0,
+            "data-analyst": null,
+            "devops": 0.0,
+            "mobile-flutter": 0.4,
+            "security-sol": 0.0,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0667,
+          "pairs": {
+            "ml-genai|backend-erp": {
+              "answer": 0.5005,
+              "posting": 0.5977,
+              "delta": -0.0972
+            },
+            "ml-genai|frontend-web": {
+              "answer": 0.4417,
+              "posting": 0.5344,
+              "delta": -0.0927
+            },
+            "ml-genai|data-analyst": {
+              "answer": 0.6272,
+              "posting": 0.5688,
+              "delta": 0.0584
+            },
+            "ml-genai|devops": {
+              "answer": 0.4588,
+              "posting": 0.5301,
+              "delta": -0.0713
+            },
+            "ml-genai|mobile-flutter": {
+              "answer": 0.4119,
+              "posting": 0.5358,
+              "delta": -0.1239
+            },
+            "ml-genai|security-sol": {
+              "answer": 0.5295,
+              "posting": 0.5076,
+              "delta": 0.0219
+            },
+            "ml-genai|qa-engineer": {
+              "answer": 0.4705,
+              "posting": 0.5046,
+              "delta": -0.0341
+            },
+            "backend-erp|frontend-web": {
+              "answer": 0.4668,
+              "posting": 0.5689,
+              "delta": -0.1021
+            },
+            "backend-erp|data-analyst": {
+              "answer": 0.5426,
+              "posting": 0.5379,
+              "delta": 0.0047
+            },
+            "backend-erp|devops": {
+              "answer": 0.5674,
+              "posting": 0.5227,
+              "delta": 0.0447
+            },
+            "backend-erp|mobile-flutter": {
+              "answer": 0.4498,
+              "posting": 0.5651,
+              "delta": -0.1153
+            },
+            "backend-erp|security-sol": {
+              "answer": 0.5635,
+              "posting": 0.5622,
+              "delta": 0.0013
+            },
+            "backend-erp|qa-engineer": {
+              "answer": 0.5366,
+              "posting": 0.5607,
+              "delta": -0.0241
+            },
+            "frontend-web|data-analyst": {
+              "answer": 0.4806,
+              "posting": 0.4968,
+              "delta": -0.0162
+            },
+            "frontend-web|devops": {
+              "answer": 0.4488,
+              "posting": 0.5965,
+              "delta": -0.1477
+            },
+            "frontend-web|mobile-flutter": {
+              "answer": 0.5013,
+              "posting": 0.6201,
+              "delta": -0.1188
+            },
+            "frontend-web|security-sol": {
+              "answer": 0.4651,
+              "posting": 0.5198,
+              "delta": -0.0547
+            },
+            "frontend-web|qa-engineer": {
+              "answer": 0.4764,
+              "posting": 0.4948,
+              "delta": -0.0184
+            },
+            "data-analyst|devops": {
+              "answer": 0.4789,
+              "posting": 0.4657,
+              "delta": 0.0132
+            },
+            "data-analyst|mobile-flutter": {
+              "answer": 0.4726,
+              "posting": 0.3706,
+              "delta": 0.102
+            },
+            "data-analyst|security-sol": {
+              "answer": 0.7016,
+              "posting": 0.5688,
+              "delta": 0.1328
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.6131,
+              "posting": 0.449,
+              "delta": 0.1641
+            },
+            "devops|mobile-flutter": {
+              "answer": 0.4906,
+              "posting": 0.5417,
+              "delta": -0.0511
+            },
+            "devops|security-sol": {
+              "answer": 0.5651,
+              "posting": 0.5585,
+              "delta": 0.0066
+            },
+            "devops|qa-engineer": {
+              "answer": 0.5507,
+              "posting": 0.5009,
+              "delta": 0.0498
+            },
+            "mobile-flutter|security-sol": {
+              "answer": 0.4322,
+              "posting": 0.4544,
+              "delta": -0.0222
+            },
+            "mobile-flutter|qa-engineer": {
+              "answer": 0.5444,
+              "posting": 0.519,
+              "delta": 0.0254
+            },
+            "security-sol|qa-engineer": {
+              "answer": 0.6953,
+              "posting": 0.5061,
+              "delta": 0.1892
+            }
+          },
+          "answerChars": [
+            272,
+            241,
+            189,
+            347,
+            183,
+            211,
+            263,
+            291
+          ],
+          "answers": {
+            "ml-genai": "필수 요건 중 핵심은 두 가지입니다.\n\n- Python 등 AI 프로그래밍 숙련도 및 LLM 기술 구조 이해도\n- ML, LLM Fine-Tuning, LoRA(Llama2, Mistral 등) 오픈소스 모델 활용 개념 또는 경험\n\n관련 경력 5년 이상, 대졸 이상, 커뮤니케이션 능통도 필수 요건에 포함되지만, 실무 역량 측면에서는 위 두 항목이 이 공고의 중심입니다. 우대 사항 중에서는 LangChain/LangGraph·Agent Framework 활용 경험이 가장 두드러지네요.",
+            "backend-erp": "필수 요건 중 가장 중심은 Java + 전자정부 Framework 개발 역량입니다. 이 공고가 ERP(인사/급여, 회계/재무) 시스템 개발·운영 직무이기 때문에, 여기에 Gitlab 사용 경험과 IT 기획/개발/운영 경험이 뒤따르는 필수 조건입니다. 우대 사항까지 보면 Websquare5, PostgreSQL, ClipReport, Linux 서버 운영 경험이 실무 도구로 강조되어 있어, 이 조합이 실제 업무 스택으로 보입니다.",
+            "frontend-web": "이 공고에서 필수 요건은 '병역특례 대상자' 하나뿐이에요. 나머지는 전부 우대 사항인데, 그중 기술적으로 핵심인 건 상태 관리(React Query, Zustand, Recoil)와 REST API/GraphQL 사용 경험, 함수형/OOP 패러다임 이해, 유닛 테스트·CI 경험이고요. 나머지는 협업 태도나 커뮤니케이션 관련 항목들이에요.",
+            "data-analyst": "필수 요건 중 핵심은 3가지로 볼 수 있습니다.\n\n- 실무 경력: 데이터 분석/모델링 6년 이상\n- 핵심 역량: SQL 능숙 + 대용량 데이터 실무 경험, 로우 데이터를 비즈니스 지표로 해석/정의한 경험\n- 도메인 이해: 시멘틱 레이어/온톨로지 개념 및 모델링 이해도\n\n여기에 그로스 프레임워크 이해, 데이터 엔지니어링 조직과의 협업/커뮤니케이션 역량이 더해집니다. 우대 사항 중에서는 '시멘틱/온톨로지 도구 실무 구축 경험'이 필수 요건(시멘틱 레이어 이해)과 바로 이어지는 항목이라 실질적으로 중요도가 높아 보입니다.\n\n원하시면 이 요건들을 어떤 순서로 준비하면 좋을지, 또는 관련 프로젝트 아이디어를 정리해드릴까요?",
+            "devops": "필수 요건 중에서는 CI/CD 설계·구축과 DevOps 실무 구축, 컨테이너 가상화 기술 보유가 핵심이고, 기술 등급도 고급 이상을 요구합니다. 우대 사항까지 보면 Kubernetes·Docker·CI/CD 각 1년 이상 경험과 K8s 생태계 오픈소스(ArgoCD, Jenkins, Helm 등) 적용 경험이 강조되어 있습니다.",
+            "mobile-flutter": "이 공고에서 필수 요건은 '학력무관' 하나뿐이고, 실질적으로 중요한 건 우대 사항 두 가지입니다: IoT 앱 개발 경험, 그리고 Swift·Kotlin 네이티브 경험. 직무 자체가 Flutter 개발자이면서 IoT·헬스케어·가전 도메인을 명시하고 있어서, 크로스플랫폼(Flutter) 역량에 더해 iOS/Android 네이티브 언어 경험이 있는지가 핵심 우대 포인트로 보입니다.",
+            "security-sol": "필수 요건 중 핵심은 다음 3가지입니다.\n- 경력 3년~10년, 보안 솔루션 구축/운영/기술지원 경험\n- 네트워크 프로토콜(TCP/IP, HTTP 등) 및 포트 체계 이해, Linux 운영체제 기본 운영 경험\n- 시스템 및 보안 로그 분석을 통한 장애 원인 분석·해결 경험\n\n여기에 우대사항 중 EDR/EPP, IPS, APT, 이메일 보안 솔루션 구축·운영 경험이 실무 역량을 가장 직접적으로 뒷받침하는 항목입니다. 이 요건들을 어떻게 보여줄지 프로젝트로 정리해볼까요?",
+            "qa-engineer": "필수 요건 중에서는 경력(8~13년)과 해외여행 결격사유 없음이 지원 자격 자체를 좌우하는 항목입니다.\n\n우대 사항에서는 다음 셋이 실질적으로 겹치며 자주 강조됩니다.\n- CAN/Ethernet 등 차량 네트워크 검증 경험\n- 전장·인포테인먼트(AVN) 소프트웨어 검증 경험\n- Android 기반 시스템 경험\n\n여기에 Jira/TestRail 같은 테스트 관리 도구 경험과 자동화 업무 대응 능력이 실무 역량을 뒷받침하는 항목으로 이어집니다.\n\n학습 순서를 잡아볼까요, 아니면 이 요건들로 프로젝트 아이디어를 짜볼까요?"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_requirement_sections": 2,
+            "no_company_name": 1
+          }
+        },
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.0087,
+          "meanAnswerSim": 0.5358,
+          "meanPostingSim": 0.5271,
+          "worstPair": "backend-erp|security-sol",
+          "worstDelta": 0.1452,
+          "offPostingSkillRate": {
+            "ml-genai": 0.0,
+            "backend-erp": 0.0,
+            "frontend-web": 0.0,
+            "data-analyst": null,
+            "devops": 0.0,
+            "mobile-flutter": 0.0,
+            "security-sol": 0.0,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ml-genai|backend-erp": {
+              "answer": 0.5679,
+              "posting": 0.5977,
+              "delta": -0.0298
+            },
+            "ml-genai|frontend-web": {
+              "answer": 0.4841,
+              "posting": 0.5344,
+              "delta": -0.0503
+            },
+            "ml-genai|data-analyst": {
+              "answer": 0.4878,
+              "posting": 0.5688,
+              "delta": -0.081
+            },
+            "ml-genai|devops": {
+              "answer": 0.4679,
+              "posting": 0.5301,
+              "delta": -0.0622
+            },
+            "ml-genai|mobile-flutter": {
+              "answer": 0.3947,
+              "posting": 0.5358,
+              "delta": -0.1411
+            },
+            "ml-genai|security-sol": {
+              "answer": 0.5256,
+              "posting": 0.5076,
+              "delta": 0.018
+            },
+            "ml-genai|qa-engineer": {
+              "answer": 0.3878,
+              "posting": 0.5046,
+              "delta": -0.1168
+            },
+            "backend-erp|frontend-web": {
+              "answer": 0.654,
+              "posting": 0.5689,
+              "delta": 0.0851
+            },
+            "backend-erp|data-analyst": {
+              "answer": 0.6242,
+              "posting": 0.5379,
+              "delta": 0.0863
+            },
+            "backend-erp|devops": {
+              "answer": 0.5359,
+              "posting": 0.5227,
+              "delta": 0.0132
+            },
+            "backend-erp|mobile-flutter": {
+              "answer": 0.5508,
+              "posting": 0.5651,
+              "delta": -0.0143
+            },
+            "backend-erp|security-sol": {
+              "answer": 0.7074,
+              "posting": 0.5622,
+              "delta": 0.1452
+            },
+            "backend-erp|qa-engineer": {
+              "answer": 0.6161,
+              "posting": 0.5607,
+              "delta": 0.0554
+            },
+            "frontend-web|data-analyst": {
+              "answer": 0.5973,
+              "posting": 0.4968,
+              "delta": 0.1005
+            },
+            "frontend-web|devops": {
+              "answer": 0.567,
+              "posting": 0.5965,
+              "delta": -0.0295
+            },
+            "frontend-web|mobile-flutter": {
+              "answer": 0.4807,
+              "posting": 0.6201,
+              "delta": -0.1394
+            },
+            "frontend-web|security-sol": {
+              "answer": 0.6057,
+              "posting": 0.5198,
+              "delta": 0.0859
+            },
+            "frontend-web|qa-engineer": {
+              "answer": 0.5819,
+              "posting": 0.4948,
+              "delta": 0.0871
+            },
+            "data-analyst|devops": {
+              "answer": 0.4392,
+              "posting": 0.4657,
+              "delta": -0.0265
+            },
+            "data-analyst|mobile-flutter": {
+              "answer": 0.4305,
+              "posting": 0.3706,
+              "delta": 0.0599
+            },
+            "data-analyst|security-sol": {
+              "answer": 0.6166,
+              "posting": 0.5688,
+              "delta": 0.0478
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.5655,
+              "posting": 0.449,
+              "delta": 0.1165
+            },
+            "devops|mobile-flutter": {
+              "answer": 0.481,
+              "posting": 0.5417,
+              "delta": -0.0607
+            },
+            "devops|security-sol": {
+              "answer": 0.5368,
+              "posting": 0.5585,
+              "delta": -0.0217
+            },
+            "devops|qa-engineer": {
+              "answer": 0.5013,
+              "posting": 0.5009,
+              "delta": 0.0004
+            },
+            "mobile-flutter|security-sol": {
+              "answer": 0.458,
+              "posting": 0.4544,
+              "delta": 0.0036
+            },
+            "mobile-flutter|qa-engineer": {
+              "answer": 0.5495,
+              "posting": 0.519,
+              "delta": 0.0305
+            },
+            "security-sol|qa-engineer": {
+              "answer": 0.5882,
+              "posting": 0.5061,
+              "delta": 0.0821
+            }
+          },
+          "answerChars": [
+            279,
+            250,
+            280,
+            328,
+            246,
+            173,
+            265,
+            252
+          ],
+          "answers": {
+            "ml-genai": "필수 요건 중 핵심은 다음 세 가지입니다.\n- Python 등 AI 프로그래밍 숙련자 및 LLM 기술 구조 이해도\n- ML, LLM Fine-Tunning, LoRA(Llama2, Mistral 등) 오픈소스 모델 활용 개념/경험\n- 관련 경력 5년 이상\n\n이 공고는 LLM 자체를 다루는 실무(파인튜닝, 오픈소스 모델 활용)를 핵심 필수로 명시하고 있고, 그 위에 LangChain/LangGraph, Agent 설계, Kubernetes/Docker 운영 같은 우대 사항이 얹혀 있는 구조입니다.",
+            "backend-erp": "필수 요건 중 가장 핵심은 다음 세 가지입니다.\n\n- Java 및 전자정부 Framework 가능 (req-2)\n- ERP(인사/급여, 회계/재무) 개발 경험 (req-6)\n- Websquare5 개발 경험자 (req-7)\n\n이 세 가지가 나머지 요건(Gitlab 경험, 협업 능력, IT기획/개발/운영 경험)보다 앞에 나오고 우대 사항(경력 4~8년, Java·Websquare5, 전자정부 Framework)과도 겹쳐 반복 강조되는 요건입니다.",
+            "frontend-web": "필수 요건은 '병역특례 대상자'(req-1) 하나뿐입니다. 나머지는 전부 우대 사항인데, 그중에서도 실무 기술 관련으로는 상태 관리 라이브러리(React Query, Zustand, Recoil) 사용 경험, REST API/GraphQL 등 인터페이스 경험, 함수형·객체지향 프로그래밍 패러다임 이해, 유닛 테스트·CI 경험이 기술스택(Next.js, React, AWS)과 바로 연결되는 항목이라 우선순위가 높다고 볼 수 있습니다. 다음으로 이 우대 사항들을 어떤 프로젝트로 보여줄지 정리해볼까요?",
+            "data-analyst": "필수 요건 6개 중 가장 무게가 실린 건 다음 세 가지입니다.\n\n- 실무 경력 6년 이상 (데이터 분석/모델링) — 지원 자격의 기본선\n- 시멘틱 레이어 또는 온톨로지 개념/모델링 이해도 — 직무명 자체가 '시멘틱 레이어/온톨로지 엔지니어'라 핵심 역량으로 명시됨\n- 로우 데이터를 비즈니스 지표/의미 단위로 해석·정의한 경험 — 온톨로지 이해를 실제 업무 결과물로 증명하는 항목\n\n나머지(SQL/대용량 데이터 경험, 그로스 프레임워크 이해, 데이터 엔지니어링 조직과의 커뮤니케이션)는 이 세 가지를 뒷받침하는 실무 스킬 성격입니다. 이 요건들을 어떤 프로젝트로 보여줄지 정리해드릴까요?",
+            "devops": "필수 요건 중에서는 기술 등급 고급 이상, 컨테이너 가상화 기술 보유, DevOps 실무 구축, CI/CD 설계 및 구축이 핵심 필수 조건입니다. 여기에 우대사항 쪽에서 구축형/관리형 K8s 운영 경험(OpenShift, NKS/EKS/AKS)과 K8s 생태계 오픈소스(ArgoCD, Helm, Prometheus 등) 적용 경험이 실질적으로 비중 있게 요구되고 있어, 필수 요건에 이 우대 항목들이 더해질수록 매칭도가 높아지는 구조입니다.",
+            "mobile-flutter": "이 공고에서 명시된 필수 요건은 '학력무관' 하나뿐입니다. 그 외에는 모두 우대 사항으로, IoT 앱 개발 경험자와 Swift·Kotlin 네이티브 경험자가 해당됩니다. 즉 필수 진입장벽은 낮고, 실질적인 비교 우위는 IoT/가전 도메인 경험과 네이티브(Swift/Kotlin) 역량에서 갈릴 것으로 보입니다.",
+            "security-sol": "필수 요건 중 핵심은 다음 세 가지입니다.\n- 경력: 보안 솔루션 구축/운영/기술지원 3~10년 경력\n- 기술 기반: 네트워크 프로토콜(TCP/IP, HTTP 등) 이해 + Linux 운영체제 및 시스템 운영 경험\n- 실무 역량: 시스템/보안 로그 분석을 통한 장애 원인 분석 및 해결 경험\n\n여기에 고객 Pain Point를 기술적으로 풀어내고 비즈니스 관점에서 커뮤니케이션하는 역량도 필수 항목으로 명시돼 있어, 기술 역량과 커뮤니케이션 역량이 함께 요구되는 자리입니다.",
+            "qa-engineer": "필수 요건 중에서는 '경력 8~13년'이 실질적인 기준선이고, 학력과 해외여행 결격사유는 통과 조건입니다.\n\n우대 사항 중 비중이 큰 항목은 이렇습니다.\n- 자동차 전장/인포테인먼트(AVN) 검증 경험\n- CAN, Ethernet 등 차량 네트워크 검증 경험\n- Android 기반 시스템 경험\n- Jira, TestRail 등 테스트 관리 도구 사용 경험\n\n필요하면 이 요건들을 어떤 순서로 준비할지, 어떤 프로젝트로 증명할지 짚어드릴 수 있습니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_requirement_sections": 2,
+            "no_company_name": 1
+          }
+        }
+      ]
+    }
+  ]
+}

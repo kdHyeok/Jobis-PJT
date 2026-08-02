@@ -111,6 +111,108 @@ class LocalPostingsRagAdapter:
         return RagResult(items=items, sources=sources)
 
 
+class HttpRagAdapter:
+    """실 RAG HTTP 서비스 어댑터(D89) — RAG 팀의 하이브리드 검색+리랭킹 서버를 부른다.
+
+    계약: `RAG/RAG_입출력_명세서.md` — 입력 직업명(str) 또는 profile(JSON),
+    출력 {"postings": [원본 공고 + score + match_reason]}. `evaluate=False` 로 CRAG
+    평가자(LLM 채점)를 끈다 — 이 저장소의 LLM 은 Claude CLI 하나뿐이라는 규약 유지.
+
+    실패는 삼키지 않는다(§2-6): 경고를 달고 LocalPostings(키워드 검색) 폴백으로 내려간다 —
+    서버가 죽어도 그래프는 계속 돌고, 왜 키워드 결과인지가 warnings 에 남는다.
+    """
+
+    # 실측(2026-07-31 16:38): 대안 검색의 첫 무거운 쿼리(격차 포함 장문)가 30초를 넘겨
+    # 클라이언트가 포기 → 키워드 폴백으로 강등됐는데, 서버는 결국 200을 냈다(로그 대조).
+    # warm 2.2초는 짧은 쿼리 기준 — 리랭커의 첫 장문 쿼리를 감안해 여유를 둔다.
+    _TIMEOUT_SEC = 90
+
+    def __init__(self, base_url: str) -> None:
+        self._base = (base_url or "").rstrip("/")
+
+    def fetch_company_context(self, company_name: str, requirements: list[dict]) -> RagResult:
+        # 기업 맥락(인재상·기술문화)은 공고 검색 서비스로 대답할 수 없다 — 정직하게 Null 동작.
+        return NullRagAdapter().fetch_company_context(company_name, requirements)
+
+    def search(self, query: str | dict, *, top_k: int = 5) -> RagResult:
+        import json as json_mod
+        import logging
+        import time as time_mod
+        import urllib.error
+        import urllib.request
+
+        body = json_mod.dumps({"input": query, "top_k": top_k, "evaluate": False},
+                              ensure_ascii=False).encode("utf-8")
+        request = urllib.request.Request(
+            f"{self._base}/search", body, {"Content-Type": "application/json"})
+        started = time_mod.perf_counter()
+        try:
+            with urllib.request.urlopen(request, timeout=self._TIMEOUT_SEC) as resp:
+                data = json_mod.load(resp)
+            elapsed = time_mod.perf_counter() - started
+            if elapsed > 10:
+                # 타임아웃 진단용 — 느린 검색이 얼마나 자주·얼마나 느린지 로그로 남긴다.
+                logging.getLogger(__name__).warning(
+                    "실 RAG 검색 지연 %.1f초 (query %d자)", elapsed, len(str(query)))
+        except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
+            fallback = LocalPostingsRagAdapter().search(
+                query if isinstance(query, str) else "", top_k=top_k)
+            fallback.warnings.insert(0, {
+                "code": "rag_http_failed",
+                "message": f"실 RAG 호출 실패({self._base}) — 키워드 검색으로 폴백: {exc}",
+            })
+            return fallback
+
+        postings = data.get("postings") or []
+        if not postings:
+            return RagResult(warnings=[{
+                "code": "rag_no_results",
+                "message": f"실 RAG 검색 0건: '{str(query)[:60]}'",
+            }])
+        # 노드 소비 계약은 LocalPostings 와 동일 — 같은 크롤 스키마의 다른 검색 엔진이다.
+        items = [{
+            "text": str(p.get("detail_text") or ""),
+            "title": str(p.get("title") or ""),
+            "companyName": str(p.get("company") or ""),
+            "jobPostingId": p.get("posting_id"),
+            "url": str(p.get("url") or ""),
+            "seniority": str(p.get("experience") or ""),
+            "score": float(p.get("score") or 0.0),
+            "matchReason": p.get("match_reason") or {},
+        } for p in postings]
+        sources = [{"title": i["title"], "url": i["url"], "company": i["companyName"]}
+                   for i in items]
+        return RagResult(items=items, sources=sources)
+
+
+def warm_search_async(query: str) -> "object | None":
+    """RAG 캐시 예열(D96) — **결과는 버린다.** 공고·이력서가 채워진 시점에 그 자산 기반
+    쿼리를 한 번 쏘아, 실제 검색 시점(대안 공고·추천)의 첫 쿼리 지연(D95 실측: 콜드 30초+)
+    을 미리 지불한다. DB 페이지 캐시는 "나중에 검색할 그 데이터 근처"를 만져야 데워지므로
+    사용자 자산 기반 쿼리가 정확히 유효하다.
+
+    HTTP provider 일 때만, 데몬 스레드로 비차단, 실패는 로그만 — 예열은 강화지 기능이
+    아니라서 턴을 1초도 늦추면 안 된다. 반환값(Thread)은 테스트 동기화용.
+    """
+
+    import logging
+    import threading
+
+    adapter = get_rag_adapter()
+    if not isinstance(adapter, HttpRagAdapter) or not (query or "").strip():
+        return None
+
+    def _run() -> None:
+        try:
+            adapter.search(query, top_k=3)
+        except Exception as exc:   # noqa: BLE001 — 예열 실패는 기능 실패가 아니다
+            logging.getLogger(__name__).info("RAG 예열 실패(무시): %s", exc)
+
+    thread = threading.Thread(target=_run, daemon=True, name="rag-warm")
+    thread.start()
+    return thread
+
+
 @lru_cache(maxsize=1)
 def get_rag_adapter() -> RagAdapter:
     """설정(RAG_PROVIDER)에 맞는 어댑터를 반환한다.
@@ -122,6 +224,8 @@ def get_rag_adapter() -> RagAdapter:
     """
 
     provider = get_settings().rag_provider
+    if provider == "http":
+        return HttpRagAdapter(get_settings().rag_search_url)
     if provider == "local_postings":
         return LocalPostingsRagAdapter()
     if provider in ("", "null", "none"):

@@ -1,0 +1,255 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-07-31T11:58:43",
+    "runs": 3
+  },
+  "totals": {
+    "deviations": 0,
+    "llm": {
+      "callsMeanPerScenario": 4.63,
+      "inputTokensMeanPerScenario": null,
+      "outputTokensMeanPerScenario": null
+    }
+  },
+  "cases": [
+    {
+      "name": "S1 일상 위로",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "career_chat"
+        },
+        {
+          "ok": true,
+          "trajectory": "career_chat"
+        },
+        {
+          "ok": true,
+          "trajectory": "career_chat"
+        }
+      ],
+      "llm": {
+        "callsMean": 2.0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 6
+      }
+    },
+    {
+      "name": "S2 무관 거절",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "career_chat"
+        },
+        {
+          "ok": true,
+          "trajectory": "career_chat"
+        },
+        {
+          "ok": true,
+          "trajectory": "career_chat"
+        }
+      ],
+      "llm": {
+        "callsMean": 2.0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 6
+      }
+    },
+    {
+      "name": "S3 공고 제출→정리",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "posting_analysis"
+        },
+        {
+          "ok": true,
+          "trajectory": "posting_analysis"
+        },
+        {
+          "ok": true,
+          "trajectory": "posting_analysis"
+        }
+      ],
+      "llm": {
+        "callsMean": 3.0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 9
+      }
+    },
+    {
+      "name": "S4 이력서 제출→정리",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis"
+        },
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis"
+        },
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis"
+        }
+      ],
+      "llm": {
+        "callsMean": 3.0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 9
+      }
+    },
+    {
+      "name": "S5 갭분석 동의게이트",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "(없음)"
+        },
+        {
+          "ok": true,
+          "trajectory": "(없음)"
+        },
+        {
+          "ok": true,
+          "trajectory": "(없음)"
+        }
+      ],
+      "llm": {
+        "callsMean": 1.0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 3
+      }
+    },
+    {
+      "name": "S6 슬롯 오배정 교정",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis"
+        },
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis"
+        },
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis"
+        }
+      ],
+      "llm": {
+        "callsMean": 3.0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 9
+      }
+    },
+    {
+      "name": "S7 공고 추천(실데이터)",
+      "turns": 1,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "job_recommend"
+        },
+        {
+          "ok": true,
+          "trajectory": "resume_diagnosis>job_recommend"
+        },
+        {
+          "ok": true,
+          "trajectory": "job_recommend"
+        }
+      ],
+      "llm": {
+        "callsMean": 2.67,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 8
+      }
+    },
+    {
+      "name": "S8 되묻기→접수→적합도 완수",
+      "turns": 2,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "posting_analysis || resume_diagnosis>fit_analysis"
+        },
+        {
+          "ok": true,
+          "trajectory": "posting_analysis || resume_diagnosis>fit_analysis"
+        },
+        {
+          "ok": true,
+          "trajectory": "posting_analysis || resume_diagnosis>fit_analysis"
+        }
+      ],
+      "llm": {
+        "callsMean": 10.67,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 32
+      }
+    },
+    {
+      "name": "S9 동의→갭분석 실행",
+      "turns": 2,
+      "consistentOk": 3,
+      "runs": 3,
+      "outcomes": [
+        {
+          "ok": true,
+          "trajectory": "(없음) || fit_analysis>coverletter_draft"
+        },
+        {
+          "ok": true,
+          "trajectory": "(없음) || fit_analysis>coverletter_draft"
+        },
+        {
+          "ok": true,
+          "trajectory": "(없음) || fit_analysis>coverletter_draft"
+        }
+      ],
+      "llm": {
+        "callsMean": 14.33,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 43
+      }
+    }
+  ]
+}

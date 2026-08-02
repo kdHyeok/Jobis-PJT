@@ -1,0 +1,27 @@
+{
+  "name": "jobiss-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "typecheck": "vue-tsc -b",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.27.0",
+    "pretendard": "^1.3.9",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@tsconfig/node22": "^22.0.0",
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "@vue/tsconfig": "^0.7.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0",
+    "vue-tsc": "^3.0.0"
+  }
+}

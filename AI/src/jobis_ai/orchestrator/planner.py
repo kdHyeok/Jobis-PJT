@@ -84,6 +84,22 @@ class AgentPlan(BaseModel):
         "→ [\"coverletter_draft\"] (사용자는 자소서만 청했다). "
         "\"분석하고 면접 질문도\" 라면 → 둘 다. 직전 턴에 시스템이 \"진행할까요?\" 로 물은 것에 "
         "사용자가 동의했다면 그 항목도 청한 것이다."))
+    blockedRequests: list[AgentName] = Field(default_factory=list, description=(
+        "사용자가 이번 발화에서 **직접 청했지만** [세션 자산 상태]의 '실행 불가'에 있어 agents 에 "
+        "넣지 못한 에이전트. 대신 지금 할 수 있는 일을 골랐어도 청한 이름은 여기 적는다 — "
+        "시스템이 부족한 자료를 요청해 두고, 자료가 오면 이 요청을 이어서 완수한다. "
+        "실행 가능해서 agents 에 넣은 것은 적지 않는다. 청한 것이 없으면 빈 배열."))
+    # **로스터 밖 요청을 담는 유일한 칸.** `blockedRequests` 는 `list[AgentName]` 이라
+    # Literal 이 막아서 **등록된 에이전트로 표현되는 요청만** 신고할 수 있다. 그래서 "연봉
+    # 협상 어떻게 해요"·"포트폴리오 봐주세요" 처럼 로스터 어디에도 없는 요청은 career_chat 이
+    # 즉흥으로 받고 턴이 끝나며, 시스템에 **흔적이 0** 이었다 — 출시 뒤 무엇이 오는지 아는
+    # 유일한 방법이 사용자가 실제로 청한 것을 세는 것인데 셀 자리가 없었다.
+    # 라우팅은 바꾸지 않는다(이 칸이 채워져도 계획은 그대로 돈다). **세기만 한다.**
+    unsupportedRequest: str = Field(default="", description=(
+        "사용자가 청했지만 위 에이전트 목록 **어느 것으로도 할 수 없는** 일이면 그 요청을 "
+        "발화에서 그대로 옮겨 한 줄로 적는다(예: 연봉 협상 조언, 포트폴리오 사이트 리뷰, "
+        "회사 평판). 목록의 에이전트로 처리되는 요청이면 빈 문자열 — 자료가 없어서 지금 "
+        "못 하는 것은 여기가 아니라 blockedRequests 다. 추측·일반화 없이 원문 그대로."))
     ack: str = Field(default="", description=(
         "요청을 어떻게 이해했고 무엇을 하려는지 사용자에게 보여줄 자연스러운 한 문장. "
         "적합도·합격 가능성 등 판단·예측·조언은 절대 넣지 않는다(금지표현 검증에서 버려진다)."))
@@ -120,6 +136,8 @@ _PLANNER_SYSTEM_TEMPLATE = """너는 취업 지원 서비스의 오케스트레�
   4. **특정 기능을 요청**했다 → 그 기능의 에이전트.
      전제가 부족하면 **가진 자산으로 지금 할 수 있는 일**을 대신 고른다 — 부족한 자료는 그
      에이전트가 결과를 들고 대화로 청한다. 대화로 넘기지 않는다.
+     이때 **청한 기능이 실행 불가라 대신 골랐으면, 청한 에이전트 이름을 blockedRequests 에
+     적는다** — 시스템이 자료가 오는 턴에 그 요청을 이어서 완수한다.
 
   5. **요청이 없다**(인사·감사·하소연·잡담) → career_chat.
      자료가 있다는 이유로 사용자가 요청하지 않은 작업을 시작하지 않는다.
@@ -188,6 +206,20 @@ def _asset_state(session: dict[str, Any]) -> str:
         parts.append(f"수집된 공고 선호: {', '.join(known[:5])} (선호 수집 대화 진행 중)")
     else:
         parts.append("수집된 공고 선호: 없음")
+    library = session.get("posting_library") or []
+    if library:
+        # 정리된 공고들(D86) — fit_analysis 의 targets 인자에 적을 수 있는 회사명(D88).
+        names = [str(p.get("companyName") or p.get("jobTitle") or "").strip() for p in library]
+        active = str((session.get("posting_summary") or {}).get("companyName") or "").strip()
+        line = f"정리된 공고 목록: {', '.join(n for n in names if n)}"
+        if active:
+            line += f" (활성 공고: {active})"
+        parts.append(line)
+    facts = [str(f) for f in (session.get("user_facts") or []) if str(f).strip()]
+    if facts:
+        # 발화에서 누적된 지속 사실(D82) — 지시어·후속 발화 해석의 그라운딩. 동적 블록이므로
+        # 시스템 프롬프트(정적·캐싱)는 불변이다.
+        parts.append(f"사용자 메모(이전 대화에서 확인된 사실): {'; '.join(facts[:8])}")
 
     # 실행 가능/불가를 여기(동적 블록)에 싣는다 — 시스템 프롬프트는 정적으로 유지(캐싱).
     # 가능한 이름을 명시 나열하는 이유: 상태 서술만으로는 모델이 못 할 일을 고르는 사례가
@@ -246,6 +278,8 @@ def plan_agents(message: str, session: dict[str, Any]) -> tuple[AgentPlan | None
         f"[최근 대화]\n{_history_block(session)}\n\n"
         f"[세션 자산 상태]\n{_asset_state(session)}\n\n[사용자 발화]\n{message}"
     )
-    # 에이전트 선택은 고급 모델 유지 — 경량(gpt-5-nano) 실측에서 정확도 100%→48.8%로
-    # 붕괴(과잉 선택·오되묻기). 스키마 제한·검증기로도 못 막는 판단 품질 차이다 (0724 실측).
-    return run_structured(AgentPlan, system, user_content, node="agent_planner")
+    # 에이전트 선택은 **라우팅 티어**(가장 강한 모델) — 경량(gpt-5-nano) 실측에서 정확도
+    # 100%→48.8%로 붕괴(과잉 선택·오되묻기). 스키마 제한·검증기로도 못 막는 판단 품질
+    # 차이다(0724 실측). 라우팅 오판은 턴 전체를 엉뚱한 일에 쓰게 하므로 이 한 콜에는
+    # 최상급 모델을 쓴다(D74 — claude_code 는 CLAUDE_CODE_MODEL_ROUTER, 미지정 시 default).
+    return run_structured(AgentPlan, system, user_content, node="agent_planner", tier="router")

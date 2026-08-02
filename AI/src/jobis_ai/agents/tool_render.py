@@ -74,6 +74,10 @@ def render_job_recommend(data: dict[str, Any], session: dict[str, Any]) -> tuple
                 "이력서를 아직 못 받아 보유 역량과의 일치는 계산하지 않았어요.")
         if dropped:
             head += f" 연차가 맞지 않는 공고 {dropped}건은 제외했어요."
+        if data.get("ragFallback"):
+            # 폴백은 이유를 삼키지 않는다(§2-6·D90) — 어떤 검색으로 찾았는지 사용자에게 명시.
+            head += (" (실시간 검색 서버(RAG)가 연결되지 않아, 저장된 공고 데이터에서 "
+                     "키워드 검색으로 찾은 결과예요.)")
         tail = ("\n\n관심 있는 공고의 URL 을 붙여넣으시면 그 공고로 상세 적합도 분석을 이어서 해드릴게요."
                 if profile_known else
                 "\n\n관심 있는 공고의 URL 과 이력서를 주시면 그 공고로 상세 적합도 분석까지 해드릴게요.")
@@ -118,7 +122,7 @@ def render_roadmap_manager(data: dict[str, Any], session: dict[str, Any]) -> tup
 
 
 # --- fit_analysis — 판정(도구)의 표현 ---------------------------------------------
-def _alternatives_block(alternative_jobs: list) -> str:
+def _alternatives_block(alternative_jobs: list, rag_fallback: bool = False) -> str:
     """대안 공고를 답변에 붙일 블록으로. 없으면 빈 문자열(없는 걸 있다고 말하지 않는다).
 
     LLM 을 쓰지 않는다 — 판정 엔진이 낸 값을 표기만 바꿔 옮긴다.
@@ -137,7 +141,9 @@ def _alternatives_block(alternative_jobs: list) -> str:
         reduced = job.get("reducedGaps") or []
         why = f" (부족했던 {len(reduced)}개 요건을 요구하지 않음)" if reduced else ""
         lines.append(f"· [{kind}] **{head}**{why}{link}")
-    return ("\n\n지금 격차를 감안한 대안도 찾아봤어요.\n" + "\n".join(lines)
+    note = (" (실시간 검색 서버(RAG)가 연결되지 않아, 저장된 공고 데이터에서 키워드 검색으로 "
+            "찾은 결과예요.)" if rag_fallback else "")
+    return (f"\n\n지금 격차를 감안한 대안도 찾아봤어요.{note}\n" + "\n".join(lines)
             + "\n(URL 이 있는 공고는 그대로 붙여넣으시면 그 공고로 분석해 드려요.)")
 
 
@@ -158,6 +164,34 @@ def _next_steps(facts: dict) -> tuple[str, list[dict]]:
 
 def render_fit_analysis(data: dict[str, Any], session: dict[str, Any]) -> tuple[str, list[dict]]:
     """적합도 판정 결과 → 문장. **판정은 한 줄도 하지 않는다** — 낸 값을 옮겨 적을 뿐이다."""
+
+    # 대상별 반복 판정 — 공고 축(D88) 또는 이력서 축(D119). 축만 다르고 조립은 같다.
+    if data.get("multiFit") is not None:
+        axis_resume = data.get("multiFitAxis") == "resume"
+        noun = "이력서" if axis_resume else "공고"
+        blocks: list[str] = []
+        for item in data.get("multiFit") or []:
+            grade = item.get("fitGrade") or "판정불가"
+            score = item.get("overallScore")
+            head = (f"**{item.get('label') or item.get('company')}** — 적합도 등급 {grade}"
+                    + (f" (가중 점수 {score})" if score is not None else ""))
+            summary = str(item.get("summary") or "").strip()
+            gaps = [str((g or {}).get("reason") or "").strip()
+                    for g in (item.get("gaps") or [])][:3]
+            block = head + (f"\n{summary}" if summary else "")
+            gaps = [g for g in gaps if g]
+            if gaps:
+                block += "\n주요 격차: " + " / ".join(gaps)
+            blocks.append(block)
+        if not blocks:
+            blocks.append(f"지목하신 {noun}들을 판정하지 못했어요.")
+        reply = "\n\n".join(blocks)
+        unmatched = [str(u) for u in (data.get("unmatchedTargets") or []) if str(u).strip()]
+        if unmatched:
+            reply += (f"\n\n({', '.join(unmatched)} {noun}는 기록이 없어요 — "
+                      + ("다시 보내주시면 판정에 포함할게요.)" if axis_resume
+                         else "링크나 본문을 다시 보내주시면 판정에 포함할게요.)"))
+        return reply, []
 
     if data.get("status") == "need_more_info":
         # 무엇이 부족한지 **그 자리에서** 말한다. "아래 질문에 답해 주세요"라고만 하고 질문을
@@ -183,7 +217,9 @@ def render_fit_analysis(data: dict[str, Any], session: dict[str, Any]) -> tuple[
 
     # 중·하 등급이면 판정 엔진이 대안 공고까지 찾아 둔다(route_after_roadmap). 그 결과가
     # 답변에 실리지 않아 사용자는 존재를 몰랐다 — 계산만 하고 버리던 것을 보여준다.
-    reply += _alternatives_block(data.get("alternativeJobs") or [])
+    rag_fallback = any((w or {}).get("code") == "rag_http_failed"
+                       for w in (data.get("warnings") or []))
+    reply += _alternatives_block(data.get("alternativeJobs") or [], rag_fallback)
 
     # 판정을 건넨 뒤 다음 행동(로드맵·자소서·면접·대안 공고)을 제안한다 — 결과에 따라
     # 무엇을 할 수 있는지 사용자가 골라 이어가게 한다.
@@ -291,11 +327,14 @@ def _fmt_reqs(reqs: list[dict]) -> str:
     return " / ".join(str(r.get("text", "")).strip() for r in reqs if r.get("text"))
 
 
-def _posting_summary(posting: dict, closing: str) -> str:
+def posting_summary_block(posting: dict, closing: str) -> str:
     """파싱 결과를 **줄로 나눠** 요약 — 순수 조립, LLM 없음.
 
     한 덩어리 문단이 아니라 항목별 줄로 내고, 목록은 끝까지 나열한다. 라벨은 **굵게**
     마크업한다(UI 가 강조 렌더링). 같은 항목이 우측 패널(JOB_CONTEXT/context)에도 표로 간다.
+
+    **공개다** — `posting_analysis` 가 대화형으로 승격된 뒤(D97) 이 표를 직접 쓴다. 요약 표는
+    파싱 결과의 결정론 조립이므로 루프의 LLM 이 다시 쓸 것이 아니다(§2-5 근거는 도구가 준다).
     """
 
     title = posting.get("jobTitle") or ""
@@ -326,12 +365,117 @@ def _posting_summary(posting: dict, closing: str) -> str:
 
 
 
+# 이미 보여준 공고에 대한 조회 질문의 선별 답변 — 전체 목록 재낭독 금지(D81).
+_POSTING_RECALL_SYSTEM = """너는 이미 정리해 둔 공고 사실에서 사용자가 물은 것만 골라 답한다.
+- posting(활성 공고)과 postingLibrary(이 대화에서 정리했던 다른 공고들)에 있는 항목만 쓴다 —
+  없는 요건·기술·수치를 만들지 않는다. 물은 회사가 postingLibrary 에 있으면 그 사실로 답하고,
+  어디에도 없으면 없다고 말하되 링크를 다시 보내주면 정리하겠다고 안내한다.
+- 여러 공고를 함께 물으면 회사별로 나눠 답한다.
+- 전체 목록을 다시 낭독하지 않는다 — 물은 것에 해당하는 항목만 짧게(필요하면 번호 목록) 답한다.
+- 적합/합격 가능성 판정은 하지 않는다. 사용자에게 그대로 보여줄 답변 본문만 출력한다."""
+
+
+def posting_facts(posting: dict) -> dict:
+    """파싱된 공고 → 루프·표현이 함께 쓰는 평평한 사실 dict. **공개**(D97: 대화 루프의 근거)."""
+
+    return {
+        "companyName": posting.get("companyName"),
+        "jobTitle": posting.get("jobTitle"),
+        "seniority": posting.get("seniority"),
+        # 연차는 사다리 칸이 아니라 **공고가 한 말**로 말해야 한다 — "리드"는 공고에 없는
+        # 단어다. 숫자·근거를 함께 주지 않으면 루프가 칸 이름을 그대로 옮겨 적는다.
+        "minYears": posting.get("minYears"),
+        "maxYears": posting.get("maxYears"),
+        "yearsEvidence": posting.get("yearsEvidence") or "",
+        "requiredRequirements": [str(r.get("text") or "") for r in
+                                 (posting.get("requiredRequirements") or [])],
+        "preferredRequirements": [str(r.get("text") or "") for r in
+                                  (posting.get("preferredRequirements") or [])],
+        "techStack": posting.get("techStack") or [],
+        "domainKeywords": posting.get("domainKeywords") or [],
+    }
+
+
+def _entry_labels(items: list, *keys: str) -> list[str]:
+    out = []
+    for item in items or []:
+        text = " ".join(str((item or {}).get(k) or "").strip() for k in keys).strip()
+        if text:
+            out.append(text)
+    return out
+
+
+def resume_facts(profile: dict) -> dict:
+    """정규화 프로필 → 루프·표현이 함께 쓰는 평평한 사실 dict. `posting_facts` 의 짝(D119).
+
+    이력서가 여럿일 때 **다른 이력서를 근거로 말하려면** 활성 이력서와 같은 모양의 사실이
+    필요하다. 라벨은 호출부가 얹는다(프로필 자체에는 이름 칸이 없다).
+    """
+
+    return {
+        "skills": [s.get("name", "") for s in (profile.get("skills") or []) if s.get("name")],
+        "projects": _entry_labels(profile.get("projects"), "title"),
+        "experiences": _entry_labels(profile.get("experiences"), "company", "role"),
+        "education": _entry_labels(profile.get("education"), "school", "major"),
+        "certifications": _entry_labels(profile.get("certifications"), "name"),
+        "languages": _entry_labels(profile.get("languages"), "name", "testName", "score"),
+    }
+
+
+def library_resume_facts(entry: dict) -> dict:
+    """라이브러리 항목(프로필 + 밑줄 표식) → 라벨이 붙은 사실. 밑줄 키는 화면·프롬프트로
+    나가지 않는다는 규약을 지키면서, 사람이 부를 이름만 평범한 칸으로 꺼낸다."""
+
+    return {"label": str(entry.get("_label") or ""),
+            "origin": str(entry.get("_origin") or ""),
+            **resume_facts({k: v for k, v in entry.items() if not k.startswith("_")})}
+
+
+def _posting_recall_answer(posting: dict, session: dict) -> tuple[str, list[dict]]:
+    """조회 질문 → 저장된 공고 사실에서 물은 것만 골라 답한다. 실패·빈 답이면 ("" , warnings)
+    — 호출부가 전체 목록으로 폴백한다(폴백은 이유를 warnings 로 남긴다).
+
+    활성 공고만이 아니라 **공고 라이브러리(D86)도 함께 싣는다** — 실측(2026-07-31 14:55):
+    두 공고를 함께 묻자 라이브러리에 있는 이전 공고를 "정보 없음"으로 답했다. 지식은
+    보드에 있었는데 이 조회 경로만 못 보고 있었다.
+    """
+
+    question = str(session.get("last_message") or "").strip()
+    if not question or question == "방금 드린 자료로 이어서 진행해 주세요.":
+        return "", []
+    payload = {
+        "userMessage": question,
+        "posting": posting_facts(posting),
+        "postingLibrary": [posting_facts(p)
+                           for p in (session.get("posting_library") or [])],
+    }
+    text, warnings = run_streaming_text(
+        _POSTING_RECALL_SYSTEM, json.dumps(payload, ensure_ascii=False), node="posting_recall")
+    text = (text or "").strip()
+    if not text or any(expr in text for expr in FORBIDDEN_EXPRESSIONS):
+        return "", warnings
+    from jobis_ai import trace
+
+    trace.emit("recall", "저장된 공고 정리에서 물은 항목만 조회", {"question": question[:80]})
+    return text, warnings
+
+
 def render_posting_analysis(data: dict[str, Any], session: dict[str, Any]) -> tuple[str, list[dict]]:
-    """공고 정리 결과 → 문장. 요약 줄은 결정론 조립, 마무리 문장은 LLM(검증·폴백 포함)."""
+    """공고 정리 결과 → 문장. 요약 줄은 결정론 조립, 마무리 문장은 LLM(검증·폴백 포함).
+
+    **이미 보여준 공고**(fromCache)의 조회 질문에는 전체 목록을 재낭독하지 않고 물은
+    항목만 골라 답한다(D81) — 도구는 데이터만 내고, 무엇을 말할지는 표현 계층이 질문에
+    맞춰 고른다. 선별 답변이 실패하면 기존 전체 목록으로 폴백한다.
+    """
 
     posting = data.get("postingAnalysis") or {}
     if not data.get("readable"):
         return "공고를 읽어내지 못했어요. 공고 텍스트나 URL을 다시 확인해 주시겠어요?", []
+
+    if data.get("fromCache"):
+        recall, recall_warnings = _posting_recall_answer(posting, session)
+        if recall:
+            return recall, recall_warnings
 
     from jobis_ai.orchestrator.session import recent_history
 
@@ -347,7 +491,13 @@ def render_posting_analysis(data: dict[str, Any], session: dict[str, Any]) -> tu
         },
         "hasResume": bool(session.get("resume") or session.get("profile")),
     })
-    return _posting_summary(posting, closing), warnings
+    reply = posting_summary_block(posting, closing)
+    # 같은 턴에 함께 받은 추가 공고들(D94) — 하나만 정리하고 나머지를 삼키지 않는다.
+    extras = list(data.get("extraPostings") or [])
+    if extras:
+        blocks = [posting_summary_block(extra, "").rstrip() for extra in extras]
+        reply = "\n\n".join([posting_summary_block(posting, "").rstrip(), *blocks, closing])
+    return reply, warnings
 
 
 # --- resume_diagnosis — 이력서 정리(도구)의 표현 -----------------------------------
@@ -420,7 +570,14 @@ def render_resume_diagnosis(data: dict[str, Any], session: dict[str, Any]) -> tu
     })
 
     unverified = list(data.get("unverifiedSkills") or [])
-    lines = ["이력서를 정리했어요."]
+    # 어느 이력서를 봤는지 밝힌다(D119) — 원천마다 담긴 내용의 두께가 달라서, 밝히지 않으면
+    # 같은 질문에 다른 답이 나온 이유가 화면에서 사라진다.
+    label = str(data.get("resumeLabel") or "").strip()
+    others = len(data.get("otherResumes") or [])
+    head = f"이력서를 정리했어요{f' ({label} 기준)' if label else ''}."
+    if others:
+        head += f" 이 대화에 다른 이력서 {others}건이 더 있어요 — 지목하시면 그것으로 바꿔 볼게요."
+    lines = [head]
 
     skills = list(summary.get("skills") or [])
     if skills:
@@ -466,5 +623,10 @@ def render_posting_fetch(data: dict, session: dict) -> tuple[str, list[dict]]:
 
     if data.get("fetched"):
         return "", []
+    if data.get("notPosting"):
+        # 열리긴 했다 — "못 읽었다"고 말하면 사용자는 재시도를 시도하고 같은 결과를 받는다.
+        return ("링크는 열렸는데 채용 공고 페이지로 보이지 않았어요. "
+                "공고 상세 페이지 주소를 다시 주시거나, 공고 본문(자격요건·우대사항)을 "
+                "복사해 붙여넣어 주시면 이어서 진행할게요.", [])
     return ("공고 링크를 열어봤지만 내용을 읽어오지 못했어요. "
             "공고 본문(자격요건·우대사항) 내용을 복사해 붙여넣어 주시면 이어서 진행할게요.", [])

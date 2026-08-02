@@ -1,5 +1,5 @@
-build/
-.gradle/
-*.jar
-!gradle/wrapper/gradle-wrapper.jar
-.env
+.gradle
+build
+out
+.idea
+*.log

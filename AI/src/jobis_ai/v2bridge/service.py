@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -211,6 +212,51 @@ def _application_plan(session_id: str, analysis: dict) -> dict:
 # ---------------------------------------------------------------------------
 # 대화 (/v1/chat)
 # ---------------------------------------------------------------------------
+# 붙여넣은 자료 **뒤에 붙은 요청 문장**의 표지. 개조식이 대부분인 공고·이력서 본문과 갈리는
+# 신호만 쓴다(물음표로 끝나거나 대화체 요청 어미). 애매하면 잡지 않는다 — 잘못 잡으면 자료
+# 본문 한 줄이 발화로 새어 나간다.
+_REQUEST_TAIL = re.compile(
+    r"[?？]\s*$"
+    r"|(?:해\s*줘|해\s*주세요|알려\s*줘|알려\s*주세요|부탁\s*(?:해|드려|합니다|드립니다)"
+    r"|좋을까요|어떨까요|가능할까요|괜찮을까요|추천\s*해\s*주|정리\s*해\s*주)\s*[.!]?\s*$"
+)
+
+# 요청 문장으로 인정하는 한 줄의 길이 상한 / 줄 수 상한.
+_REQUEST_TAIL_MAX_CHARS = 200
+_REQUEST_TAIL_MAX_LINES = 2
+
+
+def _trailing_request(text: str) -> str:
+    """붙여넣은 자료 뒤에 붙은 요청 문장을 떼어 돌려준다. 없으면 빈 문자열.
+
+    자료를 통째로 첨부하면 이 문장이 **첨부 속으로 삼켜지고 발화는 비워진다.** 그러면
+    `handle_chat` 이 중립 발화("방금 드린 자료로 이어서…")를 합성하므로 플래너도, 에이전트의
+    루프도 **사용자가 무엇을 물었는지 모른다** — 실측(2026-08-01): 공고 원문 끝에 "이 공고
+    기준으로 어떤 스택을 공부하고 어떤 프로젝트를 만들면 좋을까요?" 를 붙여 보냈는데 요약만
+    돌아왔다. D69 가 URL 혼합 메시지에 한 보존을 붙여넣기 경로에도 한다.
+
+    **첨부에서 이 문장을 지우지는 않는다.** 자르다 자료 본문을 잃는 것이 요청 한 줄이 원문에
+    남는 것보다 나쁘다 — 파서는 필드를 뽑을 뿐이라 꼬리 한 줄에 해를 입지 않는다.
+    """
+
+    from jobis_ai.webbridge.http_handlers import _POSTING_MARKERS
+
+    tail: list[str] = []
+    for line in reversed([ln.strip() for ln in (text or "").splitlines()]):
+        if not line:
+            if tail:
+                break          # 빈 줄 = 자료 본문과의 경계
+            continue
+        if (len(line) > _REQUEST_TAIL_MAX_CHARS
+                or not _REQUEST_TAIL.search(line)
+                or _POSTING_MARKERS.search(line)):   # 자료 본문 줄이다
+            break
+        tail.insert(0, line)
+        if len(tail) >= _REQUEST_TAIL_MAX_LINES:
+            break
+    return " ".join(tail)
+
+
 def promote_pasted_posting(utterance: str):
     """대화창에 공고·이력서 원문을 그대로 붙여넣은 턴 → (발화, 첨부) 로 승격.
 
@@ -223,14 +269,30 @@ def promote_pasted_posting(utterance: str):
     하지만 "공고가 아니라 이력서로 보여서…"라는 해명 문장이 사용자에게 나간다
     (2026-07-30 실측 — 어색하다는 피드백). 같은 분류기를 여기서 먼저 태워 힌트를 맞춘다.
     URL 은 내용 판정이 성립하지 않으므로 공고로 고정한다(D62).
+
+    공고 표지어에 안 걸린 긴 붙여넣기도 결정론 분류(detect_kind)가 확신하면 승격한다 —
+    표지어 없는 이력서가 일반 대화로 흘러 career_chat 이 이력서 원문 위에서 즉흥
+    조언·판정을 만든 실측(2026-07-31)의 수정. 애매하면 기존대로 대화로 둔다(보수 유지).
     """
 
     from jobis_ai.contracts.api import ChatAttachment, SourceType
-    from jobis_ai.orchestrator.attachment_kind import resolve_kind
-    from jobis_ai.webbridge.http_handlers import _posting_in_message
+    from jobis_ai.orchestrator.attachment_kind import detect_kind, resolve_kind
+    from jobis_ai.webbridge.http_handlers import _POSTING_MIN_CHARS, _posting_in_message
 
     pasted = _posting_in_message(utterance)
     if not pasted:
+        text = (utterance or "").strip()
+        # URL 이 섞인 혼합 메시지(URL + 이력서 + 요청 문장)는 여기서 승격하지 않는다 —
+        # 통째로 첨부하면 URL(공고)과 요청 문장이 첨부 속으로 삼켜진다(실측 2026-07-31).
+        # 엔진이 URL(detect_posting_url)과 이력서(detect_pasted_resume)를 각각 발화에서
+        # 결정론으로 승격하고 요청 문장은 플래너 입력으로 남긴다.
+        if "http://" in text or "https://" in text:
+            return utterance, []
+        kind = detect_kind(text) if len(text) >= _POSTING_MIN_CHARS else None
+        if kind in ("resume", "job_posting"):
+            # 꼬리 요청 문장은 발화로 남긴다 — 비우면 사용자가 무엇을 물었는지 사라진다.
+            return (_trailing_request(text),
+                    [ChatAttachment(kind=kind, sourceType=SourceType.text, value=text)])
         return utterance, []
     if pasted.startswith(("http://", "https://")):
         kind, source = "job_posting", SourceType.url
@@ -240,12 +302,27 @@ def promote_pasted_posting(utterance: str):
             kind = "job_posting"
         source = SourceType.text
     attachment = ChatAttachment(kind=kind, sourceType=source, value=pasted)
-    # 발화는 비운다 — 첨부만 온 턴의 중립 발화는 handle_chat 이 합성하고 플래너가 정한다
-    # (webbridge 와 동일. 여기서 "분석해 줘"를 지어 넣으면 흐름 하드코딩이다).
-    return "", [attachment]
+    # 자료 뒤에 붙은 **요청 문장만** 발화로 남긴다. 요청이 없으면 비운다 — 중립 발화는
+    # handle_chat 이 합성하고 플래너가 정한다(webbridge 와 동일. 여기서 "분석해 줘"를
+    # 지어 넣으면 흐름 하드코딩이다).
+    return _trailing_request(pasted), [attachment]
 
 
-def chat(request: ChatRequest) -> ChatResponse:
+def chat_events(request: ChatRequest):
+    """대화 한 턴을 **진행 이벤트 스트림**으로 처리한다(D75) — /v1/chat/stream 의 본체.
+
+    yield 하는 항목:
+      {"type": "progress", step, label, detail, elapsedMs}  — 실행 중 단계(실시간)
+      {"type": "result", "response": ChatResponse}          — 마지막 한 건
+
+    단건 계약(chat)은 이 제너레이터를 소진해 result 만 돌려준다 — 두 경로의 처리·검증이
+    갈리지 않는다.
+    """
+
+    import queue as queue_mod
+    import threading
+
+    from jobis_ai import trace
     from jobis_ai.contracts.api import ChatRequest as EngineChatRequest
     from jobis_ai.orchestrator.chat import handle_chat
     from jobis_ai.orchestrator.session import get_session_store
@@ -260,11 +337,45 @@ def chat(request: ChatRequest) -> ChatResponse:
     summary_text = _career_summary_text(request)
     if summary_text:
         # 백엔드가 매 요청 실어 보내는 확정 커리어 요약 — 이력 원천으로 갱신해 둔다(무상태 계약).
-        get_session_store().update(
-            session_id, {"resume": {"sourceType": "text", "value": summary_text}})
+        # 단, 사용자가 대화에 붙여넣은 이력서 **원문**이 이미 있으면 덮지 않는다(M7) —
+        # 요약은 원문보다 얇아서, 매 턴 덮으면 방금 준 이력서가 조용히 사라진다.
+        # 원천 우선순위: 붙여넣은 원문 > 확정 요약. 요약끼리는 최신으로 갱신한다(origin 표식).
+        store = get_session_store()
+        existing = store.get(session_id).get("resume") or {}
+        if not existing or existing.get("origin") == "career_summary":
+            store.update(session_id, {"resume": {
+                "sourceType": "text", "value": summary_text, "origin": "career_summary"}})
 
-    response = handle_chat(EngineChatRequest(
-        sessionId=session_id, message=utterance, attachments=attachments))
+    # 엔진을 워커 스레드에서 돌리고 trace 이벤트를 큐로 중계한다 — 이벤트가 생기는 즉시
+    # yield 되어야 스트리밍이다(턴이 끝나고 몰아 보내면 타임라인과 다를 게 없다).
+    relay: "queue_mod.Queue[tuple]" = queue_mod.Queue()
+
+    def _run() -> None:
+        try:
+            with trace.recording(sink=lambda ev: relay.put(("event", ev))):
+                engine_response = handle_chat(EngineChatRequest(
+                    sessionId=session_id, message=utterance, attachments=attachments))
+            relay.put(("done", engine_response))
+        except Exception as exc:   # noqa: BLE001 — 소비 루프가 그대로 다시 올린다
+            relay.put(("error", exc))
+
+    threading.Thread(target=_run, daemon=True).start()
+
+    mapper = mapping.ProgressMapper()
+    steps: list[dict] = []
+    response = None
+    while response is None:
+        kind, payload = relay.get()
+        if kind == "event":
+            step = mapper.map(payload)
+            if step:
+                steps.append(step)
+                yield {"type": "progress", **step}
+        elif kind == "error":
+            raise payload
+        else:
+            response = payload
+
     if llm_unconfigured(list(response.warnings or [])):
         raise EngineNotConfigured("LLM 이 설정되지 않아 대화할 수 없어요")
     reply = (response.reply or "").strip()
@@ -273,12 +384,35 @@ def chat(request: ChatRequest) -> ChatResponse:
 
     follow_ups = list(response.followUpQuestions or [])
     should_request_posting, actions = mapping.chat_actions(follow_ups)
-    return ChatResponse(
+    from jobis_ai.v2bridge.models import ProgressStep, ReplySource
+
+    # 사후 타임라인에는 "실행 중…"(start:*) 단계를 싣지 않는다 — progress_steps 와 동일 규약.
+    final_steps = [s for s in steps if not str(s["step"]).startswith("start:")][:60]
+    yield {"type": "result", "response": ChatResponse(
+        progress=[ProgressStep(**s) for s in final_steps],
         message=reply[:4000],
         intent=mapping.chat_intent(list(response.dispatched or [])),
         should_request_posting=should_request_posting,
         suggested_actions=actions,
-    )
+        reply_sources=[
+            ReplySource(agent=str(s.get("agent") or "")[:80],
+                        channel=str(s.get("channel") or "")[:40],
+                        text=str(s.get("text") or "")[:4000])
+            for s in (response.replySources or [])
+        ][:20],
+    )}
+
+
+def chat(request: ChatRequest) -> ChatResponse:
+    """단건 계약(/v1/chat) — 스트림을 소진하고 최종 응답만 돌려준다."""
+
+    response: ChatResponse | None = None
+    for item in chat_events(request):
+        if item.get("type") == "result":
+            response = item["response"]
+    if response is None:
+        raise EngineFailed("엔진이 결과 없이 종료했어요 — 재시도해 주세요")
+    return response
 
 
 def _career_summary_text(request: ChatRequest) -> str:

@@ -40,6 +40,12 @@ ASSET_KEYS = frozenset({
     "interview",         # 면접 연습 진행 상태 {asked, answers, usedTopics} — 자기 루프가 턴 간에 이어받는다
     "application_plan",  # {decision, routes} — application_plan 산출 (목표 상태·지원 경로)
     "posting_summary",   # NormalizedJobPosting dict — 화면(우측 패널) 항목화용 파싱 결과 캐시
+    # 이 대화에서 정리했던 공고들의 파싱 결과 목록(상한 5) — 활성 공고가 교체돼도 남는다(D86).
+    "posting_library",
+    # 이 대화에서 받은 이력서들(상한 5) — 커리어 저장소 요약·붙여넣기·업로드가 같은 슬롯
+    # 하나를 두고 서로를 덮던 것을 라이브러리로 바꿨다(D119). 항목은 프로필 + `_source`·
+    # `_origin`·`_label` 표식이고, 활성 이력서(resume)는 그중 하나를 가리킨다.
+    "resume_library",
     "judgment_summary",  # {matches, score} — 판정 근거(요건별 매칭·점수 산출) 화면 표시용 캐시
     "userId",
     "preparationPeriodWeeks",
@@ -50,8 +56,20 @@ ASSET_KEYS = frozenset({
     # 다시 들어오면 그것이 곧 사용자의 동의다(사용자 발화가 사이에 있었으므로) — 동의를
     # 어디에도 기록하지 않아 "다음 턴엔 플래너가 알아서 고른다"에 의존했던 것을 코드로 옮긴 것.
     "pendingConsent",
+    # 청했지만 자산 결측으로 못 한 요청 {agent, missing, turnsLeft} — 자산이 오는 턴에
+    # 오케스트레이터가 결정론으로 재큐해 완수한다(D72). turnsLeft 소진 시 잊는다.
+    "pendingRequest",
+    # 발화에서 추출한 지속 사실(목표·제약·상황) 누적 — 플래너 그라운딩·대화 컨텍스트 (D82).
+    "user_facts",
     "history",           # [{role: user|assistant, content}] — 턴 간 대화 맥락 (append_history 로만 기록)
+    # 로스터 어느 에이전트로도 할 수 없던 요청의 발화 원문(상한 20, D117). **대화에 쓰이지
+    # 않는다** — 오직 `scripts/harvest_sessions.py` 가 사후에 세기 위한 자산이다. 로그는
+    # stdout 전용이라 휘발하고 warnings 는 응답과 함께 사라지므로, 영속하는 곳이 여기뿐이다.
+    "unsupported_requests",
 })
+
+# 세션당 보관할 미지원 요청 수 — 수확용이라 전부 필요하지 않고, 무한 성장만 막으면 된다.
+UNSUPPORTED_MAX_ITEMS = 20
 
 # 대화 이력 보관 상한 — 오래된 턴부터 버린다 (무한 성장 방지).
 HISTORY_MAX_ITEMS = 30
@@ -204,10 +222,18 @@ def append_history(session_id: str, role: str, content: str) -> None:
 
 
 def recent_history(session: dict[str, Any], max_items: int = 6, max_chars: int = 300) -> list[dict]:
-    """LLM 프롬프트용 최근 대화 — 최근 max_items 개, 항목당 max_chars 자로 자른다."""
+    """LLM 프롬프트용 최근 대화 — 최근 max_items 개, 항목당 max_chars 자로 자른다.
+
+    **어시스턴트 답변만 상한을 4배로 준다.** role 무관 300자는 비대칭이었다: 사용자 발화는
+    대개 300자 밑이라 온전히 남는데, 답변(번호 목록 로드맵·공고 정리)은 400~800자라 앞머리만
+    남아 "내 말은 기억하는데 자기가 한 말은 못 기억"하는 증상이 났다. 전문은 history 에
+    이미 있으므로(기록은 `_finish` 가 자른 적 없다) 읽는 쪽만 넓히면 된다.
+    """
 
     items = list(session.get("history") or [])[-max_items:]
-    return [
-        {"role": str(h.get("role") or ""), "content": str(h.get("content") or "")[:max_chars]}
-        for h in items
-    ]
+    out = []
+    for h in items:
+        role = str(h.get("role") or "")
+        limit = max_chars * 4 if role == "assistant" else max_chars
+        out.append({"role": role, "content": str(h.get("content") or "")[:limit]})
+    return out

@@ -1,0 +1,2674 @@
+{
+  "generated_at": "2026-07-29T07:50:21.358339+00:00",
+  "track": "정규화 질의 15종 (RAG_입출력_명세서 고정형: 직군+기술+연차)",
+  "version": {
+    "judge_prompt": "v3",
+    "pool_generated_at": "2026-07-28T08:22:52.858081+00:00",
+    "pool_depth": 10,
+    "n_queries": 15,
+    "n_judged_pairs": 439
+  },
+  "label_provenance": {
+    "base": "gemini-2.5-flash-lite v3 전량 판정 (439쌍)",
+    "human_verified_pairs": 118,
+    "human_binary_flips": 23,
+    "human_flip_rate": 0.1949,
+    "coverage": 0.2688
+  },
+  "bias_correction": {
+    "note": "자연어 트랙 전수 라벨 기반이라 이 트랙에는 N/A"
+  },
+  "qrels_judge_only": {
+    "headline": {
+      "metric": "normalized_nDCG@3",
+      "definition": "(actual - random_floor) / (pool_oracle - random_floor)",
+      "best_arm": "rrf_ce",
+      "scores": {
+        "random": 0.0,
+        "bm25": 0.5329,
+        "dense": 0.4167,
+        "rrf": 0.6069,
+        "rrf_ce": 0.7
+      }
+    },
+    "macro_average": {
+      "random": {
+        "ndcg3": 0.0334,
+        "p3": 0.0222,
+        "ap3": 0.0074,
+        "norm_ndcg3": 0.0
+      },
+      "bm25": {
+        "ndcg3": 0.6413,
+        "p3": 0.4889,
+        "ap3": 0.4926,
+        "norm_ndcg3": 0.5329
+      },
+      "dense": {
+        "ndcg3": 0.5884,
+        "p3": 0.3778,
+        "ap3": 0.363,
+        "norm_ndcg3": 0.4167
+      },
+      "rrf": {
+        "ndcg3": 0.6972,
+        "p3": 0.5555,
+        "ap3": 0.5648,
+        "norm_ndcg3": 0.6069
+      },
+      "rrf_ce": {
+        "ndcg3": 0.7695,
+        "p3": 0.6222,
+        "ap3": 0.6667,
+        "norm_ndcg3": 0.7
+      }
+    },
+    "comparisons": {
+      "random_vs_bm25": {
+        "mean_delta": 0.6074,
+        "ci_95": [
+          0.4563,
+          0.7421
+        ],
+        "significant": true
+      },
+      "random_vs_dense": {
+        "mean_delta": 0.5545,
+        "ci_95": [
+          0.4347,
+          0.6711
+        ],
+        "significant": true
+      },
+      "random_vs_rrf": {
+        "mean_delta": 0.6638,
+        "ci_95": [
+          0.5148,
+          0.8076
+        ],
+        "significant": true
+      },
+      "random_vs_rrf_ce": {
+        "mean_delta": 0.7352,
+        "ci_95": [
+          0.5929,
+          0.8596
+        ],
+        "significant": true
+      },
+      "bm25_vs_dense": {
+        "mean_delta": -0.0529,
+        "ci_95": [
+          -0.1151,
+          0.0177
+        ],
+        "significant": false
+      },
+      "bm25_vs_rrf": {
+        "mean_delta": 0.0563,
+        "ci_95": [
+          -0.0118,
+          0.1295
+        ],
+        "significant": false
+      },
+      "bm25_vs_rrf_ce": {
+        "mean_delta": 0.1278,
+        "ci_95": [
+          0.0299,
+          0.2338
+        ],
+        "significant": true
+      },
+      "dense_vs_rrf": {
+        "mean_delta": 0.1093,
+        "ci_95": [
+          0.0516,
+          0.1704
+        ],
+        "significant": true
+      },
+      "dense_vs_rrf_ce": {
+        "mean_delta": 0.1807,
+        "ci_95": [
+          0.109,
+          0.2507
+        ],
+        "significant": true
+      },
+      "rrf_vs_rrf_ce": {
+        "mean_delta": 0.0714,
+        "ci_95": [
+          -0.0178,
+          0.1622
+        ],
+        "significant": false
+      }
+    },
+    "by_role_axis": {
+      "서버·백엔드": {
+        "random": 0.0,
+        "bm25": 0.686,
+        "dense": 0.4803,
+        "rrf": 0.806,
+        "rrf_ce": 0.7612,
+        "n": 3
+      },
+      "클라이언트": {
+        "random": 0.0,
+        "bm25": 0.7453,
+        "dense": 0.5938,
+        "rrf": 0.8189,
+        "rrf_ce": 0.9119,
+        "n": 4
+      },
+      "인프라·운영": {
+        "random": 0.0,
+        "bm25": 0.4266,
+        "dense": 0.3723,
+        "rrf": 0.6673,
+        "rrf_ce": 0.8529,
+        "n": 2
+      },
+      "데이터·ML": {
+        "random": 0.0,
+        "bm25": 0.377,
+        "dense": 0.2566,
+        "rrf": 0.3646,
+        "rrf_ce": 0.405,
+        "n": 4
+      },
+      "품질·보안": {
+        "random": 0.0,
+        "bm25": 0.2968,
+        "dense": 0.3318,
+        "rrf": 0.3083,
+        "rrf_ce": 0.6212,
+        "n": 2
+      }
+    },
+    "per_query": {
+      "SA01": {
+        "query": "백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년)",
+        "category": "backend",
+        "n_judged": 29,
+        "label_dist": {
+          "Correct": 11,
+          "Ambiguous": 10,
+          "Incorrect": 8
+        },
+        "n_relevant": 11,
+        "random_floor": 0.551,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.2346,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "dense": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.4775
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.3889,
+            "norm_ndcg3": 0.4775
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 4,
+          "n2_dense_rel": 7,
+          "overlap": 2,
+          "chapman_N": 12.3,
+          "pool_rel": 11,
+          "estimated_missed": 1.3
+        }
+      },
+      "SA02": {
+        "query": "백엔드 개발자 Python Django PostgreSQL (신입)",
+        "category": "backend",
+        "n_judged": 33,
+        "label_dist": {
+          "Incorrect": 20,
+          "Correct": 10,
+          "Ambiguous": 3
+        },
+        "n_relevant": 10,
+        "random_floor": 0.3487,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.3889,
+            "norm_ndcg3": 0.6398
+          },
+          "dense": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.5454
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 6,
+          "n2_dense_rel": 3,
+          "overlap": 2,
+          "chapman_N": 8.3,
+          "pool_rel": 10,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA03": {
+        "query": "백엔드 개발자 Go Redis Kafka (경력 7년)",
+        "category": "backend",
+        "n_judged": 28,
+        "label_dist": {
+          "Ambiguous": 14,
+          "Incorrect": 10,
+          "Correct": 4
+        },
+        "n_relevant": 4,
+        "random_floor": 0.3951,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.4181
+          },
+          "dense": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.4181
+          },
+          "rrf": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.4181
+          },
+          "rrf_ce": {
+            "ndcg3": 0.8827,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.8061
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 2,
+          "n2_dense_rel": 3,
+          "overlap": 1,
+          "chapman_N": 5.0,
+          "pool_rel": 4,
+          "estimated_missed": 1.0
+        }
+      },
+      "SA04": {
+        "query": "프론트엔드 개발자 React TypeScript Next.js (경력 2년)",
+        "category": "frontend",
+        "n_judged": 30,
+        "label_dist": {
+          "Correct": 19,
+          "Incorrect": 8,
+          "Ambiguous": 3
+        },
+        "n_relevant": 19,
+        "random_floor": 0.6774,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "dense": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 10,
+          "n2_dense_rel": 9,
+          "overlap": 5,
+          "chapman_N": 17.3,
+          "pool_rel": 19,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA05": {
+        "query": "프론트엔드 개발자 Vue JavaScript (신입)",
+        "category": "frontend",
+        "n_judged": 31,
+        "label_dist": {
+          "Incorrect": 15,
+          "Correct": 13,
+          "Ambiguous": 3
+        },
+        "n_relevant": 13,
+        "random_floor": 0.4718,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.3336
+          },
+          "dense": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.2755
+          },
+          "rrf": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.2755
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 5,
+          "n2_dense_rel": 7,
+          "overlap": 1,
+          "chapman_N": 23.0,
+          "pool_rel": 13,
+          "estimated_missed": 10.0
+        }
+      },
+      "SA06": {
+        "query": "풀스택 개발자 React Node.js MySQL (경력 4년)",
+        "category": "fullstack",
+        "n_judged": 30,
+        "label_dist": {
+          "Correct": 14,
+          "Incorrect": 10,
+          "Ambiguous": 6
+        },
+        "n_relevant": 14,
+        "random_floor": 0.5716,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "dense": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.3889,
+            "norm_ndcg3": 0.4524
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 7,
+          "n2_dense_rel": 6,
+          "overlap": 1,
+          "chapman_N": 27.0,
+          "pool_rel": 14,
+          "estimated_missed": 13.0
+        }
+      },
+      "SA07": {
+        "query": "안드로이드 개발자 Kotlin Android (경력 3년)",
+        "category": "mobile",
+        "n_judged": 28,
+        "label_dist": {
+          "Incorrect": 17,
+          "Correct": 8,
+          "Ambiguous": 3
+        },
+        "n_relevant": 8,
+        "random_floor": 0.3345,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.6475
+          },
+          "dense": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.6475
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.6475
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 6,
+          "n2_dense_rel": 6,
+          "overlap": 4,
+          "chapman_N": 8.8,
+          "pool_rel": 8,
+          "estimated_missed": 0.8
+        }
+      },
+      "SA08": {
+        "query": "DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년)",
+        "category": "devops",
+        "n_judged": 29,
+        "label_dist": {
+          "Incorrect": 16,
+          "Correct": 9,
+          "Ambiguous": 4
+        },
+        "n_relevant": 9,
+        "random_floor": 0.3848,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.5187
+          },
+          "dense": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.5187
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 6,
+          "n2_dense_rel": 5,
+          "overlap": 4,
+          "chapman_N": 7.4,
+          "pool_rel": 9,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA09": {
+        "query": "SRE 엔지니어 Kubernetes Linux Terraform (경력 4년)",
+        "category": "sre",
+        "n_judged": 25,
+        "label_dist": {
+          "Incorrect": 18,
+          "Ambiguous": 4,
+          "Correct": 3
+        },
+        "n_relevant": 3,
+        "random_floor": 0.2026,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.4693,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.3345
+          },
+          "dense": {
+            "ndcg3": 0.3827,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.2259
+          },
+          "rrf": {
+            "ndcg3": 0.4693,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.3345
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.7058
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 3,
+          "n2_dense_rel": 3,
+          "overlap": 3,
+          "chapman_N": 3.0,
+          "pool_rel": 3,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA10": {
+        "query": "데이터 엔지니어 Python Kafka SQL (경력 3년)",
+        "category": "data_engineer",
+        "n_judged": 31,
+        "label_dist": {
+          "Incorrect": 25,
+          "Ambiguous": 5,
+          "Correct": 1
+        },
+        "n_relevant": 1,
+        "random_floor": 0.1473,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6388,
+            "p3": 0.3333,
+            "ap3": 1.0,
+            "norm_ndcg3": 0.5764
+          },
+          "dense": {
+            "ndcg3": 0.6388,
+            "p3": 0.3333,
+            "ap3": 1.0,
+            "norm_ndcg3": 0.5764
+          },
+          "rrf": {
+            "ndcg3": 0.6388,
+            "p3": 0.3333,
+            "ap3": 1.0,
+            "norm_ndcg3": 0.5764
+          },
+          "rrf_ce": {
+            "ndcg3": 0.6388,
+            "p3": 0.3333,
+            "ap3": 1.0,
+            "norm_ndcg3": 0.5764
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 1,
+          "n2_dense_rel": 1,
+          "overlap": 1,
+          "chapman_N": 1.0,
+          "pool_rel": 1,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA11": {
+        "query": "데이터 사이언티스트 Python TensorFlow (경력 2년)",
+        "category": "data_scientist",
+        "n_judged": 28,
+        "label_dist": {
+          "Ambiguous": 15,
+          "Incorrect": 11,
+          "Correct": 2
+        },
+        "n_relevant": 2,
+        "random_floor": 0.3798,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.2658,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6646,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.4592
+          },
+          "dense": {
+            "ndcg3": 0.5665,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.301
+          },
+          "rrf": {
+            "ndcg3": 0.7342,
+            "p3": 0.3333,
+            "ap3": 0.25,
+            "norm_ndcg3": 0.5714
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7342,
+            "p3": 0.3333,
+            "ap3": 0.25,
+            "norm_ndcg3": 0.5714
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 2,
+          "n2_dense_rel": 1,
+          "overlap": 1,
+          "chapman_N": 2.0,
+          "pool_rel": 2,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA12": {
+        "query": "머신러닝 엔지니어 Python PyTorch LLM (경력 3년)",
+        "category": "ml_engineer",
+        "n_judged": 29,
+        "label_dist": {
+          "Incorrect": 17,
+          "Ambiguous": 8,
+          "Correct": 4
+        },
+        "n_relevant": 4,
+        "random_floor": 0.2748,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.4723
+          },
+          "dense": {
+            "ndcg3": 0.3827,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.1488
+          },
+          "rrf": {
+            "ndcg3": 0.5,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.3105
+          },
+          "rrf_ce": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.4723
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 3,
+          "n2_dense_rel": 1,
+          "overlap": 0,
+          "chapman_N": 7.0,
+          "pool_rel": 4,
+          "estimated_missed": 3.0
+        }
+      },
+      "SA13": {
+        "query": "데이터 분석가 SQL Python (신입)",
+        "category": "data_analyst",
+        "n_judged": 30,
+        "label_dist": {
+          "Incorrect": 28,
+          "Ambiguous": 1,
+          "Correct": 1
+        },
+        "n_relevant": 1,
+        "random_floor": 0.0827,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "dense": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf_ce": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 0,
+          "n2_dense_rel": 0,
+          "overlap": 0,
+          "chapman_N": 0.0,
+          "pool_rel": 1,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA14": {
+        "query": "QA 엔지니어 Python Git (경력 2년)",
+        "category": "qa",
+        "n_judged": 30,
+        "label_dist": {
+          "Incorrect": 27,
+          "Ambiguous": 2,
+          "Correct": 1
+        },
+        "n_relevant": 1,
+        "random_floor": 0.0927,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "dense": {
+            "ndcg3": 0.3194,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.2499
+          },
+          "rrf": {
+            "ndcg3": 0.3194,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.2499
+          },
+          "rrf_ce": {
+            "ndcg3": 0.6388,
+            "p3": 0.3333,
+            "ap3": 1.0,
+            "norm_ndcg3": 0.6019
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 0,
+          "n2_dense_rel": 1,
+          "overlap": 0,
+          "chapman_N": 1.0,
+          "pool_rel": 1,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA15": {
+        "query": "보안 엔지니어 Linux (경력 3년)",
+        "category": "security",
+        "n_judged": 28,
+        "label_dist": {
+          "Incorrect": 17,
+          "Ambiguous": 9,
+          "Correct": 2
+        },
+        "n_relevant": 2,
+        "random_floor": 0.2605,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6994,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.5935
+          },
+          "dense": {
+            "ndcg3": 0.5665,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.4138
+          },
+          "rrf": {
+            "ndcg3": 0.5317,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.3667
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7342,
+            "p3": 0.3333,
+            "ap3": 0.25,
+            "norm_ndcg3": 0.6406
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 2,
+          "n2_dense_rel": 1,
+          "overlap": 1,
+          "chapman_N": 2.0,
+          "pool_rel": 2,
+          "estimated_missed": 0.0
+        }
+      }
+    }
+  },
+  "qrels_human_patched": {
+    "headline": {
+      "metric": "normalized_nDCG@3",
+      "definition": "(actual - random_floor) / (pool_oracle - random_floor)",
+      "best_arm": "rrf_ce",
+      "scores": {
+        "random": 0.0104,
+        "bm25": 0.4474,
+        "dense": 0.3617,
+        "rrf": 0.5458,
+        "rrf_ce": 0.6853
+      }
+    },
+    "macro_average": {
+      "random": {
+        "ndcg3": 0.0626,
+        "p3": 0.0222,
+        "ap3": 0.0222,
+        "norm_ndcg3": 0.0104
+      },
+      "bm25": {
+        "ndcg3": 0.6164,
+        "p3": 0.4444,
+        "ap3": 0.3963,
+        "norm_ndcg3": 0.4474
+      },
+      "dense": {
+        "ndcg3": 0.5293,
+        "p3": 0.3778,
+        "ap3": 0.3148,
+        "norm_ndcg3": 0.3617
+      },
+      "rrf": {
+        "ndcg3": 0.6423,
+        "p3": 0.5333,
+        "ap3": 0.5074,
+        "norm_ndcg3": 0.5458
+      },
+      "rrf_ce": {
+        "ndcg3": 0.7521,
+        "p3": 0.6222,
+        "ap3": 0.6,
+        "norm_ndcg3": 0.6853
+      }
+    },
+    "comparisons": {
+      "random_vs_bm25": {
+        "mean_delta": 0.5529,
+        "ci_95": [
+          0.3906,
+          0.69
+        ],
+        "significant": true
+      },
+      "random_vs_dense": {
+        "mean_delta": 0.4653,
+        "ci_95": [
+          0.2885,
+          0.633
+        ],
+        "significant": true
+      },
+      "random_vs_rrf": {
+        "mean_delta": 0.5786,
+        "ci_95": [
+          0.365,
+          0.7663
+        ],
+        "significant": true
+      },
+      "random_vs_rrf_ce": {
+        "mean_delta": 0.6881,
+        "ci_95": [
+          0.4927,
+          0.862
+        ],
+        "significant": true
+      },
+      "bm25_vs_dense": {
+        "mean_delta": -0.0876,
+        "ci_95": [
+          -0.2028,
+          0.0143
+        ],
+        "significant": false
+      },
+      "bm25_vs_rrf": {
+        "mean_delta": 0.0257,
+        "ci_95": [
+          -0.0633,
+          0.1115
+        ],
+        "significant": false
+      },
+      "bm25_vs_rrf_ce": {
+        "mean_delta": 0.1352,
+        "ci_95": [
+          -0.0144,
+          0.27
+        ],
+        "significant": false
+      },
+      "dense_vs_rrf": {
+        "mean_delta": 0.1133,
+        "ci_95": [
+          0.0156,
+          0.2203
+        ],
+        "significant": true
+      },
+      "dense_vs_rrf_ce": {
+        "mean_delta": 0.2228,
+        "ci_95": [
+          0.1323,
+          0.316
+        ],
+        "significant": true
+      },
+      "rrf_vs_rrf_ce": {
+        "mean_delta": 0.1095,
+        "ci_95": [
+          -0.0565,
+          0.2735
+        ],
+        "significant": false
+      }
+    },
+    "by_role_axis": {
+      "서버·백엔드": {
+        "random": 0.0,
+        "bm25": 0.5164,
+        "dense": 0.3392,
+        "rrf": 0.6311,
+        "rrf_ce": 0.7918,
+        "n": 3
+      },
+      "클라이언트": {
+        "random": 0.0389,
+        "bm25": 0.4905,
+        "dense": 0.5251,
+        "rrf": 0.75,
+        "rrf_ce": 0.9067,
+        "n": 4
+      },
+      "인프라·운영": {
+        "random": 0.0,
+        "bm25": 0.4399,
+        "dense": 0.6465,
+        "rrf": 0.6679,
+        "rrf_ce": 1.0,
+        "n": 2
+      },
+      "데이터·ML": {
+        "random": 0.0,
+        "bm25": 0.4274,
+        "dense": 0.1012,
+        "rrf": 0.2826,
+        "rrf_ce": 0.3625,
+        "n": 4
+      },
+      "품질·보안": {
+        "random": 0.0,
+        "bm25": 0.3052,
+        "dense": 0.3052,
+        "rrf": 0.4139,
+        "rrf_ce": 0.4139,
+        "n": 2
+      }
+    },
+    "per_query": {
+      "SA01": {
+        "query": "백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년)",
+        "category": "backend",
+        "n_judged": 29,
+        "label_dist": {
+          "Incorrect": 12,
+          "Correct": 10,
+          "Ambiguous": 7
+        },
+        "n_relevant": 10,
+        "random_floor": 0.4686,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.4428
+          },
+          "dense": {
+            "ndcg3": 0.4693,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.0013
+          },
+          "rrf": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.4428
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.3889,
+            "norm_ndcg3": 0.5585
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 4,
+          "n2_dense_rel": 6,
+          "overlap": 1,
+          "chapman_N": 16.5,
+          "pool_rel": 10,
+          "estimated_missed": 6.5
+        }
+      },
+      "SA02": {
+        "query": "백엔드 개발자 Python Django PostgreSQL (신입)",
+        "category": "backend",
+        "n_judged": 33,
+        "label_dist": {
+          "Incorrect": 21,
+          "Correct": 9,
+          "Ambiguous": 3
+        },
+        "n_relevant": 9,
+        "random_floor": 0.318,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.3889,
+            "norm_ndcg3": 0.656
+          },
+          "dense": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.5658
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 5,
+          "n2_dense_rel": 3,
+          "overlap": 2,
+          "chapman_N": 7.0,
+          "pool_rel": 9,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA03": {
+        "query": "백엔드 개발자 Go Redis Kafka (경력 7년)",
+        "category": "backend",
+        "n_judged": 28,
+        "label_dist": {
+          "Ambiguous": 14,
+          "Incorrect": 11,
+          "Correct": 3
+        },
+        "n_relevant": 3,
+        "random_floor": 0.3594,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.4505
+          },
+          "dense": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.4505
+          },
+          "rrf": {
+            "ndcg3": 0.648,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.4505
+          },
+          "rrf_ce": {
+            "ndcg3": 0.8827,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.8169
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 1,
+          "n2_dense_rel": 3,
+          "overlap": 1,
+          "chapman_N": 3.0,
+          "pool_rel": 3,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA04": {
+        "query": "프론트엔드 개발자 React TypeScript Next.js (경력 2년)",
+        "category": "frontend",
+        "n_judged": 30,
+        "label_dist": {
+          "Correct": 18,
+          "Incorrect": 9,
+          "Ambiguous": 3
+        },
+        "n_relevant": 18,
+        "random_floor": 0.647,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.3354
+          },
+          "dense": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 9,
+          "n2_dense_rel": 8,
+          "overlap": 4,
+          "chapman_N": 17.0,
+          "pool_rel": 18,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA05": {
+        "query": "프론트엔드 개발자 Vue JavaScript (신입)",
+        "category": "frontend",
+        "n_judged": 31,
+        "label_dist": {
+          "Incorrect": 17,
+          "Correct": 12,
+          "Ambiguous": 2
+        },
+        "n_relevant": 12,
+        "random_floor": 0.4232,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.4134,
+            "p3": 0.3333,
+            "ap3": 0.1667,
+            "norm_ndcg3": 0.0
+          },
+          "dense": {
+            "ndcg3": 0.3827,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.0
+          },
+          "rrf": {
+            "ndcg3": 0.3827,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 5,
+          "n2_dense_rel": 6,
+          "overlap": 1,
+          "chapman_N": 20.0,
+          "pool_rel": 12,
+          "estimated_missed": 8.0
+        }
+      },
+      "SA06": {
+        "query": "풀스택 개발자 React Node.js MySQL (경력 4년)",
+        "category": "fullstack",
+        "n_judged": 30,
+        "label_dist": {
+          "Correct": 13,
+          "Incorrect": 10,
+          "Ambiguous": 7
+        },
+        "n_relevant": 13,
+        "random_floor": 0.5543,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "dense": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.3889,
+            "norm_ndcg3": 0.4737
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 7,
+          "n2_dense_rel": 5,
+          "overlap": 1,
+          "chapman_N": 23.0,
+          "pool_rel": 13,
+          "estimated_missed": 10.0
+        }
+      },
+      "SA07": {
+        "query": "안드로이드 개발자 Kotlin Android (경력 3년)",
+        "category": "mobile",
+        "n_judged": 28,
+        "label_dist": {
+          "Incorrect": 16,
+          "Correct": 9,
+          "Ambiguous": 3
+        },
+        "n_relevant": 9,
+        "random_floor": 0.3715,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.4693,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.1556
+          },
+          "bm25": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.6267
+          },
+          "dense": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.6267
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7654,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.6267
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 5,
+          "n2_dense_rel": 7,
+          "overlap": 4,
+          "chapman_N": 8.6,
+          "pool_rel": 9,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA08": {
+        "query": "DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년)",
+        "category": "devops",
+        "n_judged": 29,
+        "label_dist": {
+          "Incorrect": 17,
+          "Correct": 8,
+          "Ambiguous": 4
+        },
+        "n_relevant": 8,
+        "random_floor": 0.3506,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7039,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.544
+          },
+          "dense": {
+            "ndcg3": 0.852,
+            "p3": 0.6667,
+            "ap3": 0.5556,
+            "norm_ndcg3": 0.7721
+          },
+          "rrf": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 5,
+          "n2_dense_rel": 5,
+          "overlap": 4,
+          "chapman_N": 6.2,
+          "pool_rel": 8,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA09": {
+        "query": "SRE 엔지니어 Kubernetes Linux Terraform (경력 4년)",
+        "category": "sre",
+        "n_judged": 25,
+        "label_dist": {
+          "Incorrect": 18,
+          "Ambiguous": 4,
+          "Correct": 3
+        },
+        "n_relevant": 3,
+        "random_floor": 0.201,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.4693,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.3358
+          },
+          "dense": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.521
+          },
+          "rrf": {
+            "ndcg3": 0.4693,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.3358
+          },
+          "rrf_ce": {
+            "ndcg3": 1.0,
+            "p3": 1.0,
+            "ap3": 1.0,
+            "norm_ndcg3": 1.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 2,
+          "n2_dense_rel": 3,
+          "overlap": 2,
+          "chapman_N": 3.0,
+          "pool_rel": 3,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA10": {
+        "query": "데이터 엔지니어 Python Kafka SQL (경력 3년)",
+        "category": "data_engineer",
+        "n_judged": 31,
+        "label_dist": {
+          "Incorrect": 21,
+          "Ambiguous": 8,
+          "Correct": 2
+        },
+        "n_relevant": 2,
+        "random_floor": 0.2133,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6994,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.6179
+          },
+          "dense": {
+            "ndcg3": 0.5317,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.4047
+          },
+          "rrf": {
+            "ndcg3": 0.5317,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.4047
+          },
+          "rrf_ce": {
+            "ndcg3": 0.6646,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.5736
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 1,
+          "n2_dense_rel": 2,
+          "overlap": 1,
+          "chapman_N": 2.0,
+          "pool_rel": 2,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA11": {
+        "query": "데이터 사이언티스트 Python TensorFlow (경력 2년)",
+        "category": "data_scientist",
+        "n_judged": 28,
+        "label_dist": {
+          "Incorrect": 14,
+          "Ambiguous": 14
+        },
+        "n_relevant": 0,
+        "random_floor": 0.5027,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.4693,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.2961,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "dense": {
+            "ndcg3": 0.2346,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf_ce": {
+            "ndcg3": 0.7039,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.4046
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 0,
+          "n2_dense_rel": 0,
+          "overlap": 0,
+          "chapman_N": 0.0,
+          "pool_rel": 0,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA12": {
+        "query": "머신러닝 엔지니어 Python PyTorch LLM (경력 3년)",
+        "category": "ml_engineer",
+        "n_judged": 29,
+        "label_dist": {
+          "Incorrect": 18,
+          "Ambiguous": 6,
+          "Correct": 5
+        },
+        "n_relevant": 5,
+        "random_floor": 0.2754,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.4718
+          },
+          "dense": {
+            "ndcg3": 0.2346,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf": {
+            "ndcg3": 0.352,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.1057
+          },
+          "rrf_ce": {
+            "ndcg3": 0.6173,
+            "p3": 0.3333,
+            "ap3": 0.1111,
+            "norm_ndcg3": 0.4718
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 3,
+          "n2_dense_rel": 2,
+          "overlap": 0,
+          "chapman_N": 11.0,
+          "pool_rel": 5,
+          "estimated_missed": 6.0
+        }
+      },
+      "SA13": {
+        "query": "데이터 분석가 SQL Python (신입)",
+        "category": "data_analyst",
+        "n_judged": 30,
+        "label_dist": {
+          "Incorrect": 26,
+          "Ambiguous": 2,
+          "Correct": 2
+        },
+        "n_relevant": 2,
+        "random_floor": 0.1179,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.6646,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.6198
+          },
+          "dense": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf": {
+            "ndcg3": 0.6646,
+            "p3": 0.3333,
+            "ap3": 0.5,
+            "norm_ndcg3": 0.6198
+          },
+          "rrf_ce": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 1,
+          "n2_dense_rel": 1,
+          "overlap": 1,
+          "chapman_N": 1.0,
+          "pool_rel": 2,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA14": {
+        "query": "QA 엔지니어 Python Git (경력 2년)",
+        "category": "qa",
+        "n_judged": 30,
+        "label_dist": {
+          "Incorrect": 27,
+          "Ambiguous": 3
+        },
+        "n_relevant": 0,
+        "random_floor": 0.1014,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "dense": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "rrf_ce": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 0,
+          "n2_dense_rel": 0,
+          "overlap": 0,
+          "chapman_N": 0.0,
+          "pool_rel": 0,
+          "estimated_missed": 0.0
+        }
+      },
+      "SA15": {
+        "query": "보안 엔지니어 Linux (경력 3년)",
+        "category": "security",
+        "n_judged": 28,
+        "label_dist": {
+          "Incorrect": 15,
+          "Ambiguous": 8,
+          "Correct": 5
+        },
+        "n_relevant": 5,
+        "random_floor": 0.3189,
+        "oracle_ndcg3": 1.0,
+        "arms": {
+          "random": {
+            "ndcg3": 0.0,
+            "p3": 0.0,
+            "ap3": 0.0,
+            "norm_ndcg3": 0.0
+          },
+          "bm25": {
+            "ndcg3": 0.7346,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.6104
+          },
+          "dense": {
+            "ndcg3": 0.7346,
+            "p3": 0.3333,
+            "ap3": 0.3333,
+            "norm_ndcg3": 0.6104
+          },
+          "rrf": {
+            "ndcg3": 0.8827,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.8278
+          },
+          "rrf_ce": {
+            "ndcg3": 0.8827,
+            "p3": 0.6667,
+            "ap3": 0.6667,
+            "norm_ndcg3": 0.8278
+          }
+        },
+        "pool_miss": {
+          "n1_bm25_rel": 3,
+          "n2_dense_rel": 4,
+          "overlap": 2,
+          "chapman_N": 5.7,
+          "pool_rel": 5,
+          "estimated_missed": 0.7
+        }
+      }
+    }
+  },
+  "label_sensitivity": {
+    "ranking_judge": [
+      "rrf_ce",
+      "rrf",
+      "bm25",
+      "dense",
+      "random"
+    ],
+    "ranking_human_patched": [
+      "rrf_ce",
+      "rrf",
+      "bm25",
+      "dense",
+      "random"
+    ],
+    "ranking_stable": true,
+    "delta_norm_ndcg3": {
+      "random": 0.0104,
+      "bm25": -0.0855,
+      "dense": -0.055,
+      "rrf": -0.0611,
+      "rrf_ce": -0.0147
+    }
+  },
+  "k_analysis": {
+    "metric_cutoff_k": 3,
+    "product_cutoff": "생성부가 상위 3건을 컨텍스트로 사용 (ragas_prep.TOP_K=3) — 지표 k와 일치",
+    "verdict": "운영 정합성은 성립. 단 천장 포화·Ambiguous 반값·기준선 이원화로 절대 수치는 낙관 편향된다",
+    "grade_composition": {
+      "Correct": 99,
+      "Ambiguous": 88,
+      "Incorrect": 252
+    },
+    "saturation": {
+      "bm25": {
+        "n_at_ceiling": 1,
+        "n_queries": 15,
+        "ceiling_rate": 0.0667,
+        "n_distinct_values": 12
+      },
+      "dense": {
+        "n_at_ceiling": 1,
+        "n_queries": 15,
+        "ceiling_rate": 0.0667,
+        "n_distinct_values": 12
+      },
+      "rrf": {
+        "n_at_ceiling": 5,
+        "n_queries": 15,
+        "ceiling_rate": 0.3333,
+        "n_distinct_values": 10
+      },
+      "rrf_ce": {
+        "n_at_ceiling": 6,
+        "n_queries": 15,
+        "ceiling_rate": 0.4,
+        "n_distinct_values": 7
+      }
+    },
+    "ndcg3_distribution": {
+      "bm25": [
+        0.0,
+        0.2961,
+        0.4134,
+        0.4693,
+        0.6173,
+        0.648,
+        0.6646,
+        0.6994,
+        0.7039,
+        0.7039,
+        0.7346,
+        0.7654,
+        0.7654,
+        0.7654,
+        1.0
+      ],
+      "dense": [
+        0.0,
+        0.0,
+        0.2346,
+        0.2346,
+        0.3827,
+        0.4693,
+        0.5317,
+        0.6173,
+        0.648,
+        0.7039,
+        0.7346,
+        0.7654,
+        0.7654,
+        0.852,
+        1.0
+      ],
+      "rrf": [
+        0.0,
+        0.0,
+        0.352,
+        0.3827,
+        0.4693,
+        0.5317,
+        0.648,
+        0.6646,
+        0.7039,
+        0.8827,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rrf_ce": [
+        0.0,
+        0.0,
+        0.6173,
+        0.6646,
+        0.7039,
+        0.7654,
+        0.7654,
+        0.8827,
+        0.8827,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "ambiguous_credit": {
+      "bm25": {
+        "base": 0.6164,
+        "strict": 0.4974,
+        "delta": -0.119
+      },
+      "dense": {
+        "base": 0.5293,
+        "strict": 0.4014,
+        "delta": -0.1279
+      },
+      "rrf": {
+        "base": 0.6423,
+        "strict": 0.5641,
+        "delta": -0.0783
+      },
+      "rrf_ce": {
+        "base": 0.7521,
+        "strict": 0.645,
+        "delta": -0.1072
+      }
+    },
+    "p3_vs_attainable": {
+      "bm25": {
+        "relevant_hits": 20.0,
+        "attainable": 37,
+        "rate": 0.5405
+      },
+      "dense": {
+        "relevant_hits": 17.0,
+        "attainable": 37,
+        "rate": 0.4595
+      },
+      "rrf": {
+        "relevant_hits": 24.0,
+        "attainable": 37,
+        "rate": 0.6486
+      },
+      "rrf_ce": {
+        "relevant_hits": 28.0,
+        "attainable": 37,
+        "rate": 0.7568
+      }
+    },
+    "zero_relevant_queries": [
+      {
+        "qid": "SA11",
+        "query": "데이터 사이언티스트 Python TensorFlow (경력 2년)",
+        "n_ambiguous": 14,
+        "best_arm": "rrf_ce",
+        "ndcg3_of_best_arm": 0.7039,
+        "p3_of_best_arm": 0.0
+      },
+      {
+        "qid": "SA14",
+        "query": "QA 엔지니어 Python Git (경력 2년)",
+        "n_ambiguous": 3,
+        "best_arm": "rrf_ce",
+        "ndcg3_of_best_arm": 0.0,
+        "p3_of_best_arm": 0.0
+      }
+    ],
+    "thin_relevant_queries": [
+      {
+        "qid": "SA10",
+        "n_relevant": 2,
+        "p3_ceiling": 0.6667
+      },
+      {
+        "qid": "SA11",
+        "n_relevant": 0,
+        "p3_ceiling": 0.0
+      },
+      {
+        "qid": "SA13",
+        "n_relevant": 2,
+        "p3_ceiling": 0.6667
+      },
+      {
+        "qid": "SA14",
+        "n_relevant": 0,
+        "p3_ceiling": 0.0
+      }
+    ],
+    "random_baselines": {
+      "pool_internal_mean": 0.3482,
+      "corpus_random_arm_ndcg3": 0.0626,
+      "note": "정규화의 0은 '풀 내부 무작위'다. random arm(코퍼스 무작위)은 그보다 낮아 정규화 시 0으로 절단된다 — 즉 정규화는 보수적이다"
+    }
+  },
+  "multi_k": {
+    "k=1": {
+      "arms": {
+        "bm25": {
+          "ndcg": 0.7,
+          "precision": 0.6,
+          "recall": 0.1335,
+          "n_at_ceiling": 9,
+          "n_distinct": 3
+        },
+        "dense": {
+          "ndcg": 0.6,
+          "precision": 0.4667,
+          "recall": 0.0802,
+          "n_at_ceiling": 7,
+          "n_distinct": 3
+        },
+        "rrf": {
+          "ndcg": 0.7,
+          "precision": 0.6,
+          "recall": 0.1186,
+          "n_at_ceiling": 9,
+          "n_distinct": 3
+        },
+        "rrf_ce": {
+          "ndcg": 0.8,
+          "precision": 0.6667,
+          "recall": 0.1286,
+          "n_at_ceiling": 11,
+          "n_distinct": 3
+        },
+        "random": {
+          "ndcg": 0.1333,
+          "precision": 0.0667,
+          "recall": 0.0074,
+          "n_at_ceiling": 2,
+          "n_distinct": 2
+        }
+      },
+      "recall_ceiling": 0.21,
+      "n_significant": 4,
+      "n_comparisons": 10,
+      "comparisons": {
+        "bm25_vs_dense": {
+          "mean_delta": -0.0991,
+          "ci_95": [
+            -0.2667,
+            0.0667
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf": {
+          "mean_delta": 0.0008,
+          "ci_95": [
+            -0.1,
+            0.1
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf_ce": {
+          "mean_delta": 0.1009,
+          "ci_95": [
+            -0.1333,
+            0.3667
+          ],
+          "significant": false
+        },
+        "bm25_vs_random": {
+          "mean_delta": -0.564,
+          "ci_95": [
+            -0.8333,
+            -0.2667
+          ],
+          "significant": true
+        },
+        "dense_vs_rrf": {
+          "mean_delta": 0.0999,
+          "ci_95": [
+            0.0,
+            0.2667
+          ],
+          "significant": false
+        },
+        "dense_vs_rrf_ce": {
+          "mean_delta": 0.2,
+          "ci_95": [
+            0.0,
+            0.4
+          ],
+          "significant": false
+        },
+        "dense_vs_random": {
+          "mean_delta": -0.4649,
+          "ci_95": [
+            -0.7333,
+            -0.1667
+          ],
+          "significant": true
+        },
+        "rrf_vs_rrf_ce": {
+          "mean_delta": 0.1001,
+          "ci_95": [
+            -0.1333,
+            0.3333
+          ],
+          "significant": false
+        },
+        "rrf_vs_random": {
+          "mean_delta": -0.5648,
+          "ci_95": [
+            -0.8333,
+            -0.2333
+          ],
+          "significant": true
+        },
+        "rrf_ce_vs_random": {
+          "mean_delta": -0.6649,
+          "ci_95": [
+            -0.8667,
+            -0.4333
+          ],
+          "significant": true
+        }
+      }
+    },
+    "k=3": {
+      "arms": {
+        "bm25": {
+          "ndcg": 0.6164,
+          "precision": 0.4444,
+          "recall": 0.2258,
+          "n_at_ceiling": 1,
+          "n_distinct": 12
+        },
+        "dense": {
+          "ndcg": 0.5293,
+          "precision": 0.3778,
+          "recall": 0.171,
+          "n_at_ceiling": 1,
+          "n_distinct": 12
+        },
+        "rrf": {
+          "ndcg": 0.6423,
+          "precision": 0.5333,
+          "recall": 0.2526,
+          "n_at_ceiling": 5,
+          "n_distinct": 10
+        },
+        "rrf_ce": {
+          "ndcg": 0.7521,
+          "precision": 0.6222,
+          "recall": 0.303,
+          "n_at_ceiling": 6,
+          "n_distinct": 7
+        },
+        "random": {
+          "ndcg": 0.0626,
+          "precision": 0.0222,
+          "recall": 0.0074,
+          "n_at_ceiling": 0,
+          "n_distinct": 2
+        }
+      },
+      "recall_ceiling": 0.553,
+      "n_significant": 6,
+      "n_comparisons": 10,
+      "comparisons": {
+        "bm25_vs_dense": {
+          "mean_delta": -0.0876,
+          "ci_95": [
+            -0.2028,
+            0.0143
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf": {
+          "mean_delta": 0.0257,
+          "ci_95": [
+            -0.0633,
+            0.1115
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf_ce": {
+          "mean_delta": 0.1352,
+          "ci_95": [
+            -0.0144,
+            0.27
+          ],
+          "significant": false
+        },
+        "bm25_vs_random": {
+          "mean_delta": -0.5529,
+          "ci_95": [
+            -0.69,
+            -0.3906
+          ],
+          "significant": true
+        },
+        "dense_vs_rrf": {
+          "mean_delta": 0.1133,
+          "ci_95": [
+            0.0156,
+            0.2203
+          ],
+          "significant": true
+        },
+        "dense_vs_rrf_ce": {
+          "mean_delta": 0.2228,
+          "ci_95": [
+            0.1323,
+            0.316
+          ],
+          "significant": true
+        },
+        "dense_vs_random": {
+          "mean_delta": -0.4653,
+          "ci_95": [
+            -0.633,
+            -0.2885
+          ],
+          "significant": true
+        },
+        "rrf_vs_rrf_ce": {
+          "mean_delta": 0.1095,
+          "ci_95": [
+            -0.0565,
+            0.2735
+          ],
+          "significant": false
+        },
+        "rrf_vs_random": {
+          "mean_delta": -0.5786,
+          "ci_95": [
+            -0.7658,
+            -0.365
+          ],
+          "significant": true
+        },
+        "rrf_ce_vs_random": {
+          "mean_delta": -0.6881,
+          "ci_95": [
+            -0.862,
+            -0.4925
+          ],
+          "significant": true
+        }
+      }
+    },
+    "k=5": {
+      "arms": {
+        "bm25": {
+          "ndcg": 0.6002,
+          "precision": 0.3867,
+          "recall": 0.3007,
+          "n_at_ceiling": 0,
+          "n_distinct": 15
+        },
+        "dense": {
+          "ndcg": 0.564,
+          "precision": 0.4133,
+          "recall": 0.3613,
+          "n_at_ceiling": 0,
+          "n_distinct": 15
+        },
+        "rrf": {
+          "ndcg": 0.6493,
+          "precision": 0.48,
+          "recall": 0.3547,
+          "n_at_ceiling": 1,
+          "n_distinct": 14
+        },
+        "rrf_ce": {
+          "ndcg": 0.7228,
+          "precision": 0.5333,
+          "recall": 0.4093,
+          "n_at_ceiling": 2,
+          "n_distinct": 13
+        },
+        "random": {
+          "ndcg": 0.0554,
+          "precision": 0.0267,
+          "recall": 0.0296,
+          "n_at_ceiling": 0,
+          "n_distinct": 3
+        }
+      },
+      "recall_ceiling": 0.7166,
+      "n_significant": 6,
+      "n_comparisons": 10,
+      "comparisons": {
+        "bm25_vs_dense": {
+          "mean_delta": -0.0361,
+          "ci_95": [
+            -0.1192,
+            0.0411
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf": {
+          "mean_delta": 0.049,
+          "ci_95": [
+            -0.0101,
+            0.114
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf_ce": {
+          "mean_delta": 0.1224,
+          "ci_95": [
+            0.0269,
+            0.2023
+          ],
+          "significant": true
+        },
+        "bm25_vs_random": {
+          "mean_delta": -0.5441,
+          "ci_95": [
+            -0.6641,
+            -0.4053
+          ],
+          "significant": true
+        },
+        "dense_vs_rrf": {
+          "mean_delta": 0.0851,
+          "ci_95": [
+            -0.0089,
+            0.1777
+          ],
+          "significant": false
+        },
+        "dense_vs_rrf_ce": {
+          "mean_delta": 0.1585,
+          "ci_95": [
+            0.0908,
+            0.2302
+          ],
+          "significant": true
+        },
+        "dense_vs_random": {
+          "mean_delta": -0.5079,
+          "ci_95": [
+            -0.6429,
+            -0.3696
+          ],
+          "significant": true
+        },
+        "rrf_vs_rrf_ce": {
+          "mean_delta": 0.0734,
+          "ci_95": [
+            -0.0349,
+            0.1749
+          ],
+          "significant": false
+        },
+        "rrf_vs_random": {
+          "mean_delta": -0.5931,
+          "ci_95": [
+            -0.7204,
+            -0.4538
+          ],
+          "significant": true
+        },
+        "rrf_ce_vs_random": {
+          "mean_delta": -0.6664,
+          "ci_95": [
+            -0.811,
+            -0.5037
+          ],
+          "significant": true
+        }
+      }
+    },
+    "k=10": {
+      "arms": {
+        "bm25": {
+          "ndcg": 0.6241,
+          "precision": 0.34,
+          "recall": 0.4527,
+          "n_at_ceiling": 0,
+          "n_distinct": 15
+        },
+        "dense": {
+          "ndcg": 0.5989,
+          "precision": 0.3667,
+          "recall": 0.5577,
+          "n_at_ceiling": 0,
+          "n_distinct": 15
+        },
+        "rrf": {
+          "ndcg": 0.665,
+          "precision": 0.4,
+          "recall": 0.5662,
+          "n_at_ceiling": 0,
+          "n_distinct": 15
+        },
+        "rrf_ce": {
+          "ndcg": 0.7166,
+          "precision": 0.44,
+          "recall": 0.6033,
+          "n_at_ceiling": 1,
+          "n_distinct": 15
+        },
+        "random": {
+          "ndcg": 0.0575,
+          "precision": 0.02,
+          "recall": 0.0348,
+          "n_at_ceiling": 0,
+          "n_distinct": 8
+        }
+      },
+      "recall_ceiling": 0.9352,
+      "n_significant": 7,
+      "n_comparisons": 10,
+      "comparisons": {
+        "bm25_vs_dense": {
+          "mean_delta": -0.0254,
+          "ci_95": [
+            -0.0924,
+            0.0374
+          ],
+          "significant": false
+        },
+        "bm25_vs_rrf": {
+          "mean_delta": 0.0408,
+          "ci_95": [
+            0.0015,
+            0.0842
+          ],
+          "significant": true
+        },
+        "bm25_vs_rrf_ce": {
+          "mean_delta": 0.0923,
+          "ci_95": [
+            0.0055,
+            0.1636
+          ],
+          "significant": true
+        },
+        "bm25_vs_random": {
+          "mean_delta": -0.5662,
+          "ci_95": [
+            -0.656,
+            -0.4683
+          ],
+          "significant": true
+        },
+        "dense_vs_rrf": {
+          "mean_delta": 0.0662,
+          "ci_95": [
+            -0.0147,
+            0.158
+          ],
+          "significant": false
+        },
+        "dense_vs_rrf_ce": {
+          "mean_delta": 0.1177,
+          "ci_95": [
+            0.0421,
+            0.1926
+          ],
+          "significant": true
+        },
+        "dense_vs_random": {
+          "mean_delta": -0.5408,
+          "ci_95": [
+            -0.635,
+            -0.4423
+          ],
+          "significant": true
+        },
+        "rrf_vs_rrf_ce": {
+          "mean_delta": 0.0515,
+          "ci_95": [
+            -0.0548,
+            0.1321
+          ],
+          "significant": false
+        },
+        "rrf_vs_random": {
+          "mean_delta": -0.607,
+          "ci_95": [
+            -0.708,
+            -0.4993
+          ],
+          "significant": true
+        },
+        "rrf_ce_vs_random": {
+          "mean_delta": -0.6585,
+          "ci_95": [
+            -0.7776,
+            -0.5262
+          ],
+          "significant": true
+        }
+      }
+    }
+  },
+  "recall_at_3_ceiling": {
+    "judge_only": 0.6256,
+    "human_patched": 0.553
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "experiment": "judge 모델 상향 A/B (HANDOFF §3-B)",
+  "generated_at": "2026-07-29T00:19:11.917399+00:00",
+  "single_variable": "judge 모델만 교체. 프롬프트·풀·앵커 동일",
+  "prompt_version": "v3",
+  "anchor_source": "claude-fable-5 (LLM, judge와 다른 계열 -사람 채점 아님)",
+  "n_anchor_primary": 120,
+  "preregistered_criterion": {
+    "rule": "κ >= 0.6 또는 기준선 대비 +0.1 이상",
+    "baseline_kappa_recorded": 0.4448,
+    "baseline_kappa_recomputed": 0.4448
+  },
+  "arms": [
+    {
+      "arm": "gemini-2.5-flash-lite (기준선)",
+      "n_compared": 120,
+      "n_judged_total": 439,
+      "binary_kappa": 0.4448,
+      "binary_agreement": 0.7417,
+      "agreement_by_judge_label": {
+        "Correct": {
+          "n_sampled": 50,
+          "anchor_agrees": 27,
+          "rate": 0.54
+        },
+        "Ambiguous": {
+          "n_sampled": 20,
+          "anchor_agrees": 15,
+          "rate": 0.75
+        },
+        "Incorrect": {
+          "n_sampled": 50,
+          "anchor_agrees": 47,
+          "rate": 0.94
+        }
+      },
+      "mcnemar": {
+        "b_anchor_pos_llm_neg": 8,
+        "c_anchor_neg_llm_pos": 23,
+        "statistic": 6.3226,
+        "direction": "LLM inflates positives"
+      }
+    },
+    {
+      "arm": "gemini-2.5-flash (실험군)",
+      "n_compared": 120,
+      "n_judged_total": 439,
+      "binary_kappa": 0.5,
+      "binary_agreement": 0.7917,
+      "agreement_by_judge_label": {
+        "Correct": {
+          "n_sampled": 36,
+          "anchor_agrees": 23,
+          "rate": 0.6389
+        },
+        "Ambiguous": {
+          "n_sampled": 20,
+          "anchor_agrees": 14,
+          "rate": 0.7
+        },
+        "Incorrect": {
+          "n_sampled": 64,
+          "anchor_agrees": 58,
+          "rate": 0.9062
+        }
+      },
+      "mcnemar": {
+        "b_anchor_pos_llm_neg": 12,
+        "c_anchor_neg_llm_pos": 13,
+        "statistic": 0.0,
+        "direction": "LLM inflates positives"
+      }
+    }
+  ],
+  "delta_kappa": 0.0552,
+  "judge_disagreement": {
+    "n_common_pairs": 439,
+    "n_binary_flips": 56,
+    "flip_rate": 0.1276
+  },
+  "decision": "REJECT",
+  "gate3_if_adopted": "FAIL (여전히 사람 채점 필요)"
+}

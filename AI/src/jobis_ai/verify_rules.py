@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import re
+
 from jobis_ai.contracts.domain import Violation
 
 # 표현 원칙(설계 12.3-2): 합격/불합격 단정·과장 표현 금지.
@@ -25,7 +27,42 @@ FORBIDDEN_EXPRESSIONS: tuple[str, ...] = (
     "합격 가능", "합격가능", "불합격", "지원 불가", "지원불가",
     "반드시", "무조건", "100% 합격", "확실히 합격", "붙습니다", "떨어집니다",
     "보장", "장담", "틀림없", "당연히 됩니다",
+    # 합격 예측의 우회 표현 — career_chat 이 "서류 통과 가능성은 충분히 노려볼 만해요"로
+    # 새어나간 실측(2026-07-31). 예측을 돌려 말해도 예측이다.
+    "통과 가능성", "합격 확률", "합격률", "승산", "노려볼 만",
 )
+
+# 숫자+마침표("2. ")는 목록 마커이지 문장 끝이 아니다 — 거기서 가르면 마커만 남는다.
+_SENTENCE_SPLIT = re.compile(r"(?<!\d\.)(?<=[.!?…])\s+")
+
+
+def drop_forbidden_sentences(text: str) -> tuple[str, list[str]]:
+    """금지표현이 든 **문장만** 버리고 나머지를 살린다 — 전량 강등의 결정론 대안 (D123).
+
+    목록에는 '반드시'·'보장'처럼 코칭 문장에 자연스럽게 나오는 낱말이 있어서, 한 단어가
+    걸렸다고 답변 전체를 고정 문구로 바꾸면 정상 답변이 통째로 버려진다(실측: career_chat
+    강등 2.5%, 전부 정상 요청). 판정 원칙은 유지한다 — 걸린 문장은 여전히 나가지 않는다.
+
+    반환: (남은 텍스트, 걸린 표현들). 남은 텍스트가 비면 호출부가 기존 폴백을 쓴다.
+    """
+
+    hits: list[str] = []
+    kept_lines: list[str] = []
+    for line in text.splitlines():
+        if not line.strip():
+            kept_lines.append(line)     # 문단 구분(빈 줄)은 보존
+            continue
+        kept_sentences = []
+        for sentence in _SENTENCE_SPLIT.split(line):
+            found = [e for e in FORBIDDEN_EXPRESSIONS if e in sentence]
+            if found:
+                hits.extend(h for h in found if h not in hits)
+            else:
+                kept_sentences.append(sentence)
+        if any(s.strip() for s in kept_sentences):
+            kept_lines.append(" ".join(s for s in kept_sentences if s.strip()))
+        # 문장이 전부 걸린 줄은 줄째 버린다 — 빈 불릿을 남기지 않는다
+    return "\n".join(kept_lines).strip(), hits
 
 
 def validate_schema(gap: dict, roadmap: dict) -> list[Violation]:

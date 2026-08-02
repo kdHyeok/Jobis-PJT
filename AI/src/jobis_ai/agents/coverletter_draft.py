@@ -32,13 +32,15 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from jobis_ai.agents import AgentResult
-from jobis_ai.agents._common import agent_arg, ensure_profile
+from jobis_ai.agents._common import agent_arg, ensure_profile, posting_identity
 from jobis_ai.agents.agent_loop import ToolSpec, delegate_tool, run_agent_loop
 from jobis_ai.skill_taxonomy import get_skill_taxonomy
 from jobis_ai.structured import llm_unconfigured
 from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
 
-_MAX_FACTS = 20
+# 근거 사실 상한. 프롬프트가 아니라 **도구 응답에만** 실리므로(evidenceCount 만 프롬프트로 간다)
+# 넉넉히 둔다 — 여기서 자르면 사용자가 강조해 달라고 한 경험이 애초에 사라진다.
+_MAX_FACTS = 60
 # 초안 → 점검 → 재작성 → 점검 → 답변. 자기비판을 한 바퀴 돌 수 있는 최소치다
 # (기본값 3 이면 쓰고 점검하면 끝나 고칠 기회가 없다). 근거가 빈약해 다른 담당에게
 # 물어보는 경우(ask_agent)를 위해 한 칸 더 둔다.
@@ -87,36 +89,75 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[.!?다])\s+")
 
 
 # --- P2 MAP [룰] — 근거 사실 목록 조립 -----------------------------------------
+def _paren(*parts: Any) -> str:
+    """비어 있지 않은 조각만 괄호로 묶는다. 없으면 빈 문자열."""
+
+    inner = ", ".join(str(p).strip() for p in parts if str(p or "").strip())
+    return f" ({inner})" if inner else ""
+
+
 def _collect_facts(profile: dict) -> list[str]:
-    """프로필에서 초안 재료가 될 사실 문장을 모은다. 여기 없는 것은 초안에 못 들어간다."""
+    """프로필에서 초안 재료가 될 사실 문장을 모은다. 여기 없는 것은 초안에 못 들어간다.
+
+    **넓게 모은다 — 좁히는 것은 LLM 의 일이다.** "트러블슈팅 위주로 다시 써줘" 같은 요청은
+    이력서에 그 단어가 없어도 성립한다(장애 대응·성능 개선·디버깅으로 적혀 있다). 어느 문장이
+    거기 해당하는지는 문자 대조가 아니라 **읽어야** 안다. 재료를 미리 잘라 두면 LLM 이 아무리
+    잘 읽어도 못 찾는다 — 검색을 고쳐도 없는 것은 못 찾기 때문이다.
+
+    그래서 프로필의 모든 섹션을 싣고, 특히 `evidenceMap`(이력서 원문 문장 그대로)을 포함한다 —
+    구조화 항목이 요약하며 지운 표현이 거기에 남아 있다.
+    """
 
     facts: list[str] = []
     for p in profile.get("projects", []):
         base = f"프로젝트 '{p.get('title', '')}'"
+        base += _paren(p.get("projectType"), p.get("period"), p.get("teamSize"))
         if p.get("role"):
-            base += f"에서 {p['role']} 역할 수행"
+            base += f" — {p['role']} 역할 수행"
         if p.get("techStack"):
-            base += f" (기술: {', '.join(p['techStack'][:5])})"
+            base += f" — 기술: {', '.join(p['techStack'])}"
         if p.get("summary"):
             base += f" — {p['summary']}"
         facts.append(base)
         facts.extend(f"'{p.get('title', '')}' 성과: {a}" for a in p.get("achievements", []))
     for e in profile.get("experiences", []):
         text = f"{e.get('company', '')} {e.get('role', '')} 경력"
-        if e.get("period"):
-            text += f" ({e['period']})"
+        text += _paren(e.get("employmentType"), e.get("period"))
         if e.get("summary"):
             text += f" — {e['summary']}"
         facts.append(text.strip())
+    # 이력서 원문 문장. 표현이 살아 있어 의미 매칭의 핵심 재료다(read_nodes 가 "원문 그대로,
+    # 요약·윤색 금지"로 뽑는다). 구조화 항목과 내용이 겹치더라도 말이 다르므로 둘 다 싣는다.
     facts.extend(
-        f"자격증: {c.get('name', '')} ({c.get('status', '')})"
+        str(ev.get("text") or "").strip()
+        for ev in profile.get("evidenceMap", []) if str(ev.get("text") or "").strip()
+    )
+    facts.extend(
+        f"부트캠프 {b.get('name', '')}"
+        + _paren(b.get("organization"), b.get("track"), b.get("period"))
+        + (f" — {b['summary']}" if b.get("summary") else "")
+        for b in profile.get("bootcamp", []) if b.get("name")
+    )
+    facts.extend(
+        f"수상: {a.get('title', '')}" + _paren(a.get("organization"), a.get("date"))
+        + (f" — {a['description']}" if a.get("description") else "")
+        for a in profile.get("awards", []) if a.get("title")
+    )
+    facts.extend(
+        f"자격증: {c.get('name', '')}" + _paren(c.get("status"), c.get("acquiredDate"))
         for c in profile.get("certifications", []) if c.get("name")
     )
     facts.extend(
-        f"수상: {a.get('title', '')} ({a.get('organization', '')})"
-        for a in profile.get("awards", []) if a.get("title")
+        f"어학: {lang.get('name', '')}"
+        + _paren(lang.get("testName"), lang.get("score"), lang.get("proficiency"))
+        for lang in profile.get("languages", []) if lang.get("name")
     )
-    return [f for f in facts if f.strip()][:_MAX_FACTS]
+    facts.extend(
+        f"학력: {ed.get('school', '')} {ed.get('major', '')}".strip()
+        + _paren(ed.get("degree"), ed.get("status"), ed.get("period"))
+        for ed in profile.get("education", []) if ed.get("school") or ed.get("major")
+    )
+    return list(dict.fromkeys(f.strip() for f in facts if f.strip()))[:_MAX_FACTS]
 
 
 def _allowed_skills(profile: dict) -> set[str]:
@@ -178,22 +219,34 @@ def _has_draft(state: dict[str, Any]) -> bool:
 # 도구 — 전부 결정론. 사실만 돌려주고 판단·권유를 담지 않는다.
 # ---------------------------------------------------------------------------
 def _tool_find_evidence(state: dict[str, Any], arg: str) -> tuple[str, dict]:
-    """이력서에서 확인된 사실만 준다. 없으면 없다고 말한다(지어낼 근거를 주지 않는다)."""
+    """이력서에서 확인된 사실만 준다. 없는 것을 만들어 주지는 않는다.
+
+    **인자는 정렬 힌트일 뿐 필터가 아니다.** 문자열 일치로 0건이 나와도 "없습니다"로 끝내지
+    않고 전체를 함께 돌려준다 — 이력서는 요청과 다른 말로 적혀 있기 때문이다("트러블슈팅"이
+    "장애 대응"으로). 어느 문장이 요청에 해당하는지 판단하는 것은 substring 이 아니라 LLM 의
+    일이고, 판단하려면 전문을 봐야 한다. 예전에는 "인자를 비우면 전부 볼 수 있습니다"라고
+    안내만 했는데, `_MAX_STEPS` 가 7 이라 그 한 스텝이 재작성 기회 하나와 맞바꿔졌다.
+    """
 
     evidence: list[str] = state.get("_evidence") or []
     if not evidence:
         return "이력서에서 확인된 사실이 없습니다.", {}
 
+    everything = f"확인된 사실 전체 {len(evidence)}건: " + " / ".join(evidence)
     terms = [t.strip().lower() for t in (arg or "").split(",") if t.strip()]
     if not terms:
-        return ("확인된 사실 " + str(len(evidence)) + "건: "
-                + " / ".join(evidence)), {}
+        return everything, {}
 
     hits = [f for f in evidence if any(t in f.lower() for t in terms)]
     if not hits:
-        return (f"'{arg}' 관련 근거가 이력서에서 확인되지 않습니다 "
-                f"(확인된 사실은 총 {len(evidence)}건이며 인자를 비우면 전부 볼 수 있습니다)."), {}
-    return f"'{arg}' 관련 확인된 사실 {len(hits)}건: " + " / ".join(hits[:10]), {}
+        return (f"'{arg}' 를 문자 그대로 포함하는 사실은 없습니다. 이력서가 다른 표현으로 적었을 수 "
+                f"있으니(예: '트러블슈팅' → '장애 대응'·'성능 개선') 아래 전문을 직접 읽고 해당하는 "
+                f"것을 고르세요. 정말 없으면 지어내지 말고 없다고 알리세요. " + everything), {}
+    if len(hits) < len(evidence):
+        return (f"'{arg}' 를 문자 그대로 포함하는 사실 {len(hits)}건: " + " / ".join(hits)
+                + f" | 이 목록은 문자 일치일 뿐이라 표현이 다른 관련 경험이 빠져 있을 수 있습니다"
+                  f" (전체 {len(evidence)}건 — 인자를 비우면 전부)."), {}
+    return everything, {}
 
 
 def _parse_sections(text: str) -> dict[str, str]:
@@ -364,6 +417,9 @@ _GOAL_SYSTEM = """너는 자기소개서 초안 작성기다. 초안을 쓰고, 
 1. find_evidence 로 확인한 사실만 쓴다. 확인되지 않은 경험·성과·수치·기술을 만들지 않는다. 과장도 금지.
 2. 합격 가능성을 단정하지 않는다.
 
+지원 대상: facts.company / facts.role 이 이 자소서를 내는 회사·직무다(비어 있으면 언급하지
+않는다 — 회사명을 추측해 쓰지 않는다). 동기 문단은 이 회사·직무를 향해 쓴다.
+
 진행 순서:
 - 근거를 모르면 먼저 find_evidence 로 확인한다(인자를 비우면 전체).
 - save_draft 로 세 문단을 쓴다. 각 문단은 3~5문장의 완결된 글이다.
@@ -372,6 +428,14 @@ _GOAL_SYSTEM = """너는 자기소개서 초안 작성기다. 초안을 쓰고, 
   · 보완: 부족 역량만 다룬다. 숨기지 말고 무엇을 어떻게 메울지
 - 쓴 뒤에는 check_draft 로 점검한다. 지적이 있으면 **그 문단만 고쳐** save_draft 를 다시 부른다.
 - 사용자가 특정 문단 수정을 요청했으면 그 문단만 고치고 나머지는 두 번 쓰지 않는다.
+- **사용자가 어떤 주제·기술·경험을 강조해 달라고 하면**(예: "트러블슈팅 위주로", "React 경험
+  살려서 다시", "협업 얘기를 더") 그 말을 이력서에서 문자 그대로 찾지 말고, find_evidence 를
+  **인자 없이** 불러 확인된 사실 전문을 읽은 뒤 어느 경험이 그 요청에 해당하는지 네가 판단해
+  고른다. 이력서는 요청과 다른 말로 적혀 있다 — "트러블슈팅"은 장애 대응·성능 개선·디버깅으로,
+  "협업"은 팀 규모·역할·리뷰로 적혀 있을 수 있다. 요청이 모호하면(예: "좀 더 임팩트 있게")
+  가장 그럴듯한 뜻으로 해석해 진행하고, 무엇으로 해석했는지 마무리 안내에 적는다.
+  요청에 맞는 근거가 **정말** 없으면 지어내지 말고, 그 사실을 마무리 안내에서 알린다
+  ("이력서에 해당 경험이 없어 반영하지 못했습니다").
 - 쓸 근거가 빈약하면(확인된 사실이 두세 건뿐이면) ask_agent 로 resume_diagnosis 에게
   이력서의 어디가 비었는지 물어본다. 그 답은 참고용이다 — 초안에 사실로 옮겨 쓰지 않고,
   마무리 안내에서 무엇을 보강하면 좋을지 알려 주는 데 쓴다.
@@ -529,8 +593,13 @@ def run(session: dict[str, Any]) -> AgentResult:
             }],
         )
 
+    company, role = posting_identity(session)
     facts = {
         "userMessage": str(session.get("last_message") or ""),
+        # **어느 회사·어느 직무에 내는 자소서인가.** 이게 없어서 초안이 지원 대상을 모른
+        # 채 쓰였다 — 화이트보드(posting_summary)에 있는 것을 읽지 않았을 뿐이다.
+        "company": company,
+        "role": role,
         # 공고 쪽은 '과제'라 여기에 싣는다. 이력서 쪽(근거)은 find_evidence 만 준다.
         "requirements": state["_requirements"],
         "gaps": state["_gapTopics"],

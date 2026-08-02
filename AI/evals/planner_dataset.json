@@ -96,7 +96,10 @@
         "resume_diagnosis"
       ],
       "expectAsk": false,
-      "note": "KNOWN FAILURE (2026-07-29). 관측 career_chat×3. 판정 요청인데 공고가 없어 fit 규칙이 발동하지 않고, 가진 자산으로 먼저 돕기(→ resume_diagnosis)로도 가지 않는다. coverletter-missing-posting·interview-missing 은 같은 상황에서 resume_diagnosis 로 가므로 플래너가 일관되지 않다. 기대값을 바꾸지 않고 열어 둔다."
+      "expectBlocked": [
+        "fit_analysis"
+      ],
+      "note": "KNOWN FAILURE (2026-07-29). 관측 career_chat×3. 판정 요청인데 공고가 없어 fit 규칙이 발동하지 않고, 가진 자산으로 먼저 돕기(→ resume_diagnosis)로도 가지 않는다. coverletter-missing-posting·interview-missing 은 같은 상황에서 resume_diagnosis 로 가므로 플래너가 일관되지 않다. 기대값을 바꾸지 않고 열어 둔다. expectBlocked 는 D72(청한 요청 신고)가 정했다."
     },
     {
       "caseId": "fit-missing-resume-degrade",
@@ -107,7 +110,11 @@
       "expectedAgents": [
         "posting_analysis"
       ],
-      "expectAsk": false
+      "expectAsk": false,
+      "expectBlocked": [
+        "fit_analysis"
+      ],
+      "note": "expectBlocked 는 D72(청했지만 실행 불가한 요청의 신고)가 정했다."
     },
     {
       "caseId": "fit-missing-both",
@@ -129,6 +136,45 @@
         "posting_analysis"
       ],
       "expectAsk": false
+    },
+    {
+      "caseId": "posting-study-plan",
+      "message": "이 공고 기준으로 제가 어떤 스택을 공부하고 어떤 프로젝트를 만들면 좋을까요?",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "posting_analysis"
+      ],
+      "expectAsk": false,
+      "note": "D97 이 정했다. 실측(2026-07-31 로그): 이 발화에 플래너가 fit_analysis→application_plan 을 골랐고 이력서가 얇아 5개를 되물으며 끝났다(요청 미완수). 공고만으로 답할 수 있는 질문에 사용자 정보를 요구한 것이다. **판별력 확인(08-01)**: 승격 전 description 으로 되돌려 돌리면 동의 게이트 ASK 3/3 (fit_analysis 를 끼워 '수십 초 걸리는데 진행할까요'를 묻는다) — 이 케이스는 승격을 실제로 잰다."
+    },
+    {
+      "caseId": "posting-study-plan-with-analysis",
+      "message": "이 공고 기준으로 제가 어떤 스택을 공부하고 어떤 프로젝트를 만들면 좋을까요?",
+      "assets": [
+        "resume",
+        "job_posting",
+        "analysis"
+      ],
+      "expectedAgents": [
+        "posting_analysis"
+      ],
+      "expectAsk": false,
+      "note": "D97 이 정했다. **판별력 확인(08-01)**: 승격 전 description 으로는 application_plan 3/3 이었다 — 사용자가 물은 것은 공고 기준 학습·프로젝트이고, 지원 경로 설계는 다른 질문의 답이다. 판정 결과가 있어도 '이 공고 기준으로'라고 물었으면 공고 담당이 답한다."
+    },
+    {
+      "caseId": "posting-detail-question",
+      "message": "이 공고 전형 절차가 어떻게 되나요?",
+      "assets": [
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "posting_analysis"
+      ],
+      "expectAsk": false,
+      "note": "회귀 고정용 — 파싱 결과에 전형 절차 칸이 없어 read_posting 이 근거가 되는 자리(D97). **판별력 없음**: 승격 전 description 으로도 posting_analysis 3/3 이다(08-01 확인). 라우팅은 원래 맞았고 승격이 바꾼 것은 **답의 내용**이다 — 그건 이 하네스가 재지 못한다. 다음에 description 을 좁히는 사람이 이 라우팅을 깨지 않도록 잠가 두는 값이다."
     },
     {
       "caseId": "recommend-basic",
@@ -271,7 +317,20 @@
         "career_chat"
       ],
       "expectAsk": false,
-      "note": "OPEN (2026-07-29 후속6). 관측이 career_chat/job_recommend 로 갈리지만 기대값을 고치지 않는다 — 플래너 사다리 4단이 \"전제가 부족하면 가진 자산으로 할 수 있는 일을 고른다, 대화로 넘기지 않는다\"고 명시하므로 이건 낡은 기대값이 아니라 정책 위반이다. ①(프롬프트 규칙 추가)로 고치려다 규칙 간 간섭으로 되돌린 이력이 있다(후속2). 다음 시도는 규칙 추가가 아니라 career_chat 의 manifest 설명을 좁히는 방향. / D50 재측정: unstable 0.33 → **stable-wrong 0.00**(preference_intake×3). 기대값은 그대로 둔다 — 처방(career_chat manifest 좁히기)이 바뀌지 않았고, 일관되게 틀리는 쪽이 진단이 쉽다(§3-3)."
+      "note": "RESOLVED (2026-07-31, D78). OPEN(07-29 후속6) → D77(career_chat 수용 문장·preference_intake 1차 좁히기)로 0.33 → D78(preference_intake 의 '이력서를 자연스럽게 요청' 훅 제거, '공고 추천 요청에만')로 **1.00 안정·정답**. 처방은 끝까지 규칙 추가가 아니라 어휘 좁히기였다(§3-1). 이전 이력은 decisions.md D77·D78 참고."
+    },
+    {
+      "caseId": "resume-strengths-with-posting",
+      "message": "제 이력서 강점만 정리해 주세요",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "expectedAgents": [
+        "resume_diagnosis"
+      ],
+      "expectAsk": false,
+      "note": "회귀 고정용 — 승격으로 '경험으로 뒷받침되는 강점 정리'가 이력서 담당의 일이 됐다(D97). 공고가 함께 있어도 청한 것은 강점 정리뿐이므로 fit_analysis(무거움)로 끌려가면 안 청한 비싼 일을 하는 것이다(§2-7). **판별력 없음**: 승격 전 description 으로도 resume_diagnosis 3/3 이다(08-01 확인)."
     },
     {
       "caseId": "coverletter-with-analysis",
@@ -531,6 +590,44 @@
         "career_chat"
       ],
       "expectAsk": false
+    },
+    {
+      "caseId": "mixed-submit-fit-explicit",
+      "message": "공고와 이력서 각각 분석하고 적합도 분석 진행해줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "submitted": [
+        "job_posting",
+        "resume"
+      ],
+      "expectedAgents": [
+        "posting_analysis",
+        "resume_diagnosis",
+        "fit_analysis"
+      ],
+      "expectAsk": false,
+      "note": "실측 2026-07-31(D69·D71) 재현 — 한 메시지에 공고+이력서+요청. 플래너가 fit 만 골라도 정리 삽입(D71, 하네스가 같은 함수를 씀)이 시퀀스를 완성하므로 기대값은 결정적이다."
+    },
+    {
+      "caseId": "mixed-submit-fit-implicit",
+      "message": "이 공고에 나 되는지 봐줘",
+      "assets": [
+        "resume",
+        "job_posting"
+      ],
+      "submitted": [
+        "job_posting",
+        "resume"
+      ],
+      "expectedAgents": [
+        "posting_analysis",
+        "resume_diagnosis",
+        "fit_analysis"
+      ],
+      "expectAsk": false,
+      "note": "제출 턴의 판정 요청 — 규칙 1(판정 명시)이 규칙 3(제출 정리)보다 위임을 확인한다. 정리는 D71 삽입이 채운다."
     }
   ]
 }

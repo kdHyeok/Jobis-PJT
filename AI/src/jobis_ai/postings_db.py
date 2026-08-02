@@ -145,6 +145,28 @@ def posting_floor_years(experience: str | None, title: str | None = None) -> flo
     return floor
 
 
+# 경력자에게 허용하는 초과 연차. 3년차에게 4년 요구 공고는 보여줄 만하다(도전 가능).
+# 신입(0년)에는 적용하지 않는다 — 아래 fits_experience 참고.
+OVER_YEARS_TOLERANCE = 1.0
+
+
+def fits_experience(posting_floor: float | None, user_years: float | None) -> bool:
+    """공고 요구 연차가 사용자 연차에 맞는지. 어느 쪽이든 모르면 통과(거르지 않는다).
+
+    `job_recommend`(공고 추천)와 `find_alternatives`(대안 공고)가 **같은 규칙**을 써야 한다 —
+    한쪽에만 있으면 같은 사용자에게 한 답변에서는 걸러지고 다른 답변에서는 8년 요구 공고가
+    나간다(D115). 그래서 판정을 이 한 곳에 둔다.
+    """
+
+    if posting_floor is None or user_years is None:
+        return True
+    if user_years <= 0:
+        # 신입에게는 "신입 지원 가능" 공고만. 연차 미표기 '경력' 공고(데이터의 최다 유형)도
+        # 경력자 채용이므로 제외한다 — 이게 신입에게 8년 요구 공고가 가던 원인이었다.
+        return posting_floor <= 0
+    return posting_floor <= user_years + OVER_YEARS_TOLERANCE
+
+
 def posting_to_text(posting: dict) -> str:
     """공고 원본 dict → 파서(extract)가 먹는 평문. 필드는 있는 것만 싣는다."""
 

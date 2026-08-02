@@ -1,47 +1,47 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '4.1.0'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.jobiss'
-version = '0.0.1-SNAPSHOT'
+version = '1.0.0'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-	implementation 'org.springframework.boot:spring-boot-flyway'
-	implementation 'org.flywaydb:flyway-mysql'
-	runtimeOnly 'com.mysql:mysql-connector-j'
-	runtimeOnly 'org.postgresql:postgresql'         // Postgres 전환
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
-	runtimeOnly 'io.jsonwebtoken:jjwt-gson:0.12.6'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testCompileOnly 'org.projectlombok:lombok'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	testAnnotationProcessor 'org.projectlombok:lombok'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.5')
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
 
 tasks.withType(JavaCompile).configureEach {
-	options.encoding = 'UTF-8'
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-parameters', '-Xlint:deprecation']
 }

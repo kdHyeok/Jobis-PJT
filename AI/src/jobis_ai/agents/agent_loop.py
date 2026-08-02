@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field, create_model
 
 from jobis_ai import trace
 from jobis_ai.structured import run_structured
-from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
+from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS, drop_forbidden_sentences
 
 log = logging.getLogger(__name__)
 
@@ -234,6 +234,8 @@ def run_agent_loop(
         f"쓸 수 있는 도구:\n{_tool_manifest(tools)}\n\n"
         "규율:\n"
         "- 근거는 도구만 준다. 도구가 주지 않은 사실·수치·회사명을 지어내지 않는다.\n"
+        "- userFacts 는 사용자가 이전 대화에서 직접 말한 사실이다 — 기억으로 존중해 반영하되,"
+        " 거기 없는 개인 사실을 지어내지 않는다.\n"
         "- 필요한 도구를 다 쓴 뒤 action=reply 로 답한다. 쓸 도구가 없으면 바로 reply.\n"
         "- 적합도·합격 가능성을 단정하지 않는다."
     )
@@ -252,10 +254,14 @@ def run_agent_loop(
         history = recent_history(session)
     else:
         history = []
+    # 사용자가 이전에 직접 말한 지속 사실(D82) — 모든 자기 루프 에이전트(자소서·면접·선호)가
+    # 같은 화이트보드 기억을 본다(D84). "내가 했던 말을 에이전트가 기억 못하는 일이 없도록".
+    user_facts = [str(f) for f in (session.get("user_facts") or []) if str(f).strip()]
 
     for step in range(1, max_steps + 1):
         payload = json.dumps(
-            {"facts": facts, "recentHistory": history, "observations": observations},
+            {"facts": facts, "recentHistory": history, "userFacts": user_facts,
+             "observations": observations},
             ensure_ascii=False)
         decision, warnings = run_structured(schema, system, payload, node=node)
         outcome.warnings.extend(warnings)
@@ -350,12 +356,18 @@ def run_agent_loop(
             "message": f"{node}: 도구 상한({max_steps}) 뒤에도 답변을 만들지 못했습니다.",
         })
         return outcome
-    reply = decision.reply.strip()
-    hit = next((e for e in FORBIDDEN_EXPRESSIONS if e in reply), "")
-    if hit:
+    # 상한 도달 뒤에는 재작성 기회가 없으므로 **문장 단위로만** 버린다(D123) — 전량 폐기는
+    # 상한까지 쌓은 관찰로 만든 답을 '반드시' 한 단어로 지우고 결정론 폴백을 내보냈다.
+    reply, hits = drop_forbidden_sentences(decision.reply.strip())
+    if hits:
+        outcome.warnings.append({
+            "code": "loop_reply_softened",
+            "message": f"{node}: 마지막 답변에서 금지표현 {hits} 이 든 문장을 제거.",
+        })
+    if not reply:
         outcome.warnings.append({
             "code": "loop_reply_forbidden_expression",
-            "message": f"{node}: 마지막 답변에 금지표현 '{hit}' 이 있어 버렸습니다.",
+            "message": f"{node}: 마지막 답변이 금지표현 제거 후 비어 버렸습니다.",
         })
         return outcome
     outcome.reply = reply

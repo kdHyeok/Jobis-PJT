@@ -81,7 +81,14 @@ def normalized_score(actual: float, rand_floor: float, oracle: float) -> float:
 # ── 쌍대 부트스트랩 ────────────────────────────────────
 
 def paired_bootstrap(scores_a: list[float], scores_b: list[float],
-                     n_resamples: int = 10000, seed: int = 42) -> dict:
+                     n_resamples: int = 10000, seed: int = 42,
+                     alpha: float = 0.05) -> dict:
+    """쌍대 부트스트랩 (b - a). alpha를 낮추면 다중비교 보정 CI를 얻는다.
+
+    alpha는 기본 0.05(=95% CI, 기존 호출 전부 이 동작 유지). 한 지표에서 m개 변형을
+    같은 기준선과 비교할 때는 alpha=0.05/m을 넘겨 Bonferroni 보정 CI를 쓴다 —
+    보정 없이 3~4번 비교하면 우연히 유의해질 확률이 5%가 아니라 14~19%가 된다.
+    """
     rng = random.Random(seed)
     n = len(scores_a)
     deltas = []
@@ -91,12 +98,14 @@ def paired_bootstrap(scores_a: list[float], scores_b: list[float],
             sum(scores_b[i] for i in idx) / n - sum(scores_a[i] for i in idx) / n
         )
     deltas.sort()
-    lo = deltas[int(n_resamples * 0.025)]
-    hi = deltas[int(n_resamples * 0.975)]
+    lo = deltas[int(n_resamples * (alpha / 2))]
+    hi = deltas[min(n_resamples - 1, int(n_resamples * (1 - alpha / 2)))]
     mean_delta = sum(deltas) / len(deltas)
     return {
         "mean_delta": round(mean_delta, 4),
         "ci_95": [round(lo, 4), round(hi, 4)],
+        "alpha": alpha,
+        "conf_level": round(1 - alpha, 4),
         "significant": not (lo <= 0 <= hi),
     }
 

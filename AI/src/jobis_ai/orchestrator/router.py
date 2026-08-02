@@ -305,8 +305,10 @@ def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any],
 
     labels = " → ".join(agent_label(n) for n in plan)
     if dropped:
-        lack = ", ".join(asset_label(a) for _, a in dropped if a not in ("unknown", "recursion"))
-        note = (f"{lack}이 아직 없어서 {labels}부터 할게요." if lack
+        # 같은 자산이 여러 항목의 결측이면 한 번만 말한다(실측: "이력서, 이력서이 아직 없어서").
+        lack = ", ".join(dict.fromkeys(
+            asset_label(a) for _, a in dropped if a not in ("unknown", "recursion")))
+        note = (f"{lack}이(가) 아직 없어서 {labels}부터 할게요." if lack
                 else f"{labels}(으)로 이어서 진행할게요.")
     else:
         note = f"{labels}(으)로 이해했어요. 순서대로 실행할게요." if len(plan) > 1 else ""

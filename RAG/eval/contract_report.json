@@ -1,19 +1,275 @@
 {
   "tier": 0,
-  "status": "incomplete",
-  "all_passed": false,
+  "all_passed": true,
   "checks": [
     {
       "name": "latency",
-      "p50": 1.141,
-      "p95": 49.867,
-      "max": 49.867,
+      "p50": 0.735,
+      "p95": 36.873,
+      "max": 36.873,
       "n_measurements": 15
     },
     {
-      "name": "contract_adapter",
-      "passed": null,
-      "note": "no search_fn provided -skipping contract checks. 명세서 계약 어댑터(입력A/B -> postings+score+match_reason) 미구현"
+      "name": "accepts_string",
+      "passed": true
+    },
+    {
+      "name": "accepts_profile",
+      "passed": true
+    },
+    {
+      "name": "empty_ok",
+      "passed": true
+    },
+    {
+      "name": "sorted",
+      "passed": true,
+      "scores": [
+        0.9997,
+        0.9988,
+        0.9944
+      ]
+    },
+    {
+      "name": "topk",
+      "passed": true,
+      "actual": 3,
+      "limit": 3
+    },
+    {
+      "name": "skills_grounded",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "name": "fields_grounded",
+      "passed": true,
+      "note": "input is string"
+    },
+    {
+      "name": "fields_intact",
+      "passed": true,
+      "details": [
+        {
+          "uid": "잡코리아:49500715",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49326244",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49622292",
+          "match": true,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "sorted",
+      "passed": true,
+      "scores": [
+        0.9997,
+        0.9995,
+        0.9992
+      ]
+    },
+    {
+      "name": "topk",
+      "passed": true,
+      "actual": 3,
+      "limit": 3
+    },
+    {
+      "name": "skills_grounded",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "name": "fields_grounded",
+      "passed": true,
+      "note": "input is string"
+    },
+    {
+      "name": "fields_intact",
+      "passed": true,
+      "details": [
+        {
+          "uid": "잡코리아:49568181",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49462734",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49594352",
+          "match": true,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "sorted",
+      "passed": true,
+      "scores": [
+        0.9957,
+        0.9938,
+        0.9936
+      ]
+    },
+    {
+      "name": "topk",
+      "passed": true,
+      "actual": 3,
+      "limit": 3
+    },
+    {
+      "name": "skills_grounded",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "name": "fields_grounded",
+      "passed": true,
+      "note": "input is string"
+    },
+    {
+      "name": "fields_intact",
+      "passed": true,
+      "details": [
+        {
+          "uid": "잡코리아:49629387",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49629970",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "원티드:372883",
+          "match": true,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "sorted",
+      "passed": true,
+      "scores": [
+        0.9905,
+        0.9887,
+        0.9864
+      ]
+    },
+    {
+      "name": "topk",
+      "passed": true,
+      "actual": 3,
+      "limit": 3
+    },
+    {
+      "name": "skills_grounded",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "name": "fields_grounded",
+      "passed": true,
+      "note": "input is string"
+    },
+    {
+      "name": "fields_intact",
+      "passed": true,
+      "details": [
+        {
+          "uid": "잡코리아:49629970",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49525907",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49319494",
+          "match": true,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "sorted",
+      "passed": true,
+      "scores": [
+        0.9926,
+        0.9757,
+        0.9717
+      ]
+    },
+    {
+      "name": "topk",
+      "passed": true,
+      "actual": 3,
+      "limit": 3
+    },
+    {
+      "name": "skills_grounded",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "name": "fields_grounded",
+      "passed": true,
+      "note": "input is string"
+    },
+    {
+      "name": "fields_intact",
+      "passed": true,
+      "details": [
+        {
+          "uid": "사람인:54515755",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49467996",
+          "match": true,
+          "note": ""
+        },
+        {
+          "uid": "잡코리아:49552463",
+          "match": true,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "name": "sorted",
+      "passed": true,
+      "scores": [
+        0.9993,
+        0.9992,
+        0.9992
+      ]
+    },
+    {
+      "name": "topk",
+      "passed": true,
+      "actual": 3,
+      "limit": 3
+    },
+    {
+      "name": "fields_grounded",
+      "passed": true,
+      "violations": []
     }
   ]
 }

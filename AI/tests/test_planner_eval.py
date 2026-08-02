@@ -136,6 +136,9 @@ def test_dataset_runs_without_crashing():
     """데이터셋 전체가 크래시 없이 돌고 스키마가 유효해야 한다."""
 
     results, summary = run_dataset(_DATASET)
-    assert summary["cases"] == len(results) == 46
+    # 46 + 혼합 제출 2건(D71·D72/M8) + **승격 케이스 4건**(D97): 공고 기준 학습·프로젝트
+    # 제안(이력서 있음 / 분석결과까지 있음 — 이 둘이 승격을 실제로 잰다) + 파싱 밖 항목
+    # 질문 · 공고가 있어도 강점만 짚기(둘은 판별력 없는 회귀 고정 — 데이터셋 note 참고).
+    assert summary["cases"] == len(results) == 52
     assert summary["llm_failed"] == len(results)     # LLM 미설정 — 전 케이스 플래너 실패
     assert 0.0 <= summary["sequence_accuracy"] <= 1.0

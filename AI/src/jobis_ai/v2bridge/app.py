@@ -25,6 +25,7 @@ from hmac import compare_digest
 from typing import Annotated, Awaitable, Callable, TypeVar
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 from jobis_ai.v2bridge import service
@@ -130,6 +131,44 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
 )
 async def chat(request: ChatRequest) -> ChatResponse:
     return await _run(lambda: service.chat(request))
+
+
+@app.post(
+    "/v1/chat/stream",
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def chat_stream(request: ChatRequest) -> "StreamingResponse":
+    """대화 한 턴을 NDJSON 으로 스트리밍한다(D75) — 진행 단계가 생기는 즉시 한 줄씩.
+
+    줄 형식: {"type":"progress",...} × N → {"type":"result","response":ChatResponse} 1건.
+    실패는 {"type":"error","code","message"} 한 줄로 끝난다 — 스트림 도중의 오류는 HTTP
+    상태로 표현할 수 없으므로(이미 200 이 나갔다) 본문 이벤트로 알린다. 기존 /v1/chat
+    (단건)은 그대로다 — 팀 ai-server 호환 자리를 깨지 않는 **추가** 엔드포인트다.
+    """
+
+    import json as json_mod
+
+    def _lines():
+        try:
+            for item in service.chat_events(request):
+                if item.get("type") == "result":
+                    payload = {"type": "result",
+                               "response": item["response"].model_dump(by_alias=True)}
+                else:
+                    payload = item
+                yield json_mod.dumps(payload, ensure_ascii=False) + "\n"
+        except service.EngineNotConfigured as exc:
+            yield json_mod.dumps({"type": "error", "code": "AI_PROVIDER_NOT_CONFIGURED",
+                                  "message": str(exc)}, ensure_ascii=False) + "\n"
+        except service.EngineFailed as exc:
+            yield json_mod.dumps({"type": "error", "code": "AI_PROVIDER_UNAVAILABLE",
+                                  "message": str(exc)}, ensure_ascii=False) + "\n"
+        except Exception as exc:   # noqa: BLE001 — 예상 밖 실패도 재시도 가능한 실패로 알린다
+            log.exception("[v2bridge] chat 스트림 처리 실패")
+            yield json_mod.dumps({"type": "error", "code": "AI_PROVIDER_UNAVAILABLE",
+                                  "message": str(exc)}, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(_lines(), media_type="application/x-ndjson")
 
 
 @app.post(

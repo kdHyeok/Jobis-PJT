@@ -37,13 +37,18 @@ class Settings:
     claude_cli: str            # Claude Code CLI 명령 (기본 "claude", 예: "wsl claude")
     claude_code_model: str        # claude_code 고급 티어 모델 별칭 (sonnet 등)
     claude_code_model_light: str  # claude_code 경량 티어 모델 별칭 (haiku 등)
+    # 라우팅 판정 티어(플래너 등 "무엇을 실행할지"를 정하는 호출) 전용 모델 (D74).
+    # 비어 있으면 고급 티어로 폴백 — 라우팅 오판은 턴 전체를 엉뚱한 일에 쓰게 하므로
+    # 가장 강한 모델을 쓸 가치가 있는 유일한 자리다.
+    claude_code_model_router: str
     llm_base_url: str          # GMS 경유 챗 엔드포인트 base URL (llm_provider="openai" 일 때)
     llm_model: str             # GMS 로 호출할 모델명 — 고급 티어(추출·생성)
     llm_model_light: str       # 경량 티어 모델명 — 분류·이진판정·요약
     temperature: float | None  # None 이면 모델 기본값 사용(일부 모델은 temperature 미지원)
     max_output_tokens: int | None  # 응답 토큰 상한. None 이면 모델 기본값
     model_version: str         # 응답 meta.modelVersion 에 기록
-    rag_provider: str          # "null"(미연결, 기본) | RAG 담당자가 붙일 provider 명
+    rag_provider: str          # "null"(미연결, 기본) | "http"(실 RAG 서비스, D89) | "local_postings"
+    rag_search_url: str        # 실 RAG HTTP 서비스 주소 (rag_provider="http" 일 때)
     embed_provider: str        # "null"(미연결, 기본) | "openai" (GMS 경유 OpenAI 임베딩)
     gms_key: str               # SSAFY GMS(API 게이트웨이) 발급 키. LLM/임베딩 호출 공용
     embed_base_url: str        # GMS 경유 임베딩 엔드포인트 base URL
@@ -65,8 +70,11 @@ class Settings:
         """
 
         if self.llm_provider == "openai":
+            # openai(GMS) 경로는 router 전용 모델 미분리 — 고급 티어로 폴백.
             return self.llm_model_light if tier == "light" else self.llm_model
         if self.llm_provider == "claude_code":
+            if tier == "router" and self.claude_code_model_router:
+                return self.claude_code_model_router
             return self.claude_code_model_light if tier == "light" else self.claude_code_model
         return self.anthropic_model      # anthropic 경로는 아직 티어 미분리
 
@@ -99,6 +107,7 @@ def get_settings() -> Settings:
         claude_cli=os.getenv("CLAUDE_CLI", "claude"),
         claude_code_model=os.getenv("CLAUDE_CODE_MODEL", "sonnet"),
         claude_code_model_light=os.getenv("CLAUDE_CODE_MODEL_LIGHT", "haiku"),
+        claude_code_model_router=os.getenv("CLAUDE_CODE_MODEL_ROUTER", ""),
         llm_base_url=os.getenv(
             "LLM_BASE_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
         ),
@@ -108,6 +117,7 @@ def get_settings() -> Settings:
         max_output_tokens=int(tokens_raw) if tokens_raw not in (None, "") else 4096,
         model_version=os.getenv("MODEL_VERSION", "jarvis-0.1.0"),
         rag_provider=os.getenv("RAG_PROVIDER", "null"),
+        rag_search_url=os.getenv("RAG_SEARCH_URL", "http://127.0.0.1:8765"),
         embed_provider=os.getenv("EMBED_PROVIDER", "null"),
         gms_key=os.getenv("GMS_KEY", ""),
         embed_base_url=os.getenv(

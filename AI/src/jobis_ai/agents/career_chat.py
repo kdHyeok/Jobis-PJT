@@ -14,7 +14,7 @@ import json
 
 from jobis_ai.agents import AgentResult
 from jobis_ai.structured import run_streaming_text
-from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
+from jobis_ai.verify_rules import drop_forbidden_sentences
 
 _FALLBACK = (
     "이런 걸 도와드릴 수 있어요: 공고 적합도 분석, 이력서 기반 공고 추천, 이력서 진단, "
@@ -46,13 +46,34 @@ _SYSTEM = """너는 취업 준비생과 진로 이야기를 나누는 상담가�
   할지 구체적으로 쓴다. 인사말이나 "안내해드릴게요" 같은 약속만 있는 짧은 답은 금지.
 
 recentHistory 에는 직전까지의 대화가 있다 — 이어지는 대화면 맥락을 받아 자연스럽게 잇고, 했던 말을 반복하지 않는다.
-context 에는 세션 상태(이력서·공고 보유, 수집된 선호)가 있다 — 흐름에 맞게 참고만 한다."""
+context 에는 세션 상태(이력서·공고 보유, 수집된 선호)가 있다 — 흐름에 맞게 참고만 한다.
+- context 의 postingFacts/analysisFacts 는 **도구가 이미 만들어 둔 사실**이다. 공고 요건·분석 결과를
+  묻는 질문에는 거기 있는 내용만으로 바로 답한다 — "다시 분석하겠다"고 하지 않고, 거기 없는
+  항목·수치를 만들지 않는다. 물은 것만 답하고 전체 목록을 다시 낭독하지 않는다.
+- postingLibrary 는 이 대화에서 정리했던 **모든 공고**의 사실이다. 이전 공고(회사명으로 지칭)에
+  대한 질문도 여기서 찾아 답한다 — "그 공고는 없다"고 하기 전에 반드시 postingLibrary 를 본다.
+- postingLibrary 에도 없는 공고를 물으면, 없다고만 끝내지 말고 **그 공고 링크(또는 본문)를 다시
+  보내주면 바로 정리해 답하겠다**고 복구 경로를 안내한다."""
+
+
+# 대화 입력 상한(M6/D75) — 자산으로 승격되지 못한 긴 원문(문서 붙여넣기)이 **통째로**
+# 대화 근거가 되는 것을 구조로 막는다(§2-5 근거는 도구만: 프롬프트 금지는 실측에서 안
+# 지켜졌다 — 2026-07-31 이력서 원문 위 즉흥 코칭 유출). 일반 상담 발화는 이 밑이다.
+_MAX_INPUT_CHARS = 1000
+
+
+def _clip_message(message: str) -> str:
+    if len(message) <= _MAX_INPUT_CHARS:
+        return message
+    return (message[:_MAX_INPUT_CHARS]
+            + f"\n…(총 {len(message)}자 중 앞부분만 제공됨 — 긴 원문은 분석 대상이 아니라"
+              " 자료 등록 안내 대상이다)")
 
 
 def run(session: dict) -> AgentResult:
     from jobis_ai.orchestrator.session import recent_history
 
-    message = str(session.get("last_message") or "")
+    message = _clip_message(str(session.get("last_message") or ""))
     prefs = session.get("preferences") or {}
     context = {
         "hasResume": bool(session.get("resume") or session.get("profile")),
@@ -60,7 +81,49 @@ def run(session: dict) -> AgentResult:
         "hasAnalysis": bool(session.get("analysis")),
         "knownPreferences": [v for k in ("roles", "domains", "companies")
                              for v in (prefs.get(k) or [])],
+        # 발화에서 누적된 지속 사실(D82) — "지난번에 말한 조건" 류 질문의 근거.
+        "userFacts": [str(f) for f in (session.get("user_facts") or [])],
     }
+    # 이미 도구가 만들어 둔 정형 사실 — 조회 질문("공고 필수 항목이 뭐였지?")은 재분석 없이
+    # 이 데이터로 답한다(D79, §1: 판단은 데이터가 하고 LLM 은 말만 한다).
+    def _texts(items: list) -> list[str]:
+        return [str((i or {}).get("text") if isinstance(i, dict) else i)
+                for i in (items or [])][:12]
+
+    def _posting_facts(summary: dict) -> dict:
+        return {
+            "companyName": summary.get("companyName"),
+            "jobTitle": summary.get("jobTitle"),
+            "requiredRequirements": _texts(summary.get("requiredRequirements")),
+            "preferredRequirements": _texts(summary.get("preferredRequirements")),
+            "techStack": summary.get("techStack"),
+            # 이 공고로 돌렸던 판정 요약(이력서별) — 활성 판정 슬롯이 무효화된 뒤에도
+            # "아까 A 공고는 뭐였지?" 에 저장된 사실로 답한다.
+            "pastAnalyses": summary.get("_analyses") or [],
+        }
+
+    posting_summary = session.get("posting_summary") or {}
+    if posting_summary:
+        context["postingFacts"] = _posting_facts(posting_summary)
+    # 이 대화에서 정리했던 **모든** 공고(D86) — 활성 공고가 바뀌어도 이전 공고 질문에 답한다.
+    library = session.get("posting_library") or []
+    if library:
+        context["postingLibrary"] = [_posting_facts(p) for p in library]
+    analysis = session.get("analysis") or {}
+    if analysis:
+        context["analysisFacts"] = {
+            "fitGrade": analysis.get("fitGrade"),
+            "strengths": [str((s or {}).get("text") or "") for s in (analysis.get("strengths") or [])][:5],
+            "gaps": [str((g or {}).get("reason") or (g or {}).get("text") or "")
+                     for g in (analysis.get("gaps") or [])][:5],
+        }
+    if context.get("postingFacts") or context.get("analysisFacts") or context.get("userFacts"):
+        from jobis_ai import trace
+
+        # 진행 로그에 "이전 대화 검토"로 구분 표시된다(D83) — 새 분석이 아니라 저장 정보 참조.
+        trace.emit("recall", "저장된 사실(공고 정리·분석·사용자 메모)을 대화 근거로 제공", {
+            "keys": [k for k in ("postingFacts", "analysisFacts", "userFacts") if context.get(k)],
+        })
 
     text, warnings = run_streaming_text(
         _SYSTEM,
@@ -72,7 +135,22 @@ def run(session: dict) -> AgentResult:
         node="career_chat",
     )
     text = text.strip()
-    if not text or any(expr in text for expr in FORBIDDEN_EXPRESSIONS):
+    # 폴백은 이유를 삼키지 않는다(§2-6). LLM 미설정·실패는 run_streaming_text 가 이미
+    # warnings 에 담지만, **금지표현 강등과 빈 응답은 여기가 유일한 관측 지점인데 무음이었다** —
+    # 실측(sessions.sqlite3 275턴): 이 고정 문구가 7건(2.5%) 나갔고 전부 정상 요청이었는데
+    # (적합도 요청·"응, 진단해줘"·위로 요청) 원인 셋 중 어느 것이었는지 사후에 알 수 없었다.
+    # 처방이 원인마다 다르므로(재작성 루프 vs 인프라) 세는 것이 먼저다.
+    #
+    # 금지표현은 **문장 단위로만** 버린다(D123) — '반드시' 하나로 답변 전체를 메뉴 문구로
+    # 바꾸던 것이 위 7건의 주범이었다. 걸린 문장은 여전히 나가지 않는다(판정 원칙 유지).
+    text, hits = drop_forbidden_sentences(text)
+    if hits:
+        warnings.append({"code": "career_chat_softened", "message": (
+            f"career_chat: 금지표현 {hits} 이 든 문장을 답변에서 제거.")})
+    if not text:
+        warnings.append({"code": "career_chat_fallback", "message": (
+            f"career_chat: 금지표현 {hits} 제거 후 남은 문장이 없어 고정 안내문으로 강등." if hits
+            else "career_chat: 답변이 비어 고정 안내문으로 강등.")})
         text = _FALLBACK
 
     return AgentResult(reply=text, warnings=warnings)

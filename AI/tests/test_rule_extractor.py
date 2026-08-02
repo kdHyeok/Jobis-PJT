@@ -109,6 +109,23 @@ def test_years_calendar_noise_stays_none(text):
     assert extract_rules(text).minYears is None
 
 
+def test_years_earliest_mention_beats_pattern_priority():
+    """헤더 요약의 표기가 본문 나열 속 표기를 이긴다 (실측 Gno=49564982).
+
+    SI 파견 공고가 프로젝트 수십 건을 나열하는데, 헤더 "경력 1~5년"(범위 패턴)보다
+    우선순위가 높은 "8년 이상"이 본문에서 걸려 요구 연차 8년으로 오염됐었다 —
+    문서에서 먼저 나온 표기가 이긴다."""
+
+    text = (
+        "채용 - 금융,공공 운영개발[SM,SI], 경력 1~5년, 학력무관\n"
+        "1. 사이트 : 금융권 2. 스킬 : RDBMS 8년 이상 경험 -풀스택 개발자\n"
+        "2. 사이트 : 비공개 프론트엔드 개발자 ; 5년차 이상\n"
+    )
+    rules = extract_rules(text)
+    assert rules.minYears == 1
+    assert rules.yearsEvidence == "1~5년"
+
+
 def test_years_still_matches_nyeoncha_forms():
     """진짜 연차 표기("N년 차 / N년차")는 여전히 잡는다."""
 
@@ -230,3 +247,61 @@ def test_single_preferred_header_behaviour_unchanged():
     extraction = extract_rules(text)
     assert "Docker 운영 경험" in extraction.preferredSection
     assert "Java 백엔드 경험" in extraction.requiredSection
+
+
+# --- 연차: LLM 읽기 채택 vs 룰 폴백 (D118) ---------------------------------
+def _apply(read_years, evidence, text):
+    """_apply_rule_extraction 만 떼어 돌린다 (LLM 호출 없음)."""
+    from jobis_ai.contracts.domain import NormalizedJobPosting
+    from jobis_ai.graph.read_nodes import _apply_rule_extraction
+
+    posting = NormalizedJobPosting(
+        jobTitle="AI Agent 개발자", minYears=read_years, yearsEvidence=evidence)
+    warnings = _apply_rule_extraction(posting, extract_rules(text), text)
+    return posting, warnings
+
+
+def test_llm_years_win_over_regex_when_evidence_is_in_source():
+    """룰은 '가장 앞에 나온 연차 표기'를 고른다 — 회사 소개가 먼저 오면 그걸 요구 연차로
+    읽는다. LLM 은 '어디에 적힌 숫자인가'를 갈라 읽고, 근거가 원문에 있으면 이긴다."""
+    text = "당사는 10년 이상 축적된 노하우를 가진 기업입니다.\n자격요건\n- 경력 3년 이상"
+    assert extract_rules(text).minYears == 10         # 룰 단독은 여전히 오독한다
+    posting, warnings = _apply(3, "경력 3년 이상", text)
+    assert (posting.minYears, posting.yearsEvidence) == (3, "경력 3년 이상")
+    assert not [w for w in warnings if w["code"] == "years_evidence_unverified"]
+
+
+def test_llm_years_without_source_evidence_fall_back_to_rule_with_warning():
+    """근거가 원문에 없으면 지어낸 것이다 — 버리고 룰로 되돌리되 **이유를 남긴다**(§2-6)."""
+    text = "경력 : 3년 이상\n- 생성형 AI 개발 경험"
+    posting, warnings = _apply(7, "경력 7년 이상", text)
+    assert posting.minYears == 3
+    assert [w for w in warnings if w["code"] == "years_evidence_unverified"]
+
+
+def test_seniority_follows_llm_years_not_company_blurb():
+    """공고 소개문의 'Leading' 이 연차 판정을 뒤집지 않는다."""
+    text = "IEA Global Leading DX Company\n경력 : 3년 이상\n- AI Agent 개발 경험"
+    posting, _ = _apply(3, "경력 : 3년 이상", text)
+    assert posting.seniority == "mid"
+
+
+def test_prose_section_under_shell_label_is_distrusted_not_handed_to_parser():
+    """실측 Gno=49638113: 잡코리아 사이드바 '지원자격' 뒤는 접수기간·지원자 통계 서술문이다.
+    진짜 자격요건은 iframe 상세라 한 줄로 붙어 와 `^` 앵커에 안 걸린다. 이 서술문을 필수
+    섹션으로 넘기면 파서가 '그 섹션에서만' 지시를 따라 필수 요건을 통째로 놓친다 —
+    확신이 없으면 분리를 포기하고 전문을 LLM 에 넘긴다."""
+    text = (
+        "지원자격\n\n접수기간 · 방법\n\n남은기간 20일\n\n시작일\n\n2026.07.23(목)\n\n"
+        "마감일\n\n2026.08.22(토)\n\n접수방법\n\n잡코리아 이력서\n\n지원자 수\n\n16 명\n"
+    )
+    rules = extract_rules(text)
+    assert (rules.requiredSection, rules.preferredSection) == ("", "")
+
+
+def test_araea_bullet_counts_as_a_requirement_list():
+    """`ㆍ`(U+318D)는 가운뎃점 `·`(U+00B7)와 다른 글자다. 국내 공고가 불릿으로 흔히 쓴다."""
+    text = "자격요건\nㆍ경력 3년 이상\nㆍPython 개발 경험\n\n우대사항\nㆍRAG 구축 경험\n"
+    rules = extract_rules(text)
+    assert "Python 개발 경험" in rules.requiredSection
+    assert "RAG 구축 경험" in rules.preferredSection

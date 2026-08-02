@@ -1,0 +1,1184 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-08-01T21:07:51",
+    "dataset": "C:\\Users\\SSAFY\\Desktop\\S15P11C202-rag\\AI\\evals\\generic_dataset.json",
+    "runs": 3,
+    "recomputedNote": "offPostingSkillRate 를 _MIN_POSTING_SKILLS 가드 적용 후 저장된 답변으로 다시 계산했다(비율은 (답변, 공고)의 순수 함수라 LLM 재실행이 필요 없다). genericScore 는 그대로다."
+  },
+  "summary": {
+    "postings": 8,
+    "questions": 2,
+    "runs": 3,
+    "measured": 2,
+    "genericScore": 0.0859,
+    "meanOffPostingSkillRate": 0.0622,
+    "noiseFloor": 0.0398,
+    "emptyAnswers": []
+  },
+  "results": [
+    {
+      "questionId": "study-plan",
+      "measured": true,
+      "runs": 3,
+      "genericScore": {
+        "mean": 0.0828,
+        "min": 0.0641,
+        "max": 0.1039,
+        "range": 0.0398
+      },
+      "offPostingSkillRate": {
+        "mean": 0.1244,
+        "min": 0.0667,
+        "max": 0.1548,
+        "range": 0.0881
+      },
+      "attempts": [
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.1039,
+          "meanAnswerSim": 0.6161,
+          "meanPostingSim": 0.5122,
+          "worstPair": "security|qa-engineer",
+          "worstDelta": 0.2069,
+          "offPostingSkillRate": {
+            "ai-agent": 0.1429,
+            "backend-commerce": 0.1,
+            "frontend-react": 0.4,
+            "data-analyst": 0.0,
+            "devops-sre": 0.2857,
+            "ios-mobile": 0.0,
+            "security": null,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.1548,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6491,
+              "posting": 0.5389,
+              "delta": 0.1102
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.5844,
+              "posting": 0.4959,
+              "delta": 0.0885
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.6558,
+              "posting": 0.5566,
+              "delta": 0.0992
+            },
+            "ai-agent|devops-sre": {
+              "answer": 0.6462,
+              "posting": 0.5406,
+              "delta": 0.1056
+            },
+            "ai-agent|ios-mobile": {
+              "answer": 0.5385,
+              "posting": 0.483,
+              "delta": 0.0555
+            },
+            "ai-agent|security": {
+              "answer": 0.5801,
+              "posting": 0.4408,
+              "delta": 0.1393
+            },
+            "ai-agent|qa-engineer": {
+              "answer": 0.6,
+              "posting": 0.512,
+              "delta": 0.088
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.5935,
+              "posting": 0.563,
+              "delta": 0.0305
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.6574,
+              "posting": 0.5598,
+              "delta": 0.0976
+            },
+            "backend-commerce|devops-sre": {
+              "answer": 0.6842,
+              "posting": 0.5451,
+              "delta": 0.1391
+            },
+            "backend-commerce|ios-mobile": {
+              "answer": 0.6246,
+              "posting": 0.5446,
+              "delta": 0.08
+            },
+            "backend-commerce|security": {
+              "answer": 0.6082,
+              "posting": 0.4776,
+              "delta": 0.1306
+            },
+            "backend-commerce|qa-engineer": {
+              "answer": 0.6438,
+              "posting": 0.4862,
+              "delta": 0.1576
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.6128,
+              "posting": 0.5399,
+              "delta": 0.0729
+            },
+            "frontend-react|devops-sre": {
+              "answer": 0.5866,
+              "posting": 0.5053,
+              "delta": 0.0813
+            },
+            "frontend-react|ios-mobile": {
+              "answer": 0.616,
+              "posting": 0.5563,
+              "delta": 0.0597
+            },
+            "frontend-react|security": {
+              "answer": 0.5999,
+              "posting": 0.5315,
+              "delta": 0.0684
+            },
+            "frontend-react|qa-engineer": {
+              "answer": 0.6207,
+              "posting": 0.5114,
+              "delta": 0.1093
+            },
+            "data-analyst|devops-sre": {
+              "answer": 0.6575,
+              "posting": 0.4916,
+              "delta": 0.1659
+            },
+            "data-analyst|ios-mobile": {
+              "answer": 0.5726,
+              "posting": 0.5143,
+              "delta": 0.0583
+            },
+            "data-analyst|security": {
+              "answer": 0.6068,
+              "posting": 0.4744,
+              "delta": 0.1324
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.64,
+              "posting": 0.4967,
+              "delta": 0.1433
+            },
+            "devops-sre|ios-mobile": {
+              "answer": 0.5346,
+              "posting": 0.4796,
+              "delta": 0.055
+            },
+            "devops-sre|security": {
+              "answer": 0.6268,
+              "posting": 0.4793,
+              "delta": 0.1475
+            },
+            "devops-sre|qa-engineer": {
+              "answer": 0.6226,
+              "posting": 0.5125,
+              "delta": 0.1101
+            },
+            "ios-mobile|security": {
+              "answer": 0.5901,
+              "posting": 0.46,
+              "delta": 0.1301
+            },
+            "ios-mobile|qa-engineer": {
+              "answer": 0.604,
+              "posting": 0.558,
+              "delta": 0.046
+            },
+            "security|qa-engineer": {
+              "answer": 0.6948,
+              "posting": 0.4879,
+              "delta": 0.2069
+            }
+          },
+          "answerChars": [
+            1102,
+            1094,
+            1058,
+            791,
+            1081,
+            1222,
+            997,
+            948
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 3가지(Airflow류, 벡터DB)와 우대 사항(LangChain, LLM API, 클라우드)을 모두 엮은 프로젝트 계획을 저장했습니다. 순서는 1) RAG 파이프라인(벡터DB+LangChain+OpenAI/Anthropic API), 2) Airflow로 수집·전처리·적재를 오케스트레이션, 3) AWS/GCP/Azure 중 하나에 배포하는 흐름으로 진행하면 필수 요건과 우대 사항을 자연스럽게 다 다루게 됩니다.\n\n프로젝트 제안\n1. **상담 데이터 RAG 파이프라인 구축**\n   상담 로그(더미 텍스트 데이터)를 Python으로 전처리해 Pinecone 또는 pgvector 같은 벡터 DB에 임베딩 저장하고, LangChain으로 검색·응답 체인을 구성해 OpenAI 또는 Anthropic API로 답변 생성까지 이어지는 RAG 시스템을 만든다.\n   커버하는 요건: Python 기반 데이터 처리 실무 경험 · Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험 · LangChain 또는 LlamaIndex 활용 경험 · OpenAI 또는 Anthropic API 운영 경험\n   완료 기준: 임의의 상담 질의를 입력하면 벡터 검색 후 LLM이 근거 문서를 인용해 답변을 반환한다.\n2. **Airflow 기반 데이터 파이프라인 오케스트레이션**\n   위 RAG 파이프라인의 데이터 수집→전처리→임베딩→적재 단계를 Airflow(or Dagster/Prefect) DAG로 스케줄링하고, 실패 시 재시도·알림을 구성한다.\n   커버하는 요건: Airflow / Dagster / Prefect 중 하나 이상 운영 경험 · Python 기반 데이터 처리 실무 경험\n   완료 기준: DAG가 스케줄에 따라 자동 실행되고, 실패 태스크가 재시도되는 것을 로그로 확인한다.\n3. **클라우드 배포**\n   위 파이프라인과 RAG API를 AWS/GCP/Azure 중 하나에 배포(예: Lambda/Cloud Run + 관리형 벡터DB 또는 컨테이너)한다.\n   커버하는 요건: AWS / GCP / Azure 중 하나의 운영 경험\n   완료 기준: 클라우드 환경에서 API 엔드포인트로 질의-응답이 동작한다.",
+            "backend-commerce": "필수 요건부터 우대 순으로 학습·프로젝트 순서를 잡으면 됩니다.\n\n1. 스택: Spring Boot + Java/Kotlin, MySQL/PostgreSQL 설계·인덱싱, REST API 설계 → 이 세 개가 필수 요건(req-1~3)이라 최우선.\n2. 그다음 우대 사항인 Kafka(이벤트 드리븐), Kubernetes, 결제/정산 도메인 지식을 순서대로 채우면 됩니다.\n\n이에 맞춰 프로젝트 3건을 방금 기록해뒀습니다 — 필수 요건을 증명하는 커머스 REST API 서버, 우대 사항을 보여주는 Kafka 기반 이벤트 드리븐 정산 시스템, 마지막으로 Kubernetes 배포 구성입니다.\n\n프로젝트 제안\n1. **커머스 REST API 서버 (Spring Boot + Kotlin/Java, RDBMS 설계)**\n   상품/주문/재고 도메인으로 REST API를 설계·구현하고 MySQL 또는 PostgreSQL 스키마를 직접 설계·인덱스 튜닝까지 진행. 3년차 수준 백엔드 역량을 코드로 증명.\n   커버하는 요건: Java 또는 Kotlin 백엔드 개발 경력 3년 이상 · RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험 · REST API 설계 경험\n   완료 기준: 상품 등록/조회, 주문 생성, 재고 차감 API가 동작하고 인덱스 적용 전후 쿼리 성능 비교 결과 정리\n2. **이벤트 드리븐 주문-정산 시스템 (Kafka)**\n   주문 생성 이벤트를 Kafka로 발행하고 정산 서비스가 이를 구독해 비동기로 정산 데이터를 처리하는 구조 구현. 결제/정산 도메인 지식과 이벤트 드리븐 아키텍처 경험을 함께 보여줌.\n   커버하는 요건: Kafka 기반 이벤트 드리븐 아키텍처 경험 · 결제/정산 도메인 경험\n   완료 기준: 주문 이벤트 발행→정산 서비스 소비→정산 내역 저장까지 end-to-end 동작\n3. **Kubernetes 배포 환경 구성**\n   위 백엔드 서비스를 Docker화하고 Kubernetes(로컬 minikube 등)에 배포, 롤링 업데이트·헬스체크 설정.\n   커버하는 요건: Kubernetes 운영 경험\n   완료 기준: kubectl apply로 서비스가 뜨고 파드 재시작/롤링 업데이트가 정상 동작",
+            "frontend-react": "req-1~3(경력 조건, TypeScript, 상태 관리 라이브러리)을 증명할 React+TypeScript 대시보드 앱, pref-1·pref-2(Next.js SSR, 웹 접근성)를 다루는 Next.js SSR 페이지, pref-3(시각 회귀 테스트)를 위한 Storybook+Chromatic 파이프라인, 이렇게 세 가지 프로젝트를 순서대로 진행하시면 됩니다. 아래 계획을 확인해 주세요.\n\n프로젝트 제안\n1. **React+TypeScript 대시보드 앱**\n   React 함수형 컴포넌트와 TypeScript로 CRUD 대시보드(목록/상세/폼)를 만들고 Redux(또는 Zustand) 등 상태 관리 라이브러리로 전역 상태(로그인 유저, 필터, 캐시된 목록)를 관리\n   커버하는 요건: React 기반 프론트엔드 개발 경력 2년 이상 · TypeScript 사용 경험 · 상태 관리 라이브러리 사용 경험\n   완료 기준: TypeScript 타입 에러 없이 빌드되고, 상태 관리 라이브러리로 컴포넌트 간 데이터가 props drilling 없이 공유되는 CRUD 화면이 동작\n2. **Next.js SSR 블로그/커머스 페이지**\n   위 대시보드를 Next.js로 이전하거나 별도 페이지를 만들어 getServerSideProps/서버 컴포넌트로 데이터를 서버에서 미리 렌더링하고, 접근성(시맨틱 마크업, 키보드 포커스, aria 속성, 명도 대비)을 WCAG 기준으로 점검\n   커버하는 요건: Next.js 서버 사이드 렌더링 경험 · 웹 접근성(WCAG) 대응 경험\n   완료 기준: 새로고침 없이도 서버에서 렌더된 초기 HTML이 확인되고, 자동 접근성 검사 도구(axe 등)에서 주요 위반이 없음\n3. **시각 회귀 테스트 파이프라인 구축**\n   위에서 만든 컴포넌트들에 Storybook + Chromatic(또는 Percy, loki 등)으로 시각 회귀 테스트를 붙여 CI에서 스냅샷 비교가 자동으로 돌아가게 구성\n   커버하는 요건: 시각 회귀 테스트 도입 경험\n   완료 기준: 컴포넌트 스타일을 의도적으로 바꿨을 때 CI가 시각 차이를 잡아내는 것을 확인",
+            "data-analyst": "필수 요건 순으로 준비하면 됩니다.\n\n1. SQL 능숙(윈도우 함수·복잡한 조인) — 커머스 주문/유저 데이터를 놓고 리텐션·코호트·퍼널 같은 지표를 SQL로 직접 뽑아보는 프로젝트로 익히고, Tableau나 Looker로 대시보드까지 연결하면 우대사항(대시보드 운영, 커머스 도메인)까지 함께 커버됩니다.\n2. 통계적 가설검정 — pandas로 데이터 전처리 후 t-검정·카이제곱 검정 같은 A/B 테스트 분석을 수행하고 결과를 해석하는 리포트를 만들면, 우대사항인 pandas 분석 경험과 커머스 도메인 지표 경험도 같이 채워집니다.\n\n두 프로젝트 모두 제안으로 기록해뒀습니다.\n\n프로젝트 제안\n1. **커머스 데이터 SQL 분석 대시보드**\n   윈도우 함수와 복잡한 조인을 활용해 커머스 주문/유저 데이터에서 리텐션, 코호트, 퍼널 지표를 SQL로 산출하고 Tableau 또는 Looker로 대시보드화\n   커버하는 요건: SQL 능숙(윈도우 함수·복잡한 조인) · Tableau 또는 Looker 대시보드 운영 경험 · 커머스 도메인 지표 경험\n   완료 기준: SQL 쿼리로 핵심 지표 산출 + 대시보드에 시각화 완료\n2. **A/B 테스트 통계 분석 리포트**\n   커머스 프로모션/UX 변경 가정 데이터로 pandas로 전처리 후 t-검정, 카이제곱 검정 등 가설검정을 수행하고 결과를 해석한 리포트 작성\n   커버하는 요건: 통계적 가설검정에 대한 이해 · Python(pandas) 분석 경험 · 커머스 도메인 지표 경험\n   완료 기준: 가설검정 수행 및 유의성 판단 근거를 리포트로 정리 완료",
+            "devops-sre": "필수 요건 우선으로 스택 공부 순서를 잡으면:\n\n1. Kubernetes 운영 — kubeadm/kind로 멀티노드 클러스터 구성, 배포·스케일링·롤백 실습\n2. Terraform/Ansible — 인프라 프로비저닝과 노드 설정 코드화\n3. Prometheus/Grafana — 메트릭 수집·대시보드·알림 규칙 구축\n4. 온프레미스→클라우드 마이그레이션 재현\n5. 장애 사후분석(postmortem) 문서화 연습\n\n이 순서에 맞춰 프로젝트 3개를 방금 기록했어요: 쿠버네티스+IaC 클러스터, 모니터링/장애대응 파이프라인, 온프레미스→클라우드 마이그레이션 시뮬레이션.\n\n프로젝트 제안\n1. **사설 쿠버네티스 클러스터 구축 및 IaC 관리**\n   kubeadm 또는 kind로 멀티노드 클러스터를 구성하고, Terraform과 Ansible로 인프라 프로비저닝 및 노드 설정을 코드화. 배포/스케일링/롤백 실습\n   커버하는 요건: Kubernetes 운영 경험 · Terraform 또는 Ansible 사용 경험\n   완료 기준: Terraform으로 VM/노드 프로비저닝, Ansible로 쿠버네티스 설치 자동화, 샘플 앱을 클러스터에 배포·롤링업데이트까지 성공\n2. **모니터링 및 장애 대응 파이프라인**\n   Prometheus + Grafana로 클러스터/애플리케이션 메트릭 수집·대시보드 구축, 알림 규칙 설정. 임의 장애를 주입한 뒤 postmortem 문서 작성\n   커버하는 요건: Prometheus, Grafana 기반 모니터링 구축 경험 · 장애 사후분석(postmortem) 문화 경험\n   완료 기준: 알림이 실제로 발생하고, 장애 발생부터 탐지·복구까지의 타임라인과 원인·개선안을 담은 postmortem 문서 작성\n3. **온프레미스 → 클라우드 마이그레이션 시뮬레이션**\n   로컬 VM(온프레미스 가정) 환경에서 운영 중인 서비스를 AWS/GCP 등 클라우드로 이전하는 과정을 Terraform으로 재현, 마이그레이션 전후 아키텍처 비교\n   커버하는 요건: 온프레미스에서 클라우드로 이전한 경험\n   완료 기준: 마이그레이션 전/후 구성도와 절차 문서, 클라우드 환경에서 서비스 정상 동작 확인",
+            "ios-mobile": "필수 요건부터 순서대로 준비하면 됩니다.\n\n1) Swift 기본기 다지기 — 간단한 To-Do/계산기 앱으로 Swift 문법(옵셔널, 클래스/구조체, 클로저)과 Xcode 프로젝트 구조 익히기\n2) SwiftUI로 개인 프로젝트 앱 제작 후 App Store Connect 통해 배포 절차까지 경험 — iOS 앱 개발 경력과 App Store 배포, SwiftUI 사용 경험을 한번에 채움\n3) 그 앱에 StoreKit 기반 인앱 결제(소모성 상품/구독) 기능 추가\n4) 핵심 로직(데이터 모델, 뷰모델)에 XCTest로 단위 테스트 작성\n\n각 프로젝트가 어떤 요건을 증명하는지는 위에 기록해 두었습니다. 다음으로 SwiftUI 앱 아이디어를 구체적으로 정해보는 걸 추천드려요.\n\n프로젝트 제안\n1. **Swift 기초 콘솔/앱 실습 프로젝트**\n   Swift 문법과 iOS 앱 프로젝트 구조(Xcode 프로젝트 생성, 시뮬레이터 실행)를 익히는 간단한 To-Do 또는 계산기 앱을 만들어 Swift 사용 경험을 쌓는다\n   커버하는 요건: Swift 사용 경험\n   완료 기준: Swift로 작성된 앱이 시뮬레이터에서 정상 동작하고 기본 문법(옵셔널, 클래스/구조체, 클로저)을 사용한 코드가 포함되어 있다\n2. **SwiftUI 기반 개인 프로젝트 앱 (App Store 배포)**\n   SwiftUI로 화면을 구성한 앱(예: 가계부, 습관 트래커 등)을 만들고 App Store Connect를 통해 실제 배포 절차(스크린샷, 심사 제출)를 경험한다\n   커버하는 요건: iOS 앱 개발 경력 2년 이상 · App Store 배포 경험 · SwiftUI 사용 경험\n   완료 기준: SwiftUI로 만든 앱이 App Store에 배포되거나 최소한 App Store Connect 심사 제출까지 완료된다\n3. **인앱 결제(In-App Purchase) 연동 기능 추가**\n   위에서 만든 SwiftUI 앱에 StoreKit을 이용한 인앱 결제(소모성 상품 또는 구독) 기능을 추가한다\n   커버하는 요건: 앱 내 결제(In-App Purchase) 구현 경험\n   완료 기준: 샌드박스 환경에서 인앱 결제 구매 흐름이 정상 동작한다\n4. **단위 테스트 추가**\n   위 프로젝트의 핵심 로직(데이터 모델, 뷰모델)에 XCTest로 단위 테스트를 작성한다\n   커버하는 요건: 단위 테스트 작성 습관\n   완료 기준: 주요 로직에 대한 XCTest 케이스가 작성되고 통과한다",
+            "security": "필수 요건 순서로 학습 방향을 잡으면 좋습니다.\n\n1. 웹 취약점(OWASP Top 10) 이해 — SQLi, XSS, CSRF 등 주요 취약점의 원리와 방어 코드를 공부하세요.\n2. 보안 관제 또는 모의해킹 수행 경험 — 취약한 VM 대상 정찰-스캔-침투-보고 흐름과 로그 기반 탐지(관제)를 함께 익히세요.\n3. (우대) 스크립트 자동화 경험 — Python/Bash로 점검 자동화 도구를 만들어보세요.\n\n이를 바탕으로 프로젝트 제안 3건을 정리해 두었으니 아래를 참고하세요.\n\n프로젝트 제안\n1. **미니 웹 취약점 진단 실습 랩**\n   OWASP Top 10(SQLi, XSS, CSRF 등)을 재현한 취약 웹앱을 직접 만들거나 DVWA/WebGoat 같은 환경에서 각 취약점을 식별·공격·패치하는 과정을 정리해 리포트로 만든다. 취약점별 원인, 공격 방법, 패치 코드를 문서화한다.\n   커버하는 요건: 웹 취약점(OWASP Top 10) 이해\n   완료 기준: OWASP Top 10 중 5개 이상 취약점에 대해 재현-공격-패치 3단계를 문서화하면 끝\n2. **사설 네트워크 모의해킹 & 관제 시뮬레이션**\n   Kali Linux 등으로 취약한 VM(Metasploitable 등)을 대상으로 정찰-스캔-침투-보고 전 과정을 수행하고, 동시에 간단한 로그 수집(예: ELK 또는 Wazuh)으로 공격 트래픽을 탐지하는 관제 시나리오까지 구성한다.\n   커버하는 요건: 보안 관제 또는 모의해킹 수행 경험\n   완료 기준: 모의해킹 보고서(정찰~침투~후속조치) 1건과 해당 공격이 관제 로그에서 탐지되는 화면을 확보하면 끝\n3. **보안 점검 자동화 스크립트**\n   서버/웹 취약점 점검(예: 오픈 포트 스캔, 취약 설정 체크, 로그 이상 탐지)을 Python 또는 Bash 스크립트로 자동화해 반복 점검 시간을 줄이는 도구를 만든다.\n   커버하는 요건: 스크립트 자동화 경험\n   완료 기준: 점검 항목 5개 이상을 자동 실행하고 결과를 리포트 파일로 출력하면 끝",
+            "qa-engineer": "필수 요건 기준으로는 테스트 케이스 설계와 결함 관리 도구 사용 경험을, 우대 사항 기준으로는 Playwright/Selenium 자동화와 API 테스트, 릴리스 프로세스 개선 경험을 순서대로 준비하시면 됩니다. 아래 프로젝트 제안을 참고해서 학습 순서를 잡아보세요.\n\n프로젝트 제안\n1. **결함 관리 대시보드 + 테스트 케이스 관리 미니 시스템**\n   테스트 케이스를 작성/분류하고 실행 결과를 기록하며, 발견된 결함을 상태(신규/진행/해결/재현불가)별로 관리하는 웹 앱을 만든다. Jira나 GitHub Issues 연동으로 결함 등록 자동화까지 붙이면 도구 사용 경험도 보여줄 수 있다.\n   커버하는 요건: 테스트 케이스 설계 경험 · 결함 관리 도구 사용 경험\n   완료 기준: 테스트 케이스 CRUD, 결함 상태 전이, 실행 이력 조회가 동작하고 결함 관리 도구(Jira API 등) 연동 데모가 가능하면 끝\n2. **Playwright 기반 E2E + API 자동화 테스트 스위트**\n   실제 웹 서비스(또는 공개 데모 사이트)를 대상으로 UI 시나리오는 Playwright로, 백엔드는 REST API 테스트로 커버하는 자동화 스위트를 구성하고 CI에서 실행되게 한다.\n   커버하는 요건: Playwright 또는 Selenium 자동화 경험 · API 테스트 경험\n   완료 기준: 주요 시나리오 5개 이상 자동화, API 테스트가 응답 코드/스키마/에러 케이스를 검증하며 CI 파이프라인에서 자동 실행되면 끝\n3. **릴리스 체크리스트 자동화 스크립트**\n   배포 전 회귀 테스트 실행, 결과 리포트 생성, 배포 승인 체크리스트를 자동으로 만들어주는 스크립트/파이프라인을 구성해 릴리스 프로세스 개선 경험을 보여준다.\n   커버하는 요건: 릴리스 프로세스 개선 경험\n   완료 기준: 릴리스 트리거 시 테스트 실행→리포트 생성→체크리스트 출력까지 한 번에 돌아가면 끝"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 8,
+            "empty_tech_stack": 1,
+            "loop_reply_rewritten": 1
+          }
+        },
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0803,
+          "meanAnswerSim": 0.5925,
+          "meanPostingSim": 0.5122,
+          "worstPair": "security|qa-engineer",
+          "worstDelta": 0.2133,
+          "offPostingSkillRate": {
+            "ai-agent": 0.1429,
+            "backend-commerce": 0.1,
+            "frontend-react": 0.5,
+            "data-analyst": 0.0,
+            "devops-sre": 0.1667,
+            "ios-mobile": 0.0,
+            "security": null,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.1516,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.5598,
+              "posting": 0.5389,
+              "delta": 0.0209
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.513,
+              "posting": 0.4959,
+              "delta": 0.0171
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.5433,
+              "posting": 0.5566,
+              "delta": -0.0133
+            },
+            "ai-agent|devops-sre": {
+              "answer": 0.5643,
+              "posting": 0.5406,
+              "delta": 0.0237
+            },
+            "ai-agent|ios-mobile": {
+              "answer": 0.4552,
+              "posting": 0.483,
+              "delta": -0.0278
+            },
+            "ai-agent|security": {
+              "answer": 0.4678,
+              "posting": 0.4407,
+              "delta": 0.0271
+            },
+            "ai-agent|qa-engineer": {
+              "answer": 0.5563,
+              "posting": 0.512,
+              "delta": 0.0443
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.6163,
+              "posting": 0.563,
+              "delta": 0.0533
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.6654,
+              "posting": 0.5598,
+              "delta": 0.1056
+            },
+            "backend-commerce|devops-sre": {
+              "answer": 0.6731,
+              "posting": 0.5449,
+              "delta": 0.1282
+            },
+            "backend-commerce|ios-mobile": {
+              "answer": 0.6133,
+              "posting": 0.5446,
+              "delta": 0.0687
+            },
+            "backend-commerce|security": {
+              "answer": 0.6399,
+              "posting": 0.4776,
+              "delta": 0.1623
+            },
+            "backend-commerce|qa-engineer": {
+              "answer": 0.6817,
+              "posting": 0.4862,
+              "delta": 0.1955
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.5979,
+              "posting": 0.5399,
+              "delta": 0.058
+            },
+            "frontend-react|devops-sre": {
+              "answer": 0.6217,
+              "posting": 0.5052,
+              "delta": 0.1165
+            },
+            "frontend-react|ios-mobile": {
+              "answer": 0.5579,
+              "posting": 0.5563,
+              "delta": 0.0016
+            },
+            "frontend-react|security": {
+              "answer": 0.6356,
+              "posting": 0.5315,
+              "delta": 0.1041
+            },
+            "frontend-react|qa-engineer": {
+              "answer": 0.6511,
+              "posting": 0.5114,
+              "delta": 0.1397
+            },
+            "data-analyst|devops-sre": {
+              "answer": 0.6004,
+              "posting": 0.4915,
+              "delta": 0.1089
+            },
+            "data-analyst|ios-mobile": {
+              "answer": 0.5276,
+              "posting": 0.5141,
+              "delta": 0.0135
+            },
+            "data-analyst|security": {
+              "answer": 0.6121,
+              "posting": 0.4741,
+              "delta": 0.138
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.6041,
+              "posting": 0.4967,
+              "delta": 0.1074
+            },
+            "devops-sre|ios-mobile": {
+              "answer": 0.5376,
+              "posting": 0.4797,
+              "delta": 0.0579
+            },
+            "devops-sre|security": {
+              "answer": 0.6301,
+              "posting": 0.4793,
+              "delta": 0.1508
+            },
+            "devops-sre|qa-engineer": {
+              "answer": 0.6245,
+              "posting": 0.5123,
+              "delta": 0.1122
+            },
+            "ios-mobile|security": {
+              "answer": 0.53,
+              "posting": 0.46,
+              "delta": 0.07
+            },
+            "ios-mobile|qa-engineer": {
+              "answer": 0.6088,
+              "posting": 0.558,
+              "delta": 0.0508
+            },
+            "security|qa-engineer": {
+              "answer": 0.7012,
+              "posting": 0.4879,
+              "delta": 0.2133
+            }
+          },
+          "answerChars": [
+            309,
+            1091,
+            1219,
+            813,
+            1173,
+            897,
+            762,
+            508
+          ],
+          "answers": {
+            "ai-agent": "필수 요건부터 우대까지 순서대로 공부하면 됩니다.\n\n**필수(먼저)**\n- Python 데이터 처리 실무: pandas/Polars로 ETL 파이프라인 만들기\n- Airflow/Dagster/Prefect 중 하나: 배치 파이프라인 오케스트레이션\n- Pinecone/Qdrant/Milvus/pgvector 중 하나: 벡터 임베딩 저장·검색\n\n**우대(다음)**\n- LangChain 또는 LlamaIndex\n- OpenAI 또는 Anthropic API\n- AWS/GCP/Azure 중 하나\n\n이 순서로 커버되는 프로젝트 제안을 정리해서 기록해둘게요.",
+            "backend-commerce": "필수 요건(req-1~3)은 Spring Boot + Kotlin/Java로 주문/결제 REST API를 만들고 MySQL/PostgreSQL 스키마 설계와 쿼리 튜닝까지 해보는 프로젝트로 커버할 수 있습니다. 우대 사항 쪽은 두 갈래로 나눠서, 주문 완료 이벤트를 Kafka로 발행해 정산 서비스가 비동기로 소비하는 이벤트 드리븐 파이프라인(pref-1, pref-3)과, 그 API 서버를 Docker/Kubernetes로 배포해 오토스케일링·헬스체크·장애 복구를 확인하는 운영 프로젝트(pref-2)로 준비하면 공고 항목을 순서대로 커버합니다.\n\n학습 순서는 필수 요건(Spring Boot/Kotlin, RDBMS 설계·튜닝, REST API)을 먼저 다지고, 그다음 Kafka 이벤트 드리븐 구조, 마지막으로 Kubernetes 운영으로 넘어가는 게 공고 우선순위와 맞습니다.\n\n프로젝트 제안\n1. **커머스 주문/결제 API 서버**\n   Spring Boot + Kotlin(또는 Java)으로 상품-주문-결제 도메인 REST API를 구현하고 MySQL/PostgreSQL 스키마를 설계해 인덱스·쿼리 튜닝까지 진행\n   커버하는 요건: Java 또는 Kotlin 백엔드 개발 경력 3년 이상 · RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험 · REST API 설계 경험\n   완료 기준: 주문/결제 CRUD API와 정규화된 스키마, 튜닝 전후 쿼리 성능 비교 기록\n2. **주문 이벤트 기반 정산 파이프라인**\n   주문 완료 이벤트를 Kafka로 발행하고 별도 컨슈머가 정산 데이터를 비동기 처리하는 이벤트 드리븐 구조 구축\n   커버하는 요건: Kafka 기반 이벤트 드리븐 아키텍처 경험 · 결제/정산 도메인 경험\n   완료 기준: 주문 서비스와 정산 서비스가 Kafka로 분리되어 동작, 장애 시 재처리(재시도) 확인\n3. **Kubernetes 배포 및 운영**\n   위 API 서버를 Docker로 컨테이너화하고 Kubernetes에 배포, 오토스케일링/헬스체크 설정\n   커버하는 요건: Kubernetes 운영 경험\n   완료 기준: kubectl로 배포·스케일 조정이 되고 장애 파드 자동 재기동 확인",
+            "frontend-react": "이 공고(필수: React 경력 2년+, TypeScript, 상태 관리 라이브러리 / 우대: Next.js SSR, 웹 접근성(WCAG), 시각 회귀 테스트) 기준으로 아래 순서로 준비하시면 됩니다.\n\n1. TypeScript 기반 React 대시보드 + 상태 관리 라이브러리(Redux/Zustand 등) — 필수 요건 3개(React 경력, TypeScript, 상태 관리)를 한 번에 증명하는 핵심 프로젝트입니다.\n2. Next.js SSR 페이지 + 웹 접근성(WCAG) 대응 — 우대 사항인 SSR과 접근성을 함께 보여줄 수 있습니다.\n3. 시각 회귀 테스트 파이프라인(Storybook+Chromatic 또는 Playwright 스크린샷 비교) — 나머지 우대 사항을 커버합니다.\n\n필수 요건을 다루는 1번 프로젝트를 먼저 완성한 뒤, 2·3번으로 우대 사항을 확장해가는 순서를 추천드립니다.\n\n프로젝트 제안\n1. **TypeScript 기반 React 대시보드 (상태 관리 적용)**\n   React + TypeScript로 목록/상세/필터가 있는 대시보드를 만들고 Redux(또는 Zustand) 같은 상태 관리 라이브러리로 전역 상태(필터, 로그인 여부, 캐시된 목록 등)를 관리\n   커버하는 요건: React 기반 프론트엔드 개발 경력 2년 이상 · TypeScript 사용 경험 · 상태 관리 라이브러리 사용 경험\n   완료 기준: TypeScript 타입 에러 없이 빌드되고, 상태 관리 라이브러리로 최소 2개 이상의 화면이 상태를 공유하는 기능(예: 필터 유지, 장바구니)이 동작\n2. **Next.js SSR 블로그/커머스 페이지 + 접근성 대응**\n   Next.js로 SSR/SSG 페이지를 구성하고, 시맨틱 마크업·키보드 내비게이션·ARIA 속성 등 WCAG 기준을 적용한 페이지 제작\n   커버하는 요건: Next.js 서버 사이드 렌더링 경험 · 웹 접근성(WCAG) 대응 경험\n   완료 기준: 페이지 소스에서 SSR로 렌더된 HTML을 확인할 수 있고, Lighthouse 접근성 점수 90점 이상\n3. **시각 회귀 테스트 파이프라인 구축**\n   위 프로젝트 중 하나에 Storybook + Chromatic(또는 Playwright 스크린샷 비교)로 컴포넌트 단위 시각 회귀 테스트를 붙임\n   커버하는 요건: 시각 회귀 테스트 도입 경험\n   완료 기준: CI에서 컴포넌트 변경 시 스크린샷 diff가 자동으로 감지되는 것을 시연",
+            "data-analyst": "필수 요건 기준으로 SQL(윈도우 함수·조인)과 통계적 가설검정을 먼저 다지고, 우대 사항인 Tableau/Looker 대시보드, Python(pandas), 커머스 도메인 지표를 그다음 순서로 학습하시면 됩니다. 이에 맞춰 프로젝트 3개를 아래에 기록했습니다.\n\n프로젝트 제안\n1. **커머스 SQL 분석 리포트**\n   커머스 주문/유저 데이터를 SQL로 다루며 윈도우 함수(RANK, LAG 등)로 재구매율·코호트 분석 쿼리를 작성하고, 복잡한 조인으로 주문-상품-유저 테이블을 결합해 매출 지표를 산출\n   커버하는 요건: SQL 능숙(윈도우 함수·복잡한 조인) · 커머스 도메인 지표 경험\n   완료 기준: 윈도우 함수와 다중 조인을 쓴 쿼리 5개 이상과 결과 요약 문서 완성\n2. **A/B 테스트 가설검정 미니 프로젝트**\n   가상 또는 공개 데이터로 두 그룹 간 전환율 차이를 t-test/카이제곱 검정으로 통계적으로 검증하고 결과 해석 리포트 작성\n   커버하는 요건: 통계적 가설검정에 대한 이해\n   완료 기준: 가설 설정부터 검정 통계량·p-value 계산, 결론 도출까지 문서화 완료\n3. **Python/pandas 커머스 지표 대시보드**\n   pandas로 커머스 주문 데이터를 전처리·집계해 핵심 지표(매출, 재구매율, 카테고리별 판매)를 계산하고 Tableau 또는 Looker로 대시보드 구축\n   커버하는 요건: Tableau 또는 Looker 대시보드 운영 경험 · Python(pandas) 분석 경험 · 커머스 도메인 지표 경험\n   완료 기준: pandas 집계 스크립트와 대시보드가 연결되어 지표가 시각화됨",
+            "devops-sre": "필수 요건부터 우대 사항 순으로 학습 순서를 잡으면 됩니다.\n\n1) Kubernetes 운영 + Terraform/Ansible (필수 요건) → '온프레미스→클라우드 Kubernetes 마이그레이션 실습' 프로젝트로 세 가지를 한 번에 다룰 수 있습니다. VM/미니 서버로 온프레미스 환경을 구성하고 클라우드 K8s로 이전하면서 Terraform으로 인프라를 코드화, Ansible로 서버 설정을 자동화하는 방식입니다.\n\n2) Prometheus/Grafana 모니터링 + postmortem 문화 (우대 사항) → 'Prometheus+Grafana 모니터링 및 장애 대응 시뮬레이션' 프로젝트로 대시보드 구축, 장애 주입, 알림 설정, postmortem 문서 작성까지 경험해볼 수 있습니다.\n\n두 프로젝트를 이어서 하면 필수 요건과 우대 사항을 모두 다루는 흐름이 됩니다.\n\n프로젝트 제안\n1. **온프레미스→클라우드 Kubernetes 마이그레이션 실습**\n   로컬 VM 또는 미니 서버 3~4대로 온프레미스 환경을 구성한 뒤 클라우드(예: AWS EKS 등)로 워크로드를 이전하고, Terraform으로 클라우드 인프라를 코드화, Ansible로 온프레미스 서버 설정을 자동화. 마이그레이션 전후 아키텍처 문서와 절차를 정리\n   커버하는 요건: Kubernetes 운영 경험 · Terraform 또는 Ansible 사용 경험 · 온프레미스에서 클라우드로 이전한 경험\n   완료 기준: 온프레미스 클러스터에서 실행 중인 앱을 클라우드 K8s로 무중단 이전하고 Terraform/Ansible 코드가 리포지토리에 남아 재현 가능한 상태\n2. **Prometheus+Grafana 모니터링 및 장애 대응 시뮬레이션**\n   Kubernetes 클러스터에 Prometheus, Grafana를 배포해 노드/파드 메트릭 대시보드 구축. 의도적으로 장애(파드 크래시, 리소스 고갈 등)를 주입하고 알림 규칙으로 감지한 뒤, 장애 원인·타임라인·재발 방지책을 담은 postmortem 문서 작성\n   커버하는 요건: Kubernetes 운영 경험 · Prometheus, Grafana 기반 모니터링 구축 경험 · 장애 사후분석(postmortem) 문화 경험\n   완료 기준: Grafana 대시보드로 장애를 실시간 확인하고 알림이 정상 발동, postmortem 문서 1건 이상 작성 완료",
+            "ios-mobile": "필수 요건부터 순서대로 채우는 게 좋습니다.\n\n1. Swift + iOS 앱 개발 → 실제 앱을 처음부터 만들어 App Store Connect에 배포(또는 TestFlight)까지 진행 (req-1, req-2, req-3 커버)\n2. SwiftUI로 UI 구성 + StoreKit으로 인앱 결제 구현 + XCTest로 핵심 로직 단위 테스트 (pref-1, pref-2, pref-3 커버)\n\n공부 순서는 Swift 문법 → UIKit/SwiftUI로 앱 만들고 배포 경험 쌓기 → SwiftUI 심화 + StoreKit 결제 + 테스트 작성 습관 들이기 순으로 잡으면 됩니다.\n\n프로젝트 제안\n1. **iOS 앱 개발 및 App Store 배포 프로젝트**\n   Swift로 iOS 앱을 처음부터 만들어 실제 기능(목록/상세, 네트워킹, 로컬 저장 등)을 구현하고 App Store Connect를 통해 TestFlight 또는 정식 배포까지 진행\n   커버하는 요건: iOS 앱 개발 경력 2년 이상 · Swift 사용 경험 · App Store 배포 경험\n   완료 기준: Swift로 작성한 앱이 App Store Connect에 업로드되어 배포(또는 TestFlight 심사 통과) 상태가 되면 완료\n2. **SwiftUI 기반 인앱결제 구독 앱 + 단위 테스트**\n   SwiftUI로 UI를 구성하고 StoreKit으로 인앱 결제(구독 또는 소모성 상품)를 구현, 핵심 로직(결제 처리, 구매 검증 등)에 대해 XCTest로 단위 테스트 작성\n   커버하는 요건: SwiftUI 사용 경험 · 앱 내 결제(In-App Purchase) 구현 경험 · 단위 테스트 작성 습관\n   완료 기준: SwiftUI 화면에서 인앱결제가 정상 동작하고, 결제 로직에 대한 단위 테스트가 통과하면 완료",
+            "security": "필수 요건 기준으로 웹 취약점 진단·모의해킹 실무와 자동화 스크립트, 우대 사항 기준으로 ISMS-P 대응 경험을 만들어볼 수 있는 순서로 프로젝트 3건을 준비했습니다. 필요하면 각 프로젝트 상세나 학습 순서에 대해 더 물어보셔도 됩니다.\n\n프로젝트 제안\n1. **미니 웹 취약점 진단 및 리포트 도구**\n   DVWA나 임의로 구축한 취약 웹앱(SQLi, XSS, CSRF 등 OWASP Top 10 유형 포함) 대상으로 수동 점검 후 재현 절차와 위험도를 정리한 진단 리포트 작성\n   커버하는 요건: 웹 취약점(OWASP Top 10) 이해 · 보안 관제 또는 모의해킹 수행 경험\n   완료 기준: 취약점별 재현 스크린샷·재현 절차·위험도·조치 방안이 담긴 리포트 완성\n2. **보안 점검 자동화 스크립트**\n   파이썬/bash로 서버 로그에서 이상 접근 패턴 탐지, 정기 취약점 스캔(nmap, nikto 등) 실행 및 결과 요약을 자동화하는 스크립트 제작\n   커버하는 요건: 스크립트 자동화 경험 · 보안 관제 또는 모의해킹 수행 경험\n   완료 기준: 스크립트 실행 시 스캔 결과가 자동으로 요약 리포트 파일로 생성됨\n3. **ISMS-P 통제항목 매핑 체크리스트**\n   ISMS-P 인증기준 일부 통제항목을 골라 실제 시스템(예: 개인정보 처리 시스템 모형)에 적용해보고 충족 여부와 보완 방안을 정리한 문서화 작업\n   커버하는 요건: ISMS-P 인증 대응 경험\n   완료 기준: 통제항목별 현황·미흡사항·개선안이 담긴 체크리스트 문서 완성",
+            "qa-engineer": "필수부터 우대 순으로 준비하면 됩니다.\n\n1. 테스트 케이스 설계 (req-2): 요구사항 명세를 보고 테스트 케이스를 설계하는 연습 — 실제 웹/앱 기능 하나를 골라 테스트 케이스 문서(Positive/Negative/Edge case)를 작성해보는 프로젝트\n2. 결함 관리 도구 (req-3): Jira 또는 Redmine 같은 결함 관리 도구를 직접 세팅해보고, 발견한 버그를 실제로 등록·추적·재현 절차까지 기록해보는 프로젝트\n3. Playwright/Selenium 자동화 (pref-1): 간단한 웹 서비스(로그인, 검색 등)를 대상으로 E2E 자동화 테스트 스크립트 작성\n4. API 테스트 (pref-2): Postman이나 코드 기반(Playwright API 요청 등)으로 REST API에 대한 테스트 스위트 구성\n5. 릴리스 프로세스 개선 (pref-3): CI에 자동화 테스트를 연동해서 릴리스 전 자동 검증 파이프라인을 만들어보는 프로젝트\n\n이 순서로 진행할 프로젝트를 기록해둘까요?"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 8
+          }
+        },
+        {
+          "questionId": "study-plan",
+          "measured": true,
+          "genericScore": 0.0641,
+          "meanAnswerSim": 0.5763,
+          "meanPostingSim": 0.5122,
+          "worstPair": "ai-agent|security",
+          "worstDelta": 0.152,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.4,
+            "data-analyst": 0.0,
+            "devops-sre": 0.0,
+            "ios-mobile": 0.0,
+            "security": null,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0667,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.5721,
+              "posting": 0.5389,
+              "delta": 0.0332
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.603,
+              "posting": 0.4959,
+              "delta": 0.1071
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.5686,
+              "posting": 0.5566,
+              "delta": 0.012
+            },
+            "ai-agent|devops-sre": {
+              "answer": 0.5648,
+              "posting": 0.5407,
+              "delta": 0.0241
+            },
+            "ai-agent|ios-mobile": {
+              "answer": 0.5097,
+              "posting": 0.483,
+              "delta": 0.0267
+            },
+            "ai-agent|security": {
+              "answer": 0.5926,
+              "posting": 0.4406,
+              "delta": 0.152
+            },
+            "ai-agent|qa-engineer": {
+              "answer": 0.5371,
+              "posting": 0.512,
+              "delta": 0.0251
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.6055,
+              "posting": 0.563,
+              "delta": 0.0425
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.595,
+              "posting": 0.5597,
+              "delta": 0.0353
+            },
+            "backend-commerce|devops-sre": {
+              "answer": 0.5944,
+              "posting": 0.5451,
+              "delta": 0.0493
+            },
+            "backend-commerce|ios-mobile": {
+              "answer": 0.5637,
+              "posting": 0.5446,
+              "delta": 0.0191
+            },
+            "backend-commerce|security": {
+              "answer": 0.5113,
+              "posting": 0.4777,
+              "delta": 0.0336
+            },
+            "backend-commerce|qa-engineer": {
+              "answer": 0.5784,
+              "posting": 0.4862,
+              "delta": 0.0922
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.6483,
+              "posting": 0.54,
+              "delta": 0.1083
+            },
+            "frontend-react|devops-sre": {
+              "answer": 0.6078,
+              "posting": 0.5054,
+              "delta": 0.1024
+            },
+            "frontend-react|ios-mobile": {
+              "answer": 0.5794,
+              "posting": 0.5557,
+              "delta": 0.0237
+            },
+            "frontend-react|security": {
+              "answer": 0.6316,
+              "posting": 0.5315,
+              "delta": 0.1001
+            },
+            "frontend-react|qa-engineer": {
+              "answer": 0.6402,
+              "posting": 0.5114,
+              "delta": 0.1288
+            },
+            "data-analyst|devops-sre": {
+              "answer": 0.6046,
+              "posting": 0.4918,
+              "delta": 0.1128
+            },
+            "data-analyst|ios-mobile": {
+              "answer": 0.5151,
+              "posting": 0.5137,
+              "delta": 0.0014
+            },
+            "data-analyst|security": {
+              "answer": 0.5299,
+              "posting": 0.4744,
+              "delta": 0.0555
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.5862,
+              "posting": 0.4967,
+              "delta": 0.0895
+            },
+            "devops-sre|ios-mobile": {
+              "answer": 0.5126,
+              "posting": 0.4791,
+              "delta": 0.0335
+            },
+            "devops-sre|security": {
+              "answer": 0.5411,
+              "posting": 0.4793,
+              "delta": 0.0618
+            },
+            "devops-sre|qa-engineer": {
+              "answer": 0.599,
+              "posting": 0.5125,
+              "delta": 0.0865
+            },
+            "ios-mobile|security": {
+              "answer": 0.5585,
+              "posting": 0.46,
+              "delta": 0.0985
+            },
+            "ios-mobile|qa-engineer": {
+              "answer": 0.5576,
+              "posting": 0.558,
+              "delta": -0.0004
+            },
+            "security|qa-engineer": {
+              "answer": 0.6295,
+              "posting": 0.4879,
+              "delta": 0.1416
+            }
+          },
+          "answerChars": [
+            979,
+            800,
+            1062,
+            861,
+            1079,
+            1244,
+            582,
+            1157
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 순으로 학습 순서를 잡으면 됩니다.\n\n1) Python 데이터 처리 + Airflow(또는 Dagster/Prefect) — 배치 파이프라인 스케줄링 기본기\n2) pgvector(또는 Pinecone/Qdrant/Milvus) 중 하나 — 벡터DB에 임베딩 적재·검색\n3) LangChain(또는 LlamaIndex) + OpenAI/Anthropic API — RAG 체인 구성\n4) AWS/GCP/Azure 중 하나 — 배포 환경\n\n이 순서대로 프로젝트 2건을 기록해뒀습니다.\n\n프로젝트 제안\n1. **상담 로그 RAG 파이프라인**\n   Python으로 상담 텍스트를 수집·전처리하는 배치 파이프라인을 Airflow(또는 Dagster/Prefect)로 스케줄링하고, 임베딩을 pgvector(또는 Pinecone/Qdrant/Milvus)에 적재해 검색 가능한 인덱스를 구축\n   커버하는 요건: Python 기반 데이터 처리 실무 경험 · Airflow / Dagster / Prefect 중 하나 이상 운영 경험 · Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험\n   완료 기준: Airflow DAG가 상담 데이터를 주기적으로 처리해 벡터DB에 적재하고, 쿼리로 유사 문서를 검색할 수 있으면 끝\n2. **LangChain 기반 RAG 상담 챗봇**\n   위에서 구축한 벡터DB를 LangChain(또는 LlamaIndex)으로 연결하고 OpenAI 또는 Anthropic API로 답변을 생성하는 RAG 챗봇을 구현, AWS/GCP/Azure 중 하나에 배포\n   커버하는 요건: LangChain 또는 LlamaIndex 활용 경험 · OpenAI 또는 Anthropic API 운영 경험 · AWS / GCP / Azure 중 하나의 운영 경험\n   완료 기준: 사용자 질문에 대해 벡터DB 검색 결과를 근거로 LLM이 답변을 생성하고, 클라우드에 배포되어 접속 가능하면 끝",
+            "backend-commerce": "필수 요건부터 우선 학습: Spring Boot + Kotlin(또는 Java)로 REST API 설계, MySQL/PostgreSQL 스키마 설계와 인덱스 튜닝. 우대 요건은 Kafka 기반 이벤트 드리븐 구조, Kubernetes 배포, 결제/정산 도메인 순으로 이어가면 됩니다. 프로젝트 제안 2건을 아래에 기록해뒀어요 — 필수 요건 커버용 커머스 REST API 서버, 우대 요건 커버용 이벤트 드리븐 결제/정산 시스템입니다.\n\n프로젝트 제안\n1. **커머스 REST API 서버**\n   Spring Boot + Kotlin(또는 Java) 기반으로 상품/주문 도메인 REST API를 설계·구현하고 MySQL 또는 PostgreSQL 스키마를 직접 설계해 인덱스 튜닝까지 진행\n   커버하는 요건: Java 또는 Kotlin 백엔드 개발 경력 3년 이상 · RDBMS(MySQL/PostgreSQL) 설계·튜닝 경험 · REST API 설계 경험\n   완료 기준: 주요 CRUD API와 조회 성능을 위한 인덱스 설계가 포함된 저장소, API 문서 정리\n2. **이벤트 드리븐 결제/정산 시스템**\n   주문 서비스에서 Kafka로 결제 완료 이벤트를 발행하고 정산 서비스가 이를 구독해 비동기로 정산 내역을 처리하는 구조 구현, Kubernetes로 각 서비스 배포\n   커버하는 요건: Kafka 기반 이벤트 드리븐 아키텍처 경험 · Kubernetes 운영 경험 · 결제/정산 도메인 경험\n   완료 기준: Kafka 토픽 기반 이벤트 흐름과 정산 로직이 동작하고 Kubernetes 매니페스트로 배포 가능한 상태",
+            "frontend-react": "필수 요건부터 순서대로 잡으면:\n\n- React + TypeScript + 상태 관리(req-1~3): '타입 안전 관리자 대시보드' — CRUD 대시보드에 Redux(또는 Zustand)로 필터/페이지네이션/선택 항목 등 전역 상태를 관리하는 프로젝트\n- Next.js SSR + 웹 접근성(pref-1, pref-2): 상품/게시글 상세 페이지를 SSR로 구현하고 시맨틱 마크업·키보드 내비게이션·ARIA로 접근성 대응\n- 시각 회귀 테스트(pref-3): 위 컴포넌트에 Storybook + Chromatic(또는 Playwright 스크린샷 비교)로 시각 회귀 테스트 도입\n\n필수 요건을 채우는 대시보드 프로젝트를 먼저 만들고, 그 위에 Next.js SSR/접근성, 마지막으로 시각 회귀 테스트를 얹는 순서를 추천합니다.\n\n프로젝트 제안\n1. **타입 안전 관리자 대시보드**\n   React + TypeScript로 CRUD 대시보드를 만들고 Redux(또는 Zustand)로 전역 상태(필터, 페이지네이션, 선택 항목)를 관리한다\n   커버하는 요건: React 기반 프론트엔드 개발 경력 2년 이상 · TypeScript 사용 경험 · 상태 관리 라이브러리 사용 경험\n   완료 기준: 목록 조회/생성/수정/삭제가 상태 관리 스토어를 통해 동작하고 타입 에러 없이 빌드된다\n2. **Next.js SSR 블로그/커머스 페이지**\n   Next.js로 상품 상세 또는 게시글 상세를 서버 사이드 렌더링하고 접근성(시맨틱 마크업, 키보드 내비게이션, ARIA)을 적용한다\n   커버하는 요건: Next.js 서버 사이드 렌더링 경험 · 웹 접근성(WCAG) 대응 경험\n   완료 기준: SSR로 렌더된 페이지가 axe 등 접근성 검사 도구에서 주요 위반 없이 통과한다\n3. **시각 회귀 테스트 파이프라인 구축**\n   위에서 만든 컴포넌트에 Storybook + Chromatic(또는 Playwright 스크린샷 비교)로 시각 회귀 테스트를 도입한다\n   커버하는 요건: 시각 회귀 테스트 도입 경험\n   완료 기준: 컴포넌트 변경 시 스크린샷 diff가 CI에서 자동으로 리포트된다",
+            "data-analyst": "필수 요건 기반으로 순서를 잡으면:\n\n1. SQL 윈도우 함수·복잡한 조인 → 커머스 트랜잭션 데이터로 재구매율·코호트 매출 등 지표 산출 프로젝트\n2. 통계적 가설검정 → A/B 테스트 리포트(t-test, 카이제곱 등)를 가설~결론까지 문서화\n3. pandas + Tableau/Looker(우대) → pandas로 전처리·분석 후 커머스 KPI 대시보드 구축, 매출·전환율 필터링 가능하게\n\n필수(SQL, 통계) 먼저 다지고, 그다음 우대 사항(대시보드 툴, 커머스 도메인 지표)으로 넘어가는 순서를 추천합니다.\n\n프로젝트 제안\n1. **커머스 지표 SQL 분석**\n   이커머스 트랜잭션 데이터로 윈도우 함수·복잡한 조인을 활용해 재구매율, 코호트별 매출 등 커머스 지표를 SQL로 산출\n   커버하는 요건: SQL 능숙(윈도우 함수·복잡한 조인) · 커머스 도메인 지표 경험\n   완료 기준: 윈도우 함수와 다중 조인을 쓴 쿼리로 핵심 지표 5개 이상 산출\n2. **A/B 테스트 가설검정 리포트**\n   가상의 실험 데이터로 t-test·카이제곱 등 통계적 가설검정을 수행하고 결과를 해석한 리포트 작성\n   커버하는 요건: 통계적 가설검정에 대한 이해\n   완료 기준: 가설 설정부터 검정·결론까지 문서화된 리포트 완성\n3. **pandas 분석 + Tableau/Looker 대시보드**\n   pandas로 데이터 전처리·분석 후 Tableau 또는 Looker로 커머스 KPI 대시보드 구축\n   커버하는 요건: Tableau 또는 Looker 대시보드 운영 경험 · Python(pandas) 분석 경험 · 커머스 도메인 지표 경험\n   완료 기준: 배포된 대시보드에서 매출·전환율 등 핵심 KPI를 필터링해 볼 수 있음",
+            "devops-sre": "필수 요건부터 준비 순서를 잡으면:\n\n1. Kubernetes 운영 + Terraform/Ansible: 클러스터를 직접 구성하고 IaC로 프로비저닝을 코드화하는 프로젝트로 두 요건을 한 번에 커버\n2. Prometheus/Grafana 모니터링: 위 클러스터에 메트릭 대시보드를 붙이고, 인위적 장애 후 postmortem 문서까지 작성해 우대 사항(모니터링·장애 대응 문화)을 함께 증명\n3. 온프레미스→클라우드 이전 시뮬레이션: 로컬 VM 워크로드를 Terraform으로 K8s에 옮기는 과정을 문서화해 마지막 우대 사항 커버\n\n제안 3건을 기록해 뒀습니다. 순서는 1→2→3이 자연스럽고, 필수 요건 프로젝트부터 먼저 완성하는 걸 추천합니다.\n\n프로젝트 제안\n1. **Kubernetes 클러스터 구축 및 IaC 자동화**\n   kubeadm 또는 관리형 클러스터를 구성하고 Terraform/Ansible로 인프라 프로비저닝을 코드화한다. 클러스터 배포, 노드 구성, 배포 자동화 과정을 문서화\n   커버하는 요건: Kubernetes 운영 경험 · Terraform 또는 Ansible 사용 경험\n   완료 기준: Terraform/Ansible 스크립트 실행만으로 클러스터가 재현 가능하고, 배포 절차가 문서화되어 있음\n2. **모니터링 및 장애 대응 파이프라인**\n   Prometheus + Grafana로 클러스터/애플리케이션 메트릭 대시보드를 구축하고, 인위적으로 장애를 발생시켜 postmortem 문서를 작성하는 연습을 진행\n   커버하는 요건: Prometheus, Grafana 기반 모니터링 구축 경험 · 장애 사후분석(postmortem) 문화 경험\n   완료 기준: 알람 규칙과 대시보드가 동작하고, 장애 재현 후 postmortem 문서 1건 이상 작성됨\n3. **온프레미스→클라우드 마이그레이션 시뮬레이션**\n   로컬 VM 기반 환경을 구성한 뒤 동일 워크로드를 클라우드(K8s)로 이전하는 과정을 Terraform으로 재현하고 이전 전후 비교 문서 작성\n   커버하는 요건: 온프레미스에서 클라우드로 이전한 경험\n   완료 기준: 이전 전/후 아키텍처 다이어그램과 이전 절차 문서가 존재함",
+            "ios-mobile": "이 공고(iOS 개발자, junior) 기준으로 스택 학습 순서와 프로젝트 방향을 정리하면 다음과 같습니다.\n\n학습 순서:\n1. Swift 기본 문법과 iOS 앱 개발 전반(필수) — 2년 이상 실무 수준 경험을 요구하므로 기초를 넘어 실제 앱을 완성해보는 것이 중요합니다.\n2. App Store 배포 절차(필수) — 인증서, 프로비저닝, 심사 제출 등 배포 프로세스를 직접 겪어봐야 합니다.\n3. SwiftUI(우대) — UI 구성을 SwiftUI로 하면 필수 스택과 우대 사항을 동시에 채울 수 있습니다.\n4. In-App Purchase / StoreKit(우대) — 결제 플로우와 영수증 검증 구현 경험.\n5. XCTest 기반 단위 테스트 습관(우대) — 핵심 로직에 테스트를 붙이는 습관.\n\n이에 맞춰 프로젝트 3건을 기록해두었습니다:\n- SwiftUI로 화면을 구성해 App Store/TestFlight까지 실제 배포하는 개인 프로젝트\n- StoreKit으로 인앱결제를 구현한 유료 기능 앱\n- 핵심 로직에 XCTest 단위 테스트를 갖춘 유틸/네트워킹 모듈\n\n순서대로 진행하면 필수 요건과 우대 사항을 고르게 다룰 수 있습니다.\n\n프로젝트 제안\n1. **App Store 배포용 SwiftUI 개인 프로젝트**\n   SwiftUI로 화면을 구성한 iOS 앱을 처음부터 만들어 TestFlight/App Store에 실제 배포까지 진행. 배포 과정(인증서, 프로비저닝, 심사 제출)을 직접 경험\n   커버하는 요건: Swift 사용 경험 · App Store 배포 경험 · SwiftUI 사용 경험\n   완료 기준: 앱이 App Store 또는 TestFlight에 등록되고 배포 이력을 캡처로 남긴 상태\n2. **In-App Purchase 포함 유료 기능 앱**\n   기존 앱에 StoreKit으로 인앱결제(소모성 또는 구독)를 붙여 결제 플로우와 영수증 검증까지 구현\n   커버하는 요건: Swift 사용 경험 · 앱 내 결제(In-App Purchase) 구현 경험\n   완료 기준: 샌드박스 계정으로 구매-복원 흐름이 끝까지 동작\n3. **단위 테스트를 갖춘 유틸/네트워킹 모듈**\n   위 프로젝트의 핵심 로직(예: API 클라이언트, 데이터 파싱)을 XCTest로 단위 테스트 작성하며 2년 이상 실무 수준 개발 습관을 보여줌\n   커버하는 요건: iOS 앱 개발 경력 2년 이상 · 단위 테스트 작성 습관\n   완료 기준: 핵심 로직 커버리지를 갖춘 테스트 스위트가 CI 없이도 로컬에서 통과",
+            "security": "필수 요건 중심으로 순서를 잡으면:\n\n1. OWASP Top 10 취약점 이해 (SQLi, XSS, CSRF 등) — 개념부터 실제 공격 원리까지\n2. 보안 관제/모의해킹 실무 경험 — 직접 진단하고 리포트 써보는 연습\n3. (우대) 스크립트 자동화 — Python 등으로 반복 작업 자동화\n\n이 순서에 맞춰 프로젝트 2건을 기록해뒀습니다.\n\n프로젝트 제안\n1. **OWASP Top 10 취약점 진단 및 모의해킹 실습**\n   DVWA/WebGoat 같은 취약 웹앱을 대상으로 OWASP Top 10 항목(SQLi, XSS, CSRF 등)을 직접 진단하고 리포트 작성\n   커버하는 요건: 웹 취약점(OWASP Top 10) 이해 · 보안 관제 또는 모의해킹 수행 경험\n   완료 기준: 취약점별 진단 방법과 결과를 정리한 모의해킹 보고서 완성\n2. **보안 로그 자동 분석 스크립트**\n   웹서버/침입탐지 로그를 파싱해 이상 패턴(반복 로그인 실패, SQLi 시도 등)을 탐지하는 Python 자동화 스크립트 작성\n   커버하는 요건: 스크립트 자동화 경험\n   완료 기준: 샘플 로그에서 이상 이벤트를 자동 탐지하고 알림/리포트 생성",
+            "qa-engineer": "필수 요건인 테스트 케이스 설계와 결함 관리 도구 경험을 증명하려면 간단한 웹 앱을 대상으로 테스트 케이스를 설계하고 Jira/Redmine 같은 도구에 버그를 등록·추적하는 프로젝트가 좋습니다. 우대 사항 쪽은 Playwright(또는 Selenium) 기반 E2E 자동화 스위트를 만들어 CI에서 돌리는 것, API 테스트(Postman/Newman 등)로 요청-응답과 스키마를 검증하는 것, 그리고 가상의 릴리스 체크리스트와 리스크 기반 회귀 테스트 범위 축소 문서를 작성하는 것을 순서대로 진행하면 공고의 필수·우대 요건을 골고루 커버할 수 있습니다.\n\n프로젝트 제안\n1. **결함 관리 통합 테스트 케이스 저장소**\n   실제 웹 서비스(간단한 CRUD 앱 등)를 대상으로 테스트 케이스를 설계하고, Jira/Redmine 같은 결함 관리 도구에 발견된 버그를 기록·추적하는 프로세스를 문서화한다. 테스트 케이스 설계 문서와 버그 리포트 예시를 산출물로 남긴다.\n   커버하는 요건: 테스트 케이스 설계 경험 · 결함 관리 도구 사용 경험\n   완료 기준: 테스트 케이스 문서와 결함 관리 도구에 등록된 버그 티켓 이력이 있으면 끝\n2. **Playwright 기반 E2E 자동화 스위트**\n   오픈소스 웹 앱을 대상으로 Playwright로 로그인, 폼 제출 등 핵심 시나리오 자동화 테스트를 작성하고 CI에서 실행되도록 구성한다.\n   커버하는 요건: Playwright 또는 Selenium 자동화 경험\n   완료 기준: Playwright 테스트 스위트가 CI 파이프라인에서 자동 실행되면 끝\n3. **API 테스트 스위트 구축**\n   REST API에 대해 Postman/Newman 또는 Playwright API 테스트 기능으로 요청-응답 검증, 상태 코드/스키마 검증 테스트를 작성한다.\n   커버하는 요건: API 테스트 경험\n   완료 기준: 주요 엔드포인트에 대한 API 테스트 케이스와 실행 리포트가 나오면 끝\n4. **릴리스 체크리스트 및 프로세스 개선안 문서**\n   가상의 릴리스 프로세스를 정의하고, QA 관점에서 배포 전 체크리스트와 회귀 테스트 범위 축소 전략(리스크 기반 테스트) 문서를 작성한다.\n   커버하는 요건: 릴리스 프로세스 개선 경험\n   완료 기준: 릴리스 체크리스트와 개선 근거를 담은 문서가 완성되면 끝"
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 8,
+            "loop_reply_rewritten": 1
+          }
+        }
+      ]
+    },
+    {
+      "questionId": "key-requirement",
+      "measured": true,
+      "runs": 3,
+      "genericScore": {
+        "mean": 0.0889,
+        "min": 0.072,
+        "max": 0.107,
+        "range": 0.035
+      },
+      "offPostingSkillRate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "range": 0.0
+      },
+      "attempts": [
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.107,
+          "meanAnswerSim": 0.6192,
+          "meanPostingSim": 0.5121,
+          "worstPair": "ai-agent|security",
+          "worstDelta": 0.1934,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.0,
+            "data-analyst": 0.0,
+            "devops-sre": 0.0,
+            "ios-mobile": 0.0,
+            "security": null,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6426,
+              "posting": 0.5389,
+              "delta": 0.1037
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.6384,
+              "posting": 0.496,
+              "delta": 0.1424
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.6425,
+              "posting": 0.5565,
+              "delta": 0.086
+            },
+            "ai-agent|devops-sre": {
+              "answer": 0.6703,
+              "posting": 0.5407,
+              "delta": 0.1296
+            },
+            "ai-agent|ios-mobile": {
+              "answer": 0.5884,
+              "posting": 0.4831,
+              "delta": 0.1053
+            },
+            "ai-agent|security": {
+              "answer": 0.634,
+              "posting": 0.4406,
+              "delta": 0.1934
+            },
+            "ai-agent|qa-engineer": {
+              "answer": 0.6612,
+              "posting": 0.5121,
+              "delta": 0.1491
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.6806,
+              "posting": 0.5629,
+              "delta": 0.1177
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.5997,
+              "posting": 0.5596,
+              "delta": 0.0401
+            },
+            "backend-commerce|devops-sre": {
+              "answer": 0.624,
+              "posting": 0.5451,
+              "delta": 0.0789
+            },
+            "backend-commerce|ios-mobile": {
+              "answer": 0.6171,
+              "posting": 0.5446,
+              "delta": 0.0725
+            },
+            "backend-commerce|security": {
+              "answer": 0.6103,
+              "posting": 0.4776,
+              "delta": 0.1327
+            },
+            "backend-commerce|qa-engineer": {
+              "answer": 0.6042,
+              "posting": 0.4862,
+              "delta": 0.118
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.5338,
+              "posting": 0.5391,
+              "delta": -0.0053
+            },
+            "frontend-react|devops-sre": {
+              "answer": 0.6584,
+              "posting": 0.505,
+              "delta": 0.1534
+            },
+            "frontend-react|ios-mobile": {
+              "answer": 0.6393,
+              "posting": 0.5552,
+              "delta": 0.0841
+            },
+            "frontend-react|security": {
+              "answer": 0.6204,
+              "posting": 0.5322,
+              "delta": 0.0882
+            },
+            "frontend-react|qa-engineer": {
+              "answer": 0.7041,
+              "posting": 0.5115,
+              "delta": 0.1926
+            },
+            "data-analyst|devops-sre": {
+              "answer": 0.5756,
+              "posting": 0.4918,
+              "delta": 0.0838
+            },
+            "data-analyst|ios-mobile": {
+              "answer": 0.5278,
+              "posting": 0.5137,
+              "delta": 0.0141
+            },
+            "data-analyst|security": {
+              "answer": 0.6124,
+              "posting": 0.4744,
+              "delta": 0.138
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.5619,
+              "posting": 0.4967,
+              "delta": 0.0652
+            },
+            "devops-sre|ios-mobile": {
+              "answer": 0.547,
+              "posting": 0.4791,
+              "delta": 0.0679
+            },
+            "devops-sre|security": {
+              "answer": 0.587,
+              "posting": 0.4793,
+              "delta": 0.1077
+            },
+            "devops-sre|qa-engineer": {
+              "answer": 0.6552,
+              "posting": 0.5125,
+              "delta": 0.1427
+            },
+            "ios-mobile|security": {
+              "answer": 0.5918,
+              "posting": 0.46,
+              "delta": 0.1318
+            },
+            "ios-mobile|qa-engineer": {
+              "answer": 0.6463,
+              "posting": 0.558,
+              "delta": 0.0883
+            },
+            "security|qa-engineer": {
+              "answer": 0.6633,
+              "posting": 0.4878,
+              "delta": 0.1755
+            }
+          },
+          "answerChars": [
+            338,
+            161,
+            229,
+            198,
+            269,
+            227,
+            221,
+            173
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 4개는 모두 중요하지만, 이 중 핵심은 다음 2가지입니다.\n\n- Airflow / Dagster / Prefect 중 하나 이상 운영 경험 — 데이터 파이프라인 운영 역량을 직접 검증하는 항목\n- Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험 — AI/Agent 직무 특성상 벡터DB 경험이 직무 핵심 스킬로 명시됨\n\n나머지 필수 요건(데이터/ML 엔지니어링 3~7년 경력, Python 실무 경험)은 전제 조건 성격이고, 우대 사항(LangChain/LlamaIndex, OpenAI/Anthropic API, 클라우드)은 그다음 우선순위입니다.",
+            "backend-commerce": "필수 요건 중 가장 핵심은 \"Java 또는 Kotlin 백엔드 개발 경력 3년 이상\"입니다. 나머지 필수 요건(RDBMS 설계·튜닝, REST API 설계)이 이를 뒷받침하는 기술 요건이고, 우대 사항(Kafka, Kubernetes, 결제/정산 도메인)은 그 다음 순위로 보시면 됩니다.",
+            "frontend-react": "필수 요건 3개 중에서는 순서상 앞에 오는 것부터 우선순위가 높습니다:\n\n1. React 기반 프론트엔드 개발 경력 2년 이상 — 연차 기준이 걸려 있어 가장 기본이 되는 요건입니다.\n2. TypeScript 사용 경험\n3. 상태 관리 라이브러리 사용 경험\n\n우대 사항(Next.js SSR, 웹 접근성, 시각 회귀 테스트)은 필수 요건 다음 순위입니다. 다음으로 이 요건들을 채울 프로젝트 계획을 세워볼까요?",
+            "data-analyst": "필수 요건 중에서는 SQL 능숙도(윈도우 함수·복잡한 조인)와 통계적 가설검정 이해가 핵심입니다. 두 항목은 실무에서 바로 검증되는 기술이라 공고에서 구체적으로 명시했고, 나머지 필수 요건인 '경력 2년 이상'은 자격 기준에 가깝습니다. 우대 사항으로는 Tableau/Looker 대시보드 운영과 Python(pandas) 분석 경험이 이어서 언급됩니다.",
+            "devops-sre": "필수 요건은 세 가지지만, 이 중 인프라/SRE 경력 3년 이상이 전제 조건이고, 그 위에서 Kubernetes 운영 경험과 Terraform 또는 Ansible 사용 경험이 실제 기술 요건으로 명시돼 있습니다. 우대 사항인 모니터링(Prometheus/Grafana), 온프레미스→클라우드 이전 경험, 장애 postmortem 문화 경험은 필수 다음 순위입니다. 이 정도면 공고에서 확인되는 우선순위이고, 필요하면 이 요건들을 커버하는 프로젝트 아이디어를 정리해드릴 수 있습니다.",
+            "ios-mobile": "필수 요건 3가지 중 가장 핵심은 \"iOS 앱 개발 경력 2년 이상\"과 \"Swift 사용 경험\"이에요 — 이 두 개가 실무 역량의 기본선이고, \"App Store 배포 경험\"은 실제로 앱을 출시까지 가져가 본 경험을 요구하는 항목이라 세 요건이 세트로 묶여 있다고 보면 됩니다. 우대 사항(SwiftUI, In-App Purchase, 단위 테스트)은 그다음 순위예요. 이 순서대로 학습 계획을 잡아볼까요?",
+            "security": "필수 요건 중 가장 핵심적인 것은 '보안 관제 또는 모의해킹 수행 경험'과 '웹 취약점(OWASP Top 10) 이해'입니다. 이 두 가지가 실무 수행 능력을 직접적으로 증명하는 항목이라 우선순위가 높고, '정보보안 업무 경력 2년 이상'은 이 경험들을 뒷받침하는 기본 조건으로 함께 요구됩니다. 우대 사항(자격증, ISMS-P 대응, 스크립트 자동화)은 필수 요건을 채운 뒤 가산점 개념입니다.",
+            "qa-engineer": "필수 요건 3개 중에서는 순서상 앞에 있는 게 우선순위가 높습니다:\n- QA 업무 경력 2년 이상\n- 테스트 케이스 설계 경험\n- 결함 관리 도구 사용 경험\n\n이 세 가지가 필수라 우대 사항(Playwright/Selenium 자동화, API 테스트, 릴리스 프로세스 개선)보다 먼저 충족해야 하는 항목입니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 8,
+            "empty_tech_stack": 1
+          }
+        },
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.072,
+          "meanAnswerSim": 0.5844,
+          "meanPostingSim": 0.5124,
+          "worstPair": "ai-agent|security",
+          "worstDelta": 0.2222,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.0,
+            "data-analyst": 0.0,
+            "devops-sre": 0.0,
+            "ios-mobile": 0.0,
+            "security": null,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6347,
+              "posting": 0.539,
+              "delta": 0.0957
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.5661,
+              "posting": 0.496,
+              "delta": 0.0701
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.569,
+              "posting": 0.5565,
+              "delta": 0.0125
+            },
+            "ai-agent|devops-sre": {
+              "answer": 0.64,
+              "posting": 0.5409,
+              "delta": 0.0991
+            },
+            "ai-agent|ios-mobile": {
+              "answer": 0.6221,
+              "posting": 0.4833,
+              "delta": 0.1388
+            },
+            "ai-agent|security": {
+              "answer": 0.6631,
+              "posting": 0.4409,
+              "delta": 0.2222
+            },
+            "ai-agent|qa-engineer": {
+              "answer": 0.6944,
+              "posting": 0.5125,
+              "delta": 0.1819
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.5838,
+              "posting": 0.5636,
+              "delta": 0.0202
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.4986,
+              "posting": 0.5605,
+              "delta": -0.0619
+            },
+            "backend-commerce|devops-sre": {
+              "answer": 0.6688,
+              "posting": 0.5457,
+              "delta": 0.1231
+            },
+            "backend-commerce|ios-mobile": {
+              "answer": 0.6061,
+              "posting": 0.5453,
+              "delta": 0.0608
+            },
+            "backend-commerce|security": {
+              "answer": 0.648,
+              "posting": 0.4785,
+              "delta": 0.1695
+            },
+            "backend-commerce|qa-engineer": {
+              "answer": 0.6367,
+              "posting": 0.4868,
+              "delta": 0.1499
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.3873,
+              "posting": 0.5399,
+              "delta": -0.1526
+            },
+            "frontend-react|devops-sre": {
+              "answer": 0.5282,
+              "posting": 0.5053,
+              "delta": 0.0229
+            },
+            "frontend-react|ios-mobile": {
+              "answer": 0.6078,
+              "posting": 0.5563,
+              "delta": 0.0515
+            },
+            "frontend-react|security": {
+              "answer": 0.568,
+              "posting": 0.5315,
+              "delta": 0.0365
+            },
+            "frontend-react|qa-engineer": {
+              "answer": 0.6047,
+              "posting": 0.5113,
+              "delta": 0.0934
+            },
+            "data-analyst|devops-sre": {
+              "answer": 0.4819,
+              "posting": 0.4916,
+              "delta": -0.0097
+            },
+            "data-analyst|ios-mobile": {
+              "answer": 0.4525,
+              "posting": 0.5143,
+              "delta": -0.0618
+            },
+            "data-analyst|security": {
+              "answer": 0.5472,
+              "posting": 0.4744,
+              "delta": 0.0728
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.5211,
+              "posting": 0.4967,
+              "delta": 0.0244
+            },
+            "devops-sre|ios-mobile": {
+              "answer": 0.5214,
+              "posting": 0.4796,
+              "delta": 0.0418
+            },
+            "devops-sre|security": {
+              "answer": 0.5523,
+              "posting": 0.4793,
+              "delta": 0.073
+            },
+            "devops-sre|qa-engineer": {
+              "answer": 0.6069,
+              "posting": 0.5125,
+              "delta": 0.0944
+            },
+            "ios-mobile|security": {
+              "answer": 0.6008,
+              "posting": 0.46,
+              "delta": 0.1408
+            },
+            "ios-mobile|qa-engineer": {
+              "answer": 0.6773,
+              "posting": 0.558,
+              "delta": 0.1193
+            },
+            "security|qa-engineer": {
+              "answer": 0.6755,
+              "posting": 0.4878,
+              "delta": 0.1877
+            }
+          },
+          "answerChars": [
+            355,
+            212,
+            189,
+            182,
+            210,
+            214,
+            251,
+            250
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 중 가장 핵심은 다음 두 가지입니다.\n\n- Airflow / Dagster / Prefect 중 하나 이상 운영 경험 — 파이프라인 오케스트레이션 도구를 실제로 다뤄봤는지가 필수 조건으로 명시되어 있습니다.\n- Pinecone / Qdrant / Milvus / pgvector 중 하나 이상 사용 경험 — 벡터 DB 실사용 경험도 필수로 요구됩니다.\n\n여기에 기반이 되는 'Python 기반 데이터 처리 실무 경험'과 '데이터/ML 엔지니어링 경력 3~7년'이 전제 조건으로 깔려 있습니다. 우대 사항(LangChain/LlamaIndex, OpenAI/Anthropic API, 클라우드 운영)은 그 다음 우선순위입니다.",
+            "backend-commerce": "필수 요건 3가지 중에서는 \"Java 또는 Kotlin 백엔드 개발 경력 3년 이상\"이 핵심입니다 — RDBMS 설계·튜닝과 REST API 설계도 필수지만, 연차 기준이 함께 명시된 이 항목이 지원 자격의 기준선 역할을 합니다. 우대 사항 중에서는 커머스 도메인 특성상 \"결제/정산 도메인 경험\"이 가장 눈에 띄는데, Kafka·Kubernetes보다 도메인 특화도가 높습니다.",
+            "frontend-react": "이 공고에서 가장 중요한 요건은 필수 요건 3가지입니다:\n- React 기반 프론트엔드 개발 경력 2년 이상\n- TypeScript 사용 경험\n- 상태 관리 라이브러리 사용 경험\n\n이 세 가지가 충족되어야 지원 자격 자체가 성립하는 항목이고, Next.js SSR·웹 접근성(WCAG)·시각 회귀 테스트는 우대 사항으로 그다음 순위입니다.",
+            "data-analyst": "필수 요건 중에서는 SQL 능숙도(윈도우 함수·복잡한 조인)와 통계적 가설검정 이해가 핵심입니다. 데이터 분석가 직무에서 실제 쿼리 작성과 분석 해석 역량을 직접 검증하는 항목이라 비중이 큽니다. 우대 사항 중에서는 Tableau/Looker 대시보드 운영 경험이 실무 도구 활용 능력을 보여주는 항목으로 다음 우선순위입니다.",
+            "devops-sre": "필수 요건 중에서는 'Kubernetes 운영 경험'과 'Terraform 또는 Ansible 사용 경험'이 핵심입니다 — 인프라/SRE 경력 3년 이상은 경력 기준이고, 이 두 가지는 실제 기술 역량을 직접 요구하는 항목이라 학습·프로젝트 우선순위로 삼기 좋습니다. 우대 사항 중에서는 Prometheus/Grafana 모니터링 구축 경험이 다음으로 자주 언급되는 편입니다.",
+            "ios-mobile": "필수 요건 3가지 중 가장 우선되는 것은 다음 순서입니다.\n\n1. iOS 앱 개발 경력 2년 이상 — 연차 기준으로 명시된 필수 요건입니다.\n2. Swift 사용 경험 — 개발 언어 자체에 대한 요건입니다.\n3. App Store 배포 경험 — 실제 출시 경험을 요구합니다.\n\n우대 사항(SwiftUI, In-App Purchase, 단위 테스트)은 필수는 아니지만 가점 요소입니다.",
+            "security": "필수 요건 3가지 중 가장 핵심은 다음과 같습니다.\n\n- 정보보안 업무 경력 2년 이상 (연차 기준선)\n- 웹 취약점(OWASP Top 10) 이해 — 실무 지식의 핵심 축\n- 보안 관제 또는 모의해킹 수행 경험 — 실제 업무 수행력을 보는 항목\n\n우대 사항으로는 정보보안기사/CISSP, ISMS-P 대응 경험, 스크립트 자동화 경험이 있습니다. 필수 요건을 먼저 갖추는 게 우선이고, 그다음 우대 사항으로 경쟁력을 더하는 순서로 준비하면 됩니다.",
+            "qa-engineer": "필수 요건 3개 중 특히 중요한 건 다음과 같습니다.\n\n- QA 업무 경력 2년 이상: 연차 기준선으로 명시된 필수 조건\n- 테스트 케이스 설계 경험: 실무 핵심 역량으로 필수 요건에 포함\n- 결함 관리 도구 사용 경험: 필수 요건에 포함\n\n우대 사항(Playwright/Selenium 자동화, API 테스트, 릴리스 프로세스 개선)은 필수는 아니지만 기술 스택에 Playwright·Selenium이 명시된 걸 보면 가산점 비중이 큰 편입니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 8
+          }
+        },
+        {
+          "questionId": "key-requirement",
+          "measured": true,
+          "genericScore": 0.0878,
+          "meanAnswerSim": 0.6001,
+          "meanPostingSim": 0.5122,
+          "worstPair": "ai-agent|security",
+          "worstDelta": 0.1586,
+          "offPostingSkillRate": {
+            "ai-agent": 0.0,
+            "backend-commerce": 0.0,
+            "frontend-react": 0.0,
+            "data-analyst": 0.0,
+            "devops-sre": 0.0,
+            "ios-mobile": 0.0,
+            "security": null,
+            "qa-engineer": null
+          },
+          "meanOffPostingSkillRate": 0.0,
+          "pairs": {
+            "ai-agent|backend-commerce": {
+              "answer": 0.6168,
+              "posting": 0.5389,
+              "delta": 0.0779
+            },
+            "ai-agent|frontend-react": {
+              "answer": 0.6097,
+              "posting": 0.4959,
+              "delta": 0.1138
+            },
+            "ai-agent|data-analyst": {
+              "answer": 0.6776,
+              "posting": 0.5566,
+              "delta": 0.121
+            },
+            "ai-agent|devops-sre": {
+              "answer": 0.6484,
+              "posting": 0.5406,
+              "delta": 0.1078
+            },
+            "ai-agent|ios-mobile": {
+              "answer": 0.6066,
+              "posting": 0.483,
+              "delta": 0.1236
+            },
+            "ai-agent|security": {
+              "answer": 0.5994,
+              "posting": 0.4408,
+              "delta": 0.1586
+            },
+            "ai-agent|qa-engineer": {
+              "answer": 0.5454,
+              "posting": 0.512,
+              "delta": 0.0334
+            },
+            "backend-commerce|frontend-react": {
+              "answer": 0.655,
+              "posting": 0.563,
+              "delta": 0.092
+            },
+            "backend-commerce|data-analyst": {
+              "answer": 0.6122,
+              "posting": 0.5598,
+              "delta": 0.0524
+            },
+            "backend-commerce|devops-sre": {
+              "answer": 0.6101,
+              "posting": 0.5451,
+              "delta": 0.065
+            },
+            "backend-commerce|ios-mobile": {
+              "answer": 0.5919,
+              "posting": 0.5446,
+              "delta": 0.0473
+            },
+            "backend-commerce|security": {
+              "answer": 0.5833,
+              "posting": 0.4776,
+              "delta": 0.1057
+            },
+            "backend-commerce|qa-engineer": {
+              "answer": 0.5639,
+              "posting": 0.4862,
+              "delta": 0.0777
+            },
+            "frontend-react|data-analyst": {
+              "answer": 0.5708,
+              "posting": 0.5399,
+              "delta": 0.0309
+            },
+            "frontend-react|devops-sre": {
+              "answer": 0.5874,
+              "posting": 0.5053,
+              "delta": 0.0821
+            },
+            "frontend-react|ios-mobile": {
+              "answer": 0.6691,
+              "posting": 0.5563,
+              "delta": 0.1128
+            },
+            "frontend-react|security": {
+              "answer": 0.6309,
+              "posting": 0.5315,
+              "delta": 0.0994
+            },
+            "frontend-react|qa-engineer": {
+              "answer": 0.6017,
+              "posting": 0.5114,
+              "delta": 0.0903
+            },
+            "data-analyst|devops-sre": {
+              "answer": 0.5974,
+              "posting": 0.4916,
+              "delta": 0.1058
+            },
+            "data-analyst|ios-mobile": {
+              "answer": 0.5836,
+              "posting": 0.5143,
+              "delta": 0.0693
+            },
+            "data-analyst|security": {
+              "answer": 0.5822,
+              "posting": 0.4744,
+              "delta": 0.1078
+            },
+            "data-analyst|qa-engineer": {
+              "answer": 0.5346,
+              "posting": 0.4967,
+              "delta": 0.0379
+            },
+            "devops-sre|ios-mobile": {
+              "answer": 0.5791,
+              "posting": 0.4796,
+              "delta": 0.0995
+            },
+            "devops-sre|security": {
+              "answer": 0.5731,
+              "posting": 0.4793,
+              "delta": 0.0938
+            },
+            "devops-sre|qa-engineer": {
+              "answer": 0.5897,
+              "posting": 0.5125,
+              "delta": 0.0772
+            },
+            "ios-mobile|security": {
+              "answer": 0.5751,
+              "posting": 0.46,
+              "delta": 0.1151
+            },
+            "ios-mobile|qa-engineer": {
+              "answer": 0.6085,
+              "posting": 0.558,
+              "delta": 0.0505
+            },
+            "security|qa-engineer": {
+              "answer": 0.5987,
+              "posting": 0.4879,
+              "delta": 0.1108
+            }
+          },
+          "answerChars": [
+            275,
+            203,
+            201,
+            241,
+            185,
+            282,
+            224,
+            141
+          ],
+          "answers": {
+            "ai-agent": "필수 요건 중 이 공고가 가장 강조하는 건 다음 3가지입니다.\n- 데이터/ML 엔지니어링 경력 3~7년: 연차 기준 자체가 명시된 유일한 항목\n- Airflow/Dagster/Prefect 중 하나 이상 운영 경험: 파이프라인 운영 능력 확인용\n- Pinecone/Qdrant/Milvus/pgvector 중 하나 이상 사용 경험: 벡터DB 실무 경험\n\nLangChain/LlamaIndex, OpenAI/Anthropic API, 클라우드 운영은 우대 사항이라 필수보다 우선순위가 낮습니다.",
+            "backend-commerce": "필수 요건 3개 중 가장 중요한 건 \"Java 또는 Kotlin 백엔드 개발 경력 3년 이상\"입니다. 이 공고가 mid 시니어리티로 잡혀 있고, RDBMS 설계·튜닝 경험과 REST API 설계 경험도 필수지만 연차 요건이 지원 자격 자체를 가르는 기준이라 우선순위가 가장 높습니다. 우대 사항(Kafka, Kubernetes, 결제/정산 도메인)은 그다음이고요.",
+            "frontend-react": "필수 요건 3가지 중 가장 중요한 건 \"React 기반 프론트엔드 개발 경력 2년 이상\"입니다. 연차와 프레임워크를 직접 지정한 요건이라 서류에서 가장 먼저 걸러지는 기준이 됩니다. 그다음이 TypeScript 사용 경험, 상태 관리 라이브러리 사용 경험 순이고, Next.js SSR·웹 접근성·시각 회귀 테스트는 우대 사항이라 필수보다 우선순위가 낮습니다.",
+            "data-analyst": "필수 요건 3가지 중 가장 핵심은 다음 두 가지입니다.\n\n- SQL 능숙(윈도우 함수·복잡한 조인) — 데이터 분석가 직무의 실무 도구로 명시적으로 요구\n- 통계적 가설검정에 대한 이해 — 분석 결과의 신뢰도를 판단하는 기본기로 별도 항목 명시\n\n여기에 '데이터 분석 경력 2년 이상'이 필수 조건으로 함께 요구됩니다. 우대 사항(Tableau/Looker, Python·pandas, 커머스 도메인 지표)은 필수 다음 순위입니다.",
+            "devops-sre": "필수 요건 세 개 중, 명시적으로 확인 가능한 핵심은 'Kubernetes 운영 경험'과 'Terraform 또는 Ansible 사용 경험' 두 개입니다(경력 연차는 자격 기준이라 요건 성격이 다름). 우대 사항 중에서는 'Prometheus, Grafana 기반 모니터링 구축 경험'이 기술 스택과 직접 연결돼 가장 눈에 띕니다.",
+            "ios-mobile": "필수 요건 3가지 중에서 가장 핵심적인 건 순서대로 보면 다음과 같습니다.\n\n- iOS 앱 개발 경력 2년 이상: 연차 기준 자체가 이 공고의 1차 필터입니다.\n- Swift 사용 경험: 실제 개발 언어 역량으로 가장 직접적으로 검증되는 항목입니다.\n- App Store 배포 경험: 개발뿐 아니라 실제 출시·운영까지 해봤는지 확인하는 요건입니다.\n\n우대 사항(SwiftUI, 인앱 결제, 단위 테스트)은 필수 요건 다음 순위로 볼 수 있습니다. 이 중 어떤 항목을 어떻게 준비하면 좋을지 더 살펴볼까요?",
+            "security": "필수 요건 3개는 모두 중요하지만, 가장 핵심은 '보안 관제 또는 모의해킹 수행 경험'과 'OWASP Top 10 등 웹 취약점 이해'예요. 실무 경험 자체(정보보안 경력 2년 이상)를 요구하면서 그 경험이 어떤 방향(관제/모의해킹)인지, 어떤 지식(웹 취약점)을 기반으로 하는지를 구체적으로 못 박고 있거든요. 우대 사항(자격증, ISMS-P 대응, 스크립트 자동화)은 그다음 순위로 보시면 됩니다.",
+            "qa-engineer": "가장 중요한 요건은 필수 요건 3가지입니다: QA 업무 경력 2년 이상, 테스트 케이스 설계 경험, 결함 관리 도구 사용 경험. 우대 사항인 Playwright/Selenium 자동화, API 테스트, 릴리스 프로세스 개선 경험은 필수 다음 순위입니다."
+          },
+          "emptyAnswers": [],
+          "warningCodes": {
+            "no_company_name": 8,
+            "empty_tech_stack": 1
+          }
+        }
+      ]
+    }
+  ]
+}

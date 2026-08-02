@@ -1,5 +1,0 @@
-spring:
-  config:
-    # local 프로필로 실행할 때만 프로젝트 루트의 .env(properties 형식)를 읽어 환경변수로 주입한다.
-    # (팀 규칙: DB 접속정보·JWT_SECRET 등 민감/로컬 값은 코드가 아니라 .env 로 관리)
-    import: "optional:file:./.env[.properties][encoding=utf-8]"

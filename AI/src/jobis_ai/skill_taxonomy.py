@@ -267,6 +267,32 @@ _SKILLS: tuple[Skill, ...] = (
 )
 
 
+# --- 대체군 (D99) ------------------------------------------------------------------
+#
+# 공고가 "A / B / C 중 하나"로 요구하는 묶음. 파서는 그 OR 관계를 잃고 techStack 을 평면
+# 목록으로 만들기 때문에, 요구 기술이 부풀고 **그 부풀린 수가 판정 점수의 분모가 된다** —
+# 실측(2026-08-01, 콘센트릭스 Agent 엔지니어 공고): techStack 22개 중 택일 관계가 다수여서
+# 실제 요구 역량 ~8개가 22개로 세어졌고, pgvector 만 아는 지원자가 벡터DB 자리에서 1/5 로
+# 깎였다(`_match_by_skills` 는 matched_ratio ≥ 0.8 을 met 으로 본다). 등급 왜곡이고, 낮은
+# 등급은 `observe_rules ① 약한 판정` 을 발동시켜 사용자가 청한 자소서·면접을 큐에서 뺀다.
+#
+# **명백한 것만 넣는다.** 애매한 묶음(Kafka~RabbitMQ, Kubernetes~ECS)은 넣지 않았다 — 공고가
+# 특정 하나를 원하는 경우가 많고, 갈리는 판단을 사전에 못 박는 것은 §3-1 이 경고하는 실수다.
+# 여기 있는 다섯은 공고 문면에서 "중 하나"로 나오는 것이 관례인 군이다.
+_ALTERNATE_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("벡터 DB", ("Pinecone", "Qdrant", "Milvus", "Weaviate", "pgvector", "Chroma", "FAISS")),
+    ("클라우드", ("AWS", "GCP", "Azure")),
+    ("워크플로 오케스트레이터", ("Airflow", "Dagster", "Prefect", "Luigi")),
+    ("LLM 프레임워크", ("LangChain", "LlamaIndex", "Haystack", "LangGraph")),
+    ("LLM API", ("OpenAI", "Anthropic", "Gemini")),
+)
+
+# 표준 표시명(소문자) → 대체군 이름. `alternate_group` 이 읽는 역인덱스.
+_ALTERNATE_OF: dict[str, str] = {
+    member.lower(): group for group, members in _ALTERNATE_GROUPS for member in members
+}
+
+
 def _alias_index() -> dict[str, Skill]:
     """소문자 별칭 → Skill. canonical/key 도 자동으로 별칭에 포함한다."""
 
@@ -409,6 +435,18 @@ class SkillTaxonomy:
                 seen.add(skill.key)
                 out.append(skill.canonical)
         return out
+
+    def alternate_group(self, raw: str) -> str | None:
+        """이 스킬이 속한 **대체군** 이름. 없으면 None. (D99 — OR 요구를 하나로 세기 위해)
+
+        `normalize` 와 다른 연산이다. 표준화는 같은 기술의 다른 표기를 **한 키로 합치는**
+        것이고(ReactJS = React), 대체군은 **다른 기술을 한 요구사항으로 세는** 것이다
+        (pgvector ≠ Pinecone, 그러나 공고는 둘 중 하나를 원한다). 그래서 여기서 키를
+        합치지 않는다 — 이 모듈 상단의 "React~Vue 를 합치면 안 된다"는 선은 그대로다.
+        """
+
+        name = self.normalize(raw).lower()
+        return _ALTERNATE_OF.get(name)
 
     def category_of(self, raw: str) -> SkillCategory:
         """스킬의 카테고리. 모르는 기술은 'etc'. (gap_matcher 의 scoreBasis 집계용)"""
