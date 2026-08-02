@@ -2,6 +2,9 @@
 data/
 exports/
 
+# 자동 실행(run_daily_update.py) 로그와 잠금 파일 — 로컬 실행 기록이라 공유 대상이 아니다
+logs/
+
 # 로컬 가상환경
 .venv/
 
