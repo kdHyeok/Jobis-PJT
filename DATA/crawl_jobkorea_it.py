@@ -187,6 +187,38 @@ def load_existing_rows(json_path: Path) -> list[dict]:
     return rows
 
 
+EXCLUDED_JSON = Path("exports/excluded_postings.json")
+
+
+def load_excluded_ids(source: str) -> set[str]:
+    """다시 수집하지 않을 공고 ID를 불러온다(모든 크롤러 공용).
+
+    사람이 직접 확인해 "본문을 채울 방법이 없다"고 판정한 공고(이미지가 장식뿐이거나
+    실제 내용이 없는 경우 등)를 데이터에서 지워도, 그 공고는 사이트에 그대로 살아
+    있으므로 다음 수집에서 새 공고로 다시 들어온다. 그러면 본문이 빈 레코드가 매일
+    되살아나 정리한 의미가 없어진다. 그래서 제외 판정을 여기에 남겨 재수집을 막는다.
+
+    형식: {"잡코리아": ["49294518", ...], "사람인": [...]}  (source 는 크롤러가 쓰는 한글명)
+    """
+    if not EXCLUDED_JSON.exists():
+        return set()
+    data = json.loads(EXCLUDED_JSON.read_text(encoding="utf-8"))
+    return {str(value) for value in data.get(source, [])}
+
+
+def add_excluded_ids(source: str, posting_ids: list[str]) -> int:
+    """제외 목록에 공고 ID를 추가하고, 새로 추가된 개수를 돌려준다."""
+    data = {}
+    if EXCLUDED_JSON.exists():
+        data = json.loads(EXCLUDED_JSON.read_text(encoding="utf-8"))
+    current = {str(value) for value in data.get(source, [])}
+    added = {str(value) for value in posting_ids} - current
+    data[source] = sorted(current | added)
+    EXCLUDED_JSON.parent.mkdir(parents=True, exist_ok=True)
+    EXCLUDED_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return len(added)
+
+
 def job_posting_json(page: str) -> dict | None:
     for raw in re.findall(r"<script[^>]*type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>", page, re.I | re.S):
         try:
@@ -206,21 +238,53 @@ def plain_text(page: str) -> str:
     return parser.text()
 
 
+BLANK_IMAGE_PATTERN = re.compile(r"/blank\.\w+$", re.I)
+EMBEDDED_IMAGE_PATTERN = re.compile(
+    r'<img\b[^>]*\bsrc=["\']data:image/[^;]+;base64,', re.I
+)
+
+
 def detail_image_urls(page: str, base_url: str) -> list[str]:
     """상세 iframe의 본문 이미지 URL을 중복 없이 추출한다."""
     urls: list[str] = []
     seen: set[str] = set()
     for raw_url in re.findall(r'<img\b[^>]*\bsrc=["\']([^"\']+)["\']', page, re.I):
         image_url = urljoin(base_url, html.unescape(raw_url).strip())
+        # 실측(2026-07-31): 사람인 상세페이지가 실제 이미지가 없을 때도 내용 없는
+        # placeholder(".../blank.png")를 <img> 태그로 넣어둬서, 이걸 진짜 이미지로
+        # 착각해 need_ocr="O"로 잘못 분류하는 경우가 있었다(OCR 해도 영원히 빈 결과).
+        if BLANK_IMAGE_PATTERN.search(image_url):
+            continue
         if image_url.startswith(("http://", "https://")) and image_url not in seen:
             seen.add(image_url)
             urls.append(image_url)
+    # 실측(2026-07-31): 잡코리아 공고 49619866은 사이트에서 보면 본문이 이미지로 다
+    # 나와 있는데 우리 데이터에는 "홈페이지 바로가기" 버튼 이미지 1장만 잡혀 있었다.
+    # 본문 이미지 6장이 URL이 아니라 HTML에 data URI(base64)로 직접 박혀 있어서,
+    # http/https로 시작하는 것만 받는 위 조건에서 전부 버려진 것이다(공고 전문 1,047자
+    # 손실 확인). base64 문자열을 그대로 저장하면 이 공고 하나만 1.7MB라 JSON·DB가
+    # 감당하지 못하므로, 상세 페이지 주소만 남겨두고 실제 이미지 추출은 OCR 시점에
+    # enrich_ocr이 이 페이지를 다시 받아 처리하게 한다.
+    if base_url not in seen and EMBEDDED_IMAGE_PATTERN.search(page):
+        urls.append(base_url)
     return urls
 
 
 def detail_iframe_url(posting_url: str) -> str:
     posting_id = re.search(r"(\d+)$", posting_url).group(1)
     return f"{BASE_URL}/Recruit/GI_Read_Comt_Ifrm?Gno={posting_id}&isHiringCenter=false&hideMapView=false"
+
+
+MIN_TEXT_LENGTH = 300
+# 실측(2026-07-31): 잡코리아 OCR 대기로 남아 있던 공고들을 파보니, 이미지 9~10장이
+# 전부 잡코리아 템플릿의 UI 장식(hd_req.png="지원자격" 제목 그래픽, 화살표 등)이라
+# OCR로 나올 글자가 애초에 없고, 실제 내용은 HTML 텍스트로 담당업무·자격요건 라벨과
+# 함께 온전히 있는데도 319~339자로 350자 문턱에 11~31자가 부족해 탈락해 있었다
+# (SK하이닉스·국민은행·스타필드 등 5건, 기술스택과 경력요건이 명확한 실제 공고).
+# 원티드 크롤러에서 이미 "라벨 존재가 글자수보다 신뢰도 높은 완결성 신호"로 판단해
+# 기준을 낮춰둔 것과 같은 근거이며, 사이트 간 기준을 맞추기 위해 300자로 내린다.
+# 라벨이 없어 여기서 못 걸린 공고는 is_ocr_pending_detail의 350자 안전망이 그대로
+# 받아 OCR 기회를 주므로 새 데이터 손실은 없다.
 
 
 def has_complete_text_detail(text: str) -> bool:
@@ -234,7 +298,7 @@ def has_complete_text_detail(text: str) -> bool:
     compact = re.sub(r"\s+", "", text)
     has_responsibility = any(word in compact for word in ("담당업무", "주요업무", "직무내용", "수행업무", "업무내용"))
     has_requirement = any(word in compact for word in ("자격요건", "지원자격", "필수요건", "필요역량", "자격조건"))
-    return len(text) >= 350 and has_responsibility and has_requirement
+    return len(text) >= MIN_TEXT_LENGTH and has_responsibility and has_requirement
 
 
 def is_ocr_pending_detail(text: str, image_urls: list[str]) -> bool:
@@ -432,6 +496,10 @@ def main() -> int:
 
     records: list[dict] = [] if args.fresh else load_existing_rows(args.json)
     known_ids = {str(row["posting_id"]) for row in records}
+    # 사람이 "본문을 채울 방법이 없다"고 판정해 데이터에서 지운 공고는 사이트에
+    # 그대로 살아 있어 그냥 두면 다음 수집에서 다시 들어온다. 이미 아는 공고와
+    # 같이 취급해 건너뛴다(제외 목록: exports/excluded_postings.json).
+    known_ids |= load_excluded_ids("잡코리아")
     text_record_count = sum(row.get("need_ocr") == "X" for row in records)
     ocr_pending_count = sum(row.get("need_ocr") == "O" for row in records)
     if records:

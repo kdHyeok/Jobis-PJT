@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import ssl
@@ -192,22 +193,41 @@ def fetch_bytes(url: str, referer: str = "https://www.jobkorea.co.kr/", timeout:
     # 원문 그대로 올린 경우, 예: ".../2_Sol_del_Devops Engineer_260624_예서_.png",
     # ".../채용공고_기업부설연구소_개발자.png")가 InvalidURL/UnicodeEncodeError로 실패했다.
     # safe에 이미 인코딩된 문자(:/?&=%)는 이중 인코딩되지 않게 남겨둔다.
-    url = quote(url, safe=":/?&=%")
+    # 실측(2026-07-31): 위 수정이 새 부작용을 냈다 — greetinghr.com에 올라온 이미지
+    # 파일명이 "02_채용페이지-+EV+Charger+프론트개발.png"처럼 구분자로 '+'를 그대로
+    # 쓰는 경우, safe에 '+'가 없어 %2B로 다시 인코딩되면서 실제 파일 경로와 달라져
+    # CDN이 403을 돌려줬다(파일이 없어 생기는 404가 403으로 나온 것). '+'도 안전
+    # 문자에 추가해 그대로 둔다.
+    url = quote(url, safe=":/?&=%+")
     request = Request(url, headers={"User-Agent": USER_AGENT, "Referer": referer})
-    try:
-        with urlopen(request, timeout=timeout) as response:
-            return response.read()
-    except URLError as exc:
-        # 실측(2026-07-30): 오래된 회사 자체 호스팅 서버(예: old.crea-m.com, 원본 HTML에
-        # https로 박혀있음)가 HTTPS 인증서만 깨져 있고 HTTP는 정상 응답하는 경우가 있다
-        # ("서버가 죽었다"로 오판하기 쉬우나 실제로는 살아있음). https 요청이 인증서
-        # 오류로 실패하면 같은 URL을 http로 한 번만 재시도한다.
-        if url.startswith("https://") and isinstance(exc.reason, ssl.SSLCertVerificationError):
-            http_url = "http://" + url[len("https://"):]
-            http_request = Request(http_url, headers={"User-Agent": USER_AGENT, "Referer": referer})
-            with urlopen(http_request, timeout=timeout) as response:
+
+    def _get() -> bytes:
+        try:
+            with urlopen(request, timeout=timeout) as response:
                 return response.read()
-        raise
+        except URLError as exc:
+            # 실측(2026-07-30): 오래된 회사 자체 호스팅 서버(예: old.crea-m.com, 원본 HTML에
+            # https로 박혀있음)가 HTTPS 인증서만 깨져 있고 HTTP는 정상 응답하는 경우가 있다
+            # ("서버가 죽었다"로 오판하기 쉬우나 실제로는 살아있음). https 요청이 인증서
+            # 오류로 실패하면 같은 URL을 http로 한 번만 재시도한다.
+            if url.startswith("https://") and isinstance(exc.reason, ssl.SSLCertVerificationError):
+                http_url = "http://" + url[len("https://"):]
+                http_request = Request(http_url, headers={"User-Agent": USER_AGENT, "Referer": referer})
+                with urlopen(http_request, timeout=timeout) as response:
+                    return response.read()
+            raise
+
+    # 실측(2026-07-30): 인크루트의 이미지 변환 프록시(jobpost_image_convert.asp)가 예외 없이
+    # 그냥 빈 응답(0바이트)을 줄 때가 있다(같은 URL을 3번 연속 요청해 0바이트/정상/0바이트로
+    # 재현 확인). 원본 이미지가 없는 게 아니라 프록시가 즉석 변환하는 과정의 일시적 문제라,
+    # 빈 응답이면 잠깐 쉬었다가 최대 2번 더 재시도한다.
+    data = _get()
+    for _ in range(2):
+        if data:
+            break
+        time.sleep(1.0)
+        data = _get()
+    return data
 
 
 def decode_image(data: bytes):
@@ -272,12 +292,39 @@ def is_noise(line: str) -> bool:
     return any(re.search(pattern, line) for pattern in NOISE_LINE_PATTERNS)
 
 
+EMBEDDED_IMAGE_PATTERN = re.compile(
+    rb'<img\b[^>]*\bsrc=["\'](data:image/[^;]+;base64,[^"\']+)["\']', re.I
+)
+
+
+def embedded_images(data: bytes) -> list[bytes]:
+    """HTML 안에 data URI(base64)로 박혀 있는 이미지를 원래 바이트로 되돌린다.
+
+    일부 공고는 본문 이미지를 URL이 아니라 HTML에 직접 인라인으로 넣는다. 이런 공고는
+    image_urls에 상세 페이지 주소만 저장해두므로(base64 원문은 너무 커서 저장 불가),
+    OCR 시점에 그 페이지를 받아 여기서 이미지를 꺼낸다.
+    """
+    images: list[bytes] = []
+    for uri in EMBEDDED_IMAGE_PATTERN.findall(data):
+        try:
+            images.append(base64.b64decode(uri.split(b",", 1)[1]))
+        except Exception:
+            continue  # 깨진 data URI 하나가 나머지 이미지 처리를 막지 않게 한다.
+    return images
+
+
 def ocr_image_bytes(data: bytes, use_gpu: bool, slice_height: int, overlap: int,
                     prefer: str = "auto") -> str:
     """이미지 한 장(바이트)을 전처리·슬라이싱해 OCR 텍스트로 만든다."""
     image = decode_image(data)
     if image is None:
-        return ""
+        # 이미지로 못 읽히면 상세 페이지 HTML을 받은 경우다. 안에 인라인으로 박힌
+        # 이미지를 꺼내 순서대로 읽는다(꺼낸 것들은 실제 이미지라 재귀는 1단계로 끝난다).
+        parts = [
+            ocr_image_bytes(raw, use_gpu, slice_height, overlap, prefer)
+            for raw in embedded_images(data)
+        ]
+        return "\n".join(part for part in parts if part)
     image = upscale_if_small(image)
     lines: list[str] = []
     for chunk in slice_vertical(image, slice_height, overlap):
@@ -379,7 +426,15 @@ def main() -> int:
     # 다 있고 신호단어 10개(기준 3개)를 넉넉히 통과했는데도, 공백제거 393자가 400자
     # 문턱을 못 넘어 탈락했다. 신호단어 개수가 이미 충분히 신뢰할 수 있는 완결성
     # 판단 기준이라, 글자수 문턱은 여유를 두어 낮춘다.
-    parser.add_argument("--min-chars", type=int, default=350,
+    # 실측(2026-07-31): 같은 일이 350자에서도, 300자에서도 반복됐다.
+    #   - 사람인 DevOps 공고: 341자(기준 350) 탈락, 신호단어 7개
+    #   - 잡코리아 아이로브 공고: 291자(기준 300) 탈락, 신호단어 7개
+    # 셋 다 모집부문·담당업무·자격요건·접수방법까지 온전한 공고였다. 반대로 실제로
+    # 걸러내야 했던 케이스(회사소개만 있는 556자 이미지)는 글자수가 아니라 신호단어
+    # 2개(기준 3개)에서 걸렸다. 즉 완결성을 실제로 판별하는 건 신호단어 조건이고
+    # 글자수 문턱은 정상 공고만 떨어뜨려 왔으므로, 신호단어 조건(min_signals=3)은
+    # 그대로 두고 글자수 문턱만 250자로 낮춘다.
+    parser.add_argument("--min-chars", type=int, default=250,
                         help="OCR 결과 채택 최소 글자 수(공백 제외)")
     parser.add_argument("--slice-height", type=int, default=2000,
                         help="이보다 세로가 길면 잘라서 OCR")
