@@ -1,0 +1,26 @@
+# RAG 적재 이미지: run_ingest_additive.py + BGE-M3 (CPU).
+#
+# RAG/ 소스는 feat/ai/rag 브랜치에 있으므로 그 브랜치 체크아웃을 컨텍스트로 빌드한다:
+#   git worktree add /srv/jobis-rag feat/ai/rag
+#   docker build -t jobis/rag-ingest:latest \
+#     -f infra/airflow/Dockerfile.rag-ingest /srv/jobis-rag
+# (-f는 이 브랜치의 파일 경로, 컨텍스트는 RAG 브랜치 체크아웃 — 서로 달라도 된다)
+FROM python:3.11-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY RAG/requirements.txt .
+# CPU 전용 torch 휠로 이미지 크기 절감 (GPU 없음 전제)
+# sed: requirements.txt의 PowerShell용 따옴표("psycopg[binary]")를 제거 — 리눅스 pip은 못 읽는다
+RUN sed 's/"//g' requirements.txt > /tmp/requirements.txt \
+    && pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r /tmp/requirements.txt
+
+COPY RAG/ .
+
+# BGE-M3 모델(~2.3GB)은 hf-cache 볼륨에 최초 1회만 다운로드된다
+ENV HF_HOME=/hf
