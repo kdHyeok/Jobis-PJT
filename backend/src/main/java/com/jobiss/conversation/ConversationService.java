@@ -15,6 +15,15 @@ import java.util.UUID;
 @Service
 public class ConversationService {
 
+    /**
+     * 공고 원문으로 인정하는 최소 길이.
+     *
+     * <p><b>이 숫자는 AI 가 정한다</b> — {@code AI/src/jobis_ai/orchestrator/attachment_kind.py}
+     * 의 {@code MIN_ASSET_CHARS}. 이보다 짧으면 AI 가 자산으로 승격하지 않으므로, 여기서
+     * 통과시키면 "저장은 됐는데 분석이 안 되는" 공고가 생긴다. AI 쪽 값이 바뀌면 같이 바꾼다.
+     */
+    private static final int POSTING_MIN_CHARS = 40;
+
     private static final String GREETING = """
             안녕하세요. 지금 어떤 일을 해왔고 앞으로 어디로 가고 싶은지부터 편하게 이야기해 주세요.
             공고가 있다면 나중에 첨부해도 되고, 아직 없다면 직무 탐색부터 함께 시작할 수 있어요.
@@ -142,7 +151,7 @@ public class ConversationService {
                     new JobPostingService.CreatePosting(
                             attachment.sourceType(),
                             attachment.sourceUrl(),
-                            attachment.rawText(),
+                            postingBody(attachment),
                             conversationId
                     )
             );
@@ -464,6 +473,34 @@ public class ConversationService {
     }
 
     private record ExistingMessage(UUID id, OffsetDateTime createdAt) {
+    }
+
+    /**
+     * 저장할 공고 본문.
+     *
+     * <p>URL 만 준 경우 원문이 없다 — 그건 정상이다. AI 가 URL 자산을 수집해 내용을 채운다
+     * ({@code posting_fetch}). 다만 {@code job_postings.raw_text} 는 NOT NULL 이고 AI 계약도
+     * 최소 1자를 요구하므로, 수집 전까지의 자리표시로 <b>주소 자체</b>를 넣는다. 빈 문자열을
+     * 넣으면 "원문을 받았는데 비어 있다"와 구분되지 않는다.
+     *
+     * <p>둘 다 비면 예외 — 무엇을 분석할지가 없다.
+     */
+    private static String postingBody(PostingAttachment attachment) {
+        String body = attachment.rawText() == null ? "" : attachment.rawText().trim();
+        String url = attachment.sourceUrl() == null ? "" : attachment.sourceUrl().trim();
+        boolean hasUrl = url.startsWith("http://") || url.startsWith("https://");
+
+        if (body.length() >= POSTING_MIN_CHARS) {
+            return body;
+        }
+        if (hasUrl) {
+            return url;
+        }
+        throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "POSTING_CONTENT_REQUIRED",
+                "공고 주소(http/https)나 원문 " + POSTING_MIN_CHARS + "자 이상 중 하나는 있어야 합니다."
+        );
     }
 
     public record PostingAttachment(

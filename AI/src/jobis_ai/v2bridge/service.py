@@ -22,7 +22,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from jobis_ai.v2bridge import mapping
+from jobis_ai.v2bridge import enrich, mapping
 from jobis_ai.v2bridge.models import (
     AnalysisRequest,
     AnalysisResponse,
@@ -107,8 +107,19 @@ def analyze(request: AnalysisRequest) -> AnalysisResponse:
     session_id = f"v2-analysis-{request.analysis_job_id}"
     store = get_session_store()
     store.clear(session_id)   # 재시도·질문 재개가 와도 요청에 담긴 문맥에서 다시 시작한다
+    # **URL 공고는 URL 자산으로 넘긴다.** 전에는 sourceType 을 무시하고 항상 "text" 로 넣어서,
+    # 사용자가 URL 만 준 경우 주소 문자열 자체를 공고 원문으로 파싱했다(내용은 한 글자도 없다).
+    # URL 자산이면 오케스트레이터가 `posting_fetch` 를 큐 맨 앞에 끼워 수집한다(D64).
+    # 원문이 함께 왔으면 그걸 쓴다 — 이미 있는 내용을 다시 받아올 이유가 없다.
+    posting = request.posting
+    body = (posting.raw_text or "").strip()
+    is_url_only = (posting.source_type == "URL"
+                   and bool(posting.source_url)
+                   and (not body or body == (posting.source_url or "").strip()))
     assets: dict[str, Any] = {
-        "job_posting": {"sourceType": "text", "value": request.posting.raw_text},
+        "job_posting": ({"sourceType": "url", "value": posting.source_url}
+                        if is_url_only
+                        else {"sourceType": "text", "value": posting.raw_text}),
     }
     resume_text = mapping.career_text(request.career).strip()
     if resume_text:
@@ -163,6 +174,64 @@ def analyze(request: AnalysisRequest) -> AnalysisResponse:
     raise EngineFailed("왕복 상한 안에 판정에 이르지 못했어요 — 재시도해 주세요")
 
 
+def analyze_events(request: AnalysisRequest):
+    """분석 한 건을 **진행 이벤트 스트림**으로 — `/v1/analyses/stream` 의 본체.
+
+    `chat_events` 와 같은 구조다: 워커 스레드에서 `analyze()` 를 돌리고 **그 스레드 안에서**
+    `trace.recording` 을 열어 큐로 중계한다(trace 는 contextvars 라 반드시 실행 스레드에서
+    열어야 한다). 판정은 `analyze()` 가 그대로 하고, 여기는 **창문**일 뿐이다 — 이벤트가
+    결과를 바꾸지 않는다.
+
+    마지막 줄은 항상 RESULT 또는 ERROR 다. 스트림이 시작된 뒤의 실패는 HTTP 상태로 알릴
+    수 없으므로(이미 200 이 나갔다) 본문 이벤트로 알린다.
+    """
+
+    import queue as queue_mod
+    import threading
+
+    from jobis_ai import trace
+    from jobis_ai.v2bridge.stream import StreamBuilder
+
+    builder = StreamBuilder(request.analysis_job_id)
+    yield builder.backbone()
+
+    relay: queue_mod.Queue[tuple] = queue_mod.Queue()
+
+    def _run() -> None:
+        try:
+            with trace.recording(sink=lambda ev: relay.put(("event", ev))):
+                relay.put(("done", analyze(request)))
+        except Exception as exc:   # noqa: BLE001 — 소비 루프가 이벤트로 옮긴다
+            relay.put(("error", exc))
+
+    threading.Thread(target=_run, daemon=True).start()
+
+    outcome: AnalysisResponse | None = None
+    failure: Exception | None = None
+    while outcome is None and failure is None:
+        kind, payload = relay.get()
+        if kind == "event":
+            yield from builder.from_trace(payload)
+        elif kind == "error":
+            failure = payload
+        else:
+            outcome = payload
+
+    if failure is not None:
+        code = ("AI_PROVIDER_NOT_CONFIGURED" if isinstance(failure, EngineNotConfigured)
+                else "AI_PROVIDER_UNAVAILABLE")
+        yield builder.error(code, str(failure))
+        return
+
+    for event in (builder.validated(), builder.assembled()):
+        if event is not None:
+            yield event
+    if builder.suppressed:
+        log.info("[v2bridge] 진행 이벤트 예산 초과로 %d건 생략 (분석 %s)",
+                 builder.suppressed, request.analysis_job_id)
+    yield builder.result(outcome)
+
+
 def _completed(request: AnalysisRequest, state: dict[str, Any],
                session_id: str) -> AnalysisResponse:
     analysis = state.get("analysisResult") or {}
@@ -176,13 +245,43 @@ def _completed(request: AnalysisRequest, state: dict[str, Any],
         # 판정 보류를 그럴듯한 verdict 로 바꾸지 않는다 — 실패로 알려 재시도하게 한다.
         raise EngineFailed(str(exc)) from exc
 
+    job = mapping.build_job_context(posting)
+    gaps = list(analysis.get("gaps") or [])
+
+    # 공고를 **읽어서** 분류를 채운다. 결정론(taxonomy)이 못 채운 자리 — 사전 밖 요건의
+    # 단계·분야, 요구 수준, 검증 가능 여부, 트랙, 회사 맞춤 과제 — 가 여기서 메워진다.
+    # LLM 미설정·실패면 enrichment=None 이고 결정론 결과가 그대로 나간다.
+    drafts, _ = mapping.draft_competencies(
+        posting, req_status, gaps, job.primary_track or "BACKEND")
+    enrichment, enrich_warnings = enrich.classify_posting(posting, drafts)
+    for warning in enrich_warnings:
+        log.info("[v2bridge] 공고 분류 경고: %s", warning.get("message") or warning)
+
+    # 트랙은 결정론이 먼저다 — `roleCategory` 가 표준 표기면 그게 사실이고, LLM 은 그것을
+    # 못 읽었을 때만 정한다.
+    track = job.primary_track or (enrichment.primaryTrack if enrichment else None)
+    proposal = None
+    if track is not None:
+        job = job.model_copy(update={"primary_track": track})
+        proposal = mapping.build_competency_proposal(
+            posting, req_status, gaps, track, enrichment)
+    if proposal is None:
+        # 백엔드는 competencyProposal 없이 로드맵을 만들 수 없다(워커가 FAILED 처리).
+        # 그럴듯한 빈 껍데기를 보내느니 **여기서** 실패로 알린다 — 재시도 가능하고,
+        # 무엇이 없어서 실패했는지가 남는다.
+        raise EngineFailed(
+            f"공고에서 로드맵에 올릴 역량을 찾지 못했어요 (트랙={track}, 요건={len(req_status)}건) "
+            "— 공고 원문을 더 담아 다시 시도해 주세요")
+
     return AnalysisResponse(
         status="COMPLETED",
-        job=mapping.build_job_context(posting),
+        job=job,
         evaluation=evaluation,
+        # legacy 는 아직 함께 낸다. 백엔드는 새 분석에서 이걸 읽지 않지만, 지우는 것은
+        # competencyProposal 이 실제로 채워지는 것을 확인한 뒤가 안전하다.
         change_proposal=mapping.build_change_proposal(
-            request.career, posting, req_status,
-            list(analysis.get("gaps") or []), str(request.posting.id)),
+            request.career, posting, req_status, gaps, str(request.posting.id)),
+        competency_proposal=proposal,
     )
 
 
@@ -383,7 +482,8 @@ def chat_events(request: ChatRequest):
         raise EngineFailed("엔진이 빈 답변을 반환했어요")
 
     follow_ups = list(response.followUpQuestions or [])
-    should_request_posting, actions = mapping.chat_actions(follow_ups)
+    should_request_posting, actions = mapping.chat_actions(
+        follow_ups, list(response.dispatched or []))
     from jobis_ai.v2bridge.models import ProgressStep, ReplySource
 
     # 사후 타임라인에는 "실행 중…"(start:*) 단계를 싣지 않는다 — progress_steps 와 동일 규약.

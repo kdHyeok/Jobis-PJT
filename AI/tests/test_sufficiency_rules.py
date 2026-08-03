@@ -75,27 +75,72 @@ def test_no_evidence_blocks_and_asks():
     assert all("questionId" in q and q["text"] for q in questions)
 
 
-def test_few_evidence_blocks():
+def test_few_evidence_warns_but_does_not_block():
+    """**정책이 뒤집혔다** (2026-08-03). 전에는 근거 1건이면 분석을 멈췄다.
+
+    근거가 1건이라도 있으면 판정할 재료는 있는 것이고, 신뢰도가 낮다는 사실은 이미
+    `confidence` 와 이 경고에 남는다. 1건 때문에 멈추면 사용자는 "이력서를 냈는데
+    아무것도 안 나온다"를 겪는다 — 실측에서 지도가 통째로 안 생긴 경로가 이것이었다.
+    """
+
     thin = {
         "skills": [{"name": "Java"}],
         "evidenceMap": [{"evidenceId": "ev-1", "text": "Java 로 뭔가 했습니다"}],
         "skillEvidence": {"Java": ["ev-1"]},
     }
     verdict = _assess([_req("req-1", "Java 개발 경험")], thin)
+    assert verdict.sufficient is True
+    # 낮은 신뢰도라는 사실 자체는 삼키지 않는다(§2-6).
+    assert any(m.code == "few_evidence" and not m.blocking for m in verdict.missing)
+
+
+def test_zero_evidence_still_blocks():
+    """0건은 신뢰도가 낮은 게 아니라 **잴 것이 없는** 것이다 — 여기서는 막고 묻는다."""
+
+    verdict = _assess([_req("req-1", "Java 개발 경험")],
+                      {"skills": [], "evidenceMap": [], "skillEvidence": {}})
     assert verdict.sufficient is False
-    assert any(m.code == "few_evidence" for m in verdict.missing)
+    assert any(m.code == "no_evidence" and m.blocking for m in verdict.missing)
 
 
-def test_mostly_undecidable_required_blocks_and_asks_about_them():
-    """필수 요구사항을 판정조차 못 했으면 사용자에게 직접 묻는 게 유일한 해결책이다."""
+def test_undecidable_required_does_not_block_when_there_is_evidence():
+    """**정책이 뒤집혔다** (2026-08-03). 전에는 "묻는 게 유일한 해결책"이라 막았다.
+
+    뒤집은 이유 둘:
+      · 유일하지 않다 — `gap_matcher` 가 이미 LLM 으로 두 번 읽는다(배치 의미 판정 +
+        실패분 개별 재시도). 여기까지 남은 uncertain 은 물어보기 전이라 모르는 게 아니라
+        읽어도 모르는 것이다.
+      · 되물어도 못 묻는다 — 이 결핍의 질문에는 선택지가 없어 v2 `NEEDS_INPUT`
+        (선택지 2~4개 필수)으로 나갈 수 없다. 서비스가 스스로 "정보 없음"으로 답하며
+        왕복 상한까지 반복하고 **분석이 통째로 실패했다**(실측: fit_analysis 4회 반복 →
+        `AI_PROVIDER_UNAVAILABLE`).
+
+    남은 uncertain 은 점수 분모에서 빠지므로 미충족으로 둔갑하지 않는다(§2-1).
+    """
+
     verdict = _assess(
         [_req("req-1", "경력 3년 이상"), _req("req-2", "원활한 커뮤니케이션 능력")],
         _RICH_PROFILE,
     )
-    assert verdict.sufficient is False
+    assert verdict.sufficient is True, "한 줄 못 읽었다고 지도를 통째로 안 만들지 않는다"
     assert verdict.undecidableRequiredCount == 2
+    # 그래도 **무엇을 못 읽었는지는 남는다** — 삼키지 않는다(§2-6).
+    assert [m.code for m in verdict.missing] == ["undecidable_requirement"] * 2
+    assert all(not m.blocking for m in verdict.missing)
+
+
+def test_undecidable_required_still_blocks_without_evidence():
+    """근거가 아예 없으면 여전히 막는다 — 판정할 재료 자체가 없는 것이다."""
+
+    bare = {**_RICH_PROFILE, "evidenceMap": []}
+    verdict = _assess(
+        [_req("req-1", "경력 3년 이상"), _req("req-2", "원활한 커뮤니케이션 능력")],
+        bare,
+    )
+    assert verdict.sufficient is False
+    assert any(m.code == "no_evidence" and m.blocking for m in verdict.missing)
     texts = " ".join(q["text"] for q in build_questions(verdict))
-    assert "경력 3년 이상" in texts, "판정 못 한 요구사항을 그대로 물어야 한다"
+    assert "경력 3년 이상" in texts, "막을 때는 판정 못 한 요구사항을 그대로 묻는다"
 
 
 # --- 질문 품질 -------------------------------------------------------------

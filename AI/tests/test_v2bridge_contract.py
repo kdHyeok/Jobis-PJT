@@ -18,16 +18,20 @@ from jobis_ai.v2bridge.app import app
 from jobis_ai.v2bridge.models import (
     AnalysisQuestion,
     AnalysisResponse,
+    AnalyzedCompetency,
+    AnalyzedRequirement,
     CareerExtractionResponse,
     CareerFragmentSuggestion,
     ChangeProposal,
     ChatResponse,
+    CompetencyProposal,
     Evaluation,
     EvidenceVerificationResponse,
     JobContext,
     ProposedNode,
     ProposedRequirement,
     SuggestedAction,
+    TargetProjectBrief,
 )
 
 client = TestClient(app)
@@ -52,12 +56,33 @@ def chat_request() -> dict:
     }
 
 
+def competency_proposal() -> CompetencyProposal:
+    """COMPLETED 응답의 필수 산출물 — 백엔드는 이걸로 로드맵을 그린다."""
+
+    return CompetencyProposal(
+        competencies=[AnalyzedCompetency(
+            ref="java", canonical_key="skill.java", title="Java",
+            domain="BACKEND", kind="TECHNOLOGY", stage="LANGUAGE",
+            scope_definition="Java 로 서버 로직을 구현한다.", required_level=3,
+            roadmap_eligible=True,
+            verification_method="저장소와 테스트 결과로 확인한다.")],
+        requirements=[AnalyzedRequirement(
+            competency_ref="java", relation="REQUIRED",
+            source_text="Java 경험", confidence="0.9")],
+        target_project=TargetProjectBrief(
+            title="예시 백엔드 검증 과제", objective="필수 역량을 하나의 결과물로 증명한다.",
+            domain_context="사내 서비스", required_competency_refs=["java"],
+            deliverables=["실행 가능한 저장소"], acceptance_criteria=["테스트 통과"]),
+    )
+
+
 def completed_analysis() -> AnalysisResponse:
     return AnalysisResponse(
         status="COMPLETED",
-        job=JobContext(company_name="예시", role_title="백엔드"),
+        job=JobContext(company_name="예시", role_title="백엔드", primary_track="BACKEND"),
         evaluation=Evaluation(verdict="STRENGTHEN_THEN_APPLY",
                               summary="보완 후 지원", reasons=["요건 미충족"]),
+        competency_proposal=competency_proposal(),
         change_proposal=ChangeProposal(
             base_graph_version=1,
             nodes=[ProposedNode(

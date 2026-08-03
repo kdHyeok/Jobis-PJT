@@ -15,6 +15,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 @ConditionalOnProperty(name = "jobiss.ai.worker-enabled", havingValue = "true")
@@ -49,7 +51,10 @@ public class ChatReplyWorker {
         }
         try {
             AiContracts.ChatRequest request = loadRequest(job);
-            AiContracts.ChatResponse response = aiClient.chat(request);
+            AiContracts.ChatResponse response = aiClient.chat(
+                    request,
+                    step -> recordChatProgress(job, step)
+            );
             if (response == null || response.message() == null || response.message().isBlank()) {
                 throw new IllegalStateException("AI response did not include a message");
             }
@@ -58,6 +63,51 @@ public class ChatReplyWorker {
             log.warn("Chat reply job {} failed: {}", job.id(), exception.getMessage());
             fail(job, exception);
         }
+    }
+
+    /**
+     * AI 가 흘려 보낸 진행 단계를 작업 행에 반영한다 — 프론트는 이 행을 이미 폴링한다.
+     *
+     * <p>공고를 채팅에 붙여넣는 흐름에는 분석 작업(analysis job)이 없어 진행 휠도 없다.
+     * 그래서 "어느 담당이 무슨 도구로 무엇을 하는지"를 보여줄 통로가 {@code stage} ·
+     * {@code stage_message} 뿐이다. 새 테이블을 만들지 않고 이미 있는 칸을 쓴다.
+     *
+     * <p><b>진행 기록이 실패해도 대화를 죽이지 않는다.</b> 이건 창문이지 대화의 일부가
+     * 아니다 — 실패하면 로그만 남기고 넘어간다.
+     */
+    private void recordChatProgress(ClaimedJob job, AiContracts.ProgressStep step) {
+        if (step == null) {
+            return;
+        }
+        String stage = clip(step.step(), 40);
+        String message = Stream.of(step.label(), step.detail())
+                .filter(part -> part != null && !part.isBlank())
+                .collect(Collectors.joining(" · "));
+        if (stage.isBlank() && message.isBlank()) {
+            return;
+        }
+        try {
+            rls.write(job.userId(), jdbc -> jdbc.sql("""
+                            update chat_reply_jobs
+                            set
+                                stage = coalesce(nullif(:stage, ''), stage),
+                                stage_message = coalesce(nullif(:message, ''), stage_message),
+                                updated_at = now()
+                            where id = :jobId
+                              and status = 'RUNNING'
+                            """)
+                    .param("stage", stage)
+                    .param("message", clip(message, 2000))
+                    .param("jobId", job.id())
+                    .update());
+        } catch (RuntimeException exception) {
+            log.debug("Chat progress not recorded for {}: {}", job.id(), exception.getMessage());
+        }
+    }
+
+    private static String clip(String value, int limit) {
+        String text = value == null ? "" : value.strip();
+        return text.length() <= limit ? text : text.substring(0, limit);
     }
 
     private ClaimedJob claim() {

@@ -66,6 +66,12 @@ _TYPE_WEIGHT = {"required": 1.0, "preferred": 0.5}
 # status → 점수 (scoreBasis 집계용). uncertain 은 분모에서 제외한다(모르는 걸 0점 처리하지 않는다).
 _STATUS_SCORE = {"met": 1.0, "partially_met": 0.5, "not_met": 0.0}
 
+# 배치 의미 판정이 실패했을 때 **개별로 다시 물어보는 상한**. 이보다 많으면 넘치는 건은
+# uncertain 으로 남긴다(경고에 몇 건인지 남는다). 상한이 필요한 이유는 요구사항이 20건인
+# 공고에서 배치가 실패하면 개별 호출 20번이 되기 때문이다 — 배치를 만든 이유가 그것이었다
+# (2026-07-23: topic 마다 개별 호출이라 판정 한 번에 수 분 소요).
+_SEMANTIC_RETRY_MAX = 8
+
 # 자격증·어학 요구사항을 식별하는 키워드 (certLanguage 집계용)
 _CERT_KEYWORDS = ("자격증", "기사", "토익", "toeic", "opic", "오픽", "어학", "학위", "전공")
 
@@ -210,6 +216,46 @@ class GapMatcher:
 
     # ------------------------------------------------------------------
     # 2차/3차 공용: LLM 의미 판정 (§0 원칙의 의도적 예외)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _retry_missing_topics(
+        batch: dict[int, list[int]] | None, topics: list[str], texts: list[str],
+    ) -> dict[int, list[int]]:
+        """배치가 판정하지 못한 topic 만 **개별 호출로 다시 묻는다.**
+
+        배치는 비용을 줄이려고 묶은 것이지 판단을 묶은 게 아니다(`semantic_judge` 주석).
+        그러니 묶음이 실패했다고 판단까지 포기할 이유가 없다 — 못 읽어서 사용자에게
+        되묻는 것은 자료가 있는데 사람에게 떠넘기는 것이다.
+
+        두 가지를 지킨다:
+          · **상한**(`_SEMANTIC_RETRY_MAX`) — 요구사항이 많은 공고에서 개별 호출이 폭주하지
+            않게. 넘치는 건은 uncertain 으로 남고 경고에 몇 건인지 남는다.
+          · **첫 재시도가 실패하면 멈춘다** — 그건 흔들림이 아니라 공급자가 내려간 것이다.
+            LLM 이 없는데 N 번 더 부르는 것은 시간만 버린다.
+        """
+
+        if not texts:
+            return {}
+        missing = [pos for pos in range(len(topics))
+                   if (batch is None or batch.get(pos) is None) and topics[pos].strip()]
+        if not missing:
+            return {}
+
+        recovered: dict[int, list[int]] = {}
+        for attempt, pos in enumerate(missing[:_SEMANTIC_RETRY_MAX]):
+            single = judge_topics_relevance([topics[pos]], texts)
+            if single is None or single.get(0) is None:
+                if attempt == 0:
+                    break      # 공급자가 내려갔다 — 나머지도 마찬가지다
+                continue
+            recovered[pos] = single[0]
+        if recovered or len(missing) > _SEMANTIC_RETRY_MAX:
+            trace.emit("judgment", f"배치 판정 실패분 개별 재시도 {len(recovered)}건 회복", {
+                "missing": len(missing), "recovered": len(recovered),
+                "capped": max(0, len(missing) - _SEMANTIC_RETRY_MAX),
+            })
+        return recovered
+
     # ------------------------------------------------------------------
     @staticmethod
     def _semantic_outcome(
@@ -423,9 +469,20 @@ class GapMatcher:
         # --- 2·3차 LLM 의미 판정: 모아서 한 번에 (판정 기준은 단건과 동일) ---
         if pending_semantic:
             texts = [str(e.get("text", "")) for e in evidences]
-            batch = judge_topics_relevance([t for _, t, _ in pending_semantic], texts)
+            topics = [t for _, t, _ in pending_semantic]
+            batch = judge_topics_relevance(topics, texts)
+            # **배치 한 번이 전부를 결정하던 자리다.** 그 호출이 흔들리면 서술형 요구사항이
+            # 통째로 uncertain 이 되고, 충분성 게이트가 "판정 불가 비율 50% 초과"로 분석을
+            # 멈춰 사용자에게 되묻는다 — 실측(2026-08-03): 같은 입력 2회 중 1회가 이 경로로
+            # 503 이 났다. 판정할 수 있는 자료가 있는데 못 읽어서 사람에게 떠넘긴 것이다.
+            #
+            # 그래서 배치가 못 준 건만 **개별로 다시 묻는다.** 비용은 실패한 만큼만 늘고,
+            # 한 번의 흔들림이 분석 전체를 무너뜨리지 않는다.
+            retried = self._retry_missing_topics(batch, topics, texts)
             for pos, (match_idx, topic, topic_kind) in enumerate(pending_semantic):
                 related = None if batch is None else batch.get(pos)
+                if related is None:
+                    related = retried.get(pos)
                 status, matched_ids, confidence, sem_method = self._semantic_outcome(
                     related, evidences
                 )

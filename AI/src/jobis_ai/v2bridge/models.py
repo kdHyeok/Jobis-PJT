@@ -1,17 +1,27 @@
 """서비스 v2 백엔드 ↔ AI HTTP 계약 스키마.
 
-**계약 정본은 팀 저장소의 `ai-server/app/models.py`** (feat/be/jobiss-service-v2)다.
-이 파일은 그 정본의 사본이다 — 백엔드가 보내는/받는 JSON 을 같은 검증기로 지키기 위해
-그대로 가져왔고, 여기서 필드를 더하거나 빼지 않는다. 정본이 바뀌면 이 파일을 다시 맞춘다.
+**계약 정본은 백엔드 코드다** — `analysis/AiContracts.java`(역직렬화 대상),
+`roadmap/RoadmapService`(그 값이 지도에서 무엇이 되는가), `db/migration/V10·V12`
+(DB CHECK 이 거부하는 값), `frontend/src/types.ts`(화면이 기대하는 형태).
+
+`ai-server/app/models.py` 는 **정본이 아니다.** 백엔드 팀원이 자기 AI 답변을 시험하려고
+세운 서버이고, 우리가 동기화할 의무가 없다(그쪽 실험이 우리를 깨면 안 된다). 다만 같은
+계약을 향해 먼저 작성된 **참고 구현**이라 스키마·프롬프트를 가져올 값어치는 있다.
+가져오되 빚은 지지 않는다 — 어긋나면 백엔드 코드를 따른다.
+
+계약 요지(팀 README·architecture.md):
 
 계약 요지(팀 README·architecture.md):
   · AI 서버는 무상태 — 매 요청에 전체 문맥(공고 원문·커리어 스냅샷·대화 이력)이 담겨 온다.
   · camelCase + extra="forbid" — 모르는 필드가 오면/나가면 거부된다.
+    **요청 쪽 누락이 곧 장애다**: 백엔드가 보내는 필드가 여기 없으면 요청 전체가 422 로
+    거부된다(모르는 필드를 무시하지 않는다). 응답 쪽 누락과 대칭이 아니다.
   · /v1/analyses 는 COMPLETED(전체 결과) 또는 NEEDS_INPUT(선택형 질문 정확히 1개) 둘 중 하나.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
@@ -58,11 +68,21 @@ class ExistingCareerFragment(ContractModel):
     detail: dict[str, Any] = Field(default_factory=dict)
 
 
+class CareerGoalContext(ContractModel):
+    """`AiContracts.CareerGoalContext` — 사용자가 지금 겨냥한 공고와 최종 목표."""
+
+    current_posting_id: UUID | None = None
+    current_company_name: str | None = Field(default=None, max_length=160)
+    current_role_title: str | None = Field(default=None, max_length=200)
+    final_goal_text: str | None = Field(default=None, max_length=2_000)
+
+
 class CareerSnapshot(ContractModel):
     graph_id: UUID
     version: int = Field(ge=1)
     nodes: list[ExistingNode] = Field(max_length=2_000)
     fragments: list[ExistingCareerFragment] = Field(default_factory=list, max_length=1_000)
+    goals: CareerGoalContext = Field(default_factory=CareerGoalContext)
 
 
 class AnalysisAnswer(ContractModel):
@@ -78,6 +98,47 @@ class AnalysisRequest(ContractModel):
     career: CareerSnapshot
     question_count: int = Field(default=0, ge=0, le=3)
     answers: list[AnalysisAnswer] = Field(default_factory=list, max_length=3)
+    # 같은 공고를 이미 정규화해 둔 결과(계정 간 재사용). 백엔드가 보내므로 **받는 칸이
+    # 없으면 요청 자체가 거부된다** — 쓰지 않더라도 선언은 있어야 한다.
+    shared_analysis: SharedPostingAnalysis | None = None
+
+
+CareerTrack = Literal[
+    "BACKEND",
+    "FRONTEND",
+    "FULLSTACK",
+    "DATA",
+    "AI",
+    "DEVOPS",
+    "CLOUD",
+    "SECURITY",
+    "GAME",
+    "MOBILE",
+]
+
+
+class ExperienceRequirement(ContractModel):
+    """공고의 경력 조건 — 지도의 **경력 관문 노드**가 여기서 나온다.
+
+    `type=REQUIRED` 이고 `minimumMonths>0` 일 때만 관문이 생긴다(`RoadmapService`).
+    연 단위는 개월로 환산해서 넣는다("2년 이상 4년 이하" → REQUIRED, 24, 48).
+    """
+
+    type: Literal["NONE", "REQUIRED", "PREFERRED"]
+    minimum_months: int = Field(ge=0, le=600)
+    maximum_months: int | None = Field(default=None, ge=0, le=600)
+    source_text: str = Field(min_length=1, max_length=1_000)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> ExperienceRequirement:
+        if self.type == "NONE" and self.minimum_months != 0:
+            raise ValueError("NONE experience requirements must start at zero")
+        if (
+            self.maximum_months is not None
+            and self.maximum_months < self.minimum_months
+        ):
+            raise ValueError("maximum experience must not be below minimum")
+        return self
 
 
 class JobContext(ContractModel):
@@ -85,6 +146,15 @@ class JobContext(ContractModel):
     role_title: str | None = None
     employment_type: str | None = None
     experience_text: str | None = None
+    # --- 지도 재료 (계약상 필수) ---------------------------------------------------
+    # **아직 Optional 이다.** 계약은 둘 다 필수지만, 지금 이 값을 채우는 생산자가 없다
+    # (`mapping.build_job_context` 는 파싱 결과만 옮긴다). 필수로 선언하면 스키마만 넣은
+    # 이 단계에서 분석 경로가 통째로 멈춘다. **2단계(생산자 연결)에서 Optional 을 뗀다** —
+    # 그때까지는 검증기가 이 두 칸을 지키지 않는다는 뜻이므로, 미룬 사실을 여기 적어 둔다.
+    primary_track: CareerTrack | None = None
+    experience_requirement: ExperienceRequirement | None = None
+    closes_at: datetime | None = None
+    lifecycle_status: Literal["ACTIVE", "EXPIRED", "CLOSED", "UNKNOWN"] = "UNKNOWN"
     parsed_data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -233,12 +303,228 @@ class ChangeProposal(ContractModel):
         return self
 
 
+# ---------------------------------------------------------------------------
+# 역량 제안 — **지도의 재료 전부**
+# ---------------------------------------------------------------------------
+# 위의 ChangeProposal(nodes/edges/rank)은 백엔드에서 legacy 로 격리됐다. 새 분석은 노드나
+# 간선을 만들지 않는다 — `RoadmapService.buildSnapshot` 이 DB 행에서 결정론으로 그린다.
+# AI 가 내는 것은 **그 행의 재료**뿐이다.
+CompetencyKind = Literal[
+    "TECHNOLOGY",
+    "KNOWLEDGE",
+    "PRACTICE",
+    "TASK",
+    "DOMAIN_KNOWLEDGE",
+    "EXPERIENCE",
+    "CREDENTIAL",
+]
+# 노드의 **가로 순서**. 같은 `track|stage` 는 한 MILESTONE 으로 묶인다(RoadmapService).
+RoadmapStage = Literal[
+    "FOUNDATION",
+    "WEB",
+    "LANGUAGE",
+    "FRAMEWORK",
+    "DATA",
+    "QUALITY",
+    "OPERATIONS",
+    "SCALE",
+    "DOMAIN",
+    "EXPERIENCE",
+    "CREDENTIAL",
+]
+# DB CHECK 제약이 있다(V10). 여기 없는 값은 백엔드가 아니라 **DB 가** 거부한다.
+RoadmapDomain = Literal[
+    "COMMON",
+    "BACKEND",
+    "FRONTEND",
+    "DATA",
+    "DEVOPS",
+    "CLOUD",
+    "SECURITY",
+    "AI",
+    "MOBILE",
+    "GAME",
+    "DOMAIN",
+    "CAREER",
+]
+
+
+class AnalyzedCompetency(ContractModel):
+    """지도의 역량 노드 하나.
+
+    `canonicalKey` 는 `user_competencies` 의 유일키다 — **같은 기술이 공고마다 다른 키를
+    받으면 사용자 역량이 쪼개지고 지도에 중복 노드가 생긴다.** 그리고 그 고장은 조용하다
+    (예외도 경고도 없이 지도만 이상해진다). 키를 짓는 쪽이 `skill_taxonomy` 를 앵커로
+    쓰는 것은 3단계의 몫이고, 여기서는 형태만 강제한다.
+    """
+
+    ref: str = Field(pattern=r"^[A-Za-z0-9_-]{1,80}$")
+    canonical_key: str = Field(pattern=r"^[a-z0-9][a-z0-9._:-]{2,159}$")
+    title: str = Field(min_length=1, max_length=160)
+    domain: RoadmapDomain
+    kind: CompetencyKind
+    stage: RoadmapStage
+    scope_definition: str = Field(min_length=1, max_length=4_000, pattern=r".*\S.*")
+    required_level: int = Field(ge=1, le=5)
+    roadmap_eligible: bool
+    verification_method: str | None = Field(default=None, max_length=1_000)
+
+    @model_validator(mode="after")
+    def validate_roadmap_eligibility(self) -> AnalyzedCompetency:
+        """로드맵에 올릴 역량은 **무엇으로 검증하는지**를 반드시 댄다.
+
+        검증 방법 없는 역량은 사용자가 영원히 완료 처리할 수 없는 노드가 된다.
+        정성 조건(책임감·소통력)은 `roadmapEligible=false` 로 두고 지도에서 뺀다.
+        """
+
+        if self.roadmap_eligible and not (self.verification_method or "").strip():
+            raise ValueError("roadmap eligible competencies require a verification method")
+        return self
+
+
+class AnalyzedRequirement(ContractModel):
+    """공고가 그 역량을 어떤 강도로 요구하는가.
+
+    `REQUIRED` = 지도의 본선 경로, `PREFERRED` = 우대사항 선택 퀘스트(optional 노드).
+    `RESPONSIBILITY` 는 `RoadmapService` 가 읽지 않아 **지도에 나오지 않는다** — 낼 수는
+    있지만 그것만으로는 노드가 생기지 않는다는 뜻이다.
+    """
+
+    competency_ref: str
+    relation: Literal["REQUIRED", "PREFERRED", "RESPONSIBILITY"]
+    source_text: str = Field(min_length=1, max_length=4_000)
+    confidence: Decimal = Field(ge=0, le=1)
+
+
+class TargetProjectBrief(ContractModel):
+    """PROJECT 노드 1개 — 필수 역량 경로 끝에 붙고 그 뒤에 OPPORTUNITY(공고)가 온다.
+
+    **옵션이 아니다.** 이게 없으면 지도에서 회사 가지가 완성되지 않는다.
+    """
+
+    title: str = Field(min_length=1, max_length=200)
+    objective: str = Field(min_length=1, max_length=4_000)
+    domain_context: str = Field(min_length=1, max_length=4_000)
+    required_competency_refs: list[str] = Field(min_length=1, max_length=30)
+    optional_competency_refs: list[str] = Field(default_factory=list, max_length=20)
+    deliverables: list[str] = Field(min_length=1, max_length=20)
+    acceptance_criteria: list[str] = Field(min_length=1, max_length=30)
+
+
+class CompetencyProposal(ContractModel):
+    competencies: list[AnalyzedCompetency] = Field(min_length=1, max_length=100)
+    requirements: list[AnalyzedRequirement] = Field(min_length=1, max_length=200)
+    target_project: TargetProjectBrief
+
+    @field_validator("competencies")
+    @classmethod
+    def unique_competencies(
+        cls, value: list[AnalyzedCompetency]
+    ) -> list[AnalyzedCompetency]:
+        refs = [competency.ref for competency in value]
+        if len(refs) != len(set(refs)):
+            raise ValueError("competency refs must be unique")
+        keys = [competency.canonical_key for competency in value]
+        if len(keys) != len(set(keys)):
+            raise ValueError("canonical competency keys must be unique")
+        return value
+
+    @model_validator(mode="after")
+    def validate_references(self) -> CompetencyProposal:
+        """참조 무결성 — 끊긴 참조는 백엔드에서 502 가 된다."""
+
+        competencies_by_ref = {c.ref: c for c in self.competencies}
+        refs = set(competencies_by_ref)
+
+        seen: set[tuple[str, str]] = set()
+        for requirement in self.requirements:
+            if requirement.competency_ref not in refs:
+                raise ValueError("requirement references must point to analyzed competencies")
+            identity = (requirement.competency_ref, requirement.relation)
+            if identity in seen:
+                raise ValueError("competency requirements must be deduplicated")
+            seen.add(identity)
+
+        project_refs = (
+            self.target_project.required_competency_refs
+            + self.target_project.optional_competency_refs
+        )
+        if any(ref not in refs for ref in project_refs):
+            raise ValueError("target project references must point to analyzed competencies")
+        if len(project_refs) != len(set(project_refs)):
+            raise ValueError("target project competency refs must be unique")
+        # 정성 역량으로는 프로젝트를 증명할 수 없다 — 로드맵에서 빠진 것을 과제가 참조하면
+        # 완료 판정이 영원히 성립하지 않는다.
+        if any(not competencies_by_ref[ref].roadmap_eligible for ref in project_refs):
+            raise ValueError("target project cannot require qualitative competencies")
+        return self
+
+
+# ---------------------------------------------------------------------------
+# 분석 진행 스트리밍 (`POST /v1/analyses/stream`, NDJSON)
+# ---------------------------------------------------------------------------
+# 제약은 백엔드가 **검증하고 실패시키는** 값이다: `AnalysisWorker.recordProgress` 가
+# `runId != analysisJobId` 이거나 `sequence` 범위를 벗어나면 IllegalStateException 을 던져
+# 그 job 을 FAILED 로 끝낸다. 그래서 우리 쪽에서 먼저 건다 — 스트림이 분석을 죽이면 안 된다.
+class AnalysisStageDefinition(ContractModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
+    label: str = Field(min_length=1, max_length=80)      # 눈썹 문구
+    role: str = Field(min_length=1, max_length=120)      # 제목 — 에이전트 이름이 들어갈 자리
+    message: str = Field(min_length=1, max_length=500)
+    color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+
+
+class AnalysisStageUpdate(ContractModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
+    status: Literal["PENDING", "RUNNING", "WAITING", "COMPLETED", "FAILED"]
+    message: str = Field(default="", max_length=1_000)   # 툴 호출·관찰이 들어갈 자리
+
+
+class AnalysisStreamEvent(ContractModel):
+    """한 줄 = 한 이벤트. 첫 줄은 RUN_STARTED, 마지막 줄은 RESULT 또는 ERROR."""
+
+    type: Literal["RUN_STARTED", "STAGE_UPDATED", "RESULT", "ERROR"]
+    run_id: UUID
+    sequence: int = Field(ge=1, le=10_000)
+    occurred_at: datetime
+    stages: list[AnalysisStageDefinition] = Field(default_factory=list, max_length=12)
+    stage: AnalysisStageUpdate | None = None
+    result: AnalysisResponse | None = None
+    error_code: str | None = Field(default=None, max_length=80)
+    error_message: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_payload(self) -> AnalysisStreamEvent:
+        """타입별로 실려야 할 것만 싣는다 — 빈 RUN_STARTED 는 프론트의 계획을 지운다."""
+
+        if self.type == "RUN_STARTED" and not self.stages:
+            raise ValueError("RUN_STARTED requires at least one stage")
+        if self.type == "STAGE_UPDATED" and self.stage is None:
+            raise ValueError("STAGE_UPDATED requires a stage")
+        if self.type == "RESULT" and self.result is None:
+            raise ValueError("RESULT requires the analysis response")
+        if self.type == "ERROR" and not (self.error_code or "").strip():
+            raise ValueError("ERROR requires an error code")
+        return self
+
+
+class SharedPostingAnalysis(ContractModel):
+    """같은 공고의 검증된 정규화 결과 — 계정 간 재사용(요청으로 들어온다)."""
+
+    job: JobContext
+    competency_proposal: CompetencyProposal
+
+
 class AnalysisResponse(ContractModel):
     status: Literal["COMPLETED", "NEEDS_INPUT"]
     question: AnalysisQuestion | None = None
     job: JobContext | None = None
     evaluation: Evaluation | None = None
     change_proposal: ChangeProposal | None = None
+    # 새 계약의 산출물. **COMPLETED 면 필수다** — 백엔드 워커가 이게 없으면 job 을 FAILED
+    # 로 끝내므로, 없는 채로 COMPLETED 를 내보내는 것은 성공을 가장한 실패다. 만들지 못하면
+    # 서비스가 먼저 EngineFailed 로 알린다(무엇이 없었는지가 메시지에 남는다).
+    competency_proposal: CompetencyProposal | None = None
 
     @model_validator(mode="after")
     def validate_outcome(self) -> AnalysisResponse:
@@ -247,7 +533,8 @@ class AnalysisResponse(ContractModel):
                 raise ValueError("NEEDS_INPUT responses require a question")
             if any(
                 value is not None
-                for value in (self.job, self.evaluation, self.change_proposal)
+                for value in (self.job, self.evaluation, self.change_proposal,
+                              self.competency_proposal)
             ):
                 raise ValueError("NEEDS_INPUT responses cannot contain a final result")
         else:
@@ -255,7 +542,7 @@ class AnalysisResponse(ContractModel):
                 raise ValueError("COMPLETED responses cannot contain a question")
             if any(
                 value is None
-                for value in (self.job, self.evaluation, self.change_proposal)
+                for value in (self.job, self.evaluation, self.competency_proposal)
             ):
                 raise ValueError("COMPLETED responses require the complete result")
         return self

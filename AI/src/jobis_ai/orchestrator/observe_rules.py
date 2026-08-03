@@ -79,6 +79,9 @@ class Observation:
               말없이 빼면 사용자는 요청한 것이 왜 안 왔는지 알 수 없다.
     reason  : 궤적용 한 줄 (사용자 비노출)
     rule    : 결정한 규칙 이름. LLM 의 자유 문장 대신 이것이 궤적에 남는다.
+    dropped : 규칙이 **빼버린** 단계들. 전에는 note 문장 안에만 남아서 호출부가 "무엇이
+              빠졌는지"를 코드로 알 수 없었다 — 규칙은 "뺐다"까지만 하고 "대신 무엇을
+              할까"는 아무도 묻지 않았다. 그 자리를 열기 위한 구조화 값이다.
     """
 
     action: str = "continue"
@@ -86,6 +89,7 @@ class Observation:
     note: str = ""
     reason: str = ""
     rule: str = "none"
+    dropped: tuple[str, ...] = field(default_factory=tuple)
 
 
 def weak_grade_transition(
@@ -243,6 +247,9 @@ def observe(
     notes: list[str] = []
     rules: list[str] = []
     working = list(queue)
+    # 빠진 단계는 **이름으로** 센다. 규칙마다 note 문장을 파싱하면 문구를 고칠 때마다 깨진다.
+    # 이미 돈 것(dispatched)은 큐 정리이지 탈락이 아니므로 제외한다.
+    before = [n for n in queue if n not in dispatched]
 
     # ① 약한 판정 → 생성 단계 교체 (fit_analysis 가 방금 돈 배치에서만)
     if "fit_analysis" in batch:
@@ -283,4 +290,5 @@ def observe(
         note=" ".join(notes).strip(),
         reason=" / ".join(reason.get(r, r) for r in rules),
         rule="+".join(rules),
+        dropped=tuple(n for n in before if n not in working),
     )

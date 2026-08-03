@@ -16,7 +16,13 @@
 from __future__ import annotations
 
 from jobis_ai.agents import AgentResult
-from jobis_ai.agents.agent_loop import TOOL_WARNINGS_KEY, ToolSpec, delegate_tool, run_agent_loop
+from jobis_ai.agents.agent_loop import (
+    TOOL_WARNINGS_KEY,
+    ToolSpec,
+    call_agent_readonly,
+    delegate_tool,
+    run_agent_loop,
+)
 
 SESSION = {
     "profile": {"skills": [{"name": "Python"}], "projects": [], "experiences": [],
@@ -53,6 +59,33 @@ def test_delegate_refuses_heavy_agent():
                "job_posting": {"sourceType": "text", "value": "y"}}
     observation, _ = tool.run(_state(session), "fit_analysis")
     assert "무거운 파이프라인" in observation
+
+
+# --- 가드는 한 곳에만 있다 -----------------------------------------------------------
+def test_guards_apply_to_non_loop_callers_too():
+    """**루프 밖에서 부를 때도 같은 가드를 지난다.**
+
+    전에는 가드가 두 벌이었다 — `delegate_tool` 과 `application_plan._related_postings`
+    (단발 호출이라 도구를 못 쓰는 자리에서 손으로 재현한 것). 후자에는 heavy 검사와 중첩
+    금지가 빠져 있었다: 같은 규칙이 경로에 따라 다르게 적용됐다는 뜻이다. 이 검사는 그
+    가드가 다시 갈라지면 깨진다.
+    """
+
+    session = {**SESSION, "resume": {"sourceType": "text", "value": "x"},
+               "job_posting": {"sourceType": "text", "value": "y"}}
+    call = call_agent_readonly(session, "fit_analysis", caller="application_plan")
+    assert call.refusal == "heavy"
+    assert call.result is None
+
+
+def test_refusal_reason_is_a_code_not_just_a_sentence():
+    """거부 사유를 코드로 남긴다 — 관찰 문장이 바뀌어도 hand-off 집계가 안 깨지게."""
+
+    assert call_agent_readonly({}, "없는에이전트").refusal == "unregistered"
+    assert call_agent_readonly({}, "job_recommend").refusal == "preconditions_missing"
+    assert call_agent_readonly(
+        dict(SESSION), "career_chat", allowed=("resume_diagnosis",)
+    ).refusal == "not_declared"
 
 
 def test_delegate_refuses_when_preconditions_missing():

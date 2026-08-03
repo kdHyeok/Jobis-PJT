@@ -86,6 +86,99 @@ _delegating: contextvars.ContextVar[bool] = contextvars.ContextVar(
 )
 
 
+@dataclass
+class DelegateOutcome:
+    """위임 한 번의 결과. `refusal` 이 비어 있지 않으면 **상대를 실행하지 않았다.**
+
+    거부를 예외나 None 으로 표현하지 않는 이유는 분모 때문이다 — 성공만 남기면
+    "몇 % 성공하나"에 영구히 답할 수 없다(평가 리포트 §1-1).
+    """
+
+    result: Any | None = None       # AgentResult (성공했을 때만)
+    refusal: str = ""               # 거부 사유 **코드** — 문장이 바뀌어도 집계가 안 깨지게
+    message: str = ""               # 사람이 읽는 거부/관찰 문구
+    warnings: list[dict[str, Any]] = field(default_factory=list)
+
+
+def call_agent_readonly(
+    session: dict[str, Any],
+    target: str,
+    *,
+    caller: str = "",
+    allowed: tuple[str, ...] | None = None,
+    render_reply: bool = False,
+) -> DelegateOutcome:
+    """**에이전트 간 읽기 전용 호출의 단일 관문.** 가드는 여기에만 있다.
+
+    전에는 같은 가드가 두 벌이었다 — `delegate_tool`(자기 루프용)과
+    `application_plan._related_postings`(단발 호출이라 도구를 못 쓰는 자리에서 손으로
+    재현한 것). 그리고 **어긋나 있었다**: 후자에는 `heavy` 검사도, 중첩 위임 차단도
+    없었다. `job_recommend` 가 언젠가 heavy 로 바뀌면 그쪽 경로만 조용히 동의
+    게이트(§2-7)를 우회한다. 가드를 두 벌 두면 언젠가 한 벌이 낡는다.
+
+    가드(순서대로): 선언 화이트리스트 → 중첩 금지(깊이 1) → 등록 여부 → heavy 금지
+    → 전제 자산. 통과하면 **세션 사본**으로 실행하고 스테이징을 비운다 — 상태 전이는
+    오케스트레이터 독점이다(§2-4). 거부도 실패도 trace 에 남긴다.
+    """
+
+    from jobis_ai.agents import get_agent_registry
+    from jobis_ai.orchestrator.router import runnable_now, session_assets
+
+    def refused(reason: str, message: str) -> DelegateOutcome:
+        trace.emit("delegate_refused", f"위임 거부: {target or '(빈 이름)'} — {reason}",
+                   {"target": target, "from": caller, "reason": reason})
+        return DelegateOutcome(refusal=reason, message=message)
+
+    if allowed is not None and target not in allowed:
+        return refused("not_declared",
+                       f"'{target or '(빈 이름)'}' 에게는 물어볼 수 없습니다. "
+                       f"물어볼 수 있는 상대: {', '.join(allowed)}")
+    if _delegating.get():
+        return refused("nested", "위임 안에서 또 위임할 수 없습니다.")
+
+    spec = get_agent_registry().get(target)
+    if spec is None:
+        return refused("unregistered", f"'{target}' 는 등록돼 있지 않습니다.")
+    if spec.heavy:
+        return refused("heavy",
+                       f"'{target}' 는 무거운 파이프라인이라 여기서 부를 수 없습니다 "
+                       "(사용자 동의를 받아 오케스트레이터가 실행합니다).")
+    if not runnable_now(spec, session_assets(session)):
+        return refused("preconditions_missing",
+                       f"'{target}' 는 지금 실행할 수 없습니다 — 필요한 자산: "
+                       f"{', '.join(spec.preconditions) or '없음'}")
+
+    copy = dict(session)
+    copy["_stagedUpdates"] = {}      # 읽기 전용 — 위임의 캐시·상태가 본 턴에 남지 않는다
+    token = _delegating.set(True)
+    try:
+        outcome = spec.entry(copy)
+        # 상대가 **도구**면 entry 는 말하지 않는다 — 문장은 표현 계층이 만든다.
+        # 이걸 빼면 도구로 내려간 상대(resume_diagnosis 등)를 부를 때마다 관찰이
+        # "문장을 내지 않았습니다"가 되어 위임이 조용히 쓸모없어진다.
+        # **문장이 필요한 호출자만 켠다**(render_reply) — 산출 데이터만 쓰는 호출자에게는
+        # 표현 계층을 도는 것이 순비용이고, 렌더가 실패하면 멀쩡한 데이터까지 잃는다.
+        if render_reply and spec.kind == "tool" and spec.render is not None and not outcome.reply:
+            outcome.reply, render_warnings = spec.render(outcome.data, dict(session))
+            outcome.warnings.extend(render_warnings)
+    except Exception as exc:      # noqa: BLE001 — 위임 실패가 호출자를 죽이지 않는다
+        return refused("entry_failed", f"'{target}' 실행이 실패했습니다: {exc}")
+    finally:
+        _delegating.reset(token)
+
+    trace.emit("delegate", f"에이전트 위임 호출: {target}", {
+        "target": target, "from": caller, "reply": (outcome.reply or "")[:200],
+        "dataKeys": sorted(outcome.data.keys()),
+    })
+    log.info("delegate → %s (%d자, data=%s)", target, len(outcome.reply or ""),
+             sorted(outcome.data.keys()))
+    return DelegateOutcome(
+        result=outcome,
+        warnings=[{"code": "delegated_warning", "message": f"{target}: {w.get('message', '')}"}
+                  for w in outcome.warnings],
+    )
+
+
 def delegate_tool(allowed: tuple[str, ...], *, name: str = "ask_agent") -> ToolSpec:
     """**에이전트가 다른 에이전트를 부르는 통로.** 세션(blackboard) 말고 직접 물어본다.
 
@@ -108,65 +201,20 @@ def delegate_tool(allowed: tuple[str, ...], *, name: str = "ask_agent") -> ToolS
 
     labels = ", ".join(allowed)
 
-    def refused(target: str, reason: str, message: str) -> tuple[str, dict[str, Any]]:
-        """거부 사유를 **코드**로 남긴다 — 관찰 문장은 바뀌어도 집계가 안 깨지게."""
-
-        trace.emit("delegate_refused", f"위임 거부: {target or '(빈 이름)'} — {reason}",
-                   {"target": target, "reason": reason})
-        return message, {}
-
     def run(state: dict[str, Any], arg: str) -> tuple[str, dict[str, Any]]:
-        from jobis_ai.agents import get_agent_registry
-        from jobis_ai.orchestrator.router import runnable_now, session_assets
-
         target = (arg or "").strip()
-        if target not in allowed:
-            return refused(target, "not_declared",
-                           f"'{target or '(빈 이름)'}' 에게는 물어볼 수 없습니다. "
-                           f"물어볼 수 있는 상대: {labels}")
-        if _delegating.get():
-            return refused(target, "nested", "위임 안에서 또 위임할 수 없습니다.")
+        call = call_agent_readonly(
+            state.get("_session") or {}, target, caller="agent_loop", allowed=allowed,
+            render_reply=True,      # 루프의 관찰은 문장이다
+        )
+        if call.refusal:
+            return call.message, {}      # 거부 사유는 call_agent_readonly 가 trace 에 남겼다
 
-        session = state.get("_session") or {}
-        spec = get_agent_registry().get(target)
-        if spec is None:
-            return refused(target, "unregistered", f"'{target}' 는 등록돼 있지 않습니다.")
-        if spec.heavy:
-            return refused(target, "heavy",
-                           f"'{target}' 는 무거운 파이프라인이라 여기서 부를 수 없습니다 "
-                           "(사용자 동의를 받아 오케스트레이터가 실행합니다).")
-        if not runnable_now(spec, session_assets(session)):
-            return refused(target, "preconditions_missing",
-                           f"'{target}' 는 지금 실행할 수 없습니다 — 필요한 자산: "
-                           f"{', '.join(spec.preconditions) or '없음'}")
-
-        token = _delegating.set(True)
-        try:
-            outcome = spec.entry(dict(session))      # 사본 — 상대가 우리 세션을 고치지 못한다
-            # 상대가 **도구**면 entry 는 말하지 않는다 — 문장은 표현 계층이 만든다.
-            # 이걸 빼면 도구로 내려간 상대(resume_diagnosis 등)를 부를 때마다 관찰이
-            # "문장을 내지 않았습니다"가 되어 위임이 조용히 쓸모없어진다.
-            if spec.kind == "tool" and spec.render is not None and not outcome.reply:
-                outcome.reply, render_warnings = spec.render(outcome.data, dict(session))
-                outcome.warnings.extend(render_warnings)
-        except Exception as exc:      # noqa: BLE001 — 위임 실패가 루프를 죽이지 않는다
-            return refused(target, "entry_failed", f"'{target}' 실행이 실패했습니다: {exc}")
-        finally:
-            _delegating.reset(token)
-
-        trace.emit("delegate", f"에이전트 위임 호출: {target}", {
-            "target": target, "reply": (outcome.reply or "")[:200],
-            "dataKeys": sorted(outcome.data.keys()),
-        })
-        log.info("delegate → %s (%d자, data=%s)", target, len(outcome.reply or ""),
-                 sorted(outcome.data.keys()))
-
+        outcome = call.result
         said = (outcome.reply or "").strip()
         observation = (f"{target} 의 답: {said[:600]}" if said
                        else f"{target} 는 문장을 내지 않았습니다(데이터: {sorted(outcome.data.keys())}).")
-        warnings = [{"code": "delegated_warning", "message": f"{target}: {w.get('message', '')}"}
-                    for w in outcome.warnings]
-        return observation, {TOOL_WARNINGS_KEY: warnings} if warnings else {}
+        return observation, {TOOL_WARNINGS_KEY: call.warnings} if call.warnings else {}
 
     return ToolSpec(
         name=name,

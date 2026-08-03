@@ -116,12 +116,16 @@ def test_change_proposal_reuses_matching_node_and_creates_the_rest():
     assert float(proposal.requirements[0].confidence) == 0.9
 
     # 계약 전체 검증(COMPLETED 응답으로 조립해도 통과해야 한다).
+    # COMPLETED 는 competencyProposal 을 요구한다 — legacy 만으로는 통과하지 않는다.
+    job = mapping.build_job_context(posting)
     AnalysisResponse(
         status="COMPLETED",
-        job=mapping.build_job_context(posting),
+        job=job,
         evaluation=mapping.build_evaluation(
             {"summary": "요약"}, {"status": "APPLY_NOW", "reasons": ["근거"]}, req_status),
         change_proposal=proposal,
+        competency_proposal=mapping.build_competency_proposal(
+            posting, req_status, [], job.primary_track or "BACKEND"),
     )
 
 
@@ -197,6 +201,28 @@ def test_chat_actions_translate_requested_assets_only():
     assert should_request is True
     assert {a.action for a in actions} == {"ATTACH_POSTING", "OPEN_STORAGE"}
     assert mapping.chat_actions([]) == (False, [])
+
+
+def test_open_map_is_offered_when_the_turn_produced_map_content():
+    """로드맵을 **채팅으로 읊지 않기 위한 유일한 레버**(백엔드 계약).
+
+    지도에 생긴 것을 말로 다시 나열하면 사용자는 같은 내용을 두 번 보고 지도를 열 이유가
+    없어진다. 채팅은 생겼다는 사실만 알린다.
+    """
+
+    _, actions = mapping.chat_actions([], ["fit_analysis", "application_plan"])
+    assert [a.action for a in actions] == ["OPEN_MAP"]
+    assert actions[0].label == "커리어 지도 보기"
+
+    _, roadmap = mapping.chat_actions([], ["roadmap_manager"])
+    assert [a.action for a in roadmap] == ["OPEN_MAP"]
+
+
+def test_open_map_follows_what_ran_not_what_was_said():
+    """실행 사실로만 정한다 — 답변 문장을 뒤져 '로드맵을 만든 것 같다'고 추측하지 않는다."""
+
+    assert mapping.chat_actions([], ["career_chat", "posting_analysis"]) == (False, [])
+    assert mapping.chat_actions([], []) == (False, [])
 
 
 def test_career_text_carries_fragments_and_completed_nodes():

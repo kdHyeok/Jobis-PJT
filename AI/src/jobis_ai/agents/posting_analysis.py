@@ -30,6 +30,7 @@ from jobis_ai.agents._common import (
     ensure_posting_text,
     grep_source_lines,
     others_this_turn,
+    search_postings_tool,
     upsert_posting_library,
 )
 from jobis_ai.agents.agent_loop import ToolSpec, run_agent_loop
@@ -286,6 +287,9 @@ _TOOLS = {
                  "블록마다 네 줄:\n프로젝트: 제목\n설명: 무엇을 만들고 무엇을 보여주나\n"
                  "커버: req-1, pref-3   (facts.requirements 의 ID 만)\n완료: 무엇이 되면 끝인가\n"
                  "여러 제안은 블록을 반복한다."),
+        # 바깥 세계로 나가는 유일한 도구. 앞의 둘은 세션 안(원문·제안)만 만지므로 이 담당은
+        # "이 공고가 뭐라고 적었나"를 넘어서는 질문에 답할 근거가 없었다.
+        search_postings_tool(),
     )
 }
 

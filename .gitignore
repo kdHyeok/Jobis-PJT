@@ -5,6 +5,8 @@ dist/
 .vite/
 .local/
 *.log
+# 로컬 서버 기동 로그 — Start-Process 가 stderr 를 따로 뺀다
+*.log.err
 
 # node
 node_modules/
