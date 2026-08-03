@@ -1,3 +1,5 @@
-# 채용공고 크롤러는 표준 라이브러리만 사용합니다.
-# 공개 취업 후기 크롤러는 Selenium과 헤드리스 Chrome을 사용합니다.
-selenium>=4.20,<5
+# 채용공고 크롤러·통합·SQL 생성은 표준 라이브러리만 사용합니다.
+# 이미지형 공고 OCR(enrich_ocr.py)에만 아래 패키지가 필요합니다.
+paddlepaddle>=3.0
+paddleocr>=3.0
+opencv-python-headless>=4.10
