@@ -17,7 +17,12 @@ import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
 import AnalysisProgressWheel from "@/components/AnalysisProgressWheel.vue";
-import type { AnalysisJob, PostingDetail, ProposedNode } from "@/types";
+import type {
+  AlternativePosting,
+  AnalysisJob,
+  AnalyzedCompetency,
+  PostingDetail,
+} from "@/types";
 
 const route = useRoute();
 const router = useRouter();
@@ -28,30 +33,56 @@ const actionLoading = ref(false);
 const error = ref("");
 const selectedAnswer = ref("");
 const visibleQuestionId = ref<string | null>(null);
+const alternatives = ref<AlternativePosting[]>([]);
+const alternativesLoading = ref(false);
+const alternativesLoaded = ref(false);
 let pollTimer: number | null = null;
 
 const postingId = computed(() => String(route.params.postingId));
-const nodeByRef = computed(
+const reuseMessage = computed(() =>
+  route.query.reused === "1"
+    ? String(
+        route.query.reuseMessage ??
+          "같은 공고의 기존 분석을 재사용해 현재 준비도만 다시 계산합니다.",
+      )
+    : "",
+);
+const competencyByRef = computed(
   () =>
     new Map(
-      (job.value?.proposal?.nodes ?? []).map((node) => [node.ref, node] as const),
+      (job.value?.proposal?.competencies ?? []).map(
+        (competency) => [competency.ref, competency] as const,
+      ),
     ),
+);
+const roadmapCompetencies = computed(() =>
+  (job.value?.proposal?.competencies ?? []).filter(
+    (competency) => competency.roadmapEligible !== false,
+  ),
+);
+const qualitativeCompetencies = computed(() =>
+  (job.value?.proposal?.competencies ?? []).filter(
+    (competency) => competency.roadmapEligible === false,
+  ),
 );
 const required = computed(() =>
   (job.value?.proposal?.requirements ?? []).filter(
-    (requirement) => requirement.kind === "REQUIRED",
+    (requirement) =>
+      requirement.relation === "REQUIRED" &&
+      competencyByRef.value.get(requirement.competencyRef)?.roadmapEligible !== false,
   ),
 );
 const preferred = computed(() =>
   (job.value?.proposal?.requirements ?? []).filter(
-    (requirement) => requirement.kind === "PREFERRED",
+    (requirement) =>
+      requirement.relation === "PREFERRED" &&
+      competencyByRef.value.get(requirement.competencyRef)?.roadmapEligible !== false,
   ),
 );
-const reused = computed(() =>
-  (job.value?.proposal?.nodes ?? []).filter((node) => node.action === "REUSE"),
-);
-const created = computed(() =>
-  (job.value?.proposal?.nodes ?? []).filter((node) => node.action === "CREATE"),
+const responsibilities = computed(() =>
+  (job.value?.proposal?.requirements ?? []).filter(
+    (requirement) => requirement.relation === "RESPONSIBILITY",
+  ),
 );
 
 function verdictLabel(value?: string) {
@@ -61,13 +92,13 @@ function verdictLabel(value?: string) {
   return "분석 결과";
 }
 
-function nodeTitle(ref: string) {
-  return nodeByRef.value.get(ref)?.title ?? ref;
+function competencyTitle(ref: string) {
+  return competencyByRef.value.get(ref)?.title ?? ref;
 }
 
-function nodeStatus(node: ProposedNode | undefined) {
-  if (!node) return "확인 필요";
-  return node.action === "REUSE" ? "현재 지도에서 재사용" : "새 경로로 제안";
+function competencyStatus(competency: AnalyzedCompetency | undefined) {
+  if (!competency) return "확인 필요";
+  return `${competency.stage} 단계 · 요구 수준 ${competency.requiredLevel}`;
 }
 
 async function load() {
@@ -81,11 +112,26 @@ async function load() {
       visibleQuestionId.value = job.value?.pendingQuestion?.id ?? null;
       selectedAnswer.value = "";
     }
+    if (job.value?.status === "SUCCEEDED" && !alternativesLoaded.value) {
+      void loadAlternatives();
+    }
     schedulePoll();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "공고를 불러오지 못했습니다.";
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadAlternatives() {
+  alternativesLoading.value = true;
+  try {
+    alternatives.value = await api.alternativePostings(postingId.value);
+    alternativesLoaded.value = true;
+  } catch {
+    alternatives.value = [];
+  } finally {
+    alternativesLoading.value = false;
   }
 }
 
@@ -136,7 +182,7 @@ async function approve() {
     await api.approveAnalysis(job.value.id);
     await router.push({ name: "map", query: { posting: postingId.value } });
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "지도에 반영하지 못했습니다.";
+    error.value = cause instanceof Error ? cause.message : "목표 공고에 추가하지 못했습니다.";
   } finally {
     actionLoading.value = false;
   }
@@ -170,6 +216,13 @@ onBeforeUnmount(() => {
       <LoaderCircle class="spin" :size="24" /> 공고와 분석 결과를 불러오는 중입니다.
     </div>
     <template v-else-if="posting">
+      <section v-if="reuseMessage" class="posting-reuse-notice">
+        <RefreshCw :size="18" />
+        <div>
+          <strong>기존 공고 분석을 재사용합니다</strong>
+          <p>{{ reuseMessage }}</p>
+        </div>
+      </section>
       <section class="posting-detail-hero">
         <div class="posting-company-mark">
           {{ posting.companyName?.slice(0, 1) ?? "?" }}
@@ -181,6 +234,12 @@ onBeforeUnmount(() => {
             {{ posting.experienceText ?? "경력 조건 확인 중" }}
             <template v-if="posting.employmentType"> · {{ posting.employmentType }}</template>
           </p>
+          <span
+            v-if="['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')"
+            class="posting-lifecycle posting-lifecycle--closed"
+          >
+            모집 마감 · 학습 참고용
+          </span>
         </div>
         <a
           v-if="posting.sourceUrl"
@@ -194,6 +253,13 @@ onBeforeUnmount(() => {
       </section>
 
       <p v-if="error" class="form-error">{{ error }}</p>
+      <p
+        v-if="['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')"
+        class="posting-closed-notice"
+      >
+        마감된 공고입니다. 분석 결과는 보관되지만 현재 지원 목표로 추가할 수
+        없으며, 아래 대체 공고를 함께 확인할 수 있습니다.
+      </p>
 
       <section
         v-if="job && ['QUEUED', 'RUNNING'].includes(job.status)"
@@ -203,6 +269,8 @@ onBeforeUnmount(() => {
           :status="job.status"
           :stage="job.stage"
           :stage-message="job.stageMessage"
+          :queue-position="job.queuePosition"
+          :events="job.progressEvents"
         />
         <p class="analysis-progress-note">
           이 페이지를 나가도 작업은 계속되며 완료되면 알림으로 알려드립니다.
@@ -218,8 +286,22 @@ onBeforeUnmount(() => {
           :status="job.status"
           :stage="job.stage"
           :stage-message="job.stageMessage"
+          :queue-position="job.queuePosition"
+          :events="job.progressEvents"
         />
         <div class="analysis-question-panel__body">
+          <details
+            v-if="job.questionHistory?.length"
+            class="analysis-question-history"
+          >
+            <summary>이전 확인 답변 {{ job.questionHistory?.length ?? 0 }}개</summary>
+            <ol>
+              <li v-for="item in job.questionHistory ?? []" :key="item.id">
+                <strong>{{ item.text }}</strong>
+                <span>{{ item.answerValue }}</span>
+              </li>
+            </ol>
+          </details>
           <p class="eyebrow">
             QUICK CHECK · {{ job.pendingQuestion.ordinal }}/3
           </p>
@@ -276,7 +358,7 @@ onBeforeUnmount(() => {
       <template v-else-if="job?.status === 'SUCCEEDED'">
         <section class="evaluation-banner">
           <div>
-            <p class="eyebrow">J.O.B.I.S EVALUATION</p>
+            <p class="eyebrow">JOBISS EVALUATION</p>
             <span>{{ verdictLabel(job.result?.evaluation?.verdict) }}</span>
             <h2>{{ job.result?.evaluation?.summary }}</h2>
           </div>
@@ -300,15 +382,82 @@ onBeforeUnmount(() => {
 
           <article class="proposal-summary-card">
             <header>
-              <h2>지도 변경 요약</h2>
+              <h2>분석 데이터 요약</h2>
             </header>
             <div>
-              <span><strong>{{ reused.length }}</strong> 기존 역량 재사용</span>
-              <span><strong>{{ created.length }}</strong> 새 노드 제안</span>
+              <span><strong>{{ job.proposal?.competencies.length ?? 0 }}</strong> 정규화된 역량</span>
               <span><strong>{{ required.length }}</strong> 필수 조건</span>
               <span><strong>{{ preferred.length }}</strong> 우대 조건</span>
+              <span><strong>{{ responsibilities.length }}</strong> 주요 업무</span>
             </div>
           </article>
+        </section>
+
+        <section
+          v-if="
+            job.result?.evaluation?.verdict === 'ALTERNATIVE_FIRST' ||
+            alternatives.length
+          "
+          class="alternative-postings-panel"
+        >
+          <header>
+            <div>
+              <p class="eyebrow">REAL ALTERNATIVES</p>
+              <h2>지금 도전하기 가까운 실제 공고</h2>
+              <p>
+                서비스에 분석된 활성 공고 중 같은 직무와 검증된 역량을
+                기준으로 계산했습니다.
+              </p>
+            </div>
+            <button
+              class="press-button press-button--ghost"
+              type="button"
+              :disabled="alternativesLoading"
+              @click="loadAlternatives"
+            >
+              <RefreshCw :size="16" /> 추천 새로고침
+            </button>
+          </header>
+          <div v-if="alternativesLoading" class="notification-empty">
+            <LoaderCircle class="spin" :size="20" /> 실제 공고를 비교하고 있어요.
+          </div>
+          <div v-else-if="alternatives.length" class="alternative-posting-list">
+            <article v-for="item in alternatives" :key="item.id">
+              <div class="alternative-score">
+                <strong>{{ item.matchScore }}</strong>
+                <small>적합도</small>
+              </div>
+              <div>
+                <span>{{ item.companyName }}</span>
+                <h3>{{ item.roleTitle }}</h3>
+                <p>{{ item.reason }}</p>
+                <small>
+                  필수 {{ item.matchedRequired }}/{{ item.required }} · 우대
+                  {{ item.matchedPreferred }}/{{ item.preferred }}
+                  <template v-if="item.experienceText">
+                    · {{ item.experienceText }}
+                  </template>
+                </small>
+                <p v-if="item.gaps.length" class="alternative-gaps">
+                  보완: {{ item.gaps.join(", ") }}
+                </p>
+              </div>
+              <a
+                v-if="item.sourceUrl"
+                class="icon-button"
+                :href="item.sourceUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="원본 공고 열기"
+              >
+                <ExternalLink :size="18" />
+              </a>
+            </article>
+          </div>
+          <p v-else class="notification-empty">
+            아직 비교할 수 있는 같은 직무의 다른 활성 공고가 없습니다.
+            공고가 더 분석되면 이곳에 실제 후보가 나타납니다.
+          </p>
         </section>
 
         <section class="requirement-matrix">
@@ -323,14 +472,14 @@ onBeforeUnmount(() => {
               <h3>필수 조건</h3>
               <div
                 v-for="requirement in required"
-                :key="`${requirement.nodeRef}-required`"
+                :key="`${requirement.competencyRef}-required`"
                 class="requirement-detail-row"
               >
                 <span class="requirement-pill requirement-pill--required">필수</span>
                 <div>
-                  <strong>{{ nodeTitle(requirement.nodeRef) }}</strong>
+                  <strong>{{ competencyTitle(requirement.competencyRef) }}</strong>
                   <p>{{ requirement.sourceText }}</p>
-                  <small>{{ nodeStatus(nodeByRef.get(requirement.nodeRef)) }}</small>
+                  <small>{{ competencyStatus(competencyByRef.get(requirement.competencyRef)) }}</small>
                 </div>
                 <ChevronRight :size="17" />
               </div>
@@ -342,14 +491,14 @@ onBeforeUnmount(() => {
               <h3>우대 조건</h3>
               <div
                 v-for="requirement in preferred"
-                :key="`${requirement.nodeRef}-preferred`"
+                :key="`${requirement.competencyRef}-preferred`"
                 class="requirement-detail-row"
               >
                 <span class="requirement-pill requirement-pill--preferred">우대</span>
                 <div>
-                  <strong>{{ nodeTitle(requirement.nodeRef) }}</strong>
+                  <strong>{{ competencyTitle(requirement.competencyRef) }}</strong>
                   <p>{{ requirement.sourceText }}</p>
-                  <small>{{ nodeStatus(nodeByRef.get(requirement.nodeRef)) }}</small>
+                  <small>{{ competencyStatus(competencyByRef.get(requirement.competencyRef)) }}</small>
                 </div>
                 <ChevronRight :size="17" />
               </div>
@@ -363,21 +512,92 @@ onBeforeUnmount(() => {
         <section class="proposal-path-preview">
           <header>
             <div>
-              <p class="eyebrow">GRAPH CHANGE</p>
-              <h2>추가되거나 연결될 경로</h2>
+              <p class="eyebrow">COMPETENCY DATA</p>
+              <h2>로드맵 제작에 사용할 역량</h2>
             </div>
           </header>
           <div class="proposal-node-list">
-            <article v-for="node in job.proposal?.nodes ?? []" :key="node.ref">
-              <span :class="`proposal-action proposal-action--${node.action.toLowerCase()}`">
-                {{ node.action === "REUSE" ? "재사용" : "새 경로" }}
+            <article
+              v-for="competency in roadmapCompetencies"
+              :key="competency.ref"
+            >
+              <span class="proposal-action proposal-action--create">
+                {{ competency.stage }}
               </span>
               <div>
-                <strong>{{ node.title }}</strong>
-                <p>{{ node.scopeDefinition }}</p>
-                <small>{{ node.domain }} · {{ node.kind }} · Level {{ node.level }}</small>
+                <strong>{{ competency.title }}</strong>
+                <p>{{ competency.scopeDefinition }}</p>
+                <small>
+                  {{ competency.domain }} · {{ competency.kind }} · 요구 수준
+                  {{ competency.requiredLevel }}
+                </small>
+                <small v-if="competency.verificationMethod">
+                  검증: {{ competency.verificationMethod }}
+                </small>
               </div>
               <ArrowRight :size="17" />
+            </article>
+          </div>
+        </section>
+
+        <section
+          v-if="qualitativeCompetencies.length"
+          class="proposal-path-preview qualitative-condition-panel"
+        >
+          <header>
+            <div>
+              <p class="eyebrow">QUALITATIVE CONDITIONS</p>
+              <h2>정성적 채용 조건</h2>
+            </div>
+          </header>
+          <p>
+            태도와 조직 적합성에 관한 참고 조건입니다. 로드맵 단계와 준비도
+            계산에는 포함하지 않습니다.
+          </p>
+          <div class="proposal-node-list">
+            <article
+              v-for="competency in qualitativeCompetencies"
+              :key="competency.ref"
+            >
+              <span class="proposal-action">참고</span>
+              <div>
+                <strong>{{ competency.title }}</strong>
+                <p>{{ competency.scopeDefinition }}</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section v-if="job.proposal?.targetProject" class="proposal-path-preview">
+          <header>
+            <div>
+              <p class="eyebrow">TARGET PROJECT</p>
+              <h2>{{ job.proposal.targetProject.title }}</h2>
+            </div>
+          </header>
+          <p>{{ job.proposal.targetProject.objective }}</p>
+          <div class="requirement-columns">
+            <article>
+              <h3>필수 결과물</h3>
+              <ul>
+                <li
+                  v-for="item in job.proposal.targetProject.deliverables"
+                  :key="item"
+                >
+                  {{ item }}
+                </li>
+              </ul>
+            </article>
+            <article>
+              <h3>완료 기준</h3>
+              <ul>
+                <li
+                  v-for="item in job.proposal.targetProject.acceptanceCriteria"
+                  :key="item"
+                >
+                  {{ item }}
+                </li>
+              </ul>
             </article>
           </div>
         </section>
@@ -389,8 +609,8 @@ onBeforeUnmount(() => {
           <div>
             <Clock3 :size="20" />
             <span>
-              <strong>아직 커리어 지도에는 반영되지 않았습니다</strong>
-              <small>내용을 검토한 뒤 직접 결정해 주세요.</small>
+              <strong>아직 목표 로드맵에는 포함되지 않았습니다</strong>
+              <small>추가하면 기존 지도는 유지되고 새 초안이 준비됩니다.</small>
             </span>
           </div>
           <button
@@ -404,17 +624,25 @@ onBeforeUnmount(() => {
           <button
             class="press-button press-button--primary"
             type="button"
-            :disabled="actionLoading"
+            :disabled="
+              actionLoading ||
+              ['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')
+            "
+            :title="
+              ['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')
+                ? '마감된 공고는 목표로 추가할 수 없습니다.'
+                : undefined
+            "
             @click="approve"
           >
-            <Check :size="18" /> 검토했고 지도에 반영
+            <Check :size="18" /> 목표 공고에 추가
           </button>
         </section>
         <section
           v-else-if="job.changeSetStatus === 'APPROVED'"
           class="analysis-resolution analysis-resolution--applied"
         >
-          <Check :size="18" /> 이 공고의 경로가 커리어 지도에 반영되었습니다.
+          <Check :size="18" /> 이 공고가 목표 목록에 추가되었습니다.
           <RouterLink class="text-action" :to="{ name: 'map', query: { posting: posting.id } }">
             지도에서 보기 <ArrowRight :size="14" />
           </RouterLink>

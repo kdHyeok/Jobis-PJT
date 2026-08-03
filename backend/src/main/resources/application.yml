@@ -39,6 +39,7 @@ jobiss:
     worker-enabled: ${AI_WORKER_ENABLED:true}
     poll-delay-ms: ${AI_POLL_DELAY_MS:3000}
     request-timeout-seconds: ${AI_HTTP_TIMEOUT_SECONDS:660}
+    max-concurrent-analyses: ${AI_MAX_CONCURRENT_ANALYSES:2}
 
 logging:
   pattern:

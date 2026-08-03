@@ -2365,3 +2365,87 @@ LLM, 어휘·검증은 룰.
 **출처**: `orchestrator/chat.py`(저확신 분기·턴 끝 보존 블록) · `docs/개선사항.md`
 
 ---
+
+### D125 (08-03) 추천 공고를 순번·이름으로 지목해 판정한다 — 프로토타입 2.0.0 registry 이식
+
+**결정**: `job_recommend` 추천 목록에 표현 계층이 **번호를 코드로** 매기고
+(`render_job_recommend`), `fit_analysis.targets` 가 그 순번("2")·회사명·제목으로 추천 공고를
+결정론 매칭(`_match_recommendation`)해 URL 을 그 자리에서 수집(`ensure_posting_text` 재사용),
+활성 공고로 굳혀 판정한다. manifest `targets` 정의에 추천 목록·순번을 추가(어휘만, §3-1).
+순번은 **추천 목록에만** 해석한다 — 라이브러리에도 받으면 같은 "2"가 두 목록을 가리킨다.
+
+**왜**: `feat/ai/prototype_2.0.0` 분석에서 확인한 실제 격차 — 프로토타입은 검색 결과에
+`_register_postings` 가 #번호를 부여해 registry 에 누적하고 `select_posting(ref)` 이 코드로
+인출한다(번호를 코드가 매기고 코드가 푼다). 본체는 추천이 `recommendations` 자산에만 남아
+"추천해준 2번째 공고 분석해줘"가 성립하지 않았다(`_match_library` 는 posting_library 회사명만,
+순번 지목은 이력서 축 D119 에만 있었다).
+
+**측정**: 유닛 6건 신규(전체 638 통과). manifest 변경 → §3-6 재측정:
+`evals/planner_baseline_rec_targets.json` (52케이스×3회, claude_code/sonnet) —
+**정확 1.0000 · ask 1.0 · 안정 1.0000 · stable_wrong 0 · fallback 0.0192**.
+직전 기준선(08-01 promoted_agents)과 같거나 위 — 어휘 추가가 기존 케이스를 흐리지 않았다.
+
+**출처**: `agents/fit_analysis.py` · `agents/tool_render.py` · `agents/__init__.py` ·
+`docs/멀티에이전트-프로토타입-비교분석.md`(1.0.0 축) · 프로토타입 `agent/graph.py::_register_postings`
+
+---
+
+### D126 (08-03) 지목 해석 실패는 강행이 아니라 되묻기다
+
+**결정**: `fit_analysis`(공고·이력서 축)와 `resume_diagnosis` 에서 지목(`targets`·
+`resumeTargets`)을 해석하지 못하면 — 라이브러리·추천 어디에도 없거나, 추천 URL 수집 실패,
+URL 없음 — **활성 자산으로 강행하지 않고** 기억하는 후보 목록과 함께 되묻는다
+(`status: needs_input`, 문장은 render 가 결정론 조립). `switch_active_resume` 는
+(세션, 갱신, 찾았는가) 3-튜플을 돌려주도록 계약을 바꿨다.
+
+**왜**: 기존 동작은 `fit_target_not_found` 경고만 남기고 활성 공고를 판정했다 —
+"없는회사 공고 분석해줘"에 다른 회사 판정이 나가고, 사용자는 그것이 지목한 공고의 판정인 줄
+안다. §2-1(판정 못 하면 되묻는다)의 지목 판 적용이고, 프로토타입 2.0.0 `select_posting` 이
+실패 시 "선택 가능한 번호: #1, #3"을 돌려주고 시스템 프롬프트가 "확신 없으면 되물어라"를
+명시한 것과 같은 규율이다. 되묻기 문장에 번호를 매기지 않는다 — 후보 목록은 라이브러리+추천
+합본이라 여기 번호를 매기면 순번 해석(D125, 추천 전용)과 어긋난다.
+
+**측정**: D125 와 같은 커밋 — 유닛에 포함(되묻기 3경로: not_found·fetch_failed·no_url),
+기존 테스트 2건을 새 계약으로 갱신(강행 검증 → 되묻기 검증, 갱신 근거는 이 항목).
+
+**출처**: `agents/fit_analysis.py::_switch_active/_needs_input` · `agents/_common.py::switch_active_resume` ·
+`agents/resume_diagnosis.py` · `agents/tool_render.py::render_fit_analysis`
+
+---
+
+### D127 (08-03) 턴 trace 를 파일로 남긴다 (opt-in) — 프로토타입 2.0.0 런별 trace 이식
+
+**결정**: 환경변수 `JOBIS_TRACE_DIR` 이 설정되면 `trace.recording()` 종료 시 그 턴의
+이벤트 전부를 `<dir>/<시각>-<난수>.json` 하나로 남긴다. 중첩 레코더는 부모가 이벤트를 다
+받으므로 최상위 1회만 쓴다. 쓰기 실패는 삼킨다(관찰이 실행을 막지 않는다 — sink 와 같은 규약).
+기본은 꺼짐 — 평가 하네스·테스트가 파일을 쏟지 않는다.
+
+**왜**: 본체 trace 는 in-memory + SSE 중계뿐이라 턴이 끝나면 소멸했다 — "어제 그 턴에 왜 이
+에이전트가 돌았나"에 답할 물증이 없었다. 프로토타입 2.0.0 은 매 실행을
+`traces/<시각>-<run_id>.json` 으로 남겨 정상·실패·max_steps 케이스가 실제로 물증으로 남아
+있었다(`traces/samples/` 4건). 이벤트 스키마는 기존 trace 그대로 쓴다 — 새 형식을 만들면
+관찰 UI 와 파일이 갈린다.
+
+**측정**: 유닛 3건 신규(`test_trace_persist.py` — 영속·중첩 1회·opt-in/빈 턴 무파일).
+
+**출처**: `trace.py::_persist` · 프로토타입 `agent/graph.py::run_agent`(trace 저장부)
+
+---
+
+### D128 (08-03) v2bridge 세션 상태 조회를 연다 — 프로토타입 2.0.0 GET /session 이식
+
+**결정**: `GET /v1/sessions/{conversation_id}` (시크릿 필요, 읽기 전용) — 활성 이력서 라벨·
+이력서/공고 라이브러리·추천 목록·판정 등급·턴 수를 요약해 돌려준다. 판단하지 않는다 —
+세션 자산의 목록·개수를 옮겨 적을 뿐이다. 없는 세션은 404 가 아니라 빈 요약
+(`exists: false`) — 백엔드가 폴링해도 오류 로그가 쌓이지 않게.
+
+**왜**: "이 세션이 지금 무엇을 기억하나"를 보려면 `sessions.sqlite3` 을 직접 열어야 했다.
+프로토타입 2.0.0 의 `GET /session/{id}`(등록 공고 목록·턴 수·이력서 로드 여부)가 같은 자리다.
+D125(추천 지목)로 세션이 기억하는 목록이 대화 동작을 가르게 되면서, 그 목록을 밖에서
+확인할 창이 필요해졌다.
+
+**측정**: 유닛 3건 신규(`test_v2bridge_contract.py` — 인증·자산 요약·없는 세션).
+
+**출처**: `v2bridge/app.py` · `v2bridge/service.py::session_state` · 프로토타입 `api/main.py::state`
+
+---

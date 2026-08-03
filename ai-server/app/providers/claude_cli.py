@@ -9,24 +9,35 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
+from app.assessment_flow import (
+    assemble_assessment_response,
+    next_question_kind,
+)
 from app.models import (
     AnalysisRequest,
-    AnalysisResponse,
+    AssessmentAnswerEvaluation,
+    AssessmentQuestion,
     CareerExtractionRequest,
     CareerExtractionResponse,
     ChatRequest,
     ChatResponse,
     ClarificationDecision,
+    CompetencyAssessmentRequest,
+    CompetencyAssessmentResponse,
     CompletedAnalysisResponse,
+    Evaluation,
     EvidenceVerificationRequest,
     EvidenceVerificationResponse,
 )
 from app.prompts import (
+    assessment_grading_prompt,
+    assessment_question_prompt,
     career_extraction_prompt,
     chat_prompt,
     evidence_prompt,
     posting_analysis_prompt,
     posting_clarification_prompt,
+    shared_analysis_evaluation_prompt,
 )
 from app.providers.base import (
     AnalysisProvider,
@@ -53,29 +64,38 @@ class ClaudeCliProvider(AnalysisProvider):
         self._progress_interval = max(1.0, settings.progress_log_interval_seconds)
         self._semaphore = asyncio.Semaphore(settings.max_concurrency)
 
-    async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
-        request_id = str(request.analysis_job_id)
-        if request.question_count < 3:
-            decision = await self._ask(
-                posting_clarification_prompt(request, include_schema=False),
-                ClarificationDecision,
-                operation="posting_analysis",
-                request_id=request_id,
-                phase="clarification",
-            )
-            if decision.status == "NEEDS_INPUT":
-                return AnalysisResponse(
-                    status="NEEDS_INPUT",
-                    question=decision.question,
-                )
-        completed = await self._ask(
+    async def decide_clarification(
+        self, request: AnalysisRequest
+    ) -> ClarificationDecision:
+        return await self._ask(
+            posting_clarification_prompt(request, include_schema=False),
+            ClarificationDecision,
+            operation="posting_analysis",
+            request_id=str(request.analysis_job_id),
+            phase="clarification",
+        )
+
+    async def complete_posting_analysis(
+        self, request: AnalysisRequest
+    ) -> CompletedAnalysisResponse:
+        return await self._ask(
             posting_analysis_prompt(request, include_schema=False),
             CompletedAnalysisResponse,
             operation="posting_analysis",
-            request_id=request_id,
+            request_id=str(request.analysis_job_id),
             phase="final_proposal",
         )
-        return completed.to_analysis_response()
+
+    async def evaluate_shared_analysis(
+        self, request: AnalysisRequest
+    ) -> Evaluation:
+        return await self._ask(
+            shared_analysis_evaluation_prompt(request, include_schema=False),
+            Evaluation,
+            operation="posting_analysis",
+            request_id=str(request.analysis_job_id),
+            phase="fit_evaluation",
+        )
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         return await self._ask(
@@ -107,6 +127,35 @@ class ClaudeCliProvider(AnalysisProvider):
             request_id=str(request.source_id),
             phase="extraction",
         )
+
+    async def assess_competency(
+        self, request: CompetencyAssessmentRequest
+    ) -> CompetencyAssessmentResponse:
+        evaluation = None
+        if request.turns and request.turns[-1].answer_text:
+            evaluation = await self._ask(
+                assessment_grading_prompt(request, include_schema=False),
+                AssessmentAnswerEvaluation,
+                operation="competency_assessment",
+                request_id=str(request.session_id),
+                phase="independent_grading",
+            )
+        kind = next_question_kind(request, evaluation)
+        question = None
+        if kind is not None:
+            question = await self._ask(
+                assessment_question_prompt(
+                    request,
+                    kind,
+                    evaluation,
+                    include_schema=False,
+                ),
+                AssessmentQuestion,
+                operation="competency_assessment",
+                request_id=str(request.session_id),
+                phase="question_generation",
+            )
+        return assemble_assessment_response(evaluation, question)
 
     async def _ask(
         self,

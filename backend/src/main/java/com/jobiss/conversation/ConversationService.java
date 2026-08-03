@@ -159,13 +159,15 @@ public class ConversationService {
                 var metadata = objectMapper.createObjectNode();
                 metadata.put("analysisJobId", created.analysisJobId().toString());
                 metadata.put("postingId", created.postingId().toString());
-                metadata.put("status", "QUEUED");
+                metadata.put("status", created.status());
+                metadata.put("reusedAnalysis", created.reusedAnalysis());
                 return insertMessage(
                         jdbc,
                         userId,
                         conversationId,
                         "ASSISTANT",
                         "ANALYSIS_STATUS",
+                        created.reusedAnalysis() ? created.reuseMessage() :
                         "공고를 저장했고 백그라운드 분석을 시작했어요. 다른 대화를 계속해도 완료되면 알려드릴게요.",
                         created.postingId(),
                         created.analysisJobId(),
@@ -214,6 +216,21 @@ public class ConversationService {
                     .param("conversationId", conversationId)
                     .update();
             if (updated == 0) {
+                throw notFound();
+            }
+            return null;
+        });
+    }
+
+    public void delete(UUID userId, UUID conversationId) {
+        rls.write(userId, jdbc -> {
+            int deleted = jdbc.sql("""
+                            delete from conversations
+                            where id = :conversationId
+                            """)
+                    .param("conversationId", conversationId)
+                    .update();
+            if (deleted == 0) {
                 throw notFound();
             }
             return null;

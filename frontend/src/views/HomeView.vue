@@ -10,15 +10,11 @@ import {
   LoaderCircle,
   Map,
   MessageCircle,
+  Sparkles,
 } from "@lucide/vue";
 import { computed, onMounted, ref } from "vue";
 
 import { api } from "@/api";
-import {
-  showcaseCareerMap,
-  showcaseNotifications,
-  showcasePostings,
-} from "@/demo/showcase-data";
 import { session } from "@/session";
 import type {
   AnalysisJob,
@@ -95,15 +91,6 @@ async function load() {
     jobs.value = analysisItems;
     sources.value = sourceItems;
     notifications.value = notificationPage.items.slice(0, 5);
-    if (map.nodes.length < 8) {
-      careerMap.value = structuredClone(showcaseCareerMap);
-    }
-    if (!postingItems.length) {
-      postings.value = structuredClone(showcasePostings);
-    }
-    if (notifications.value.length < 3) {
-      notifications.value = structuredClone(showcaseNotifications);
-    }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "홈을 불러오지 못했습니다.";
   } finally {
@@ -133,7 +120,7 @@ onMounted(load);
           </p>
         </div>
         <div class="home-hero__mark">
-          <img src="/img/jobi-mascot.png" alt="J.O.B.I.S AI 커리어 도우미 자비" />
+          <Sparkles :size="34" />
         </div>
       </section>
 

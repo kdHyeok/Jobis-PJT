@@ -1,17 +1,32 @@
 package com.jobiss.analysis;
 
 import com.jobiss.db.RlsTransactionExecutor;
+import com.jobiss.config.JobissProperties;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 @ConditionalOnProperty(name = "jobiss.ai.worker-enabled", havingValue = "true")
@@ -23,31 +38,91 @@ public class AnalysisWorker {
     private final RlsTransactionExecutor rls;
     private final AiAnalysisClient aiClient;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final String workerId;
+    private final int maxConcurrentAnalyses;
+    private final ExecutorService executor;
+    private final AtomicInteger activeAnalyses = new AtomicInteger();
 
     public AnalysisWorker(
             JdbcClient jdbcClient,
             RlsTransactionExecutor rls,
             AiAnalysisClient aiClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
+            JobissProperties properties
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
         this.workerId = hostName() + "-" + UUID.randomUUID();
+        this.maxConcurrentAnalyses = Math.max(
+                1,
+                Math.min(properties.ai().maxConcurrentAnalyses(), 8)
+        );
+        this.executor = Executors.newFixedThreadPool(
+                maxConcurrentAnalyses,
+                runnable -> {
+                    Thread thread = new Thread(runnable);
+                    thread.setName("jobiss-analysis-" + thread.getId());
+                    thread.setDaemon(true);
+                    return thread;
+                }
+        );
     }
 
     @Scheduled(fixedDelayString = "${jobiss.ai.poll-delay-ms:3000}")
-    public void processOne() {
-        ClaimedJob job = claim();
-        if (job == null) {
-            return;
+    public void dispatchAvailable() {
+        while (activeAnalyses.get() < maxConcurrentAnalyses) {
+            ClaimedJob job = claim();
+            if (job == null) {
+                break;
+            }
+            activeAnalyses.incrementAndGet();
+            executor.submit(() -> {
+                try {
+                    process(job);
+                } finally {
+                    activeAnalyses.decrementAndGet();
+                }
+            });
         }
+    }
 
+    private void process(ClaimedJob job) {
+        AnalysisCacheKey cacheKey = null;
+        boolean ownsAnalysisLease = false;
         try {
             AiContracts.AnalysisRequest request = loadRequest(job);
-            AiContracts.AnalysisResponse response = aiClient.analyze(request);
+            AiContracts.AnalysisResponse response;
+            if (request.sharedAnalysis() != null) {
+                response = reuseSharedAnalysis(job, request.sharedAnalysis());
+            } else {
+                cacheKey = analysisCacheKey(request);
+                ownsAnalysisLease = tryAcquireAnalysisLease(cacheKey, job.id());
+                if (!ownsAnalysisLease) {
+                    updateStage(
+                            job,
+                            "WAITING_FOR_SHARED_ANALYSIS",
+                            "같은 공고 분석이 진행 중이라 결과를 기다리고 있어요"
+                    );
+                    SharedAnalysisWait wait = awaitSharedAnalysis(job, cacheKey);
+                    ownsAnalysisLease = wait.ownsLease();
+                    response = wait.sharedAnalysis() == null
+                            ? aiClient.analyze(
+                                    request,
+                                    event -> recordProgress(job, event)
+                            )
+                            : reuseSharedAnalysis(job, wait.sharedAnalysis());
+                } else {
+                    response = aiClient.analyze(
+                            request,
+                            event -> recordProgress(job, event)
+                    );
+                }
+            }
             if (response == null || response.status() == null) {
                 throw new IllegalStateException("AI response did not include an outcome status");
             }
@@ -58,25 +133,34 @@ public class AnalysisWorker {
             if (!"COMPLETED".equals(response.status())
                     || response.job() == null
                     || response.evaluation() == null
-                    || response.changeProposal() == null) {
-                throw new IllegalStateException("AI response did not include a change proposal");
+                    || response.competencyProposal() == null) {
+                throw new IllegalStateException("AI response did not include a competency proposal");
             }
-            updateStage(job, "VALIDATING", "분석 결과와 커리어 지도 변경안을 검증하고 있어요");
-            complete(job, response);
+            updateStage(job, "VALIDATING", "추출한 역량과 공고 조건을 검증하고 있어요");
+            complete(job, request, response);
         } catch (Exception exception) {
             log.warn("Analysis job {} failed: {}", job.id(), exception.getMessage());
             fail(job, exception);
+        } finally {
+            if (ownsAnalysisLease && cacheKey != null) {
+                releaseAnalysisLease(cacheKey, job.id());
+            }
         }
     }
 
+    @PreDestroy
+    void shutdown() {
+        executor.shutdown();
+    }
+
     private ClaimedJob claim() {
-        return jdbcClient.sql("""
-                        select
-                            id,
-                            user_id,
-                            attempt_count
-                        from claim_analysis_job(:workerId)
-                        """)
+        return transactionTemplate.execute(status -> jdbcClient.sql("""
+                                select
+                                    id,
+                                    user_id,
+                                    attempt_count
+                                from claim_analysis_job(:workerId)
+                                """)
                 .param("workerId", workerId)
                 .query((rs, rowNum) -> new ClaimedJob(
                         rs.getObject("id", UUID.class),
@@ -84,11 +168,18 @@ public class AnalysisWorker {
                         rs.getInt("attempt_count")
                 ))
                 .optional()
-                .orElse(null);
+                .orElse(null));
     }
 
     private AiContracts.AnalysisRequest loadRequest(ClaimedJob job) {
         return rls.read(job.userId(), jdbc -> {
+            jdbc.sql("""
+                            delete from analysis_agent_events
+                            where analysis_job_id = :jobId
+                            """)
+                    .param("jobId", job.id())
+                    .update();
+
             jdbc.sql("""
                             update analysis_jobs
                             set
@@ -113,7 +204,8 @@ public class AnalysisWorker {
                                 p.id,
                                 p.source_type,
                                 p.source_url,
-                                p.raw_text
+                                p.raw_text,
+                                p.content_fingerprint
                             from analysis_jobs j
                             join job_postings p on p.id = j.posting_id
                             where j.id = :jobId
@@ -123,7 +215,8 @@ public class AnalysisWorker {
                             rs.getObject("id", UUID.class),
                             rs.getString("source_type"),
                             rs.getString("source_url"),
-                            rs.getString("raw_text")
+                            rs.getString("raw_text"),
+                            rs.getString("content_fingerprint")
                     ))
                     .single();
 
@@ -141,27 +234,25 @@ public class AnalysisWorker {
 
             List<AiContracts.ExistingNode> nodes = jdbc.sql("""
                             select
-                                n.id,
-                                n.canonical_key,
-                                n.title,
-                                n.domain,
-                                n.kind,
-                                n.scope_definition,
-                                n.level,
-                                coalesce(p.status::text, 'NOT_STARTED') as progress_status
-                            from career_nodes n
-                            left join node_progress p on p.node_id = n.id
-                            where n.graph_id = :graphId
-                              and n.archived_at is null
-                            order by n.rank
+                                c.id,
+                                c.canonical_key,
+                                c.title,
+                                c.domain,
+                                c.competency_kind,
+                                c.scope_definition,
+                                greatest(c.verified_level, 1) as level,
+                                c.progress_status::text
+                            from user_competencies c
+                            where c.user_id = :userId
+                            order by c.default_stage, c.canonical_key
                             """)
-                    .param("graphId", graph.id())
+                    .param("userId", job.userId())
                     .query((rs, rowNum) -> new AiContracts.ExistingNode(
                             rs.getObject("id", UUID.class),
                             rs.getString("canonical_key"),
                             rs.getString("title"),
                             rs.getString("domain"),
-                            rs.getString("kind"),
+                            rs.getString("competency_kind"),
                             rs.getString("scope_definition"),
                             rs.getInt("level"),
                             rs.getString("progress_status")
@@ -213,14 +304,73 @@ public class AnalysisWorker {
                     .param("jobId", job.id())
                     .query((rs, rowNum) -> {
                         String answerValue = rs.getString("answer_value");
-                        return new AiContracts.AnalysisAnswer(
-                                rs.getString("question_key"),
-                                rs.getString("question_text"),
-                                answerValue,
-                                optionLabel(rs.getString("options"), answerValue)
+                        return AnalysisClarificationNormalizer.normalize(
+                                new AiContracts.AnalysisAnswer(
+                                        rs.getString("question_key"),
+                                        rs.getString("question_text"),
+                                        answerValue,
+                                        optionLabel(rs.getString("options"), answerValue)
+                                )
                         );
                     })
                     .list();
+
+            String clarificationFingerprint =
+                    AnalysisClarificationNormalizer.fingerprint(answers);
+
+            AiContracts.SharedPostingAnalysis sharedAnalysis = jdbc.sql("""
+                            select normalized_analysis::text
+                            from posting_analysis_cache
+                            where content_fingerprint = :contentFingerprint
+                              and clarification_fingerprint = :clarificationFingerprint
+                              and schema_version = 1
+                            limit 1
+                            """)
+                    .param("contentFingerprint", posting.contentFingerprint())
+                    .param("clarificationFingerprint", clarificationFingerprint)
+                    .query(String.class)
+                    .optional()
+                    .map(this::readSharedAnalysis)
+                    .orElse(null);
+            if (sharedAnalysis != null) {
+                jdbc.sql("""
+                                update posting_analysis_cache
+                                set
+                                    use_count = use_count + 1,
+                                    last_used_at = now()
+                                where content_fingerprint = :contentFingerprint
+                                  and clarification_fingerprint = :clarificationFingerprint
+                                """)
+                        .param("contentFingerprint", posting.contentFingerprint())
+                        .param("clarificationFingerprint", clarificationFingerprint)
+                        .update();
+            }
+
+            AiContracts.CareerGoalContext goals = jdbc.sql("""
+                            select
+                                goal.current_goal_posting_id,
+                                posting.company_name,
+                                posting.role_title,
+                                goal.final_goal_text
+                            from user_goal_profiles goal
+                            left join job_postings posting
+                              on posting.id = goal.current_goal_posting_id
+                            where goal.user_id = :userId
+                            """)
+                    .param("userId", job.userId())
+                    .query((rs, rowNum) -> new AiContracts.CareerGoalContext(
+                            rs.getObject("current_goal_posting_id", UUID.class),
+                            rs.getString("company_name"),
+                            rs.getString("role_title"),
+                            rs.getString("final_goal_text")
+                    ))
+                    .optional()
+                    .orElse(new AiContracts.CareerGoalContext(
+                            null,
+                            null,
+                            null,
+                            null
+                    ));
 
             jdbc.sql("""
                             update analysis_jobs
@@ -244,10 +394,12 @@ public class AnalysisWorker {
                             graph.id(),
                             graph.version(),
                             nodes,
-                            fragments
+                            fragments,
+                            goals
                     ),
                     questionCount,
-                    answers
+                    answers,
+                    sharedAnalysis
             );
         });
     }
@@ -270,8 +422,55 @@ public class AnalysisWorker {
             throw new IllegalStateException("AI exceeded the clarification question limit");
         }
 
-        String optionsJson = writeJson(question.options());
+        AiContracts.AnalysisQuestion normalizedQuestion =
+                AnalysisClarificationNormalizer.normalize(question);
+
+        String optionsJson = writeJson(normalizedQuestion.options());
         rls.write(job.userId(), jdbc -> {
+            QuestionJobState state = jdbc.sql("""
+                            select status::text, question_count
+                            from analysis_jobs
+                            where id = :jobId
+                            for update
+                            """)
+                    .param("jobId", job.id())
+                    .query((rs, rowNum) -> new QuestionJobState(
+                            rs.getString("status"),
+                            rs.getInt("question_count")
+                    ))
+                    .single();
+            if (!"RUNNING".equals(state.status())) {
+                log.info(
+                        "Ignoring stale clarification result for analysis job {} in state {}",
+                        job.id(),
+                        state.status()
+                );
+                return null;
+            }
+            if (state.questionCount() >= 3) {
+                throw new IllegalStateException(
+                        "AI exceeded the clarification question limit"
+                );
+            }
+            boolean repeatedQuestion = jdbc.sql("""
+                            select exists (
+                                select 1
+                                from analysis_questions
+                                where analysis_job_id = :jobId
+                                  and question_key = :questionKey
+                            )
+                            """)
+                    .param("jobId", job.id())
+                    .param("questionKey", normalizedQuestion.key())
+                    .query(Boolean.class)
+                    .single();
+            if (repeatedQuestion) {
+                throw new IllegalStateException(
+                        "AI repeated a clarification question that was already asked"
+                );
+            }
+
+            int ordinal = state.questionCount() + 1;
             UUID questionId = jdbc.sql("""
                             insert into analysis_questions (
                                 user_id,
@@ -295,11 +494,11 @@ public class AnalysisWorker {
                             """)
                     .param("userId", job.userId())
                     .param("jobId", job.id())
-                    .param("questionKey", question.key())
-                    .param("questionText", question.text())
-                    .param("reason", question.reason())
+                    .param("questionKey", normalizedQuestion.key())
+                    .param("questionText", normalizedQuestion.text())
+                    .param("reason", normalizedQuestion.reason())
                     .param("options", optionsJson)
-                    .param("ordinal", request.questionCount() + 1)
+                    .param("ordinal", ordinal)
                     .query(UUID.class)
                     .single();
 
@@ -309,12 +508,13 @@ public class AnalysisWorker {
                                 status = 'WAITING_FOR_INPUT',
                                 stage = 'WAITING_FOR_INPUT',
                                 stage_message = :questionText,
-                                question_count = question_count + 1,
+                                question_count = :questionCount,
                                 worker_id = null,
                                 locked_until = null
                             where id = :jobId
                             """)
-                    .param("questionText", question.text())
+                    .param("questionText", normalizedQuestion.text())
+                    .param("questionCount", ordinal)
                     .param("jobId", job.id())
                     .update();
 
@@ -343,7 +543,7 @@ public class AnalysisWorker {
                             )
                             """)
                     .param("userId", job.userId())
-                    .param("questionText", question.text())
+                    .param("questionText", normalizedQuestion.text())
                     .param("jobId", job.id())
                     .param("questionId", questionId)
                     .update();
@@ -378,7 +578,7 @@ public class AnalysisWorker {
                               and p.conversation_id is not null
                             """)
                     .param("userId", job.userId())
-                    .param("questionText", question.text())
+                    .param("questionText", normalizedQuestion.text())
                     .param("questionId", questionId)
                     .param("jobId", job.id())
                     .update();
@@ -392,9 +592,12 @@ public class AnalysisWorker {
         });
     }
 
-    private void complete(ClaimedJob job, AiContracts.AnalysisResponse response) {
-        String resultJson = objectMapper.writeValueAsString(response);
-        String proposalJson = objectMapper.writeValueAsString(response.changeProposal());
+    private void complete(
+            ClaimedJob job,
+            AiContracts.AnalysisRequest request,
+            AiContracts.AnalysisResponse response
+    ) {
+        String proposalJson = objectMapper.writeValueAsString(response.competencyProposal());
 
         rls.write(job.userId(), jdbc -> {
             jdbc.sql("""
@@ -404,6 +607,8 @@ public class AnalysisWorker {
                                 role_title = :roleTitle,
                                 employment_type = :employmentType,
                                 experience_text = :experienceText,
+                                closes_at = :closesAt,
+                                lifecycle_status = :lifecycleStatus,
                                 parsed_data = cast(:parsedData as jsonb)
                             from analysis_jobs j
                             where j.id = :jobId
@@ -413,8 +618,544 @@ public class AnalysisWorker {
                     .param("roleTitle", response.job().roleTitle())
                     .param("employmentType", response.job().employmentType())
                     .param("experienceText", response.job().experienceText())
+                    .param("closesAt", response.job().closesAt())
+                    .param(
+                            "lifecycleStatus",
+                            effectiveLifecycleStatus(response.job())
+                    )
                     .param("parsedData", writeJson(response.job().parsedData()))
                     .param("jobId", job.id())
+                    .update();
+
+            UUID postingId = jdbc.sql("""
+                            select posting_id
+                            from analysis_jobs
+                            where id = :jobId
+                            """)
+                    .param("jobId", job.id())
+                    .query(UUID.class)
+                    .single();
+
+            AiContracts.ExperienceRequirement experience =
+                    response.job().experienceRequirement();
+            jdbc.sql("""
+                            insert into posting_path_profiles (
+                                posting_id,
+                                user_id,
+                                analysis_job_id,
+                                primary_track,
+                                experience_requirement_type,
+                                minimum_experience_months,
+                                maximum_experience_months,
+                                experience_source_text
+                            )
+                            values (
+                                :postingId,
+                                :userId,
+                                :jobId,
+                                :primaryTrack,
+                                :experienceType,
+                                :minimumMonths,
+                                :maximumMonths,
+                                :sourceText
+                            )
+                            on conflict (posting_id)
+                            do update set
+                                analysis_job_id = excluded.analysis_job_id,
+                                primary_track = excluded.primary_track,
+                                experience_requirement_type =
+                                    excluded.experience_requirement_type,
+                                minimum_experience_months =
+                                    excluded.minimum_experience_months,
+                                maximum_experience_months =
+                                    excluded.maximum_experience_months,
+                                experience_source_text =
+                                    excluded.experience_source_text
+                            """)
+                    .param("postingId", postingId)
+                    .param("userId", job.userId())
+                    .param("jobId", job.id())
+                    .param("primaryTrack", response.job().primaryTrack())
+                    .param("experienceType", experience.type())
+                    .param("minimumMonths", experience.minimumMonths())
+                    .param("maximumMonths", experience.maximumMonths())
+                    .param("sourceText", experience.sourceText())
+                    .update();
+
+            jdbc.sql("""
+                            delete from posting_competency_requirements
+                            where posting_id = :postingId
+                            """)
+                    .param("postingId", postingId)
+                    .update();
+            jdbc.sql("""
+                            delete from posting_target_projects
+                            where posting_id = :postingId
+                            """)
+                    .param("postingId", postingId)
+                    .update();
+
+            Map<String, UUID> competencyIds = new HashMap<>();
+            Map<String, UUID> catalogCompetencyIds = new HashMap<>();
+            Map<String, AiContracts.AnalyzedCompetency> competenciesByRef =
+                    new HashMap<>();
+            for (AiContracts.AnalyzedCompetency competency
+                    : response.competencyProposal().competencies()) {
+                UUID catalogCompetencyId = null;
+                if (competency.roadmapEligible()) {
+                    catalogCompetencyId = jdbc.sql("""
+                                    select upsert_competency_catalog(
+                                        :canonicalKey,
+                                        :title,
+                                        :domain,
+                                        :scopeDefinition
+                                    )
+                                    """)
+                            .param("canonicalKey", competency.canonicalKey())
+                            .param("title", competency.title())
+                            .param("domain", competency.domain())
+                            .param("scopeDefinition", competency.scopeDefinition())
+                            .query(UUID.class)
+                            .single();
+                }
+                UUID competencyId = jdbc.sql("""
+                                insert into user_competencies (
+                                    user_id,
+                                    catalog_competency_id,
+                                    canonical_key,
+                                    title,
+                                    competency_kind,
+                                    domain,
+                                    default_stage,
+                                    scope_definition,
+                                    roadmap_eligible,
+                                    verification_method
+                                )
+                                values (
+                                    :userId,
+                                    :catalogCompetencyId,
+                                    :canonicalKey,
+                                    :title,
+                                    :kind,
+                                    :domain,
+                                    :stage,
+                                    :scopeDefinition,
+                                    :roadmapEligible,
+                                    :verificationMethod
+                                )
+                                on conflict (user_id, canonical_key)
+                                do update set
+                                    catalog_competency_id = coalesce(
+                                        user_competencies.catalog_competency_id,
+                                        excluded.catalog_competency_id
+                                    ),
+                                    title = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then user_competencies.title
+                                        else excluded.title
+                                    end,
+                                    competency_kind = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then user_competencies.competency_kind
+                                        else excluded.competency_kind
+                                    end,
+                                    domain = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then user_competencies.domain
+                                        else excluded.domain
+                                    end,
+                                    default_stage = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then user_competencies.default_stage
+                                        else excluded.default_stage
+                                    end,
+                                    scope_definition = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then user_competencies.scope_definition
+                                        else excluded.scope_definition
+                                    end,
+                                    roadmap_eligible = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then true
+                                        else excluded.roadmap_eligible
+                                    end,
+                                    verification_method = case
+                                        when user_competencies.catalog_competency_id is not null
+                                            then user_competencies.verification_method
+                                        else excluded.verification_method
+                                    end
+                                returning id
+                                """)
+                        .param("userId", job.userId())
+                        .param("catalogCompetencyId", catalogCompetencyId)
+                        .param("canonicalKey", competency.canonicalKey())
+                        .param("title", competency.title())
+                        .param("kind", competency.kind())
+                        .param("domain", competency.domain())
+                        .param("stage", competency.stage())
+                        .param("scopeDefinition", competency.scopeDefinition())
+                        .param("roadmapEligible", competency.roadmapEligible())
+                        .param("verificationMethod", competency.verificationMethod())
+                        .query(UUID.class)
+                        .single();
+                if (competencyIds.put(competency.ref(), competencyId) != null) {
+                    throw new IllegalStateException("AI returned duplicate competency refs");
+                }
+                if (catalogCompetencyId != null) {
+                    catalogCompetencyIds.put(competency.ref(), catalogCompetencyId);
+                }
+                competenciesByRef.put(competency.ref(), competency);
+            }
+
+            for (AiContracts.AnalyzedRequirement requirement
+                    : response.competencyProposal().requirements()) {
+                UUID competencyId = competencyIds.get(requirement.competencyRef());
+                AiContracts.AnalyzedCompetency competency =
+                        competenciesByRef.get(requirement.competencyRef());
+                if (competencyId == null || competency == null) {
+                    throw new IllegalStateException(
+                            "AI requirement references an unknown competency"
+                    );
+                }
+                jdbc.sql("""
+                                insert into posting_competency_requirements (
+                                    user_id,
+                                    posting_id,
+                                    analysis_job_id,
+                                    competency_id,
+                                    relation_kind,
+                                    required_scope,
+                                    required_level,
+                                    source_text,
+                                    confidence,
+                                    competency_title,
+                                    competency_kind,
+                                    roadmap_domain,
+                                    roadmap_stage,
+                                    roadmap_eligible,
+                                    verification_method
+                                )
+                                values (
+                                    :userId,
+                                    :postingId,
+                                    :jobId,
+                                    :competencyId,
+                                    :relationKind,
+                                    :requiredScope,
+                                    :requiredLevel,
+                                    :sourceText,
+                                    :confidence,
+                                    :competencyTitle,
+                                    :competencyKind,
+                                    :roadmapDomain,
+                                    :roadmapStage,
+                                    :roadmapEligible,
+                                    :verificationMethod
+                                )
+                                """)
+                        .param("userId", job.userId())
+                        .param("postingId", postingId)
+                        .param("jobId", job.id())
+                        .param("competencyId", competencyId)
+                        .param("relationKind", requirement.relation())
+                        .param("requiredScope", competency.scopeDefinition())
+                        .param("requiredLevel", competency.requiredLevel())
+                        .param("sourceText", requirement.sourceText())
+                        .param("confidence", requirement.confidence())
+                        .param("competencyTitle", competency.title())
+                        .param("competencyKind", competency.kind())
+                        .param("roadmapDomain", competency.domain())
+                        .param("roadmapStage", competency.stage())
+                        .param("roadmapEligible", competency.roadmapEligible())
+                        .param("verificationMethod", competency.verificationMethod())
+                        .update();
+            }
+
+            UUID postingCatalogId = jdbc.sql("""
+                            select canonical_posting_id
+                            from job_postings
+                            where id = :postingId
+                            """)
+                    .param("postingId", postingId)
+                    .query(UUID.class)
+                    .optional()
+                    .orElse(null);
+            if (postingCatalogId == null) {
+                postingCatalogId = jdbc.sql("""
+                                select publish_analyzed_posting(
+                                    :postingId,
+                                    :primaryTrack,
+                                    :experienceType,
+                                    :minimumMonths,
+                                    :maximumMonths
+                                )
+                                """)
+                        .param("postingId", postingId)
+                        .param("primaryTrack", response.job().primaryTrack())
+                        .param("experienceType", experience.type())
+                        .param("minimumMonths", experience.minimumMonths())
+                        .param("maximumMonths", experience.maximumMonths())
+                        .query(UUID.class)
+                        .single();
+            }
+
+            jdbc.sql("""
+                            update posting_catalog catalog
+                            set
+                                source_platform = coalesce(
+                                    catalog.source_platform,
+                                    posting.source_platform
+                                ),
+                                source_posting_key = coalesce(
+                                    catalog.source_posting_key,
+                                    posting.source_posting_key
+                                ),
+                                content_fingerprint = coalesce(
+                                    catalog.content_fingerprint,
+                                    posting.content_fingerprint
+                                ),
+                                closes_at = posting.closes_at,
+                                lifecycle_status = posting.lifecycle_status,
+                                last_seen_at = now(),
+                                updated_at = now()
+                            from job_postings posting
+                            where catalog.id = :catalogId
+                              and posting.id = :postingId
+                            """)
+                    .param("catalogId", postingCatalogId)
+                    .param("postingId", postingId)
+                    .update();
+            jdbc.sql("""
+                            update job_postings posting
+                            set
+                                canonical_posting_id = :catalogId,
+                                company_name = catalog.company_name,
+                                role_title = catalog.role_title
+                            from posting_catalog catalog
+                            where posting.id = :postingId
+                              and catalog.id = :catalogId
+                            """)
+                    .param("catalogId", postingCatalogId)
+                    .param("postingId", postingId)
+                    .update();
+            jdbc.sql("""
+                            insert into posting_catalog_observations (
+                                user_id,
+                                private_posting_id,
+                                posting_catalog_id,
+                                observed_url,
+                                content_fingerprint
+                            )
+                            select
+                                :userId,
+                                posting.id,
+                                :catalogId,
+                                posting.source_url,
+                                posting.content_fingerprint
+                            from job_postings posting
+                            where posting.id = :postingId
+                            on conflict (user_id, private_posting_id)
+                            do update set
+                                posting_catalog_id = excluded.posting_catalog_id,
+                                observed_url = excluded.observed_url,
+                                content_fingerprint = excluded.content_fingerprint,
+                                last_observed_at = now()
+                            """)
+                    .param("userId", job.userId())
+                    .param("catalogId", postingCatalogId)
+                    .param("postingId", postingId)
+                    .update();
+
+            jdbc.sql("""
+                            insert into posting_duplicate_candidates (
+                                left_posting_id,
+                                right_posting_id,
+                                match_kind,
+                                similarity_score,
+                                proposed_action,
+                                proposal_reason
+                            )
+                            select
+                                least(:catalogId, candidate.id),
+                                greatest(:catalogId, candidate.id),
+                                'FUZZY',
+                                greatest(
+                                    similarity(current.company_name, candidate.company_name),
+                                    similarity(current.role_title, candidate.role_title)
+                                ),
+                                case
+                                    when similarity(
+                                        current.company_name,
+                                        candidate.company_name
+                                    ) >= 0.8
+                                     and similarity(
+                                        current.role_title,
+                                        candidate.role_title
+                                    ) >= 0.75
+                                        then 'MERGE'
+                                    else 'REVIEW'
+                                end,
+                                '회사명과 직무명이 유사해 운영자 확인이 필요합니다.'
+                            from posting_catalog current
+                            join posting_catalog candidate
+                              on candidate.id <> current.id
+                             and candidate.moderation_status <> 'MERGED'
+                             and similarity(
+                                 current.company_name,
+                                 candidate.company_name
+                             ) >= 0.65
+                             and similarity(
+                                 current.role_title,
+                                 candidate.role_title
+                             ) >= 0.6
+                            where current.id = :catalogId
+                            on conflict (
+                                (least(left_posting_id, right_posting_id)),
+                                (greatest(left_posting_id, right_posting_id))
+                            )
+                            do nothing
+                            """)
+                    .param("catalogId", postingCatalogId)
+                    .update();
+
+            for (AiContracts.AnalyzedRequirement requirement
+                    : response.competencyProposal().requirements()) {
+                AiContracts.AnalyzedCompetency competency =
+                        competenciesByRef.get(requirement.competencyRef());
+                UUID catalogCompetencyId =
+                        catalogCompetencyIds.get(requirement.competencyRef());
+                if (competency == null
+                        || catalogCompetencyId == null
+                        || !competency.roadmapEligible()) {
+                    continue;
+                }
+                jdbc.sql("""
+                                select publish_posting_catalog_requirement(
+                                    :privatePostingId,
+                                    :postingCatalogId,
+                                    :catalogCompetencyId,
+                                    :relationKind,
+                                    :requiredScope,
+                                    :requiredLevel,
+                                    :confidence
+                                )
+                                """)
+                        .param("privatePostingId", postingId)
+                        .param("postingCatalogId", postingCatalogId)
+                        .param("catalogCompetencyId", catalogCompetencyId)
+                        .param("relationKind", requirement.relation())
+                        .param("requiredScope", competency.scopeDefinition())
+                        .param("requiredLevel", competency.requiredLevel())
+                        .param("confidence", requirement.confidence())
+                        .query(Object.class)
+                        .optional();
+            }
+
+            AiContracts.TargetProjectBrief project =
+                    response.competencyProposal().targetProject();
+            List<String> requiredProjectKeys = project.requiredCompetencyRefs()
+                    .stream()
+                    .map(ref -> competenciesByRef.get(ref).canonicalKey())
+                    .toList();
+            List<String> optionalProjectKeys = project.optionalCompetencyRefs()
+                    .stream()
+                    .map(ref -> competenciesByRef.get(ref).canonicalKey())
+                    .toList();
+            jdbc.sql("""
+                            insert into posting_target_projects (
+                                posting_id,
+                                user_id,
+                                analysis_job_id,
+                                title,
+                                objective,
+                                domain_context,
+                                required_competency_keys,
+                                optional_competency_keys,
+                                deliverables,
+                                acceptance_criteria
+                            )
+                            values (
+                                :postingId,
+                                :userId,
+                                :jobId,
+                                :title,
+                                :objective,
+                                :domainContext,
+                                cast(:requiredKeys as jsonb),
+                                cast(:optionalKeys as jsonb),
+                                cast(:deliverables as jsonb),
+                                cast(:acceptanceCriteria as jsonb)
+                            )
+                            """)
+                    .param("postingId", postingId)
+                    .param("userId", job.userId())
+                    .param("jobId", job.id())
+                    .param("title", project.title())
+                    .param("objective", project.objective())
+                    .param("domainContext", project.domainContext())
+                    .param("requiredKeys", writeJson(requiredProjectKeys))
+                    .param("optionalKeys", writeJson(optionalProjectKeys))
+                    .param("deliverables", writeJson(project.deliverables()))
+                    .param("acceptanceCriteria", writeJson(project.acceptanceCriteria()))
+                    .update();
+
+            AiContracts.Evaluation deterministicEvaluation =
+                    evaluateReadiness(jdbc, postingId, response);
+            CatalogDisplay catalogDisplay = jdbc.sql("""
+                            select company_name, role_title
+                            from posting_catalog
+                            where id = :catalogId
+                            """)
+                    .param("catalogId", postingCatalogId)
+                    .query((rs, rowNum) -> new CatalogDisplay(
+                            rs.getString("company_name"),
+                            rs.getString("role_title")
+                    ))
+                    .single();
+            AiContracts.JobContext normalizedJob = withCanonicalDisplay(
+                    response.job(),
+                    catalogDisplay
+            );
+            AiContracts.AnalysisResponse normalizedResponse =
+                    new AiContracts.AnalysisResponse(
+                            response.status(),
+                            response.question(),
+                            normalizedJob,
+                            deterministicEvaluation,
+                            response.competencyProposal()
+                    );
+            String resultJson = objectMapper.writeValueAsString(normalizedResponse);
+
+            jdbc.sql("""
+                            insert into posting_analysis_cache (
+                                content_fingerprint,
+                                clarification_fingerprint,
+                                normalized_analysis
+                            )
+                            select
+                                posting.content_fingerprint,
+                                :clarificationFingerprint,
+                                jsonb_build_object(
+                                    'job', cast(:jobContext as jsonb),
+                                    'competencyProposal', cast(:proposal as jsonb)
+                                )
+                            from job_postings posting
+                            where posting.id = :postingId
+                            on conflict (
+                                content_fingerprint,
+                                clarification_fingerprint
+                            )
+                            do update set
+                                normalized_analysis = excluded.normalized_analysis,
+                                last_used_at = now()
+                            """)
+                    .param(
+                            "clarificationFingerprint",
+                            AnalysisClarificationNormalizer.fingerprint(request.answers())
+                    )
+                    .param("jobContext", writeJson(normalizedJob))
+                    .param("proposal", proposalJson)
+                    .param("postingId", postingId)
                     .update();
 
             jdbc.sql("""
@@ -467,7 +1208,7 @@ public class AnalysisWorker {
                                 :userId,
                                 'ANALYSIS_COMPLETED',
                                 '공고 분석이 완료됐어요',
-                                '변경 내용을 확인한 뒤 커리어 지도에 반영해 주세요.',
+                                '추출한 역량을 확인한 뒤 목표 공고에 추가해 주세요.',
                                 jsonb_build_object(
                                     'analysisJobId', cast(:jobId as text),
                                     'postingId', (
@@ -498,7 +1239,7 @@ public class AnalysisWorker {
                                 p.conversation_id,
                                 'ASSISTANT',
                                 'ANALYSIS_STATUS',
-                                '공고 분석이 완료됐어요. 지원 판단과 지도 변경안을 확인해 주세요.',
+                                '공고 분석이 완료됐어요. 역량과 맞춤 프로젝트를 확인해 주세요.',
                                 p.id,
                                 j.id,
                                 jsonb_build_object(
@@ -513,7 +1254,7 @@ public class AnalysisWorker {
                             """)
                     .param("userId", job.userId())
                     .param("jobId", job.id())
-                    .param("evaluation", writeJson(response.evaluation()))
+                    .param("evaluation", writeJson(deterministicEvaluation))
                     .update();
 
             jdbc.sql("select finish_analysis_job(:jobId, :userId)")
@@ -523,6 +1264,132 @@ public class AnalysisWorker {
                     .optional();
             return null;
         });
+    }
+
+    private AiContracts.Evaluation evaluateReadiness(
+            org.springframework.jdbc.core.simple.JdbcClient jdbc,
+            UUID postingId,
+            AiContracts.AnalysisResponse response
+    ) {
+        ReadinessCounts counts = jdbc.sql("""
+                        select
+                            count(*) filter (
+                                where requirement.relation_kind = 'REQUIRED'
+                                  and requirement.roadmap_eligible
+                            ) as required_total,
+                            count(*) filter (
+                                where requirement.relation_kind = 'REQUIRED'
+                                  and requirement.roadmap_eligible
+                                  and competency.progress_status = 'COMPLETED'
+                                  and competency.verified_level >=
+                                      requirement.required_level
+                            ) as required_met,
+                            count(*) filter (
+                                where requirement.relation_kind = 'PREFERRED'
+                                  and requirement.roadmap_eligible
+                            ) as preferred_total,
+                            count(*) filter (
+                                where requirement.relation_kind = 'PREFERRED'
+                                  and requirement.roadmap_eligible
+                                  and competency.progress_status = 'COMPLETED'
+                                  and competency.verified_level >=
+                                      requirement.required_level
+                            ) as preferred_met
+                        from posting_competency_requirements requirement
+                        join user_competencies competency
+                          on competency.id = requirement.competency_id
+                        where requirement.posting_id = :postingId
+                        """)
+                .param("postingId", postingId)
+                .query((rs, rowNum) -> new ReadinessCounts(
+                        rs.getInt("required_total"),
+                        rs.getInt("required_met"),
+                        rs.getInt("preferred_total"),
+                        rs.getInt("preferred_met")
+                ))
+                .single();
+        List<String> gaps = jdbc.sql("""
+                        select distinct requirement.competency_title
+                        from posting_competency_requirements requirement
+                        join user_competencies competency
+                          on competency.id = requirement.competency_id
+                        where requirement.posting_id = :postingId
+                          and requirement.relation_kind = 'REQUIRED'
+                          and requirement.roadmap_eligible
+                          and (
+                              competency.progress_status <> 'COMPLETED'
+                              or competency.verified_level <
+                                  requirement.required_level
+                          )
+                        order by requirement.competency_title
+                        limit 5
+                        """)
+                .param("postingId", postingId)
+                .query(String.class)
+                .list();
+        int experienceMonths = jdbc.sql("""
+                        select coalesce(max(
+                            case
+                                when detail ->> 'months' ~ '^[0-9]{1,3}$'
+                                then (detail ->> 'months')::integer
+                                else 0
+                            end
+                        ), 0)
+                        from career_fragments
+                        where review_status = 'CONFIRMED'
+                          and archived_at is null
+                          and kind = 'EXPERIENCE'
+                        """)
+                .query(Integer.class)
+                .single();
+        AiContracts.ExperienceRequirement experience =
+                response.job().experienceRequirement();
+        boolean experienceMet = !"REQUIRED".equals(experience.type())
+                || experienceMonths >= experience.minimumMonths();
+        int experienceShortage = Math.max(
+                0,
+                experience.minimumMonths() - experienceMonths
+        );
+        double coverage = counts.requiredTotal() == 0
+                ? 1
+                : (double) counts.requiredMet() / counts.requiredTotal();
+
+        String verdict;
+        if (counts.requiredMet() == counts.requiredTotal() && experienceMet) {
+            verdict = "APPLY_NOW";
+        } else if ((!experienceMet && experienceShortage > 12)
+                || coverage < 0.5) {
+            verdict = "ALTERNATIVE_FIRST";
+        } else {
+            verdict = "STRENGTHEN_THEN_APPLY";
+        }
+
+        List<String> reasons = new ArrayList<>();
+        reasons.add("검증된 필수 역량 "
+                + counts.requiredMet() + "/" + counts.requiredTotal());
+        if (counts.preferredTotal() > 0) {
+            reasons.add("검증된 우대 역량 "
+                    + counts.preferredMet() + "/" + counts.preferredTotal());
+        }
+        if (!gaps.isEmpty()) {
+            reasons.add("보완이 필요한 필수 역량: " + String.join(", ", gaps));
+        }
+        if ("REQUIRED".equals(experience.type())) {
+            reasons.add(experienceMet
+                    ? "요구 경력 조건을 충족하는 기록이 확인됐습니다."
+                    : "요구 경력 " + experience.minimumMonths()
+                            + "개월에 대한 검증 기록이 부족합니다.");
+        }
+
+        String summary = switch (verdict) {
+            case "APPLY_NOW" ->
+                    "현재 검증된 필수 역량과 경력 조건을 기준으로 지원 가능한 상태입니다.";
+            case "STRENGTHEN_THEN_APPLY" ->
+                    "핵심 경로는 맞지만 일부 필수 역량을 검증한 뒤 지원하는 것이 좋습니다.";
+            default ->
+                    "현재 목표까지 간격이 커서 가까운 실제 공고를 함께 검토하는 것이 좋습니다.";
+        };
+        return new AiContracts.Evaluation(verdict, summary, List.copyOf(reasons));
     }
 
     private void fail(ClaimedJob job, Exception exception) {
@@ -606,6 +1473,231 @@ public class AnalysisWorker {
         return answerValue;
     }
 
+    private String normalizeLifecycleStatus(String status) {
+        if (status == null) {
+            return "UNKNOWN";
+        }
+        return switch (status) {
+            case "ACTIVE", "EXPIRED", "CLOSED", "UNKNOWN" -> status;
+            default -> "UNKNOWN";
+        };
+    }
+
+    private String effectiveLifecycleStatus(AiContracts.JobContext job) {
+        if (job.closesAt() != null
+                && !job.closesAt().isAfter(OffsetDateTime.now())) {
+            return "EXPIRED";
+        }
+        return normalizeLifecycleStatus(job.lifecycleStatus());
+    }
+
+    private AiContracts.SharedPostingAnalysis readSharedAnalysis(String value) {
+        try {
+            return objectMapper.readValue(
+                    value,
+                    AiContracts.SharedPostingAnalysis.class
+            );
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException(
+                    "Stored shared posting analysis is invalid",
+                    exception
+            );
+        }
+    }
+
+    private AiContracts.AnalysisResponse reuseSharedAnalysis(
+            ClaimedJob job,
+            AiContracts.SharedPostingAnalysis shared
+    ) {
+        updateStage(
+                job,
+                "SHARED_REUSE",
+                "같은 공고의 기존 분석을 재사용하고 현재 준비도만 다시 계산하고 있어요"
+        );
+        return new AiContracts.AnalysisResponse(
+                "COMPLETED",
+                null,
+                shared.job(),
+                new AiContracts.Evaluation(
+                        "STRENGTHEN_THEN_APPLY",
+                        "공용 공고 분석을 재사용해 현재 준비도를 다시 계산합니다.",
+                        List.of("공고 자체를 다시 생성하지 않고 현재 커리어 근거만 비교합니다.")
+                ),
+                shared.competencyProposal()
+        );
+    }
+
+    private AiContracts.JobContext withCanonicalDisplay(
+            AiContracts.JobContext job,
+            CatalogDisplay display
+    ) {
+        return new AiContracts.JobContext(
+                display.companyName(),
+                display.roleTitle(),
+                job.employmentType(),
+                job.experienceText(),
+                job.primaryTrack(),
+                job.experienceRequirement(),
+                job.closesAt(),
+                job.lifecycleStatus(),
+                job.parsedData()
+        );
+    }
+
+    private AnalysisCacheKey analysisCacheKey(AiContracts.AnalysisRequest request) {
+        String normalizedBody = request.posting().rawText()
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            String contentFingerprint = HexFormat.of().formatHex(
+                    digest.digest(normalizedBody.getBytes(StandardCharsets.UTF_8))
+            );
+            return new AnalysisCacheKey(
+                    contentFingerprint,
+                    AnalysisClarificationNormalizer.fingerprint(request.answers())
+            );
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Could not fingerprint posting analysis",
+                    exception
+            );
+        }
+    }
+
+    private boolean tryAcquireAnalysisLease(
+            AnalysisCacheKey key,
+            UUID analysisJobId
+    ) {
+        UUID owner = transactionTemplate.execute(status -> jdbcClient.sql("""
+                                insert into posting_analysis_leases (
+                                    content_fingerprint,
+                                    clarification_fingerprint,
+                                    owner_analysis_job_id,
+                                    lease_until
+                                )
+                                values (
+                                    :contentFingerprint,
+                                    :clarificationFingerprint,
+                                    :analysisJobId,
+                                    now() + interval '15 minutes'
+                                )
+                                on conflict (
+                                    content_fingerprint,
+                                    clarification_fingerprint
+                                )
+                                do update set
+                                    owner_analysis_job_id = excluded.owner_analysis_job_id,
+                                    lease_until = excluded.lease_until
+                                where posting_analysis_leases.lease_until < now()
+                                returning owner_analysis_job_id
+                                """)
+                        .param("contentFingerprint", key.contentFingerprint())
+                        .param(
+                                "clarificationFingerprint",
+                                key.clarificationFingerprint()
+                        )
+                        .param("analysisJobId", analysisJobId)
+                        .query(UUID.class)
+                        .optional()
+                        .orElse(null));
+        return analysisJobId.equals(owner);
+    }
+
+    private SharedAnalysisWait awaitSharedAnalysis(
+            ClaimedJob job,
+            AnalysisCacheKey key
+    ) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(14);
+        while (System.nanoTime() < deadline) {
+            AiContracts.SharedPostingAnalysis shared = loadSharedAnalysis(key);
+            if (shared != null) {
+                return new SharedAnalysisWait(shared, false);
+            }
+            if (tryAcquireAnalysisLease(key, job.id())) {
+                updateStage(
+                        job,
+                        "AI_ANALYSIS",
+                        "이전 분석이 중단되어 이 작업에서 분석을 이어가고 있어요"
+                );
+                return new SharedAnalysisWait(null, true);
+            }
+            Thread.sleep(2_000);
+        }
+        throw new IllegalStateException(
+                "Timed out waiting for the shared posting analysis"
+        );
+    }
+
+    private AiContracts.SharedPostingAnalysis loadSharedAnalysis(
+            AnalysisCacheKey key
+    ) {
+        return transactionTemplate.execute(status -> {
+            AiContracts.SharedPostingAnalysis shared = jdbcClient.sql("""
+                            select normalized_analysis::text
+                            from posting_analysis_cache
+                            where content_fingerprint = :contentFingerprint
+                              and clarification_fingerprint = :clarificationFingerprint
+                              and schema_version = 1
+                            limit 1
+                            """)
+                    .param("contentFingerprint", key.contentFingerprint())
+                    .param(
+                            "clarificationFingerprint",
+                            key.clarificationFingerprint()
+                    )
+                    .query(String.class)
+                    .optional()
+                    .map(this::readSharedAnalysis)
+                    .orElse(null);
+            if (shared != null) {
+                jdbcClient.sql("""
+                                update posting_analysis_cache
+                                set
+                                    use_count = use_count + 1,
+                                    last_used_at = now()
+                                where content_fingerprint = :contentFingerprint
+                                  and clarification_fingerprint = :clarificationFingerprint
+                                """)
+                        .param("contentFingerprint", key.contentFingerprint())
+                        .param(
+                                "clarificationFingerprint",
+                                key.clarificationFingerprint()
+                        )
+                        .update();
+            }
+            return shared;
+        });
+    }
+
+    private void releaseAnalysisLease(
+            AnalysisCacheKey key,
+            UUID analysisJobId
+    ) {
+        try {
+            transactionTemplate.executeWithoutResult(status -> jdbcClient.sql("""
+                            delete from posting_analysis_leases
+                            where content_fingerprint = :contentFingerprint
+                              and clarification_fingerprint = :clarificationFingerprint
+                              and owner_analysis_job_id = :analysisJobId
+                            """)
+                    .param("contentFingerprint", key.contentFingerprint())
+                    .param(
+                            "clarificationFingerprint",
+                            key.clarificationFingerprint()
+                    )
+                    .param("analysisJobId", analysisJobId)
+                    .update());
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "Could not release shared analysis lease for job {}: {}",
+                    analysisJobId,
+                    exception.getMessage()
+            );
+        }
+    }
+
     private void updateStage(ClaimedJob job, String stage, String message) {
         rls.write(job.userId(), jdbc -> {
             jdbc.sql("""
@@ -621,6 +1713,72 @@ public class AnalysisWorker {
         });
     }
 
+    private void recordProgress(
+            ClaimedJob job,
+            AiContracts.AnalysisStreamEvent event
+    ) {
+        if (event == null
+                || event.runId() == null
+                || !job.id().equals(event.runId())
+                || event.sequence() < 1
+                || event.sequence() > 10000) {
+            throw new IllegalStateException("AI progress event did not match the analysis job");
+        }
+        if ("RESULT".equals(event.type())) {
+            return;
+        }
+        String eventJson = writeJson(event);
+        rls.write(job.userId(), jdbc -> {
+            jdbc.sql("""
+                            insert into analysis_agent_events (
+                                user_id,
+                                analysis_job_id,
+                                sequence,
+                                event_data,
+                                occurred_at
+                            )
+                            values (
+                                :userId,
+                                :jobId,
+                                :sequence,
+                                cast(:eventData as jsonb),
+                                coalesce(:occurredAt, now())
+                            )
+                            on conflict (analysis_job_id, sequence)
+                            do update set
+                                event_data = excluded.event_data,
+                                occurred_at = excluded.occurred_at
+                            """)
+                    .param("userId", job.userId())
+                    .param("jobId", job.id())
+                    .param("sequence", event.sequence())
+                    .param("eventData", eventJson)
+                    .param("occurredAt", event.occurredAt())
+                    .update();
+
+            if ("STAGE_UPDATED".equals(event.type()) && event.stage() != null) {
+                String message = event.stage().message();
+                boolean hasMessage = message != null && !message.isBlank();
+                jdbc.sql("""
+                                update analysis_jobs
+                                set
+                                    stage = :stage,
+                                    stage_message = case
+                                        when :hasMessage then :message
+                                        else stage_message
+                                    end
+                                where id = :jobId
+                                """)
+                        .param("stage", event.stage().id())
+                        .param("hasMessage", hasMessage)
+                        .param("message", hasMessage ? message : "")
+                        .param("jobId", job.id())
+                        .update();
+            }
+            return null;
+        });
+    }
+
     private String classify(Exception exception) {
         if (exception instanceof AiServiceException aiException) {
             return aiException.code();
@@ -630,6 +1788,15 @@ public class AnalysisWorker {
     }
 
     private String safeMessage(Exception exception) {
+        String code = classify(exception);
+        if ("INVALID_AI_RESPONSE".equals(code)) {
+            return "AI가 만든 분석 결과 중 일부가 서비스 검증 규칙과 맞지 않았습니다. "
+                    + "저장된 공고에서 다시 분석을 눌러 주세요.";
+        }
+        if ("AI_PROVIDER_UNAVAILABLE".equals(code)) {
+            return "AI 서비스 응답이 지연되거나 중단되었습니다. 공고는 저장되어 있으니 "
+                    + "잠시 후 다시 분석할 수 있습니다.";
+        }
         String message = exception.getMessage();
         if (message == null || message.isBlank()) {
             return "AI 분석을 완료하지 못했습니다.";
@@ -659,7 +1826,37 @@ public class AnalysisWorker {
             UUID id,
             String sourceType,
             String sourceUrl,
-            String rawText
+            String rawText,
+            String contentFingerprint
+    ) {
+    }
+
+    private record QuestionJobState(
+            String status,
+            int questionCount
+    ) {
+    }
+
+    private record ReadinessCounts(
+            int requiredTotal,
+            int requiredMet,
+            int preferredTotal,
+            int preferredMet
+    ) {
+    }
+
+    private record CatalogDisplay(String companyName, String roleTitle) {
+    }
+
+    private record AnalysisCacheKey(
+            String contentFingerprint,
+            String clarificationFingerprint
+    ) {
+    }
+
+    private record SharedAnalysisWait(
+            AiContracts.SharedPostingAnalysis sharedAnalysis,
+            boolean ownsLease
     ) {
     }
 }

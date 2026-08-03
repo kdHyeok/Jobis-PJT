@@ -37,7 +37,8 @@ class JwtServiceTest {
                         "test-secret",
                         false,
                         3000,
-                        200
+                        200,
+                        2
                 )
         );
     }

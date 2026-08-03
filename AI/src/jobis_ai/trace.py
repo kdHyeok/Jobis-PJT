@@ -30,9 +30,13 @@ kind 종류:
 from __future__ import annotations
 
 import contextvars
+import json
+import os
 import threading
 import time
+import uuid
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Any, Callable, Iterator
 
 _current: contextvars.ContextVar["TraceRecorder | None"] = contextvars.ContextVar(
@@ -114,6 +118,26 @@ def active() -> bool:
     return _current.get() is not None
 
 
+def _persist(rec: TraceRecorder) -> None:
+    """턴 하나의 이벤트를 JSON 파일로 남긴다 — 프로토타입 2.0.0 의 런별 trace 이식(D127).
+
+    opt-in: 환경변수 `JOBIS_TRACE_DIR` 이 설정된 경우에만 쓴다. trace 는 턴이 끝나면
+    소멸하고 SSE 중계도 화면을 닫으면 사라진다 — "어제 그 턴에 왜 이 에이전트가 돌았나"에
+    답할 물증이 파일뿐이다. 쓰기 실패는 삼킨다(관찰이 실행을 막지 않는다 — sink 와 같은 규약).
+    """
+
+    directory = (os.getenv("JOBIS_TRACE_DIR") or "").strip()
+    if not directory or not rec.events:
+        return
+    try:
+        os.makedirs(directory, exist_ok=True)
+        name = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.json"
+        with open(os.path.join(directory, name), "w", encoding="utf-8") as f:
+            json.dump({"events": rec.events}, f, ensure_ascii=False, indent=2)
+    except Exception:   # noqa: BLE001
+        pass
+
+
 @contextmanager
 def recording(sink: "Callable[[dict[str, Any]], None] | None" = None) -> Iterator[TraceRecorder]:
     """이 블록 안의 emit 을 모두 담는 레코더를 활성화한다.
@@ -128,3 +152,5 @@ def recording(sink: "Callable[[dict[str, Any]], None] | None" = None) -> Iterato
         yield rec
     finally:
         _current.reset(token)
+        if rec._parent is None:    # 중첩 레코더는 부모가 이벤트를 다 받았다 — 한 번만 쓴다
+            _persist(rec)

@@ -49,18 +49,7 @@ public class ChatReplyWorker {
         }
         try {
             AiContracts.ChatRequest request = loadRequest(job);
-            AiContracts.ChatResponse response;
-            try {
-                // 스트리밍 우선 — 진행 단계가 올 때마다 stage_message 를 갱신해 프론트
-                // 폴링(2.5초)이 "지금 어느 에이전트가 도는지"를 실시간으로 보여준다(D75).
-                response = aiClient.chatStream(request, step -> updateStage(job, step));
-            } catch (AiServiceException exception) {
-                if (!AiAnalysisClient.STREAM_UNSUPPORTED.equals(exception.code())) {
-                    throw exception;
-                }
-                // 팀 ai-server 등 스트림 미지원 서버 — 기존 단건 계약으로 폴백한다.
-                response = aiClient.chat(request);
-            }
+            AiContracts.ChatResponse response = aiClient.chat(request);
             if (response == null || response.message() == null || response.message().isBlank()) {
                 throw new IllegalStateException("AI response did not include a message");
             }
@@ -180,6 +169,32 @@ public class ChatReplyWorker {
                             """)
                     .query(String.class)
                     .list();
+            List<String> activeGoals = jdbc.sql("""
+                            select goal_text
+                            from (
+                                select concat_ws(
+                                    ' · ',
+                                    posting.company_name,
+                                    posting.role_title
+                                ) as goal_text,
+                                1 as priority
+                                from user_goal_profiles goal
+                                join job_postings posting
+                                  on posting.id = goal.current_goal_posting_id
+                                where goal.user_id = :userId
+                                union all
+                                select final_goal_text, 2
+                                from user_goal_profiles
+                                where user_id = :userId
+                                  and final_goal_text is not null
+                            ) goals
+                            where goal_text is not null
+                              and goal_text <> ''
+                            order by priority
+                            """)
+                    .param("userId", job.userId())
+                    .query(String.class)
+                    .list();
 
             jdbc.sql("""
                             update chat_reply_jobs
@@ -195,37 +210,12 @@ public class ChatReplyWorker {
                     messages,
                     new AiContracts.CareerSummary(
                             completedNodes,
-                            List.of(),
+                            activeGoals,
                             recentPostings,
                             savedEvidence
                     )
             );
         });
-    }
-
-    private void updateStage(ClaimedJob job, AiContracts.ProgressStep step) {
-        String label = step.label() == null ? "" : step.label().strip();
-        String detail = step.detail() == null ? "" : step.detail().strip();
-        String message = detail.isBlank() ? label : label + " — " + detail;
-        if (message.isBlank()) {
-            return;
-        }
-        String stageMessage = message.length() > 200 ? message.substring(0, 200) : message;
-        try {
-            rls.write(job.userId(), jdbc -> {
-                jdbc.sql("""
-                                update chat_reply_jobs
-                                set stage = 'AI_REPLY', stage_message = :message
-                                where id = :jobId and status = 'RUNNING'
-                                """)
-                        .param("message", stageMessage)
-                        .param("jobId", job.id())
-                        .update();
-                return null;
-            });
-        } catch (Exception ignored) {
-            // 진행 표시는 관찰이다 — 갱신 실패가 본 작업을 막지 않는다.
-        }
     }
 
     private void complete(ClaimedJob job, AiContracts.ChatResponse response) {

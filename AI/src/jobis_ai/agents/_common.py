@@ -238,30 +238,33 @@ def match_resume(name: str, library: list[dict]) -> dict | None:
 
 
 def switch_active_resume(session: dict[str, Any], name: str,
-                         warnings: list[dict]) -> tuple[dict[str, Any], dict]:
-    """지목한 이력서 **하나**를 활성으로 갈아 끼운다. (세션 사본, sessionUpdates)
+                         warnings: list[dict]) -> tuple[dict[str, Any], dict, bool]:
+    """지목한 이력서 **하나**를 활성으로 갈아 끼운다. (세션 사본, sessionUpdates, 찾았는가)
 
     `fit_analysis._switch_active`(공고, D111)와 같은 원리다 — 하류 소비자는 활성 자산 하나만
     보므로, 대상을 바꾸려면 활성 자체를 바꿔야 한다. **`analysis` 는 무효화한다**: 판정은
     이력서×공고의 함수라, 이력서가 바뀌면 이전 판정은 다른 사람의 판정이다.
+
+    못 찾으면 False 를 돌려준다 — 호출자가 활성 이력서로 강행하지 않고 되묻게(D126).
+    강행하면 사용자는 그 답이 지목한 이력서의 것인 줄 안다.
     """
 
     entry = match_resume(name, session.get("resume_library") or [])
     if entry is None:
         warnings.append({
             "code": "resume_target_not_found",
-            "message": f"'{name}' 이력서를 기록에서 찾지 못해 활성 이력서로 진행합니다",
+            "message": f"'{name}' 이력서를 기록에서 찾지 못했습니다",
         })
-        return session, {}
+        return session, {}, False
     source = entry.get("_source")
     if not source or source == session.get("resume"):
-        return session, {}          # 이미 활성이거나, 원천 없이 저장된 옛 항목
+        return session, {}, True    # 이미 활성이거나, 원천 없이 저장된 옛 항목
     switched = {
         "resume": source,
         "profile": {k: v for k, v in entry.items() if not k.startswith("_")},
         "analysis": None,
     }
-    return {**session, **switched}, switched
+    return {**session, **switched}, switched, True
 
 
 def others_this_turn(session: dict[str, Any], me: str) -> list[str]:

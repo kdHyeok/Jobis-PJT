@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
@@ -46,11 +47,19 @@ class ExistingCareerFragment(ContractModel):
     detail: dict[str, Any] = Field(default_factory=dict)
 
 
+class CareerGoalContext(ContractModel):
+    current_posting_id: UUID | None = None
+    current_company_name: str | None = Field(default=None, max_length=160)
+    current_role_title: str | None = Field(default=None, max_length=200)
+    final_goal_text: str | None = Field(default=None, max_length=2_000)
+
+
 class CareerSnapshot(ContractModel):
     graph_id: UUID
     version: int = Field(ge=1)
     nodes: list[ExistingNode] = Field(max_length=2_000)
     fragments: list[ExistingCareerFragment] = Field(default_factory=list, max_length=1_000)
+    goals: CareerGoalContext = Field(default_factory=CareerGoalContext)
 
 
 class AnalysisAnswer(ContractModel):
@@ -66,6 +75,39 @@ class AnalysisRequest(ContractModel):
     career: CareerSnapshot
     question_count: int = Field(default=0, ge=0, le=3)
     answers: list[AnalysisAnswer] = Field(default_factory=list, max_length=3)
+    shared_analysis: SharedPostingAnalysis | None = None
+
+
+CareerTrack = Literal[
+    "BACKEND",
+    "FRONTEND",
+    "FULLSTACK",
+    "DATA",
+    "AI",
+    "DEVOPS",
+    "CLOUD",
+    "SECURITY",
+    "GAME",
+    "MOBILE",
+]
+
+
+class ExperienceRequirement(ContractModel):
+    type: Literal["NONE", "REQUIRED", "PREFERRED"]
+    minimum_months: int = Field(ge=0, le=600)
+    maximum_months: int | None = Field(default=None, ge=0, le=600)
+    source_text: str = Field(min_length=1, max_length=1_000)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> ExperienceRequirement:
+        if self.type == "NONE" and self.minimum_months != 0:
+            raise ValueError("NONE experience requirements must start at zero")
+        if (
+            self.maximum_months is not None
+            and self.maximum_months < self.minimum_months
+        ):
+            raise ValueError("maximum experience must not be below minimum")
+        return self
 
 
 class JobContext(ContractModel):
@@ -73,6 +115,10 @@ class JobContext(ContractModel):
     role_title: str | None = None
     employment_type: str | None = None
     experience_text: str | None = None
+    primary_track: CareerTrack
+    experience_requirement: ExperienceRequirement
+    closes_at: datetime | None = None
+    lifecycle_status: Literal["ACTIVE", "EXPIRED", "CLOSED", "UNKNOWN"] = "UNKNOWN"
     parsed_data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -118,114 +164,148 @@ class ClarificationDecision(ContractModel):
         return self
 
 
-NodeAction = Literal["CREATE", "REUSE"]
-NodeKind = Literal[
-    "FOUNDATION",
-    "SKILL",
-    "PROJECT",
-    "CREDENTIAL",
+CompetencyKind = Literal[
+    "TECHNOLOGY",
+    "KNOWLEDGE",
+    "PRACTICE",
+    "TASK",
+    "DOMAIN_KNOWLEDGE",
     "EXPERIENCE",
-    "OPPORTUNITY",
-    "OPPORTUNITY_CLUSTER",
+    "CREDENTIAL",
+]
+RoadmapStage = Literal[
+    "FOUNDATION",
+    "WEB",
+    "LANGUAGE",
+    "FRAMEWORK",
+    "DATA",
+    "QUALITY",
+    "OPERATIONS",
+    "SCALE",
+    "DOMAIN",
+    "EXPERIENCE",
+    "CREDENTIAL",
+]
+RoadmapDomain = Literal[
+    "COMMON",
+    "BACKEND",
+    "FRONTEND",
+    "DATA",
+    "DEVOPS",
+    "CLOUD",
+    "SECURITY",
+    "AI",
+    "MOBILE",
+    "GAME",
+    "DOMAIN",
+    "CAREER",
 ]
 
 
-class ProposedNodeBase(ContractModel):
+class AnalyzedCompetency(ContractModel):
     ref: str = Field(pattern=r"^[A-Za-z0-9_-]{1,80}$")
     canonical_key: str = Field(pattern=r"^[a-z0-9][a-z0-9._:-]{2,159}$")
     title: str = Field(min_length=1, max_length=160)
-    subtitle: str | None = Field(default=None, max_length=240)
-    domain: str = Field(min_length=1, max_length=40)
-    kind: NodeKind
-    level: int = Field(ge=1, le=5)
-    rank: int = Field(ge=0, le=10_000)
-    detail: dict[str, Any] = Field(default_factory=dict)
-
-
-class CreateProposedNode(ProposedNodeBase):
-    action: Literal["CREATE"]
-    existing_node_id: None = None
+    domain: RoadmapDomain
+    kind: CompetencyKind
+    stage: RoadmapStage
     scope_definition: str = Field(
         min_length=1,
         max_length=4_000,
         pattern=r".*\S.*",
     )
+    required_level: int = Field(ge=1, le=5)
+    roadmap_eligible: bool
+    verification_method: str | None = Field(default=None, max_length=1_000)
 
-    @field_validator("scope_definition")
-    @classmethod
-    def created_node_needs_scope(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("CREATE nodes require scopeDefinition")
-        return value
-
-
-class ReuseProposedNode(ProposedNodeBase):
-    action: Literal["REUSE"]
-    existing_node_id: UUID
-    scope_definition: str | None = Field(default=None, max_length=4_000)
-
-
-ProposedNode = CreateProposedNode | ReuseProposedNode
-
-
-class ProposedEdge(ContractModel):
-    from_ref: str
-    to_ref: str
-    edge_kind: Literal[
-        "PREREQUISITE",
-        "BRANCH",
-        "MERGE",
-        "OPPORTUNITY_PATH",
-    ] = "PREREQUISITE"
-
-
-class ProposedRequirement(ContractModel):
-    node_ref: str
-    kind: Literal["REQUIRED", "PREFERRED"]
-    source_text: str | None = None
-    confidence: Decimal | None = Field(default=None, ge=0, le=1)
-
-
-class ChangeProposal(ContractModel):
-    base_graph_version: int = Field(ge=1)
-    nodes: list[ProposedNode] = Field(max_length=100)
-    edges: list[ProposedEdge] = Field(max_length=200)
-    requirements: list[ProposedRequirement] = Field(max_length=200)
-
-    @field_validator("nodes")
-    @classmethod
-    def unique_node_refs(cls, value: list[ProposedNode]) -> list[ProposedNode]:
-        refs = [node.ref for node in value]
-        if len(refs) != len(set(refs)):
-            raise ValueError("node refs must be unique")
-        reused_ids = [
-            node.existing_node_id for node in value if node.existing_node_id is not None
-        ]
-        if len(reused_ids) != len(set(reused_ids)):
-            raise ValueError("existing node ids must be unique")
-        created_identities = [
-            (
-                node.canonical_key,
-                node.level,
-                " ".join((node.scope_definition or "").lower().split()),
+    @model_validator(mode="after")
+    def validate_roadmap_eligibility(self) -> AnalyzedCompetency:
+        if self.roadmap_eligible and (
+            self.verification_method is None
+            or not self.verification_method.strip()
+        ):
+            raise ValueError(
+                "roadmap eligible competencies require a verification method"
             )
-            for node in value
-            if node.action == "CREATE"
-        ]
-        if len(created_identities) != len(set(created_identities)):
-            raise ValueError("created node identities must be unique")
+        return self
+
+
+class AnalyzedRequirement(ContractModel):
+    competency_ref: str
+    relation: Literal["REQUIRED", "PREFERRED", "RESPONSIBILITY"]
+    source_text: str = Field(min_length=1, max_length=4_000)
+    confidence: Decimal = Field(ge=0, le=1)
+
+
+class TargetProjectBrief(ContractModel):
+    title: str = Field(min_length=1, max_length=200)
+    objective: str = Field(min_length=1, max_length=4_000)
+    domain_context: str = Field(min_length=1, max_length=4_000)
+    required_competency_refs: list[str] = Field(min_length=1, max_length=30)
+    optional_competency_refs: list[str] = Field(default_factory=list, max_length=20)
+    deliverables: list[str] = Field(min_length=1, max_length=20)
+    acceptance_criteria: list[str] = Field(min_length=1, max_length=30)
+
+
+class CompetencyProposal(ContractModel):
+    competencies: list[AnalyzedCompetency] = Field(min_length=1, max_length=100)
+    requirements: list[AnalyzedRequirement] = Field(min_length=1, max_length=200)
+    target_project: TargetProjectBrief
+
+    @field_validator("competencies")
+    @classmethod
+    def unique_competencies(
+        cls, value: list[AnalyzedCompetency]
+    ) -> list[AnalyzedCompetency]:
+        refs = [competency.ref for competency in value]
+        if len(refs) != len(set(refs)):
+            raise ValueError("competency refs must be unique")
+        keys = [competency.canonical_key for competency in value]
+        if len(keys) != len(set(keys)):
+            raise ValueError("canonical competency keys must be unique")
         return value
 
     @model_validator(mode="after")
-    def validate_references(self) -> ChangeProposal:
-        refs = {node.ref for node in self.nodes}
-        for edge in self.edges:
-            if edge.from_ref not in refs or edge.to_ref not in refs:
-                raise ValueError("edge references must point to proposed nodes")
+    def validate_references(self) -> CompetencyProposal:
+        competencies_by_ref = {
+            competency.ref: competency for competency in self.competencies
+        }
+        refs = set(competencies_by_ref)
+        requirement_identities: set[tuple[str, str]] = set()
         for requirement in self.requirements:
-            if requirement.node_ref not in refs:
-                raise ValueError("requirement references must point to a proposed node")
+            if requirement.competency_ref not in refs:
+                raise ValueError(
+                    "requirement references must point to analyzed competencies"
+                )
+            identity = (requirement.competency_ref, requirement.relation)
+            if identity in requirement_identities:
+                raise ValueError("competency requirements must be deduplicated")
+            requirement_identities.add(identity)
+        project_refs = (
+            self.target_project.required_competency_refs
+            + self.target_project.optional_competency_refs
+        )
+        if any(ref not in refs for ref in project_refs):
+            raise ValueError(
+                "target project references must point to analyzed competencies"
+            )
+        if len(project_refs) != len(set(project_refs)):
+            raise ValueError("target project competency refs must be unique")
+        if any(
+            not competencies_by_ref[ref].roadmap_eligible
+            for ref in project_refs
+        ):
+            raise ValueError(
+                "target project cannot require qualitative competencies"
+            )
         return self
+
+
+class SharedPostingAnalysis(ContractModel):
+    """User-independent posting interpretation reused across accounts."""
+
+    job: JobContext
+    competency_proposal: CompetencyProposal
 
 
 class AnalysisResponse(ContractModel):
@@ -233,7 +313,7 @@ class AnalysisResponse(ContractModel):
     question: AnalysisQuestion | None = None
     job: JobContext | None = None
     evaluation: Evaluation | None = None
-    change_proposal: ChangeProposal | None = None
+    competency_proposal: CompetencyProposal | None = None
 
     @model_validator(mode="after")
     def validate_outcome(self) -> AnalysisResponse:
@@ -242,7 +322,7 @@ class AnalysisResponse(ContractModel):
                 raise ValueError("NEEDS_INPUT responses require a question")
             if any(
                 value is not None
-                for value in (self.job, self.evaluation, self.change_proposal)
+                for value in (self.job, self.evaluation, self.competency_proposal)
             ):
                 raise ValueError("NEEDS_INPUT responses cannot contain a final result")
         else:
@@ -250,9 +330,59 @@ class AnalysisResponse(ContractModel):
                 raise ValueError("COMPLETED responses cannot contain a question")
             if any(
                 value is None
-                for value in (self.job, self.evaluation, self.change_proposal)
+                for value in (self.job, self.evaluation, self.competency_proposal)
             ):
                 raise ValueError("COMPLETED responses require the complete result")
+        return self
+
+
+AnalysisStageStatus = Literal[
+    "PENDING",
+    "RUNNING",
+    "WAITING",
+    "COMPLETED",
+    "FAILED",
+]
+
+
+class AnalysisStageDefinition(ContractModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
+    label: str = Field(min_length=1, max_length=80)
+    role: str = Field(min_length=1, max_length=120)
+    message: str = Field(min_length=1, max_length=500)
+    color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+
+
+class AnalysisStageUpdate(ContractModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{1,79}$")
+    status: AnalysisStageStatus
+    message: str | None = Field(default=None, max_length=1_000)
+
+
+class AnalysisStreamEvent(ContractModel):
+    type: Literal["RUN_STARTED", "STAGE_UPDATED", "RESULT", "ERROR"]
+    run_id: UUID
+    sequence: int = Field(ge=1)
+    occurred_at: datetime
+    stages: list[AnalysisStageDefinition] = Field(default_factory=list, max_length=12)
+    stage: AnalysisStageUpdate | None = None
+    result: AnalysisResponse | None = None
+    error_code: str | None = Field(default=None, max_length=80)
+    error_message: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_payload(self) -> AnalysisStreamEvent:
+        if self.type == "RUN_STARTED" and not self.stages:
+            raise ValueError("RUN_STARTED events require stages")
+        if self.type == "STAGE_UPDATED" and self.stage is None:
+            raise ValueError("STAGE_UPDATED events require a stage")
+        if self.type == "RESULT" and self.result is None:
+            raise ValueError("RESULT events require a result")
+        if self.type == "ERROR" and (
+            not self.error_code
+            or not self.error_message
+        ):
+            raise ValueError("ERROR events require errorCode and errorMessage")
         return self
 
 
@@ -260,14 +390,14 @@ class CompletedAnalysisResponse(ContractModel):
     status: Literal["COMPLETED"]
     job: JobContext
     evaluation: Evaluation
-    change_proposal: ChangeProposal
+    competency_proposal: CompetencyProposal
 
     def to_analysis_response(self) -> AnalysisResponse:
         return AnalysisResponse(
             status="COMPLETED",
             job=self.job,
             evaluation=self.evaluation,
-            change_proposal=self.change_proposal,
+            competency_proposal=self.competency_proposal,
         )
 
 
@@ -335,6 +465,87 @@ class EvidenceVerificationResponse(ContractModel):
     verdict: Literal["VERIFIED", "NEEDS_WORK", "REJECTED"]
     confidence: Decimal = Field(ge=0, le=1)
     summary: str = Field(min_length=1, max_length=2_000)
+    strengths: list[str] = Field(default_factory=list, max_length=10)
+    gaps: list[str] = Field(default_factory=list, max_length=10)
+    next_actions: list[str] = Field(default_factory=list, max_length=10)
+
+
+AssessmentQuestionKind = Literal["CONCEPT", "CODE", "SCENARIO", "FOLLOW_UP"]
+
+
+class AssessmentCompetency(ContractModel):
+    canonical_key: str = Field(pattern=r"^[a-z0-9][a-z0-9._:-]{2,159}$")
+    title: str = Field(min_length=1, max_length=160)
+    domain: str = Field(min_length=1, max_length=40)
+    scope_definition: str = Field(min_length=1, max_length=4_000)
+    required_level: int = Field(ge=1, le=5)
+    level_definition: dict[str, Any] = Field(default_factory=dict)
+    assessment_blueprint: dict[str, Any] = Field(default_factory=dict)
+
+
+class AssessmentTargetContext(ContractModel):
+    company_name: str | None = Field(default=None, max_length=160)
+    role_title: str | None = Field(default=None, max_length=200)
+    primary_track: str | None = Field(default=None, max_length=40)
+    domain_context: str | None = Field(default=None, max_length=4_000)
+    requirement_source: str | None = Field(default=None, max_length=4_000)
+    current_goal: str | None = Field(default=None, max_length=500)
+    final_goal: str | None = Field(default=None, max_length=2_000)
+
+
+class AssessmentTurn(ContractModel):
+    ordinal: int = Field(ge=1, le=5)
+    question_kind: AssessmentQuestionKind
+    prompt: str = Field(min_length=1, max_length=6_000)
+    code_snippet: str | None = Field(default=None, max_length=8_000)
+    answer_text: str | None = Field(default=None, max_length=12_000)
+    score: int | None = Field(default=None, ge=0, le=100)
+    feedback: str | None = Field(default=None, max_length=4_000)
+
+
+class CompetencyAssessmentRequest(ContractModel):
+    session_id: UUID
+    competency: AssessmentCompetency
+    target: AssessmentTargetContext = Field(default_factory=AssessmentTargetContext)
+    turns: list[AssessmentTurn] = Field(default_factory=list, max_length=5)
+    retained_scores: dict[
+        Literal["CONCEPT", "CODE", "SCENARIO"],
+        int,
+    ] = Field(default_factory=dict, max_length=3)
+    required_question_kind: AssessmentQuestionKind | None = None
+
+    @field_validator("retained_scores")
+    @classmethod
+    def validate_retained_scores(
+        cls,
+        value: dict[str, int],
+    ) -> dict[str, int]:
+        if any(score < 60 or score > 100 for score in value.values()):
+            raise ValueError("retained assessment scores must be between 60 and 100")
+        return value
+
+
+class AssessmentAnswerEvaluation(ContractModel):
+    score: int = Field(ge=0, le=100)
+    verdict: Literal["PASS", "PARTIAL", "FAIL"]
+    feedback: str = Field(min_length=1, max_length=4_000)
+    covered_criteria: list[str] = Field(default_factory=list, max_length=12)
+    gaps: list[str] = Field(default_factory=list, max_length=12)
+    future_extensions: list[str] = Field(default_factory=list, max_length=12)
+
+
+class AssessmentQuestion(ContractModel):
+    kind: AssessmentQuestionKind
+    prompt: str = Field(min_length=1, max_length=6_000)
+    code_snippet: str | None = Field(default=None, max_length=8_000)
+    core_criteria: list[str] = Field(default_factory=list, max_length=12)
+    future_extensions: list[str] = Field(default_factory=list, max_length=12)
+
+
+class CompetencyAssessmentResponse(ContractModel):
+    answer_evaluation: AssessmentAnswerEvaluation | None = None
+    next_question: AssessmentQuestion | None = None
+    session_summary: str = Field(min_length=1, max_length=2_000)
     strengths: list[str] = Field(default_factory=list, max_length=10)
     gaps: list[str] = Field(default_factory=list, max_length=10)
     next_actions: list[str] = Field(default_factory=list, max_length=10)

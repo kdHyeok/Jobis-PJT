@@ -1,3 +1,6 @@
+import asyncio
+import json
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -6,11 +9,19 @@ from pydantic import ValidationError
 
 from app.main import app, get_analysis_service
 from app.models import (
+    AnalysisRequest,
     AnalysisResponse,
+    AnalysisStageDefinition,
+    AnalysisStreamEvent,
+    AssessmentQuestion,
     CareerExtractionResponse,
     CareerFragmentSuggestion,
     ChatResponse,
+    ClarificationDecision,
+    CompetencyAssessmentRequest,
+    CompetencyAssessmentResponse,
     CompletedAnalysisResponse,
+    Evaluation,
     EvidenceVerificationResponse,
 )
 from app.service import AnalysisService
@@ -64,6 +75,24 @@ def test_unconfigured_provider_never_returns_fake_success() -> None:
     )
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "AI_PROVIDER_NOT_CONFIGURED"
+
+
+def test_stream_preserves_progress_and_reports_provider_error() -> None:
+    response = client.post(
+        "/v1/analyses/stream",
+        json=valid_request(),
+        headers={"X-JOBISS-AI-SECRET": "local-ai-secret"},
+    )
+
+    assert response.status_code == 200
+    events = [
+        json.loads(line)
+        for line in response.text.splitlines()
+        if line.strip()
+    ]
+    assert events[0]["type"] == "RUN_STARTED"
+    assert events[-1]["type"] == "ERROR"
+    assert events[-1]["errorCode"] == "AI_PROVIDER_NOT_CONFIGURED"
 
 
 def test_chat_contract_rejects_fake_success_without_provider() -> None:
@@ -133,6 +162,13 @@ def valid_analysis_response() -> dict:
         "job": {
             "companyName": "Example",
             "roleTitle": "Backend Engineer",
+            "primaryTrack": "BACKEND",
+            "experienceRequirement": {
+                "type": "NONE",
+                "minimumMonths": 0,
+                "maximumMonths": None,
+                "sourceText": "신입·경력 무관",
+            },
             "parsedData": {},
         },
         "evaluation": {
@@ -140,33 +176,130 @@ def valid_analysis_response() -> dict:
             "summary": "보완 후 지원할 수 있습니다.",
             "reasons": ["필수 기술 경험이 필요합니다."],
         },
-        "changeProposal": {
-            "baseGraphVersion": 1,
-            "nodes": [
+        "competencyProposal": {
+            "competencies": [
                 {
                     "ref": "java",
-                    "action": "CREATE",
                     "canonicalKey": "skill.java",
                     "title": "Java",
                     "domain": "BACKEND",
-                    "kind": "SKILL",
+                    "kind": "TECHNOLOGY",
+                    "stage": "LANGUAGE",
                     "scopeDefinition": "Java로 서버 로직을 구현한다.",
-                    "level": 2,
-                    "rank": 1,
-                    "detail": {},
+                    "requiredLevel": 2,
+                    "roadmapEligible": True,
+                    "verificationMethod": "실행 가능한 Java 서버 코드와 테스트로 확인",
                 }
             ],
-            "edges": [],
             "requirements": [
                 {
-                    "nodeRef": "java",
-                    "kind": "REQUIRED",
+                    "competencyRef": "java",
+                    "relation": "REQUIRED",
                     "sourceText": "Java 경험",
                     "confidence": 0.9,
                 }
             ],
+            "targetProject": {
+                "title": "Example 백엔드 맞춤 프로젝트",
+                "objective": "Java 서버 구현 역량을 검증합니다.",
+                "domainContext": "Example 서비스 도메인을 반영합니다.",
+                "requiredCompetencyRefs": ["java"],
+                "optionalCompetencyRefs": [],
+                "deliverables": ["실행 가능한 Git 저장소"],
+                "acceptanceCriteria": ["Java로 핵심 API가 동작합니다."],
+            },
         },
     }
+
+
+class OrchestrationProbeProvider:
+    name = "orchestration-probe"
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def decide_clarification(
+        self, request: AnalysisRequest
+    ) -> ClarificationDecision:
+        self.calls.append("clarification")
+        return ClarificationDecision(status="CONTINUE")
+
+    async def complete_posting_analysis(
+        self, request: AnalysisRequest
+    ) -> CompletedAnalysisResponse:
+        self.calls.append("posting")
+        payload = valid_analysis_response()
+        return CompletedAnalysisResponse.model_validate(payload)
+
+    async def evaluate_shared_analysis(
+        self, request: AnalysisRequest
+    ) -> Evaluation:
+        self.calls.append("fit")
+        return Evaluation(
+            verdict="STRENGTHEN_THEN_APPLY",
+            summary="현재 사용자 기준으로 다시 비교했습니다.",
+            reasons=["검증되지 않은 필수 역량이 남아 있습니다."],
+        )
+
+
+def test_actual_orchestration_stages_wrap_fresh_analysis() -> None:
+    service = AnalysisService(
+        Settings(analysis_provider="unconfigured", _env_file=None)
+    )
+    provider = OrchestrationProbeProvider()
+    service._provider = provider
+    request = AnalysisRequest.model_validate(valid_request())
+
+    async def collect_events():
+        return [event async for event in service.analyze_stream(request)]
+
+    events = asyncio.run(collect_events())
+    stage_ids = [stage.id for stage in events[0].stages]
+    updated_ids = [
+        event.stage.id
+        for event in events
+        if event.stage is not None
+    ]
+
+    assert stage_ids == [
+        "CONTEXT_ASSEMBLY",
+        "CLARIFICATION",
+        "POSTING_ANALYSIS",
+        "CONTRACT_VALIDATION",
+        "RESULT_ASSEMBLY",
+    ]
+    assert updated_ids.count("POSTING_ANALYSIS") == 2
+    assert provider.calls == ["clarification", "posting"]
+    assert events[-1].type == "RESULT"
+
+
+def test_cached_analysis_only_reruns_user_fit_stage() -> None:
+    payload = valid_request()
+    completed = valid_analysis_response()
+    payload["sharedAnalysis"] = {
+        "job": completed["job"],
+        "competencyProposal": completed["competencyProposal"],
+    }
+    service = AnalysisService(
+        Settings(analysis_provider="unconfigured", _env_file=None)
+    )
+    provider = OrchestrationProbeProvider()
+    service._provider = provider
+    request = AnalysisRequest.model_validate(payload)
+
+    async def collect_events():
+        return [event async for event in service.analyze_stream(request)]
+
+    events = asyncio.run(collect_events())
+    stage_ids = [stage.id for stage in events[0].stages]
+
+    assert "SHARED_REUSE" in stage_ids
+    assert "FIT_ANALYSIS" in stage_ids
+    assert "CLARIFICATION" not in stage_ids
+    assert "POSTING_ANALYSIS" not in stage_ids
+    assert provider.calls == ["fit"]
+    assert events[-1].result is not None
+    assert events[-1].result.job == request.shared_analysis.job
 
 
 def test_analysis_can_pause_for_one_clarification_question() -> None:
@@ -198,47 +331,93 @@ def test_analysis_can_pause_for_one_clarification_question() -> None:
     assert response.question.key == "target_role"
 
 
-def test_create_node_requires_scope_even_when_field_is_omitted() -> None:
+def test_competency_requires_scope_even_when_field_is_omitted() -> None:
     payload = valid_analysis_response()
-    del payload["changeProposal"]["nodes"][0]["scopeDefinition"]
+    del payload["competencyProposal"]["competencies"][0]["scopeDefinition"]
 
     with pytest.raises(ValidationError):
         AnalysisResponse.model_validate(payload)
 
 
-def test_create_node_schema_requires_scope_definition() -> None:
+def test_competency_schema_requires_scope_and_stage() -> None:
     schema = CompletedAnalysisResponse.model_json_schema(by_alias=True)
-    node_items = schema["$defs"]["ChangeProposal"]["properties"]["nodes"]["items"]
-    create_ref = next(
-        item["$ref"]
-        for item in node_items["anyOf"]
-        if item["$ref"].endswith("/CreateProposedNode")
-    )
-    create_schema = schema["$defs"][create_ref.rsplit("/", 1)[-1]]
+    competency_schema = schema["$defs"]["AnalyzedCompetency"]
 
-    assert "scopeDefinition" in create_schema["required"]
-    assert create_schema["properties"]["action"]["const"] == "CREATE"
+    assert "scopeDefinition" in competency_schema["required"]
+    assert "stage" in competency_schema["required"]
+    assert "requiredLevel" in competency_schema["required"]
+    assert "roadmapEligible" in competency_schema["required"]
+    assert "verificationMethod" in competency_schema["properties"]
 
 
-def test_reuse_node_schema_requires_existing_node_id() -> None:
-    schema = CompletedAnalysisResponse.model_json_schema(by_alias=True)
-    node_items = schema["$defs"]["ChangeProposal"]["properties"]["nodes"]["items"]
-    reuse_ref = next(
-        item["$ref"]
-        for item in node_items["anyOf"]
-        if item["$ref"].endswith("/ReuseProposedNode")
-    )
-    reuse_schema = schema["$defs"][reuse_ref.rsplit("/", 1)[-1]]
+def test_assessment_retained_scores_only_accept_passed_core_dimensions() -> None:
+    payload = {
+        "sessionId": str(uuid4()),
+        "competency": {
+            "canonicalKey": "backend.java",
+            "title": "Java",
+            "domain": "BACKEND",
+            "scopeDefinition": "Java 언어의 핵심 문법과 객체지향 설계를 적용한다.",
+            "requiredLevel": 2,
+            "levelDefinition": {},
+            "assessmentBlueprint": {},
+        },
+        "target": {},
+        "turns": [],
+        "retainedScores": {"CONCEPT": 90, "SCENARIO": 80},
+        "requiredQuestionKind": "CODE",
+    }
 
-    assert "existingNodeId" in reuse_schema["required"]
-    assert reuse_schema["properties"]["action"]["const"] == "REUSE"
+    parsed = CompetencyAssessmentRequest.model_validate(payload)
+    assert parsed.retained_scores == {"CONCEPT": 90, "SCENARIO": 80}
+
+    payload["retainedScores"]["CODE"] = 59
+    with pytest.raises(ValidationError):
+        CompetencyAssessmentRequest.model_validate(payload)
 
 
-def test_edge_kind_is_limited_to_server_supported_values() -> None:
+def test_job_context_requires_track_and_structured_experience() -> None:
     payload = valid_analysis_response()
-    payload["changeProposal"]["edges"] = [
-        {"fromRef": "java", "toRef": "java", "edgeKind": "LEADS_TO"}
+    del payload["job"]["primaryTrack"]
+
+    with pytest.raises(ValidationError):
+        AnalysisResponse.model_validate(payload)
+
+    payload = valid_analysis_response()
+    payload["job"]["experienceRequirement"] = {
+        "type": "REQUIRED",
+        "minimumMonths": 48,
+        "maximumMonths": 24,
+        "sourceText": "경력 2~4년",
+    }
+
+    with pytest.raises(ValidationError):
+        AnalysisResponse.model_validate(payload)
+
+
+def test_requirement_must_reference_analyzed_competency() -> None:
+    payload = valid_analysis_response()
+    payload["competencyProposal"]["requirements"][0]["competencyRef"] = "missing"
+
+    with pytest.raises(ValidationError):
+        AnalysisResponse.model_validate(payload)
+
+
+def test_target_project_must_reference_analyzed_competency() -> None:
+    payload = valid_analysis_response()
+    payload["competencyProposal"]["targetProject"]["requiredCompetencyRefs"] = [
+        "missing"
     ]
+
+    with pytest.raises(ValidationError):
+        AnalysisResponse.model_validate(payload)
+
+
+def test_qualitative_competency_cannot_be_a_project_requirement() -> None:
+    payload = valid_analysis_response()
+    competency = payload["competencyProposal"]["competencies"][0]
+    competency["roadmapEligible"] = False
+    competency["verificationMethod"] = None
 
     with pytest.raises(ValidationError):
         AnalysisResponse.model_validate(payload)
@@ -249,6 +428,30 @@ class SuccessfulTestService:
 
     async def analyze(self, request) -> AnalysisResponse:
         return AnalysisResponse.model_validate(valid_analysis_response())
+
+    async def analyze_stream(self, request):
+        yield AnalysisStreamEvent(
+            type="RUN_STARTED",
+            run_id=request.analysis_job_id,
+            sequence=1,
+            occurred_at=datetime.now(UTC),
+            stages=[
+                AnalysisStageDefinition(
+                    id="posting_analysis",
+                    label="공고 분석",
+                    role="공고 분석 에이전트",
+                    message="공고 요구사항을 구조화하고 있어요.",
+                    color="#ce82ff",
+                )
+            ],
+        )
+        yield AnalysisStreamEvent(
+            type="RESULT",
+            run_id=request.analysis_job_id,
+            sequence=2,
+            occurred_at=datetime.now(UTC),
+            result=await self.analyze(request),
+        )
 
     async def chat(self, request) -> ChatResponse:
         return ChatResponse(
@@ -282,12 +485,31 @@ class SuccessfulTestService:
             ],
         )
 
+    async def assess_competency(self, request) -> CompetencyAssessmentResponse:
+        return CompetencyAssessmentResponse(
+            answer_evaluation=None,
+            next_question=AssessmentQuestion(
+                kind="CONCEPT",
+                prompt="HTTP 멱등성이 무엇인지 설명해 주세요.",
+                code_snippet=None,
+            ),
+            session_summary="첫 번째 개념 문제를 준비했습니다.",
+            strengths=[],
+            gaps=[],
+            next_actions=["질문에 근거를 포함해 답변하세요."],
+        )
+
 
 def test_configured_provider_contracts_serialize_successfully() -> None:
     app.dependency_overrides[get_analysis_service] = lambda: SuccessfulTestService()
     headers = {"X-JOBISS-AI-SECRET": "local-ai-secret"}
 
     analysis = client.post("/v1/analyses", json=valid_request(), headers=headers)
+    analysis_stream = client.post(
+        "/v1/analyses/stream",
+        json=valid_request(),
+        headers=headers,
+    )
     chat = client.post(
         "/v1/chat",
         headers=headers,
@@ -328,12 +550,46 @@ def test_configured_provider_contracts_serialize_successfully() -> None:
             "rawText": "Spring Boot와 PostgreSQL로 게시판 API를 구현했습니다.",
         },
     )
+    assessment = client.post(
+        "/v1/competency-assessments",
+        headers=headers,
+        json={
+            "sessionId": str(uuid4()),
+            "competency": {
+                "canonicalKey": "shared.http-network",
+                "title": "HTTP와 네트워크",
+                "domain": "BACKEND",
+                "scopeDefinition": "HTTP 요청과 응답의 동작을 설명하고 적용한다.",
+                "requiredLevel": 2,
+                "levelDefinition": {},
+                "assessmentBlueprint": {},
+            },
+            "target": {
+                "companyName": "Example",
+                "roleTitle": "Backend Engineer",
+                "primaryTrack": "BACKEND",
+            },
+            "turns": [],
+            "retainedScores": {"SCENARIO": 82},
+            "requiredQuestionKind": "CONCEPT",
+        },
+    )
 
     assert analysis.status_code == 200
-    assert analysis.json()["changeProposal"]["nodes"][0]["scopeDefinition"]
+    assert analysis.json()["competencyProposal"]["competencies"][0]["scopeDefinition"]
+    assert analysis_stream.status_code == 200
+    stream_events = [
+        json.loads(line)
+        for line in analysis_stream.text.splitlines()
+        if line.strip()
+    ]
+    assert [event["type"] for event in stream_events] == ["RUN_STARTED", "RESULT"]
+    assert stream_events[0]["stages"][0]["id"] == "posting_analysis"
     assert chat.status_code == 200
     assert chat.json()["intent"] == "PROFILE_DISCOVERY"
     assert evidence.status_code == 200
     assert evidence.json()["verdict"] == "NEEDS_WORK"
     assert career.status_code == 200
     assert career.json()["fragments"][0]["canonicalKey"] == "project.board-api"
+    assert assessment.status_code == 200
+    assert assessment.json()["nextQuestion"]["kind"] == "CONCEPT"

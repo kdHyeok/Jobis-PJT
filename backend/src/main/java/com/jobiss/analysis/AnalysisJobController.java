@@ -1,5 +1,6 @@
 package com.jobiss.analysis;
 
+import com.jobiss.roadmap.RoadmapService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -22,13 +23,16 @@ public class AnalysisJobController {
 
     private final AnalysisJobService service;
     private final GraphMergeService graphMergeService;
+    private final RoadmapService roadmapService;
 
     public AnalysisJobController(
             AnalysisJobService service,
-            GraphMergeService graphMergeService
+            GraphMergeService graphMergeService,
+            RoadmapService roadmapService
     ) {
         this.service = service;
         this.graphMergeService = graphMergeService;
+        this.roadmapService = roadmapService;
     }
 
     @GetMapping
@@ -69,11 +73,11 @@ public class AnalysisJobController {
     }
 
     @PostMapping("/{jobId}/approve")
-    GraphMergeService.MergeResult approve(
+    RoadmapService.DraftResult approve(
             @AuthenticationPrincipal UUID userId,
             @PathVariable UUID jobId
     ) {
-        return graphMergeService.approve(userId, jobId);
+        return roadmapService.addTarget(userId, jobId);
     }
 
     @PostMapping("/{jobId}/reject")

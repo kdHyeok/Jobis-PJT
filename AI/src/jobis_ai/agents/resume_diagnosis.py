@@ -209,7 +209,20 @@ def run(session: dict[str, Any]) -> AgentResult:
                agent_arg(session, "resume_diagnosis", "targets").split(",") if t.strip()]
     session_updates: dict = {}
     if len(targets) == 1:
-        session, session_updates = switch_active_resume(session, targets[0], switch_warnings)
+        session, session_updates, found = switch_active_resume(
+            session, targets[0], switch_warnings)
+        if not found:
+            # 활성 이력서로 강행하지 않는다(D126) — 무엇을 기억하는지 알려주고 되묻는다.
+            labels = [str(r.get("_label") or "")
+                      for r in session.get("resume_library") or [] if r.get("_label")]
+            listing = (f" 지금 기억하는 이력서는 {', '.join(labels)} 입니다."
+                       if labels else "")
+            return AgentResult(
+                reply=(f"'{targets[0]}' 이력서를 기록에서 찾지 못했어요.{listing} "
+                       "이름으로 다시 알려주시거나, 새 이력서면 붙여넣거나 올려주세요."),
+                data={"status": "needs_input", "unmatchedTarget": targets[0],
+                      "candidates": labels},
+                warnings=switch_warnings)
         if session_updates:
             had_profile = False       # 다른 이력서다 — 방금 읽은 턴처럼 정리해 보여준다
 

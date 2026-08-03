@@ -57,7 +57,10 @@ def render_job_recommend(data: dict[str, Any], session: dict[str, Any]) -> tuple
             f"말씀해주신 선호({', '.join(pref_terms[:4])})를 반영해 " if pref_terms else ""
         )
         lines = []
-        for r in recommendations:
+        # 번호를 코드가 매긴다(D125 — 프로토타입 2.0.0 registry 이식). 사용자가 "2번째"로
+        # 지목하면 fit_analysis 가 이 순서(추천 목록 순서) 그대로 인출한다 — 번호를 매기는
+        # 곳과 푸는 곳이 같은 목록이어야 엉뚱한 공고가 잡히지 않는다.
+        for i, r in enumerate(recommendations, 1):
             link = f" — {r['url']}" if r.get("url") else ""
             # 이력서가 없으면 역량 일치 수를 세지 않았으니 적지 않는다 — 0 개로 적으면
             # "역량이 하나도 안 맞는다"는 없는 판정을 말하는 셈이 된다.
@@ -67,7 +70,7 @@ def render_job_recommend(data: dict[str, Any], session: dict[str, Any]) -> tuple
             # 공고 표기 연차를 함께 보여준다 — 걸러낸 기준을 사용자가 눈으로 확인할 수 있게.
             years = f" · 연차 {r['experience']}" if r.get("experience") else ""
             lines.append(
-                f"· **{r['companyName'] or r['title']}** | {r['title'][:40]}{gauge}{years}{link}")
+                f"{i}. **{r['companyName'] or r['title']}** | {r['title'][:40]}{gauge}{years}{link}")
         head = (f"{pref_note}보유 역량과 매칭되는 공고 {len(recommendations)}건을 찾았습니다."
                 if profile_known else
                 f"{pref_note}공고 {len(recommendations)}건을 찾았습니다. "
@@ -78,9 +81,9 @@ def render_job_recommend(data: dict[str, Any], session: dict[str, Any]) -> tuple
             # 폴백은 이유를 삼키지 않는다(§2-6·D90) — 어떤 검색으로 찾았는지 사용자에게 명시.
             head += (" (실시간 검색 서버(RAG)가 연결되지 않아, 저장된 공고 데이터에서 "
                      "키워드 검색으로 찾은 결과예요.)")
-        tail = ("\n\n관심 있는 공고의 URL 을 붙여넣으시면 그 공고로 상세 적합도 분석을 이어서 해드릴게요."
+        tail = ("\n\n관심 있는 공고의 번호나 회사명을 알려주시면 그 공고로 상세 적합도 분석을 이어서 해드릴게요."
                 if profile_known else
-                "\n\n관심 있는 공고의 URL 과 이력서를 주시면 그 공고로 상세 적합도 분석까지 해드릴게요.")
+                "\n\n관심 있는 공고의 번호나 회사명과 함께 이력서를 주시면 그 공고로 상세 적합도 분석까지 해드릴게요.")
         return head + "\n" + "\n".join(lines) + tail, []
 
     if data.get("emptyQuery"):
@@ -192,6 +195,28 @@ def render_fit_analysis(data: dict[str, Any], session: dict[str, Any]) -> tuple[
                       + ("다시 보내주시면 판정에 포함할게요.)" if axis_resume
                          else "링크나 본문을 다시 보내주시면 판정에 포함할게요.)"))
         return reply, []
+
+    if data.get("status") == "needs_input":
+        # 지목 해석 실패(D126) — 판정 대신 무엇을 기억하는지 알려주고 이름으로 되묻는다.
+        # 번호로 되묻지 않는다: 순번은 추천 목록에만 해석되는데(D125) 이 후보 목록은
+        # 라이브러리+추천 합본이라, 여기 번호를 매기면 같은 숫자가 다른 공고를 가리킨다.
+        noun = "이력서" if data.get("axis") == "resume" else "공고"
+        target = str(data.get("unmatchedTarget") or "")
+        if data.get("reason") == "fetch_failed":
+            return (f"지목하신 '{target}' 공고의 페이지를 수집하지 못했어요. "
+                    "공고 본문을 붙여넣어 주시면 그걸로 판정할게요."), []
+        if data.get("reason") == "no_url":
+            return (f"'{target}' 공고는 링크가 없어 원문을 가져올 수 없어요. "
+                    "공고 본문을 붙여넣어 주시면 판정할게요."), []
+        candidates = [str(c) for c in (data.get("candidates") or []) if str(c).strip()]
+        head = f"'{target}' {noun}를 지금 기억하는 목록에서 찾지 못했어요."
+        if candidates:
+            head += (f" 지금 기억하는 {noun}는 {', '.join(candidates)} 입니다. "
+                     f"이름으로 다시 알려주시면 그 {noun}로 판정할게요.")
+        else:
+            head += (" 이력서를 붙여넣거나 올려주시면 판정할게요." if noun == "이력서"
+                     else " 공고 링크나 본문을 보내주시면 판정할게요.")
+        return head, []
 
     if data.get("status") == "need_more_info":
         # 무엇이 부족한지 **그 자리에서** 말한다. "아래 질문에 답해 주세요"라고만 하고 질문을

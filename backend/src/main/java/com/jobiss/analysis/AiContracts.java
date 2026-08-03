@@ -3,7 +3,9 @@ package com.jobiss.analysis;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class AiContracts {
@@ -16,7 +18,14 @@ public final class AiContracts {
             Posting posting,
             CareerSnapshot career,
             int questionCount,
-            List<AnalysisAnswer> answers
+            List<AnalysisAnswer> answers,
+            SharedPostingAnalysis sharedAnalysis
+    ) {
+    }
+
+    public record SharedPostingAnalysis(
+            JobContext job,
+            CompetencyProposal competencyProposal
     ) {
     }
 
@@ -40,7 +49,16 @@ public final class AiContracts {
             UUID graphId,
             long version,
             List<ExistingNode> nodes,
-            List<ExistingCareerFragment> fragments
+            List<ExistingCareerFragment> fragments,
+            CareerGoalContext goals
+    ) {
+    }
+
+    public record CareerGoalContext(
+            UUID currentPostingId,
+            String currentCompanyName,
+            String currentRoleTitle,
+            String finalGoalText
     ) {
     }
 
@@ -70,7 +88,36 @@ public final class AiContracts {
             AnalysisQuestion question,
             JobContext job,
             Evaluation evaluation,
-            ChangeProposal changeProposal
+            CompetencyProposal competencyProposal
+    ) {
+    }
+
+    public record AnalysisStageDefinition(
+            String id,
+            String label,
+            String role,
+            String message,
+            String color
+    ) {
+    }
+
+    public record AnalysisStageUpdate(
+            String id,
+            String status,
+            String message
+    ) {
+    }
+
+    public record AnalysisStreamEvent(
+            String type,
+            UUID runId,
+            int sequence,
+            OffsetDateTime occurredAt,
+            List<AnalysisStageDefinition> stages,
+            AnalysisStageUpdate stage,
+            AnalysisResponse result,
+            String errorCode,
+            String errorMessage
     ) {
     }
 
@@ -94,7 +141,19 @@ public final class AiContracts {
             String roleTitle,
             String employmentType,
             String experienceText,
+            String primaryTrack,
+            ExperienceRequirement experienceRequirement,
+            OffsetDateTime closesAt,
+            String lifecycleStatus,
             JsonNode parsedData
+    ) {
+    }
+
+    public record ExperienceRequirement(
+            String type,
+            int minimumMonths,
+            Integer maximumMonths,
+            String sourceText
     ) {
     }
 
@@ -105,6 +164,51 @@ public final class AiContracts {
     ) {
     }
 
+    public record CompetencyProposal(
+            List<AnalyzedCompetency> competencies,
+            List<AnalyzedRequirement> requirements,
+            TargetProjectBrief targetProject
+    ) {
+    }
+
+    public record AnalyzedCompetency(
+            String ref,
+            String canonicalKey,
+            String title,
+            String domain,
+            String kind,
+            String scopeDefinition,
+            String stage,
+            int requiredLevel,
+            boolean roadmapEligible,
+            String verificationMethod
+    ) {
+    }
+
+    public record AnalyzedRequirement(
+            String competencyRef,
+            String relation,
+            String sourceText,
+            BigDecimal confidence
+    ) {
+    }
+
+    public record TargetProjectBrief(
+            String title,
+            String objective,
+            String domainContext,
+            List<String> requiredCompetencyRefs,
+            List<String> optionalCompetencyRefs,
+            List<String> deliverables,
+            List<String> acceptanceCriteria
+    ) {
+    }
+
+    /*
+     * Legacy graph proposal records remain readable while previously stored
+     * analyses are retained. New analysis responses use CompetencyProposal
+     * and never call the legacy graph merge path.
+     */
     public record ChangeProposal(
             long baseGraphVersion,
             List<ProposedNode> nodes,
@@ -163,21 +267,11 @@ public final class AiContracts {
             String message,
             String intent,
             boolean shouldRequestPosting,
-            List<SuggestedAction> suggestedActions,
-            List<ReplySource> replySources,
-            List<ProgressStep> progress
+            List<SuggestedAction> suggestedActions
     ) {
     }
 
     public record SuggestedAction(String action, String label) {
-    }
-
-    // message 를 구성한 문장별 화자 — 오라우팅 디버깅용. metadata 로 저장돼 프론트가 배지로 그린다.
-    public record ReplySource(String agent, String channel, String text) {
-    }
-
-    // 턴 내부 진행 단계(플래너→실행 계획→에이전트별 실행→판정 노드) — 채팅 UI 의 "진행 과정".
-    public record ProgressStep(String step, String label, String detail, Integer elapsedMs) {
     }
 
     public record EvidenceVerificationRequest(
@@ -212,6 +306,78 @@ public final class AiContracts {
             List<String> strengths,
             List<String> gaps,
             List<String> nextActions
+    ) {
+    }
+
+    public record CompetencyAssessmentRequest(
+            UUID sessionId,
+            AssessmentCompetency competency,
+            AssessmentTargetContext target,
+            List<AssessmentTurn> turns,
+            Map<String, Integer> retainedScores,
+            String requiredQuestionKind
+    ) {
+    }
+
+    public record AssessmentCompetency(
+            String canonicalKey,
+            String title,
+            String domain,
+            String scopeDefinition,
+            int requiredLevel,
+            JsonNode levelDefinition,
+            JsonNode assessmentBlueprint
+    ) {
+    }
+
+    public record AssessmentTargetContext(
+            String companyName,
+            String roleTitle,
+            String primaryTrack,
+            String domainContext,
+            String requirementSource,
+            String currentGoal,
+            String finalGoal
+    ) {
+    }
+
+    public record AssessmentTurn(
+            int ordinal,
+            String questionKind,
+            String prompt,
+            String codeSnippet,
+            String answerText,
+            Integer score,
+            String feedback
+    ) {
+    }
+
+    public record CompetencyAssessmentResponse(
+            AssessmentAnswerEvaluation answerEvaluation,
+            AssessmentQuestion nextQuestion,
+            String sessionSummary,
+            List<String> strengths,
+            List<String> gaps,
+            List<String> nextActions
+    ) {
+    }
+
+    public record AssessmentAnswerEvaluation(
+            int score,
+            String verdict,
+            String feedback,
+            List<String> coveredCriteria,
+            List<String> gaps,
+            List<String> futureExtensions
+    ) {
+    }
+
+    public record AssessmentQuestion(
+            String kind,
+            String prompt,
+            String codeSnippet,
+            List<String> coreCriteria,
+            List<String> futureExtensions
     ) {
     }
 

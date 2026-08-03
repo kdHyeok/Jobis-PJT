@@ -758,13 +758,145 @@ def test_fit_analysis_single_target_switches_active_posting(monkeypatch):
     # 하류 생성 에이전트가 보는 대상이 바뀌었다 — 여기가 자소서 회사명이 갈리던 지점.
     assert posting_identity({**session, **out.sessionUpdates})[0] == "오로라월드㈜"
 
-    # 라이브러리에 없는 이름이면 활성 공고 그대로 — 조용히 틀리지 않게 이유를 남긴다.
+    # 라이브러리·추천 어디에도 없는 이름이면 판정하지 않고 되묻는다(D126) — 활성 공고로
+    # 강행하면 사용자는 그 판정이 지목한 공고의 것인 줄 안다.
     seeded.clear()
     session["_agentArgs"] = {"fit_analysis": {"targets": "없는회사"}}
     out = fit_analysis.run(session)
-    assert [p["companyName"] for p in seeded] == ["원더스랩"]
-    assert "job_posting" not in out.sessionUpdates
+    assert seeded == []                                    # 판정 파이프라인이 돌지 않았다
+    assert out.data["status"] == "needs_input"
+    assert out.data["candidates"] == ["오로라월드㈜"]      # 무엇을 기억하는지 알려주고 되묻는다
+    assert out.sessionUpdates == {}
     assert any(w["code"] == "fit_target_not_found" for w in out.warnings)
+
+
+def test_fit_analysis_resolves_recommendation_by_ordinal(monkeypatch):
+    """추천 공고를 순번("2")으로 지목하면 그 URL 을 수집해 활성으로 굳히고 판정한다(D125).
+
+    프로토타입 2.0.0 의 posting registry 이식 — 전에는 추천이 `recommendations` 자산에만
+    남아 "추천해준 2번째 공고 분석해줘"가 성립하지 않았다(라이브러리 회사명 매칭만 있었다).
+    """
+
+    from jobis_ai.agents import fit_analysis
+
+    seeded: list = []
+
+    class _Resp:
+        status = "completed"
+        roadmap: list = []
+        warnings: list = []
+        followUpQuestions: list = []
+
+        @staticmethod
+        def model_dump():
+            return {"status": "completed", "fitGrade": "중", "roadmap": []}
+
+    def fake_pipeline(state):
+        seeded.append(dict(state.get("normalizedJobPosting") or {}))
+        return _Resp(), dict(state)
+
+    class _Extracted:
+        text = "자격요건: Python 3년\n담당업무: 백엔드 개발"
+        warnings: list = []
+
+    monkeypatch.setattr("jobis_ai.agents.fit_analysis.run_pipeline_with_state", fake_pipeline)
+    monkeypatch.setattr("jobis_ai.extract.extract_text", lambda _src: _Extracted())
+    session = {
+        "job_posting": {"sourceType": "text", "value": "활성 공고 원문"},
+        "resume": {"sourceType": "text", "value": "이력서"},
+        "recommendations": [
+            {"companyName": "가나다", "title": "백엔드", "url": "https://x.test/1"},
+            {"companyName": "라마바", "title": "프론트엔드", "url": "https://x.test/2"},
+        ],
+        "_agentArgs": {"fit_analysis": {"targets": "2"}},
+    }
+    out = fit_analysis.run(session)
+
+    assert len(seeded) == 1                                # 판정이 한 번 돌았다
+    switched = out.sessionUpdates["job_posting"]
+    assert switched["sourceType"] == "text"                # 수집해 원문으로 굳혔다
+    assert switched["sourceUrl"] == "https://x.test/2"     # 2번째 추천의 공고다
+    # 회사명 부분 일치로도 같은 공고가 잡힌다.
+    session["_agentArgs"] = {"fit_analysis": {"targets": "라마바"}}
+    out = fit_analysis.run(session)
+    assert out.sessionUpdates["job_posting"]["sourceUrl"] == "https://x.test/2"
+
+
+def test_fit_analysis_asks_back_when_recommendation_fetch_fails(monkeypatch):
+    """추천 공고 수집이 실패하면 활성 공고로 강행하지 않고 되묻는다(D126)."""
+
+    from jobis_ai.agents import fit_analysis, tool_render
+
+    ran: list = []
+    monkeypatch.setattr("jobis_ai.agents.fit_analysis.run_pipeline_with_state",
+                        lambda state: ran.append(state))
+
+    class _Empty:
+        text = ""
+        warnings = [{"code": "fetch_failed", "message": "수집 실패"}]
+
+    monkeypatch.setattr("jobis_ai.extract.extract_text", lambda _src: _Empty())
+    session = {
+        "job_posting": {"sourceType": "text", "value": "활성 공고 원문"},
+        "resume": {"sourceType": "text", "value": "이력서"},
+        "recommendations": [{"companyName": "가나다", "title": "백엔드",
+                             "url": "https://x.test/1"}],
+        "_agentArgs": {"fit_analysis": {"targets": "가나다"}},
+    }
+    out = fit_analysis.run(session)
+    assert ran == []                                       # 판정 파이프라인이 돌지 않았다
+    assert out.data["status"] == "needs_input"
+    assert out.data["reason"] == "fetch_failed"
+    reply, _ = tool_render.render_fit_analysis(out.data, session)
+    assert "수집하지 못했어요" in reply and "가나다" in reply
+
+
+def test_render_needs_input_lists_known_postings():
+    """되묻기 문장에 무엇을 기억하는지 싣는다 — 목록 없이 물으면 사용자가 답할 수 없다."""
+
+    from jobis_ai.agents import tool_render
+
+    reply, _ = tool_render.render_fit_analysis(
+        {"status": "needs_input", "axis": "posting", "unmatchedTarget": "없는회사",
+         "reason": "not_found", "candidates": ["오로라월드㈜", "가나다"]}, {})
+    assert "없는회사" in reply and "오로라월드㈜" in reply and "가나다" in reply
+    # 후보가 없으면 자료를 청한다.
+    reply, _ = tool_render.render_fit_analysis(
+        {"status": "needs_input", "axis": "resume", "unmatchedTarget": "없는이력서",
+         "reason": "not_found", "candidates": []}, {})
+    assert "이력서를" in reply
+
+
+def test_render_job_recommend_numbers_the_list():
+    """추천 목록은 코드가 번호를 매긴다(D125) — 사용자가 그 번호로 지목한다."""
+
+    from jobis_ai.agents import tool_render
+
+    data = {"recommendations": [
+        {"companyName": "가나다", "title": "백엔드", "matchedSkills": ["Python"],
+         "matchedPreferences": [], "url": "https://x.test/1"},
+        {"companyName": "라마바", "title": "프론트엔드", "matchedSkills": ["JS"],
+         "matchedPreferences": [], "url": "https://x.test/2"},
+    ], "profileKnown": True}
+    reply, _ = tool_render.render_job_recommend(data, {})
+    assert "1. **가나다**" in reply
+    assert "2. **라마바**" in reply
+    assert "번호나 회사명" in reply                        # 지목 방법을 안내한다
+
+
+def test_match_recommendation_ordinal_and_name():
+    """순번은 추천 목록에만 해석된다(D125) — 라이브러리와 번호가 겹치면 안 된다."""
+
+    from jobis_ai.agents.fit_analysis import _match_recommendation
+
+    recs = [{"companyName": "가나다", "title": "백엔드", "url": "u1"},
+            {"companyName": "", "title": "데이터 엔지니어", "url": "u2"}]
+    assert _match_recommendation("2", recs)["url"] == "u2"
+    assert _match_recommendation("가나다", recs)["url"] == "u1"
+    assert _match_recommendation("데이터", recs)["url"] == "u2"   # 제목 부분 일치
+    assert _match_recommendation("3", recs) is None
+    assert _match_recommendation("없는회사", recs) is None
+    assert _match_recommendation("2", []) is None
 
 
 def test_build_user_profile_reuses_seeded_profile():

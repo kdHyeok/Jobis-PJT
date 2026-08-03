@@ -102,18 +102,20 @@ def test_switch_active_resume_swaps_source_and_invalidates_analysis():
     session = _two_resume_session()
     session["analysis"] = {"fitGrade": "상"}
     warnings: list[dict] = []
-    switched, updates = _common.switch_active_resume(session, "붙여넣은 이력서", warnings)
+    switched, updates, found = _common.switch_active_resume(session, "붙여넣은 이력서", warnings)
+    assert found
     assert updates["resume"]["value"] == "Python 이력서 A"
     assert updates["analysis"] is None
     assert switched["resume"]["value"] == "Python 이력서 A"
     assert not warnings
 
 
-def test_unknown_target_warns_instead_of_silently_using_the_active_one():
-    """폴백은 이유를 삼키지 않는다(§2-6)."""
+def test_unknown_target_reports_not_found_instead_of_silently_using_the_active_one():
+    """폴백은 이유를 삼키지 않는다(§2-6). 못 찾음은 호출자가 되묻는다(D126) — 강행 금지."""
     session = _two_resume_session()
     warnings: list[dict] = []
-    _, updates = _common.switch_active_resume(session, "없는이력서", warnings)
+    _, updates, found = _common.switch_active_resume(session, "없는이력서", warnings)
+    assert not found
     assert updates == {}
     assert [w["code"] for w in warnings] == ["resume_target_not_found"]
 

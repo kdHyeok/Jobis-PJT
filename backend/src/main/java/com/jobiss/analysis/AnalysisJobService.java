@@ -38,6 +38,21 @@ public class AnalysisJobService {
                             j.status,
                             j.stage,
                             j.stage_message,
+                            case
+                                when j.status = 'QUEUED' then (
+                                    select count(*)::integer
+                                    from analysis_jobs queued
+                                    where queued.status = 'QUEUED'
+                                      and (
+                                        queued.created_at < j.created_at
+                                        or (
+                                            queued.created_at = j.created_at
+                                            and queued.id <= j.id
+                                        )
+                                      )
+                                )
+                                else null
+                            end as queue_position,
                             j.attempt_count,
                             j.question_count,
                             j.error_code,
@@ -49,14 +64,24 @@ public class AnalysisJobService {
                             c.id as change_set_id,
                             c.status as change_set_status,
                             c.proposal,
+                            e.events::text as progress_events,
                             q.id as question_id,
                             q.question_key,
                             q.question_text,
                             q.reason as question_reason,
                             q.options::text as question_options,
-                            q.ordinal as question_ordinal
+                            q.ordinal as question_ordinal,
+                            h.history::text as question_history
                         from analysis_jobs j
                         left join graph_change_sets c on c.analysis_job_id = j.id
+                        left join lateral (
+                            select coalesce(
+                                jsonb_agg(event_data order by sequence),
+                                '[]'::jsonb
+                            ) as events
+                            from analysis_agent_events
+                            where analysis_job_id = j.id
+                        ) e on true
                         left join lateral (
                             select id, question_key, question_text, reason, options, ordinal
                             from analysis_questions
@@ -65,6 +90,25 @@ public class AnalysisJobService {
                             order by ordinal desc
                             limit 1
                         ) q on true
+                        left join lateral (
+                            select coalesce(
+                                jsonb_agg(
+                                    jsonb_build_object(
+                                        'id', id,
+                                        'key', question_key,
+                                        'text', question_text,
+                                        'answerValue', answer_value,
+                                        'answeredAt', answered_at,
+                                        'ordinal', ordinal
+                                    )
+                                    order by ordinal
+                                ),
+                                '[]'::jsonb
+                            ) as history
+                            from analysis_questions
+                            where analysis_job_id = j.id
+                              and status = 'ANSWERED'
+                        ) h on true
                         where j.id = :jobId
                         """)
                 .param("jobId", jobId)
@@ -74,6 +118,7 @@ public class AnalysisJobService {
                         rs.getString("status"),
                         rs.getString("stage"),
                         rs.getString("stage_message"),
+                        (Integer) rs.getObject("queue_position"),
                         rs.getInt("attempt_count"),
                         rs.getInt("question_count"),
                         rs.getString("error_code"),
@@ -82,10 +127,12 @@ public class AnalysisJobService {
                         rs.getObject("change_set_id", UUID.class),
                         rs.getString("change_set_status"),
                         readJson(rs.getString("proposal")),
+                        readJson(rs.getString("progress_events")),
                         rs.getObject("created_at", OffsetDateTime.class),
                         rs.getObject("started_at", OffsetDateTime.class),
                         rs.getObject("completed_at", OffsetDateTime.class),
-                        pendingQuestion(rs)
+                        pendingQuestion(rs),
+                        readJson(rs.getString("question_history"))
                 ))
                 .optional()
                 .orElseThrow(() -> new ApiException(
@@ -105,6 +152,21 @@ public class AnalysisJobService {
                             j.status,
                             j.stage,
                             j.stage_message,
+                            case
+                                when j.status = 'QUEUED' then (
+                                    select count(*)::integer
+                                    from analysis_jobs queued
+                                    where queued.status = 'QUEUED'
+                                      and (
+                                        queued.created_at < j.created_at
+                                        or (
+                                            queued.created_at = j.created_at
+                                            and queued.id <= j.id
+                                        )
+                                      )
+                                )
+                                else null
+                            end as queue_position,
                             j.attempt_count,
                             j.question_count,
                             j.error_code,
@@ -116,14 +178,24 @@ public class AnalysisJobService {
                             c.id as change_set_id,
                             c.status as change_set_status,
                             c.proposal,
+                            e.events::text as progress_events,
                             q.id as question_id,
                             q.question_key,
                             q.question_text,
                             q.reason as question_reason,
                             q.options::text as question_options,
-                            q.ordinal as question_ordinal
+                            q.ordinal as question_ordinal,
+                            h.history::text as question_history
                         from analysis_jobs j
                         left join graph_change_sets c on c.analysis_job_id = j.id
+                        left join lateral (
+                            select coalesce(
+                                jsonb_agg(event_data order by sequence),
+                                '[]'::jsonb
+                            ) as events
+                            from analysis_agent_events
+                            where analysis_job_id = j.id
+                        ) e on true
                         left join lateral (
                             select id, question_key, question_text, reason, options, ordinal
                             from analysis_questions
@@ -132,6 +204,25 @@ public class AnalysisJobService {
                             order by ordinal desc
                             limit 1
                         ) q on true
+                        left join lateral (
+                            select coalesce(
+                                jsonb_agg(
+                                    jsonb_build_object(
+                                        'id', id,
+                                        'key', question_key,
+                                        'text', question_text,
+                                        'answerValue', answer_value,
+                                        'answeredAt', answered_at,
+                                        'ordinal', ordinal
+                                    )
+                                    order by ordinal
+                                ),
+                                '[]'::jsonb
+                            ) as history
+                            from analysis_questions
+                            where analysis_job_id = j.id
+                              and status = 'ANSWERED'
+                        ) h on true
                         where (:status = '' or j.status::text = :status)
                         order by j.created_at desc
                         limit :limit
@@ -144,6 +235,7 @@ public class AnalysisJobService {
                         rs.getString("status"),
                         rs.getString("stage"),
                         rs.getString("stage_message"),
+                        (Integer) rs.getObject("queue_position"),
                         rs.getInt("attempt_count"),
                         rs.getInt("question_count"),
                         rs.getString("error_code"),
@@ -152,10 +244,12 @@ public class AnalysisJobService {
                         rs.getObject("change_set_id", UUID.class),
                         rs.getString("change_set_status"),
                         readJson(rs.getString("proposal")),
+                        readJson(rs.getString("progress_events")),
                         rs.getObject("created_at", OffsetDateTime.class),
                         rs.getObject("started_at", OffsetDateTime.class),
                         rs.getObject("completed_at", OffsetDateTime.class),
-                        pendingQuestion(rs)
+                        pendingQuestion(rs),
+                        readJson(rs.getString("question_history"))
                 ))
                 .list());
     }
@@ -216,6 +310,7 @@ public class AnalysisJobService {
                             select
                                 j.status::text as job_status,
                                 q.status as question_status,
+                                q.question_key,
                                 q.question_text,
                                 q.options::text
                             from analysis_jobs j
@@ -231,6 +326,7 @@ public class AnalysisJobService {
                     .query((rs, rowNum) -> new QuestionForAnswer(
                             rs.getString("job_status"),
                             rs.getString("question_status"),
+                            rs.getString("question_key"),
                             rs.getString("question_text"),
                             readJson(rs.getString("options"))
                     ))
@@ -265,6 +361,12 @@ public class AnalysisJobService {
                 );
             }
 
+            String canonicalAnswer = AnalysisClarificationNormalizer.answerValue(
+                    AnalysisClarificationNormalizer.questionKey(question.questionKey()),
+                    normalizedAnswer,
+                    answerLabel
+            );
+
             jdbc.sql("""
                             update analysis_questions
                             set
@@ -273,7 +375,7 @@ public class AnalysisJobService {
                                 answered_at = now()
                             where id = :questionId
                             """)
-                    .param("answerValue", normalizedAnswer)
+                    .param("answerValue", canonicalAnswer)
                     .param("questionId", questionId)
                     .update();
 
@@ -326,7 +428,7 @@ public class AnalysisJobService {
                     .param("userId", userId)
                     .param("answerLabel", answerLabel)
                     .param("questionId", questionId)
-                    .param("answerValue", normalizedAnswer)
+                    .param("answerValue", canonicalAnswer)
                     .param("jobId", jobId)
                     .update();
 
@@ -371,6 +473,7 @@ public class AnalysisJobService {
             String status,
             String stage,
             String stageMessage,
+            Integer queuePosition,
             int attemptCount,
             int questionCount,
             String errorCode,
@@ -379,10 +482,12 @@ public class AnalysisJobService {
             UUID changeSetId,
             String changeSetStatus,
             JsonNode proposal,
+            JsonNode progressEvents,
             OffsetDateTime createdAt,
             OffsetDateTime startedAt,
             OffsetDateTime completedAt,
-            PendingQuestion pendingQuestion
+            PendingQuestion pendingQuestion,
+            JsonNode questionHistory
     ) {
     }
 
@@ -399,6 +504,7 @@ public class AnalysisJobService {
     private record QuestionForAnswer(
             String jobStatus,
             String questionStatus,
+            String questionKey,
             String questionText,
             JsonNode options
     ) {

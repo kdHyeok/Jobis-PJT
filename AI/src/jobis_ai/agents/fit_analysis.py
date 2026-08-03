@@ -40,9 +40,43 @@ def _match_library(name: str, library: list[dict]) -> dict | None:
     return None
 
 
+def _match_recommendation(name: str, recommendations: list[dict]) -> dict | None:
+    """지목한 이름·순번 ↔ 추천 공고(D125 — 프로토타입 2.0.0 registry 이식).
+
+    순번("2")은 **추천 목록에만** 해석한다 — 화면에 번호 목록으로 나간 것이 추천뿐이라,
+    라이브러리에도 순번을 받으면 같은 "2"가 두 목록을 가리켜 엉뚱한 공고가 잡힌다.
+    """
+
+    key = (name or "").strip()
+    if not key or not recommendations:
+        return None
+    digits = "".join(c for c in key if c.isdigit())
+    if digits and not any(c.isalpha() for c in key) and "#" not in key:
+        index = int(digits) - 1
+        return recommendations[index] if 0 <= index < len(recommendations) else None
+    for rec in recommendations:
+        company = str(rec.get("companyName") or "").strip()
+        title = str(rec.get("title") or "").strip()
+        if (company and (key in company or company in key)) or (title and key in title):
+            return rec
+    return None
+
+
+def _known_posting_names(session: dict[str, Any]) -> list[str]:
+    """되묻기에 실을 후보 — 라이브러리 회사명 + 추천 공고 회사명(중복 제거, 순서 유지)."""
+
+    names = [str(p.get("companyName") or "").strip()
+             for p in session.get("posting_library") or []]
+    names += [str(r.get("companyName") or r.get("title") or "").strip()
+              for r in session.get("recommendations") or []]
+    seen: set[str] = set()
+    return [n for n in names if n and not (n in seen or seen.add(n))]
+
+
 def _switch_active(session: dict[str, Any], name: str, posting_input: dict | None,
-                   warnings: list[dict]) -> tuple[dict[str, Any], dict | None, dict]:
-    """지목한 공고 **하나**를 활성 공고로 갈아 끼운다. (세션 사본, 공고 원천, sessionUpdates)
+                   warnings: list[dict]) -> tuple[dict[str, Any], dict | None, dict, dict | None]:
+    """지목한 공고 **하나**를 활성 공고로 갈아 끼운다.
+    반환: (세션 사본, 공고 원천, sessionUpdates, 되묻기 데이터 | None)
 
     실측 결함(2026-08-02): `targets` 가 하나면 `_run_multi` 에 들어가지도 못하고 활성 공고가
     그대로 판정됐다 — "예전에 본 그 공고로 자소서 써줘" 가 **다른 회사 자소서**를 냈다.
@@ -52,21 +86,55 @@ def _switch_active(session: dict[str, Any], name: str, posting_input: dict | Non
     **원문을 되돌려 놓는 방식**이라 무손실이다 — 아래 단일 경로가 평소대로(대안 공고·로드맵
     포함) 판정하고, 해시가 맞아 재파싱도 없다(D79). 원문 grep 도구도 그대로 산다.
     지목이 둘 이상이면 그것은 비교이지 전환이 아니므로 `_run_multi` 가 따로 처리한다.
+
+    라이브러리에 없으면 **추천 공고(D125)** 에서 찾아 URL 을 지금 수집해 활성으로 굳힌다.
+    어디에도 없으면 활성 공고로 강행하지 않고 되묻는다(D126) — "없는회사 공고 분석해줘"에
+    활성 공고 판정이 나가면 사용자는 그것이 지목한 공고의 판정인 줄 안다(§2-1 되묻는다).
     """
 
     entry = _match_library(name, session.get("posting_library") or [])
-    if entry is None:
-        warnings.append({"code": "fit_target_not_found",
-                         "message": f"'{name}' 공고가 정리된 기록(라이브러리)에 없어 "
-                                    f"활성 공고로 판정합니다"})
-        return session, posting_input, {}
-    text = str(entry.get("_sourceText") or "")
-    if not text or text == (posting_input or {}).get("value"):
-        # 이미 활성이거나, 원문 없이 저장된 옛 항목(이 필드 도입 전) — 그대로 둔다.
-        return session, posting_input, {}
-    switched = {"job_posting": {"sourceType": "text", "value": text},
-                "posting_summary": dict(entry)}
-    return {**session, **switched}, switched["job_posting"], switched
+    if entry is not None:
+        text = str(entry.get("_sourceText") or "")
+        if not text or text == (posting_input or {}).get("value"):
+            # 이미 활성이거나, 원문 없이 저장된 옛 항목(이 필드 도입 전) — 그대로 둔다.
+            return session, posting_input, {}, None
+        switched = {"job_posting": {"sourceType": "text", "value": text},
+                    "posting_summary": dict(entry)}
+        return {**session, **switched}, switched["job_posting"], switched, None
+
+    rec = _match_recommendation(name, session.get("recommendations") or [])
+    if rec is not None:
+        url = str(rec.get("url") or "").strip()
+        label = str(rec.get("companyName") or rec.get("title") or name)
+        if url:
+            candidate = {**session, "job_posting": {"sourceType": "url", "value": url}}
+            promoted, fetch_warnings = ensure_posting_text(candidate)
+            warnings.extend(fetch_warnings)
+            if promoted and (promoted.get("sourceType") or "").lower() == "text":
+                switched = {"job_posting": promoted}
+                return {**session, **switched}, promoted, switched, None
+            # 수집 실패 — 엉뚱한 공고(기존 활성)로 강행하지 않는다. 이유는 warnings 에 이미 있다.
+            return session, posting_input, {}, {
+                "unmatchedTarget": label, "reason": "fetch_failed"}
+        return session, posting_input, {}, {"unmatchedTarget": label, "reason": "no_url"}
+
+    warnings.append({"code": "fit_target_not_found",
+                     "message": f"'{name}' 공고가 정리된 기록·추천 목록에 없어 되묻습니다"})
+    return session, posting_input, {}, {
+        "unmatchedTarget": name, "reason": "not_found",
+        "candidates": _known_posting_names(session)}
+
+
+def _needs_input(ask: dict, warnings: list[dict], axis: str = "posting") -> AgentResult:
+    """지목 해석 실패 → 판정하지 않고 되묻는다(D126). 문장은 render 가 만든다."""
+
+    return AgentResult(
+        reply="",
+        data={"status": "needs_input", "axis": axis, **ask},
+        warnings=warnings,
+        followUpQuestions=[],
+        sessionUpdates={},
+    )
 
 
 def _archive(session: dict[str, Any], session_updates: dict, posting_hash: str,
@@ -126,14 +194,25 @@ def run(session: dict[str, Any]) -> AgentResult:
     # 하나만 지목했으면 그 공고를 활성으로 바꾸고, 아래 단일 경로가 평소대로 판정한다.
     switched: dict = {}
     if targets:
-        session, posting_input, switched = _switch_active(
+        session, posting_input, switched, ask = _switch_active(
             session, targets[0], posting_input, fetch_warnings)
+        if ask is not None:
+            # 지목을 해석하지 못했다 — 활성 공고로 강행하면 사용자는 그것이 지목한
+            # 공고의 판정인 줄 안다. 판정하지 않고 되묻는다(D126).
+            return _needs_input(ask, fetch_warnings)
     if len(resume_targets) >= 2:
         return _run_multi_resume(session, posting_input, fetch_warnings,
                                  resume_targets, switched)
     if resume_targets:
-        session, resume_switched = switch_active_resume(
+        session, resume_switched, found = switch_active_resume(
             session, resume_targets[0], fetch_warnings)
+        if not found:
+            labels = [str(r.get("_label") or "")
+                      for r in session.get("resume_library") or []]
+            return _needs_input({"unmatchedTarget": resume_targets[0],
+                                 "reason": "not_found",
+                                 "candidates": [l for l in labels if l]},
+                                fetch_warnings, axis="resume")
         switched = {**switched, **resume_switched}
 
     request = AnalyzeRequest(
