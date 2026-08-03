@@ -341,8 +341,37 @@ async function retryChat(job: ChatReplyJob) {
   }
 }
 
+// 공고를 붙일 수 있는 조건 — **버튼과 함수가 같은 규칙을 본다.**
+// 전에는 버튼의 :disabled 와 함수의 가드가 따로 있어서, 하나만 고치면 다른 쪽이 막았다.
+// URL 만 주는 것이 정상 입력이다: 원문은 AI 가 주소에서 수집한다(posting_fetch).
+//
+// **기준값은 지어내지 않고 AI 가 실제로 받아들이는 값을 쓴다.**
+// - 본문 최소 40자: `AI/src/jobis_ai/orchestrator/attachment_kind.py` MIN_ASSET_CHARS
+//   (이보다 짧으면 AI 가 자산으로 승격하지 않는다 — UI 만 통과시키면 조용히 무시된다)
+// - URL 판별: 같은 저장소가 쓰는 `startswith("http://" | "https://")` 와 동일하게 둔다
+const POSTING_MIN_CHARS = 40;
+const postingUrlValid = computed(() => {
+  const url = sourceUrl.value.trim();
+  return (url.startsWith("http://") || url.startsWith("https://")) && url.length > 8;
+});
+const postingBodyValid = computed(
+  () => rawText.value.trim().length >= POSTING_MIN_CHARS,
+);
+const canAttachPosting = computed(() =>
+  sourceType.value === "URL"
+    ? postingUrlValid.value || postingBodyValid.value
+    : postingBodyValid.value,
+);
+
 async function attachPosting() {
-  if (!conversation.value || rawText.value.trim().length < 20) return;
+  if (!conversation.value) return;
+  if (!canAttachPosting.value) {
+    error.value =
+      sourceType.value === "URL"
+        ? `공고 주소를 http(s):// 로 시작하게 입력하거나, 원문을 ${POSTING_MIN_CHARS}자 이상 붙여넣어 주세요.`
+        : `공고 원문을 ${POSTING_MIN_CHARS}자 이상 붙여넣어 주세요.`;
+    return;
+  }
   sending.value = true;
   error.value = "";
   try {
@@ -947,7 +976,7 @@ onBeforeUnmount(() => {
           :class="{ active: sourceType === 'URL' }"
           @click="sourceType = 'URL'"
         >
-          URL과 본문
+          공고 URL
         </button>
       </div>
       <label v-if="sourceType === 'URL'">
@@ -955,19 +984,23 @@ onBeforeUnmount(() => {
         <input v-model="sourceUrl" type="url" required placeholder="https://…" />
       </label>
       <label>
-        공고 원문
+        공고 원문<span v-if="sourceType === 'URL'"> (선택 — 비우면 주소에서 수집합니다)</span>
         <textarea
           v-model="rawText"
-          minlength="20"
+          :minlength="POSTING_MIN_CHARS"
           maxlength="100000"
-          placeholder="회사, 직무, 자격 요건, 우대 사항을 포함한 공고 원문을 붙여넣어 주세요."
+          :placeholder="
+            sourceType === 'URL'
+              ? '주소만 넣어도 됩니다. 원문이 있으면 붙여넣어 주세요.'
+              : '회사, 직무, 자격 요건, 우대 사항을 포함한 공고 원문을 붙여넣어 주세요.'
+          "
         />
         <small>{{ rawText.length.toLocaleString() }} / 100,000자</small>
       </label>
       <button
         class="press-button press-button--primary modal-submit"
         type="button"
-        :disabled="rawText.trim().length < 20 || sending"
+        :disabled="!canAttachPosting || sending"
         @click="attachPosting"
       >
         <LoaderCircle v-if="sending" class="spin" :size="19" />

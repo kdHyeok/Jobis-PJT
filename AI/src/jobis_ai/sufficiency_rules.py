@@ -122,18 +122,43 @@ def assess(report: MatchReport, profile: dict) -> SufficiencyResult:
             detail="이력서에서 판정 근거(경험 문장)를 추출하지 못했습니다.",
         ))
     elif evidence_count < _MIN_EVIDENCE_COUNT:
+        # **막지 않는다**(2026-08-03). 근거가 1건이라도 있으면 판정할 재료는 있는 것이고,
+        # 신뢰도가 낮다는 사실은 이미 `confidence` 와 이 경고에 남는다. 근거 1건 때문에
+        # 분석을 멈추면 사용자는 "이력서를 냈는데 아무것도 안 나온다"를 겪는다 — 실측
+        # (2026-08-03)에서 지도가 통째로 안 생긴 경로가 이것이었다.
+        # 0건(위)은 여전히 막는다. 그건 신뢰도가 낮은 게 아니라 잴 것이 없는 것이다.
         result.missing.append(MissingInfo(
             code="few_evidence",
             detail=f"판정 근거가 {evidence_count}건뿐이라 분석 신뢰도가 낮습니다.",
+            blocking=False,
         ))
 
-    # 2) 필수 요구사항을 판정조차 못 한 경우 — 사용자에게 직접 묻는 게 유일한 해결책.
+    # 2) 필수 요구사항을 판정조차 못 한 경우.
+    #
+    # 전에는 이게 **무조건 blocking** 이었고 주석에 "사용자에게 직접 묻는 게 유일한 해결책"
+    # 이라고 적혀 있었다. 그 전제가 두 번 틀렸다:
+    #
+    #   · 유일하지 않다. `gap_matcher` 가 이미 LLM 으로 두 번 읽는다 — 배치 의미 판정
+    #     (`judge_topics_relevance`)과, 배치가 실패한 건에 대한 개별 재시도. 여기까지 와서
+    #     남은 uncertain 은 "아직 안 물어봐서 모르는 것"이 아니라 **읽어도 모르는 것**이다.
+    #   · 되물어도 못 묻는다. 이 결핍이 만드는 질문에는 선택지가 없어서 v2 계약의
+    #     `NEEDS_INPUT`(선택지 2~4개 필수)으로 나갈 수 없다 → 서비스가 스스로 "정보 없음"
+    #     으로 답하며 같은 턴을 왕복 상한까지 반복하고 분석이 통째로 실패한다
+    #     (2026-08-03 실측: 스트림으로 fit_analysis 가 4회 반복되는 것을 확인).
+    #
+    # 그래서 **근거가 있으면 막지 않는다.** 못 읽은 요구사항은 `uncertain` 으로 남고,
+    # uncertain 은 점수 분모에서 빠지므로(`_STATUS_SCORE`) 미충족으로 둔갑하지도 않는다
+    # (§2-1 모른다 ≠ 아니다). 한 줄을 못 읽었다고 지도를 통째로 안 만드는 것이 더 나쁘다.
+    #
+    # 근거가 아예 없을 때(1번)는 여전히 막는다 — 그건 판정할 재료 자체가 없는 것이다.
     if required and len(undecidable) / len(required) >= _MAX_UNDECIDABLE_RATIO:
+        readable = evidence_count > 0
         for match in undecidable:
             result.missing.append(MissingInfo(
                 code="undecidable_requirement",
                 detail=f"'{match.text}' 의 충족 여부를 판정하지 못했습니다.",
                 subject=match.text,
+                blocking=not readable,
                 relatedRequirementIds=(match.requirementId,),
             ))
 

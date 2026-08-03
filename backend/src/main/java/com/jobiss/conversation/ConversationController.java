@@ -98,10 +98,19 @@ public class ConversationController {
     ) {
     }
 
+    /**
+     * 대화에 붙인 공고.
+     *
+     * <p>{@code rawText} 는 {@code @NotBlank} 가 아니다 — <b>URL 만 준 경우가 정상</b>이기
+     * 때문이다. 사용자가 공고 주소만 붙여넣으면 원문은 AI 가 수집한다(URL 자산 →
+     * {@code posting_fetch}). 전에는 여기서 막혀 URL 입력이 400 으로 떨어졌다.
+     *
+     * <p>둘 다 비어 있는 경우는 서비스가 거른다 — 무엇을 분석할지가 없다.
+     */
     public record PostingAttachmentRequest(
             @NotBlank @Pattern(regexp = "TEXT|URL") String sourceType,
             @Size(max = 2_000) String sourceUrl,
-            @NotBlank @Size(max = 100_000) String rawText
+            @Size(max = 100_000) String rawText
     ) {
     }
 }

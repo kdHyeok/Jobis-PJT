@@ -16,6 +16,8 @@ import json
 import re
 from pathlib import Path
 
+from merge_job_postings import parse_deadline_date
+
 IN_JSON = Path("exports/all_job_postings.json")
 OUT_SQL = Path("exports/all_job_postings_postgres.sql")
 BATCH = 500  # multi-row INSERT 단위
@@ -72,12 +74,6 @@ def sql_text(value: object) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def parse_deadline_date(deadline: object) -> str | None:
-    """deadline 원본에서 YYYY-MM-DD를 뽑는다. '상시채용' 등 날짜가 없으면 None."""
-    match = re.search(r"(\d{4})[.-](\d{2})[.-](\d{2})", str(deadline or ""))
-    return f"{match.group(1)}-{match.group(2)}-{match.group(3)}" if match else None
-
-
 def row_values(row: dict) -> str:
     image_urls = json.dumps(row.get("image_urls") or [], ensure_ascii=False)
     values = [
@@ -92,7 +88,9 @@ def row_values(row: dict) -> str:
         sql_text(row.get("location")),
         sql_text(row.get("posted_date")),
         sql_text(row.get("deadline")),
-        sql_text(parse_deadline_date(row.get("deadline"))),
+        # 통합본이 이미 파싱해 넣어준 값을 그대로 쓴다. 예전 형식(필드 없음)의
+        # JSON으로 실행하는 경우에만 여기서 파싱한다.
+        sql_text(row.get("deadline_date") or parse_deadline_date(row.get("deadline"))),
         sql_text(row.get("detail_text")),
         sql_text(text_source_of(row)),
         sql_text(image_urls) + "::jsonb",
@@ -118,7 +116,10 @@ def main() -> int:
     parts.append("COMMIT;\n")
 
     OUT_SQL.write_text("".join(parts), encoding="utf-8")
-    with_date = sum(1 for r in rows if parse_deadline_date(r.get("deadline")))
+    with_date = sum(
+        1 for r in rows
+        if r.get("deadline_date") or parse_deadline_date(r.get("deadline"))
+    )
     print(
         f"[export_postgres] status=completed records={len(rows)} "
         f"deadline_date_parsed={with_date} sql={OUT_SQL} "

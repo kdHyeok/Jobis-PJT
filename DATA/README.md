@@ -99,6 +99,14 @@ python3 merge_job_postings.py
 
 - 결과: `data/all_job_postings/all_job_postings.db`, `exports/all_job_postings.json`
 - **아직 수집하지 않은 사이트가 있어도** 있는 사이트만으로 병합한다.
+- **본문이 빈 공고는 통합본에 넣지 않는다.** OCR로도 못 채운 공고를 공고 ID로만
+  막으면, 같은 회사가 같은 공고를 새 ID로 다시 올릴 때 그대로 들어온다. 통합 단계에서
+  본문 유무로 한 번 더 거른다(로그의 `empty_body_dropped`). 원본 사이트별 JSON은
+  그대로 두므로, 나중에 OCR이 성공하면 다음 통합 때 자연히 포함된다.
+- **`deadline_date` 를 여기서 만든다.** 마감일 표기가 사이트마다 달라(`2026.08.26`,
+  `2026-08-26T23:59`, `2026년 08월 21일`, `2026년 07월 01일 ~ 2026년 07월 31일`,
+  `상시채용` …) 쓰는 쪽이 각자 파싱하면 팀마다 다른 버그가 생긴다. 통합 단계에서 한 번만
+  파싱해 `YYYY-MM-DD` 로 통일한다(날짜가 없으면 `null`).
 
 ## ④ 운영 DB 적재용 SQL 생성
 
@@ -146,10 +154,43 @@ Windows 작업 스케줄러 등록 방법은 [자동화_설정방법.md](자동�
 제외 대상 예시 — 이미지가 사이트 자동 삽입 장식(카테고리 아이콘, `blank.png`)뿐인 공고,
 마케팅 배너만 있는 공고, 채용공고가 아닌 교육과정 모집, 본문 텍스트가 없는 공고.
 
+## 수집 결과 확인
+
+특정 날짜에 무엇이 새로 들어왔는지 조회한다(조회 전용이라 수집 중에 실행해도 안전).
+
+```bash
+python3 report_collection.py               # 오늘(한국 시간) 수집분
+python3 report_collection.py --list        # 공고 제목 전부 나열
+python3 report_collection.py --days 7      # 최근 7일
+```
+
+사이트별 신규·누적 건수, 본문 출처(원문/OCR), 신규 공고의 기술 키워드 분포를 보여준다.
+
+> `collected_at` 은 UTC로 저장된다. 한국 시간 오전 수집분은 UTC로 전날 23시라, 날짜
+> 문자열만 잘라 비교하면 오늘 수집분을 통째로 놓친다. 이 스크립트는 KST로 변환해 비교한다.
+
 ## 수집 필드 (공통 스키마)
+
+**사이트별 파일** (크롤러가 저장하는 원본)
 
 `source, posting_id, company, title, url, employment_type, experience, education,
 location, posted_date, deadline, detail_text, image_urls, need_ocr, collected_at`
+
+**통합본** (`all_job_postings.json`) — 위 필드에 `deadline_date` 추가
+
+| 필드 | 설명 |
+|---|---|
+| `deadline` | 사이트가 준 원본 표기 그대로 (화면 표시용) |
+| `deadline_date` | `YYYY-MM-DD` 로 통일한 마감일. 날짜가 없으면(상시채용 등) `null` |
+
+마감 여부는 **저장하지 않는다.** 저장하는 순간 낡기 때문(오늘 유효해도 내일 마감).
+쓰는 쪽이 조회 시점에 오늘 날짜와 비교한다.
+
+```python
+# 지원 가능한 공고 (마감일 없는 상시채용 포함)
+active = [p for p in postings
+          if p["deadline_date"] is None or p["deadline_date"] >= date.today().isoformat()]
+```
 
 - `need_ocr`: `"X"` = 본문 저장 완료, `"O"` = 이미지형(이미지 URL만 저장, OCR 대기)
 - 텍스트 공고 판정: **담당업무 + 자격요건**이 본문에 있고 300자 이상이면 저장

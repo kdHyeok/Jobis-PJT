@@ -32,6 +32,18 @@ docker compose up -d
   — RAG 쪽 postings/chunks는 첫 DAG 런이 전량 임베딩한다 (CPU 수 시간, 1회성).
   이후는 content_hash 덕에 신규분만 임베딩된다.
 
+## 크롤러 코드 업데이트 반영
+
+Airflow 이미지는 빌드할 때 저장소의 `DATA/`를 `/opt/jobis/DATA/`로 복사한다. 따라서
+`develop`의 크롤러 변경을 병합한 뒤에는 스케줄러와 웹서버 이미지를 다시 빌드하고
+두 서비스만 재생성한다. DB와 크롤 상태는 네임드 볼륨에 있으므로 이 명령으로 지워지지 않는다.
+
+```bash
+cd infra/airflow
+docker compose build airflow-scheduler airflow-webserver
+docker compose up -d --no-deps airflow-scheduler airflow-webserver
+```
+
 ## 상태가 사는 곳 (지우면 안 되는 볼륨)
 
 | 볼륨 | 내용 |
@@ -44,5 +56,6 @@ docker compose up -d
 ## 아직 안 넣은 것
 
 - OCR(`enrich_ocr.py`, paddle): 이미지 준비 후 crawl과 merge 사이 태스크로 추가.
-  그전까지 이미지형 공고(need_ocr='O')는 본문 없이 적재되고 RAG 색인에서 제외됨.
+  그전까지 이미지형 공고(`need_ocr='O'`)는 사이트별 원본에 남지만, 본문이 비어 있어
+  통합본과 PostgreSQL·RAG 적재에서는 제외된다. OCR 성공 후 다음 실행에 포함된다.
 - RAG 검색 서빙: jobrag DB에 접속하는 별도 서비스로 이 compose에 추가 예정.

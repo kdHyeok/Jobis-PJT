@@ -12,8 +12,9 @@ DATA/run_daily_update.py의 무인 실행 장치는 Airflow 기본 기능으로 
     실패한 날에도 안전하다.
 
 OCR(enrich_ocr.py, paddle)은 이미지가 준비되면 crawl과 merge 사이에 사이트별
-태스크로 추가한다. 그전까지 need_ocr='O' 공고는 본문 없이 적재되고 RAG 색인에서
-제외된다 (jobrag/sources.py 정책).
+태스크로 추가한다. 그전까지 need_ocr='O' 공고는 사이트별 원본에 보존되지만,
+merge_job_postings.py가 본문이 빈 공고를 통합본에서 제외하므로 PostgreSQL·RAG에는
+적재되지 않는다. 이후 OCR이 성공하면 다음 실행의 통합본에 자연히 포함된다.
 """
 from __future__ import annotations
 
@@ -50,6 +51,7 @@ with DAG(
     ]
 
     # 일부 사이트가 실패해도 성공한 수집분으로 병합은 진행한다 (run_daily_update.py 정책).
+    # 최신 DATA 계약에 따라 이 단계에서 deadline_date를 표준화하고 빈 본문을 제외한다.
     merge = BashOperator(
         task_id="merge",
         bash_command=f"cd {DATA_DIR} && python merge_job_postings.py",
