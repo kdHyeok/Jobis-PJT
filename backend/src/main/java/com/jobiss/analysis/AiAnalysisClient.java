@@ -54,7 +54,109 @@ public class AiAnalysisClient {
     }
 
     public AiContracts.ChatResponse chat(AiContracts.ChatRequest request) {
-        return post("/v1/chat", request, AiContracts.ChatResponse.class);
+        return chat(request, event -> { });
+    }
+
+    /**
+     * 대화 한 턴 — 진행 단계를 받아 가며 실행한다.
+     *
+     * <p>{@code /v1/chat/stream} 을 먼저 시도하고 404/405 면 단건 {@code /v1/chat} 으로
+     * 폴백한다({@link #analyze} 와 같은 규약). 폴백해도 최종 응답의 {@code progress} 에
+     * 같은 단계가 담겨 오므로, 실시간이 아닐 뿐 정보가 사라지지는 않는다.
+     */
+    public AiContracts.ChatResponse chat(
+            AiContracts.ChatRequest request,
+            Consumer<AiContracts.ProgressStep> progressConsumer
+    ) {
+        try {
+            return postChatStream(request, progressConsumer);
+        } catch (StreamNotSupportedException exception) {
+            return post("/v1/chat", request, AiContracts.ChatResponse.class);
+        }
+    }
+
+    private AiContracts.ChatResponse postChatStream(
+            AiContracts.ChatRequest body,
+            Consumer<AiContracts.ProgressStep> progressConsumer
+    ) {
+        return restClient.post()
+                .uri("/v1/chat/stream")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.parseMediaType("application/x-ndjson"))
+                .header("X-JOBISS-AI-SECRET", properties.ai().sharedSecret())
+                .body(body)
+                .exchange((request, response) -> {
+                    if (response.getStatusCode().value() == 404
+                            || response.getStatusCode().value() == 405) {
+                        throw new StreamNotSupportedException();
+                    }
+                    if (response.getStatusCode().isError()) {
+                        handleError(
+                                response.getStatusCode(),
+                                response.getBody().readAllBytes()
+                        );
+                    }
+                    // NDJSON 이 아니면 스트림이 아니다 — 단건 응답으로 폴백한다.
+                    // 스트림은 편의이고 대화는 기능이다: 중간 프록시나 옛 AI 서버가
+                    // 스트림 아닌 본문을 주더라도 대화가 깨져서는 안 된다.
+                    MediaType contentType = response.getHeaders().getContentType();
+                    if (contentType == null
+                            || !contentType.toString().contains("ndjson")) {
+                        throw new StreamNotSupportedException();
+                    }
+
+                    AiContracts.ChatResponse result = null;
+                    try (var reader = new BufferedReader(new InputStreamReader(
+                            response.getBody(),
+                            StandardCharsets.UTF_8
+                    ))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (line.isBlank()) {
+                                continue;
+                            }
+                            JsonNode event;
+                            try {
+                                event = objectMapper.readTree(line);
+                            } catch (RuntimeException exception) {
+                                throw new AiServiceException(
+                                        "INVALID_AI_RESPONSE",
+                                        "AI 진행 이벤트를 해석하지 못했습니다.",
+                                        exception
+                                );
+                            }
+                            String type = event.path("type").asString("");
+                            if ("error".equals(type)) {
+                                throw new AiServiceException(
+                                        event.path("code").asString("AI_SERVICE_ERROR"),
+                                        event.path("message")
+                                                .asString("AI 대화 처리가 중단되었습니다.")
+                                );
+                            }
+                            if ("result".equals(type)) {
+                                result = objectMapper.treeToValue(
+                                        event.path("response"),
+                                        AiContracts.ChatResponse.class
+                                );
+                                continue;
+                            }
+                            // progress — 지금 어느 담당이 무슨 도구로 무엇을 하는지.
+                            progressConsumer.accept(new AiContracts.ProgressStep(
+                                    event.path("step").asString(""),
+                                    event.path("label").asString(""),
+                                    event.path("detail").asString(""),
+                                    event.path("elapsedMs").asLong(0L)
+                            ));
+                        }
+                    }
+                    if (result == null) {
+                        throw new AiServiceException(
+                                "EMPTY_AI_RESPONSE",
+                                "AI 대화 스트림이 최종 결과 없이 종료되었습니다."
+                        );
+                    }
+                    return result;
+                });
     }
 
     public AiContracts.EvidenceVerificationResponse verifyEvidence(

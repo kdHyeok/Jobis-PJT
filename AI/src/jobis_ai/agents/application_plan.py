@@ -332,46 +332,24 @@ def _related_postings(session: dict[str, Any]) -> tuple[list[dict], list[dict]]:
     """"유사공고 병행" 경로에 실을 실공고 — job_recommend 를 **읽기 전용**으로 소비한다.
 
     같은 계산(실공고 추천)을 여기서 다시 만들지 않고 물어본다(확장 계획 P1-a 1안).
-    application_plan 은 단발 호출이라 delegate_tool(agent_loop 전용)을 못 쓰므로 그 가드를
-    수동 재현한다: ① 전제 미충족이면 실행하지 않고 거부를 관찰로 남긴다(분모 기록),
-    ② 상대의 sessionUpdates·캐시는 버린다 — 상태 전이는 오케스트레이터만(§2-4),
-    ③ 실패해도 경로 문구는 기존 폴백으로 남는다(이 위임은 강화지 전제가 아니다).
+    가드는 `call_agent_readonly` 한 곳에 있다 — 전에는 여기서 손으로 재현했는데 `heavy`
+    검사와 중첩 위임 차단이 빠져 있었다(그쪽만 §2-7 동의 게이트를 우회할 수 있었다).
+
+    실패해도 경로 문구는 기존 폴백으로 남는다 — 이 위임은 강화지 전제가 아니다.
     """
 
-    from jobis_ai import trace
-    from jobis_ai.agents import get_agent_registry
-    from jobis_ai.orchestrator.router import runnable_now, session_assets
+    from jobis_ai.agents.agent_loop import call_agent_readonly
 
-    spec = get_agent_registry().get("job_recommend")
-    if spec is None:
-        return [], []
-    if not runnable_now(spec, session_assets(session)):
-        trace.emit("delegate_refused", "위임 거부: job_recommend — 전제 미충족", {
-            "target": "job_recommend", "from": "application_plan",
-            "reason": "preconditions_not_met",
-        })
+    call = call_agent_readonly(session, "job_recommend", caller="application_plan")
+    if call.refusal:
+        # 거부는 trace 에 남았다(분모 기록). 경로 문구는 폴백으로 간다.
         return [], []
 
-    sess = dict(session)
-    sess["_stagedUpdates"] = {}      # 읽기 전용 — 위임의 캐시·상태가 본 턴에 남지 않는다
-    try:
-        outcome = spec.entry(sess)
-    except Exception as exc:        # noqa: BLE001 — 강화 실패가 본 판정을 막지 않는다
-        return [], [{"code": "delegate_failed",
-                     "message": f"application_plan→job_recommend 실패: {exc}"}]
-
-    recommendations = list((outcome.data or {}).get("recommendations") or [])[:3]
-    trace.emit("delegate", "에이전트 위임 호출: job_recommend (읽기 전용)", {
-        "target": "job_recommend", "from": "application_plan",
-        "results": len(recommendations),
-    })
+    recommendations = list((call.result.data or {}).get("recommendations") or [])[:3]
     related = [{"companyName": str(r.get("companyName") or ""),
                 "title": str(r.get("title") or ""),
                 "url": str(r.get("url") or "")} for r in recommendations]
-    warnings = [{"code": "delegated_warning",
-                 "message": f"job_recommend: {w.get('message', '')}"}
-                for w in (outcome.warnings or [])]
-    return related, warnings
+    return related, call.warnings
 
 
 # ---------------------------------------------------------------------------

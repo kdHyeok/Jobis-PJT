@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from jobis_ai.agents import AgentResult
 from jobis_ai.orchestrator.observe_rules import drop_unrunnable, observe
+from jobis_ai.orchestrator.planner import replacement_for
 
 _RESUME = {"sourceType": "text", "value": "Python Django 백엔드 3년"}
 _POSTING = {"sourceType": "text", "value": "백엔드 채용. 자격요건 Rust 7년"}
@@ -121,3 +122,66 @@ def test_trace_fields_are_always_populated():
         assert result.action in ("continue", "finish")
         assert result.reason, "이유가 비면 사후에 재선택을 설명할 수 없다"
         assert result.rule, "어느 규칙이 정했는지 남아야 한다"
+
+
+# --- 빠진 단계를 이름으로 남긴다 → 대체 단계 --------------------------------------
+def test_dropped_steps_are_reported_by_name_not_only_in_prose():
+    """전에는 무엇이 빠졌는지가 note 문장 안에만 있었다 — 호출부가 코드로 알 수 없었다.
+
+    규칙이 "뺐다"까지만 하고 "대신 무엇을 할까"를 아무도 묻지 않던 것의 구조적 원인이다.
+    """
+
+    result = observe(["fit_analysis"], {"fit_analysis": AgentResult(data={"status": "failed"})},
+                     ["coverletter_draft"], ["fit_analysis"], {"resume": _RESUME})
+    assert result.dropped == ("coverletter_draft",)
+    assert "coverletter_draft" not in result.queue
+
+
+def test_already_dispatched_is_not_counted_as_dropped():
+    """이미 돈 것을 큐에서 치우는 것은 탈락이 아니다 — 대체를 부를 이유가 없다."""
+
+    result = observe(["career_chat"], {"career_chat": AgentResult(reply="네")},
+                     ["career_chat"], ["career_chat"], {})
+    assert result.dropped == ()
+
+
+def test_replacement_candidates_exclude_heavy_and_unrunnable(monkeypatch):
+    """후보는 **코드가** 만든다 — LLM 은 이 목록 밖을 볼 수 없다(§2-2 구조로 막는다).
+
+    heavy 를 후보에 넣으면 에이전트가 동의 게이트(§2-7)를 우회해 수십 초 파이프라인을
+    시작할 수 있다. 자산이 없어 못 도는 것도 후보가 아니다.
+    """
+
+    seen: dict = {}
+
+    def fake(schema, system, user_content, **kw):
+        seen["candidates"] = user_content
+        return schema(agent="", reason=""), []
+
+    monkeypatch.setattr("jobis_ai.orchestrator.planner.run_structured", fake)
+    replacement_for(("coverletter_draft",), {"resume": _RESUME}, exclude=set())
+    # 후보 절만 본다 — 같은 payload 의 자산 상태 블록에도 에이전트 이름이 나온다.
+    listed = seen["candidates"].split("[지금 고를 수 있는 후보]\n")[1].split("\n")[0]
+    assert "fit_analysis" not in listed, "heavy 는 후보가 아니다"
+    assert "coverletter_draft" not in listed, "빠진 그 단계를 다시 고르게 하지 않는다"
+    assert "job_recommend" in listed, "이력서가 있으니 지금 돌 수 있다"
+
+
+def test_replacement_outside_candidates_is_discarded(monkeypatch):
+    """후보 밖을 골랐으면 버린다 — 그리고 버린 사실을 센다(§2-6 이유를 삼키지 않는다)."""
+
+    monkeypatch.setattr(
+        "jobis_ai.orchestrator.planner.run_structured",
+        lambda schema, *a, **kw: (schema(agent="fit_analysis", reason="억지"), []),
+    )
+    picked, _, warnings = replacement_for(
+        ("coverletter_draft",), {"resume": _RESUME}, exclude=set())
+    assert picked == ""
+    assert any(w["code"] == "replacement_out_of_candidates" for w in warnings)
+
+
+def test_replacement_degrades_quietly_without_llm():
+    """LLM 미설정이면 대체 없이 규칙 결과대로 간다 — 폴백이 턴을 깨지 않는다."""
+
+    picked, _, _ = replacement_for(("coverletter_draft",), {"resume": _RESUME}, exclude=set())
+    assert picked == ""

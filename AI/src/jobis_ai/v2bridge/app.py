@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import UTC, datetime
 from hmac import compare_digest
 from typing import Annotated, Awaitable, Callable, TypeVar
 
@@ -121,6 +122,36 @@ async def _run(handler: Callable[[], _T]) -> _T:
 )
 async def analyze(request: AnalysisRequest) -> AnalysisResponse:
     return await _run(lambda: service.analyze(request))
+
+
+@app.post(
+    "/v1/analyses/stream",
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def analyze_stream(request: AnalysisRequest) -> StreamingResponse:
+    """분석 진행을 NDJSON 으로 흘린다 — 백엔드 진행 휠(피자)의 입력.
+
+    한 줄 = 한 이벤트. 백엔드는 이 경로가 404/405 면 `/v1/analyses` 로 자동 폴백하므로,
+    **이 엔드포인트가 없거나 죽어도 분석 자체는 깨지지 않는다.** 그래서 여기서 예외를
+    HTTP 로 올리지 않고 `ERROR` 이벤트 한 줄로 끝낸다(이미 200 이 나간 뒤라 방법이 없다).
+    """
+
+    import json as json_mod
+
+    def _lines():
+        try:
+            for event in service.analyze_events(request):
+                yield event.model_dump_json(by_alias=True) + "\n"
+        except Exception as exc:   # 스트림 도중 실패도 본문으로 알린다(HTTP 는 이미 200)
+            log.exception("[v2bridge] 분석 스트림 처리 실패")
+            yield json_mod.dumps({
+                "type": "ERROR", "runId": str(request.analysis_job_id), "sequence": 9999,
+                "occurredAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                "stages": [], "stage": None, "result": None,
+                "errorCode": "AI_PROVIDER_UNAVAILABLE", "errorMessage": str(exc)[:2000],
+            }, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(_lines(), media_type="application/x-ndjson")
 
 
 @app.post(

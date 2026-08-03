@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "provider": "claude_code",
+    "model": "sonnet",
+    "modelLight": "haiku",
+    "modelRouter": "claude-opus-5",
+    "temperature": 0.3,
+    "measuredAt": "2026-08-03T12:04:48",
+    "runs": 5,
+    "cases": [
+      "preference_intake",
+      "interview_prep",
+      "coverletter_draft",
+      "coverletter_emphasis"
+    ]
+  },
+  "totals": {
+    "invariantViolations": 1,
+    "handoff": {
+      "attempts": 0,
+      "ok": 0,
+      "rate": null
+    }
+  },
+  "cases": [
+    {
+      "name": "preference_intake",
+      "stability": 0.8,
+      "replied": 5,
+      "invariantViolations": 1,
+      "steps": {
+        "mean": 0.8,
+        "max": 1,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "record_preference": 4,
+        "(도구 없음)": 1
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 1.8,
+        "retries": 0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 9
+      }
+    },
+    {
+      "name": "interview_prep",
+      "stability": 0.8,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 2.8,
+        "max": 3,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "pick_material>find_evidence>record_question": 4,
+        "pick_material>record_question": 1
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 3.8,
+        "retries": 0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 19
+      }
+    },
+    {
+      "name": "coverletter_draft",
+      "stability": 1.0,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 3.0,
+        "max": 3,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>save_draft>check_draft": 5
+      },
+      "warnings": {},
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 4.0,
+        "retries": 0,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 20
+      }
+    },
+    {
+      "name": "coverletter_emphasis",
+      "stability": 1.0,
+      "replied": 5,
+      "invariantViolations": 0,
+      "steps": {
+        "mean": 3.0,
+        "max": 3,
+        "limitReached": 0
+      },
+      "trajectories": {
+        "find_evidence>save_draft>check_draft": 5
+      },
+      "warnings": {
+        "coverletter_check_unresolved": 5
+      },
+      "handoff": {
+        "attempts": 0,
+        "ok": 0,
+        "results": {}
+      },
+      "llm": {
+        "callsMean": 4.0,
+        "retries": 5,
+        "inputTokensMean": null,
+        "outputTokensMean": null,
+        "unmeteredCalls": 20
+      }
+    }
+  ]
+}

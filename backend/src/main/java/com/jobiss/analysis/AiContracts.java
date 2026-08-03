@@ -267,7 +267,27 @@ public final class AiContracts {
             String message,
             String intent,
             boolean shouldRequestPosting,
-            List<SuggestedAction> suggestedActions
+            List<SuggestedAction> suggestedActions,
+            List<ProgressStep> progress
+    ) {
+    }
+
+    /**
+     * 대화 한 턴에서 어떤 에이전트·도구가 무엇을 했는지.
+     *
+     * <p>AI 서버는 이 값을 전부터 보내고 있었지만 이 레코드에 받을 칸이 없어 Jackson 이
+     * 조용히 버렸다. 공고를 채팅에 붙여넣는 흐름에서는 분석 작업(analysis job)이 생기지
+     * 않으므로 진행 휠도 없다 — 그 경로에서 "어느 담당이 무슨 도구로 무엇을 하는지"를
+     * 보여줄 유일한 통로가 이것이다.
+     *
+     * <p>{@code step} 은 집계용 키(예: {@code loop:coverletter_draft}), {@code label} 은
+     * 사람이 읽는 담당 이름, {@code detail} 은 도구 호출·관찰 문구다.
+     */
+    public record ProgressStep(
+            String step,
+            String label,
+            String detail,
+            long elapsedMs
     ) {
     }
 

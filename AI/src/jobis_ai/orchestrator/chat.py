@@ -38,6 +38,7 @@ from jobis_ai.orchestrator.attachment_kind import MIN_ASSET_CHARS, resolve_kind
 from jobis_ai.orchestrator.planner import (
     CONFIDENCE_THRESHOLD,
     plan_agents,
+    replacement_for,
     safe_ack,
 )
 from jobis_ai.orchestrator.router import (
@@ -744,6 +745,9 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
                  session_id, inserts, stored_kinds, list(queue))
 
     steps = 0
+    # 실패 대체 예산 — 턴당 1회. `_MAX_AGENT_STEPS` 와 별개로 두는 이유는 막는 것이 다르기
+    # 때문이다: 스텝 상한은 계획이 긴 턴을, 이 예산은 **실패가 실패를 부르는 연쇄**를 막는다.
+    replacement_used = False
 
     def _execute(name: str, spec, sess: dict):
         """에이전트 하나 실행 + 도구면 표현 계층까지. 병렬 워커도 이걸 부른다."""
@@ -916,7 +920,32 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             replies.append(obs.note)
             said_sources.append(_src("orchestrator", "rule_note", obs.note))
             changed_by = "rule"
-        if obs.action == "finish":
+
+        # 5-b) 빠진 자리에 **대체 단계**를 한 번 물어본다 (턴당 1회).
+        #
+        # 규칙은 "뺐다"까지만 한다. "대신 무엇을 할까"는 빠진 단계 × 남은 자산의 조합이라
+        # 규칙표로 열거할 수 없다 — 위 5)가 LLM 을 걷어낸 근거("신호가 전부 열거 가능한
+        # 구조화 값")가 **여기에는 성립하지 않는** 유일한 자리다. 그래서 이 한 자리만 연다.
+        #
+        # 자율은 고르기까지다: 후보는 코드가 만들고(등록·실행가능·heavy 아님), 고른 뒤에도
+        # 다시 검증한다(`planner.replacement_for`). 예산 1회는 실패가 실패를 부르는 폭주 방어다.
+        if obs.dropped and not replacement_used:
+            replacement_used = True
+            picked, why, replace_warnings = replacement_for(
+                obs.dropped, session, exclude=set(dispatched) | set(queue),
+            )
+            warnings.extend(replace_warnings)
+            if picked:
+                queue.append(picked)
+                trace.emit("replan", f"실패 대체: {' · '.join(obs.dropped)} → {picked}", {
+                    "trigger": "failure", "dropped": list(obs.dropped),
+                    "replacement": picked, "reason": why,
+                })
+                log.info("[%s] replan(failure): %s → %s (%s)", session_id,
+                         list(obs.dropped), picked, why[:80])
+
+        # 대체를 끼웠으면 큐가 다시 찼다 — obs.action 이 아니라 **큐**를 보고 끝낸다.
+        if obs.action == "finish" and not queue:
             break
 
     # 요청 완수 검증(M3) — 사용자가 직접 청한 에이전트가 실행되지도(dispatched),

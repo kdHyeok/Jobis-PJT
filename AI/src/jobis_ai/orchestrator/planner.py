@@ -266,6 +266,80 @@ def safe_ack(plan: AgentPlan | None) -> str:
     return text
 
 
+class ReplacementChoice(BaseModel):
+    """전제 붕괴로 빠진 자리를 메울 **대체 단계 하나**. 못 고르면 비운다."""
+
+    agent: str = Field(default="", description=(
+        "지금 자산으로 대신 할 수 있는 에이전트 이름. **후보 목록에 있는 이름만.** "
+        "마땅한 것이 없으면 빈 문자열 — 억지로 채우지 않는다."))
+    reason: str = Field(default="", description="왜 그것이 대신이 되는지 한 줄. 사용자 비노출.")
+
+
+_REPLACEMENT_SYSTEM = """너는 취업 지원 서비스의 오케스트레이터다. 방금 어떤 단계가 **전제가
+만들어지지 않아** 실행되지 못했다. 지금 가진 자산으로 대신 할 수 있는 단계를 **하나만** 고른다.
+
+- 빠진 단계와 목적이 가까운 것을 고른다.
+- **후보 목록에 있는 이름만 고를 수 있다.** 목록은 지금 실행 가능한 것만 담고 있다.
+- 마땅한 것이 없으면 agent 를 빈 문자열로 둔다. 무엇이든 하는 것보다 아무것도 안 하는 것이 낫다.
+
+에이전트 설명:
+{manifest}
+"""
+
+
+def replacement_for(
+    dropped: tuple[str, ...] | list[str], session: dict[str, Any], *, exclude: set[str],
+) -> tuple[str, str, list[dict]]:
+    """빠진 단계 → 대체 단계 하나. 반환 (에이전트 이름 또는 "", 이유, warnings).
+
+    **여기가 이 저장소에서 LLM 이 계획에 손대는 유일한 자리다.** 관찰 규칙(`observe_rules`)은
+    결정론으로 남는다 — 규칙이 "뺐다"까지 하고 나면 "대신 무엇을 할까"는 열거할 수 없는
+    질문이기 때문이다(빠진 단계와 남은 자산의 조합은 규칙표로 못 적는다).
+
+    그래서 §1(판단 계층 LLM 금지)과 부딪히지 않게 **고르기만** 시킨다:
+
+      · 후보는 코드가 만든다 — 등록됨 ∧ 지금 `runnable_now` ∧ heavy 아님(§2-7 동의 게이트)
+        ∧ 이미 돌았거나 예정된 것 아님. LLM 은 이 목록 밖을 볼 수 없다.
+      · 고른 뒤에도 **다시 검증한다** — 목록에 없는 이름이면 버린다(§2-2 구조로 막는다).
+      · 예산은 턴당 1회(호출부) — 실패가 실패를 부르는 폭주를 막는다.
+
+    LLM 미설정·실패면 ("", "", warnings) — 호출부는 그냥 규칙 결과대로 간다.
+    """
+
+    from jobis_ai.agents import get_agent_registry
+    from jobis_ai.orchestrator.router import agent_label, runnable_now, session_assets
+
+    assets = session_assets(session)
+    candidates = [
+        spec.name for spec in get_agent_registry().values()
+        if not spec.internal and not spec.heavy
+        and spec.name not in exclude and spec.name not in dropped
+        and runnable_now(spec, assets)
+    ]
+    if not candidates:
+        return "", "", []
+
+    system = _REPLACEMENT_SYSTEM.format(manifest=_build_manifest())
+    user_content = (
+        f"[실행되지 못한 단계]\n{', '.join(agent_label(n) for n in dropped)}\n\n"
+        f"[지금 고를 수 있는 후보]\n{', '.join(candidates)}\n\n"
+        f"[세션 자산 상태]\n{_asset_state(session)}"
+    )
+    choice, warnings = run_structured(
+        ReplacementChoice, system, user_content, node="replacement_planner", tier="light",
+    )
+    if choice is None:
+        return "", "", warnings
+    picked = (choice.agent or "").strip()
+    if picked and picked not in candidates:
+        # 후보 밖을 골랐다 — 버린다. 왜 버렸는지는 세어야 고칠 수 있다(§2-6).
+        return "", "", warnings + [{
+            "code": "replacement_out_of_candidates",
+            "message": f"대체 후보 밖의 이름을 골라 버렸습니다: {picked}",
+        }]
+    return picked, (choice.reason or "").strip(), warnings
+
+
 def plan_agents(message: str, session: dict[str, Any]) -> tuple[AgentPlan | None, list[dict]]:
     """발화 + 자산 상태 → AgentPlan. LLM 실패·미설정이면 (None, warnings) — 폴백은 호출부가."""
 

@@ -16,8 +16,9 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from jobis_ai.agents.agent_loop import TOOL_WARNINGS_KEY, ToolSpec
 from jobis_ai.graph.nodes import build_user_profile
-
+from jobis_ai.rag import get_rag_adapter
 
 # 대화에서 정리했던 공고를 몇 개까지 기억하나 — 오래된 것부터 버린다(D86).
 _POSTING_LIBRARY_MAX = 5
@@ -29,6 +30,13 @@ _RESUME_LIBRARY_MAX = 5
 # 원문 검색 도구가 한 번에 돌려주는 양 — 관찰이 루프 payload 를 삼키지 않게 자른다.
 _GREP_MAX_LINES = 15
 _GREP_MAX_CHARS = 1200
+
+# 공고 검색 도구가 한 번에 돌려주는 양 — grep 과 같은 이유(관찰이 payload 를 삼키지 않게).
+# 원문 발췌를 짧게 자르는 것은 **요약이 아니라 절단**이다: 판단은 루프가 하고, 더 봐야 하면
+# 검색어를 좁혀 다시 부른다.
+_SEARCH_TOP_K = 5
+_SEARCH_SNIPPET_CHARS = 160
+_SEARCH_MAX_CHARS = 1600
 
 
 def grep_source_lines(text: str, arg: str, *, label: str) -> str:
@@ -51,6 +59,57 @@ def grep_source_lines(text: str, arg: str, *, label: str) -> str:
     if not hits:
         return f"{label} 원문에서 '{', '.join(keywords)}' 를 찾지 못했습니다."
     return (f"{label} 원문에서 찾은 줄:\n" + "\n".join(hits))[:_GREP_MAX_CHARS]
+
+
+def search_postings_tool(*, top_k: int = _SEARCH_TOP_K,
+                         name: str = "search_postings") -> ToolSpec:
+    """RAG 실공고 검색을 **자기 루프의 도구로** 연다.
+
+    루프 하네스(`agent_loop`)는 이미 있었는데 등록된 도구가 전부 세션 내부 데이터
+    읽기·쓰기였다 — `resume_diagnosis` 는 도구가 1개, `posting_analysis` 는 2개다.
+    고를 것이 없으면 루프는 돌지 않는다. **자율성의 병목은 루프 구조가 아니라 도구
+    목록이었다.** RAG 는 `job_recommend` 안의 결정론 단계로만 불려서, 루프를 도는
+    담당이 "비슷한 공고는 뭘 요구하나"를 스스로 확인할 방법이 없었다.
+
+    ToolSpec 규약 그대로다: 관찰은 **사실만**(판단·권유 없음), 실패는 예외 대신 관찰
+    문자열, RAG 경고(`rag_http_failed`·`rag_not_connected`)는 삼키지 않고 올린다(§2-6)
+    — 키워드 폴백으로 찾은 결과인지를 호출부가 알아야 사용자에게 명시할 수 있다(D90).
+    """
+
+    def run(state: dict[str, Any], arg: str) -> tuple[str, dict[str, Any]]:
+        query = (arg or "").strip()
+        if not query:
+            return "검색어가 비어 있어 검색하지 않았습니다. 찾을 기술·직무를 적어 주세요.", {}
+        try:
+            result = get_rag_adapter().search(query, top_k=top_k)
+        except Exception as exc:      # noqa: BLE001 — 도구 실패가 루프를 죽이지 않는다
+            return f"공고 검색 실패: {exc}", {}
+
+        data: dict[str, Any] = {}
+        if result.warnings:
+            data[TOOL_WARNINGS_KEY] = list(result.warnings)
+        if not result.items:
+            # 빈 결과를 빈 관찰로 주면 LLM 이 그 자리를 사전지식으로 채운다(§2-5).
+            return f"'{query}' 로 찾은 공고가 없습니다.", data
+
+        lines = []
+        for item in result.items[:top_k]:
+            company = str(item.get("companyName") or "").strip() or "(회사명 없음)"
+            title = str(item.get("title") or "").strip()
+            seniority = str(item.get("seniority") or "").strip()
+            url = str(item.get("url") or "").strip()
+            body = " ".join(str(item.get("text") or "").split())[:_SEARCH_SNIPPET_CHARS]
+            head = " | ".join(p for p in (company, title, seniority, url) if p)
+            lines.append(f"- {head}" + (f"\n    {body}" if body else ""))
+        return (f"'{query}' 검색 결과 {len(lines)}건:\n" + "\n".join(lines))[:_SEARCH_MAX_CHARS], data
+
+    return ToolSpec(
+        name,
+        "비슷한 실공고를 검색해 무엇을 요구하는지 확인한다. 이 공고 밖의 시장 사실이 "
+        "필요할 때만 쓴다 — 지금 공고의 내용은 read_posting 이 본다.",
+        run,
+        "찾을 기술·직무를 짧게 적는다(예: 백엔드 Kafka, 프론트엔드 React 신입).",
+    )
 
 
 def upsert_posting_library(session: dict[str, Any], summary: dict) -> list[dict]:
