@@ -4,7 +4,6 @@ import { session } from "@/session";
 import AppShell from "@/components/AppShell.vue";
 import ActivityView from "@/views/ActivityView.vue";
 import CareerMapView from "@/views/CareerMapView.vue";
-import CareerMapVerticalView from "@/views/CareerMapVerticalView.vue";
 import CareerSourceReviewView from "@/views/CareerSourceReviewView.vue";
 import ChatView from "@/views/ChatView.vue";
 import HomeView from "@/views/HomeView.vue";
@@ -13,8 +12,8 @@ import LandingView from "@/views/LandingView.vue";
 import NewPostingView from "@/views/NewPostingView.vue";
 import PostingDetailView from "@/views/PostingDetailView.vue";
 import PostingsView from "@/views/PostingsView.vue";
-import RoadmapPrototypeView from "@/views/RoadmapPrototypeView.vue";
 import SettingsView from "@/views/SettingsView.vue";
+import OperatorView from "@/views/OperatorView.vue";
 import StorageView from "@/views/StorageView.vue";
 
 export const router = createRouter({
@@ -30,12 +29,6 @@ export const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
-      meta: { public: true },
-    },
-    {
-      path: "/roadmap-preview",
-      name: "roadmap-preview",
-      component: RoadmapPrototypeView,
       meta: { public: true },
     },
     {
@@ -58,9 +51,14 @@ export const router = createRouter({
           component: PostingDetailView,
         },
         { path: "map", name: "map", component: CareerMapView },
-        { path: "map-2", name: "map-2", component: CareerMapVerticalView },
         { path: "activity", name: "activity", component: ActivityView },
         { path: "settings", name: "settings", component: SettingsView },
+        {
+          path: "operator",
+          name: "operator",
+          component: OperatorView,
+          meta: { operator: true },
+        },
       ],
     },
   ],
@@ -72,6 +70,9 @@ router.beforeEach(async (to) => {
     return { name: "login", query: { redirect: to.fullPath } };
   }
   if (to.name === "login" && session.authenticated.value) {
+    return { name: "home" };
+  }
+  if (to.meta.operator && session.user.value?.accountRole !== "OPERATOR") {
     return { name: "home" };
   }
   return true;

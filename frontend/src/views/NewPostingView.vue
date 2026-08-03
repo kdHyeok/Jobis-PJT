@@ -25,6 +25,9 @@ async function submit() {
     await router.push({
       name: "posting-detail",
       params: { postingId: result.postingId },
+      query: result.reusedAnalysis
+        ? { reused: "1", reuseMessage: result.reuseMessage ?? undefined }
+        : undefined,
     });
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "공고를 등록하지 못했습니다.";

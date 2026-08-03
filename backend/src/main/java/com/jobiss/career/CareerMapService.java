@@ -152,6 +152,21 @@ public class CareerMapService {
                         "직접 완료할 수 없는 단계입니다."
                 );
             }
+            jdbc.sql("""
+                            update user_competencies c
+                            set
+                                progress_status = 'COMPLETED',
+                                verified_level = greatest(c.verified_level, n.level),
+                                completion_method = 'SELF_CONFIRM',
+                                completed_at = now()
+                            from career_nodes n
+                            where n.id = :nodeId
+                              and c.user_id = :userId
+                              and c.canonical_key = n.canonical_key
+                            """)
+                    .param("nodeId", nodeId)
+                    .param("userId", userId)
+                    .update();
             return null;
         });
     }

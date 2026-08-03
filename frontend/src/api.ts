@@ -1,20 +1,26 @@
 import type {
   AnalysisJob,
+  AlternativePosting,
   CareerFragment,
   CareerFragmentPage,
   CareerMap,
   CareerSourceDetail,
   CareerSourceSummary,
   ChatReplyJob,
+  CompetencyAssessment,
   Conversation,
   ConversationSummary,
   Evidence,
+  GoalProfile,
   NotificationItem,
   Posting,
   PostingDetail,
   PostingPage,
+  RoadmapWorkspace,
   SendMessageResult,
   User,
+  PostingDuplicateCandidate,
+  AssessmentReviewItem,
 } from "@/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -136,6 +142,20 @@ export const api = {
     return request("/api/auth/logout", { method: "POST" });
   },
 
+  goalProfile(): Promise<GoalProfile> {
+    return request("/api/profile/goals");
+  },
+
+  updateGoalProfile(
+    currentGoalPostingId: string | null,
+    finalGoalText: string | null,
+  ): Promise<GoalProfile> {
+    return request("/api/profile/goals", {
+      method: "PUT",
+      body: JSON.stringify({ currentGoalPostingId, finalGoalText }),
+    });
+  },
+
   careerMap(): Promise<CareerMap> {
     return request("/api/career-map");
   },
@@ -156,6 +176,10 @@ export const api = {
 
   conversation(id: string): Promise<Conversation> {
     return request(`/api/conversations/${id}`);
+  },
+
+  deleteConversation(id: string): Promise<void> {
+    return request(`/api/conversations/${id}`, { method: "DELETE" });
   },
 
   sendMessage(
@@ -199,7 +223,13 @@ export const api = {
     rawText: string,
     conversationId: string | null = null,
   ) {
-    return request<{ postingId: string; analysisJobId: string; status: string }>(
+    return request<{
+      postingId: string;
+      analysisJobId: string;
+      status: string;
+      reusedAnalysis: boolean;
+      reuseMessage: string | null;
+    }>(
       "/api/job-postings",
       {
         method: "POST",
@@ -236,10 +266,42 @@ export const api = {
   },
 
   approveAnalysis(id: string) {
-    return request<{ graphId: string; graphVersion: number }>(
+    return request<{
+      postingId: string;
+      draftId: string;
+      draftVersion: number;
+      changes: { added: string[]; removed: string[]; retained: string[] };
+    }>(
       `/api/analysis-jobs/${id}/approve`,
       { method: "POST" },
     );
+  },
+
+  roadmap(): Promise<RoadmapWorkspace> {
+    return request("/api/roadmap");
+  },
+
+  regenerateRoadmap(): Promise<{
+    draftId: string;
+    draftVersion: number;
+    changes: { added: string[]; removed: string[]; retained: string[] };
+  }> {
+    return request("/api/roadmap/draft", { method: "POST" });
+  },
+
+  applyRoadmapDraft(): Promise<{
+    roadmapVersionId: string;
+    graphVersion: number;
+  }> {
+    return request("/api/roadmap/draft/apply", { method: "POST" });
+  },
+
+  removeRoadmapTarget(postingId: string) {
+    return request(`/api/roadmap/targets/${postingId}`, { method: "DELETE" });
+  },
+
+  resetRoadmapTargets() {
+    return request("/api/roadmap/reset", { method: "POST" });
   },
 
   rejectAnalysis(id: string): Promise<void> {
@@ -282,7 +344,13 @@ export const api = {
   },
 
   updatePosting(id: string, sourceUrl: string | null, rawText: string) {
-    return request<{ postingId: string; analysisJobId: string; status: string }>(
+    return request<{
+      postingId: string;
+      analysisJobId: string;
+      status: string;
+      reusedAnalysis: boolean;
+      reuseMessage: string | null;
+    }>(
       `/api/job-postings/${id}`,
       {
         method: "PATCH",
@@ -324,6 +392,78 @@ export const api = {
 
   retryEvidence(id: string): Promise<void> {
     return request(`/api/evidence/${id}/retry`, { method: "POST" });
+  },
+
+  latestAssessment(nodeId: string): Promise<CompetencyAssessment | undefined> {
+    return request(`/api/career-map/nodes/${nodeId}/assessment`);
+  },
+
+  startAssessment(
+    nodeId: string,
+    targetPostingId: string | null,
+  ): Promise<CompetencyAssessment> {
+    return request(`/api/career-map/nodes/${nodeId}/assessment`, {
+      method: "POST",
+      body: JSON.stringify({ targetPostingId }),
+    });
+  },
+
+  answerAssessment(
+    sessionId: string,
+    answer: string,
+  ): Promise<CompetencyAssessment> {
+    return request(`/api/competency-assessments/${sessionId}/answers`, {
+      method: "POST",
+      body: JSON.stringify({ answer }),
+    });
+  },
+
+  requestAssessmentReview(
+    sessionId: string,
+    reason: string,
+  ): Promise<CompetencyAssessment> {
+    return request(`/api/competency-assessments/${sessionId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  operatorPostingDuplicates(status = "OPEN"): Promise<PostingDuplicateCandidate[]> {
+    return request(`/api/operator/posting-duplicates?status=${encodeURIComponent(status)}`);
+  },
+
+  resolvePostingDuplicate(
+    candidateId: string,
+    action: "MERGE" | "SEPARATE" | "HOLD",
+    canonicalPostingId: string | null,
+    reason: string,
+  ): Promise<void> {
+    return request(`/api/operator/posting-duplicates/${candidateId}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ action, canonicalPostingId, reason }),
+    });
+  },
+
+  operatorAssessmentReviews(status = "REQUESTED"): Promise<AssessmentReviewItem[]> {
+    return request(`/api/operator/assessment-reviews?status=${encodeURIComponent(status)}`);
+  },
+
+  resolveAssessmentReview(
+    sessionId: string,
+    action: "APPROVE" | "REJECT",
+    comment: string,
+  ): Promise<void> {
+    return request(`/api/operator/assessment-reviews/${sessionId}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ action, comment }),
+    });
+  },
+
+  alternativePostings(
+    postingId: string,
+    limit = 5,
+  ): Promise<AlternativePosting[]> {
+    return request(`/api/job-postings/${postingId}/alternatives?limit=${limit}`);
   },
 
   careerSources(archived = false): Promise<CareerSourceSummary[]> {

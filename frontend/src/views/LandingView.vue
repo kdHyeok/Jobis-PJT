@@ -7,7 +7,7 @@ import { ArrowRight, GitBranch, MessageCircle, ShieldCheck } from "@lucide/vue";
     <header class="landing-header">
       <RouterLink class="brand brand--large" to="/">
         <span class="brand-mark">J</span>
-        <span>J.O.B.I.S</span>
+        <span>JOBISS</span>
       </RouterLink>
       <RouterLink class="press-button press-button--primary" to="/login">
         시작하기 <ArrowRight :size="18" />

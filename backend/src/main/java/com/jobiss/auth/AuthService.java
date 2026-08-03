@@ -151,6 +151,41 @@ public class AuthService {
                         .param("graphId", graphId)
                         .update();
 
+                jdbc.sql("""
+                                insert into user_competencies (
+                                    user_id,
+                                    catalog_competency_id,
+                                    canonical_key,
+                                    title,
+                                    competency_kind,
+                                    domain,
+                                    default_stage,
+                                    scope_definition,
+                                    progress_status,
+                                    verified_level
+                                )
+                                select
+                                    :userId,
+                                    c.id,
+                                    c.canonical_key,
+                                    c.title,
+                                    'KNOWLEDGE',
+                                    c.domain,
+                                    'FOUNDATION',
+                                    c.scope_definition,
+                                    'NOT_STARTED',
+                                    0
+                                from competency_catalog c
+                                where c.canonical_key in (
+                                    'foundation.programming',
+                                    'foundation.git-terminal',
+                                    'foundation.cs'
+                                )
+                                on conflict (user_id, canonical_key) do nothing
+                                """)
+                        .param("userId", userId)
+                        .update();
+
                 return findCurrentUser(jdbc, userId);
             });
         } catch (DataIntegrityViolationException exception) {
@@ -200,7 +235,7 @@ public class AuthService {
 
     private UserView findCurrentUser(JdbcClient jdbc, UUID userId) {
         return jdbc.sql("""
-                        select id, email, display_name, status, created_at
+                        select id, email, display_name, status, account_role, created_at
                         from users
                         where id = :id
                         """)
@@ -210,6 +245,7 @@ public class AuthService {
                         rs.getString("email"),
                         rs.getString("display_name"),
                         rs.getString("status"),
+                        rs.getString("account_role"),
                         rs.getObject("created_at", OffsetDateTime.class)
                 ))
                 .optional()
@@ -233,6 +269,7 @@ public class AuthService {
             String email,
             String displayName,
             String status,
+            String accountRole,
             OffsetDateTime createdAt
     ) {
     }

@@ -236,6 +236,12 @@ onMounted(() => load());
           <small>{{ posting.companyName ?? "회사명 분석 중" }}</small>
           <strong>{{ posting.roleTitle ?? "직무를 분석하고 있습니다" }}</strong>
           <span>{{ posting.experienceText ?? "경력 조건 미확인" }} · {{ formatDate(posting.createdAt) }}</span>
+          <em
+            v-if="['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')"
+            class="posting-lifecycle posting-lifecycle--closed"
+          >
+            모집 마감 · 학습 참고
+          </em>
         </span>
         <span :class="`posting-status posting-status--${(posting.analysisStatus ?? 'saved').toLowerCase()}`">
           <LoaderCircle
@@ -293,6 +299,13 @@ onMounted(() => load());
       <p class="drawer-subtitle">
         {{ selected.experienceText ?? "경력 조건 미확인" }}
         <template v-if="selected.employmentType"> · {{ selected.employmentType }}</template>
+      </p>
+      <p
+        v-if="['EXPIRED', 'CLOSED'].includes(selected.lifecycleStatus ?? '')"
+        class="posting-closed-notice"
+      >
+        모집이 마감되어 새 목표로 추가할 수 없습니다. 분석 결과와 역량은 학습
+        참고로 계속 볼 수 있습니다.
       </p>
 
       <div class="drawer-action-grid">

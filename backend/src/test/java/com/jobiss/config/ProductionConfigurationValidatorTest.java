@@ -24,7 +24,8 @@ class ProductionConfigurationValidatorTest {
                         "local-ai-secret",
                         true,
                         3000,
-                        200
+                        200,
+                        2
                 )
         );
 
@@ -51,7 +52,8 @@ class ProductionConfigurationValidatorTest {
                         "a-production-ai-secret-that-is-long-and-random",
                         true,
                         3000,
-                        200
+                        200,
+                        2
                 )
         );
 

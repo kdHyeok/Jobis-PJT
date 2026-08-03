@@ -516,3 +516,47 @@ def test_posting_body_lines_are_not_mistaken_for_a_request():
     assert _trailing_request("경력 3년\n우대사항: 코드 리뷰 문화에 익숙하신 분이면 좋을까요?") == ""
     # 물음표로 끝나는 짧은 꼬리는 요청이다.
     assert _trailing_request("경력 3년\n\n분석해 주세요") == "분석해 주세요"
+
+
+# ---------------------------------------------------------------------------
+# 세션 상태 조회 (D128 — 프로토타입 2.0.0 GET /session 이식)
+# ---------------------------------------------------------------------------
+def test_session_state_requires_secret():
+    assert client.get("/v1/sessions/abc").status_code == 422
+    assert client.get("/v1/sessions/abc",
+                      headers={"X-JOBISS-AI-SECRET": "wrong"}).status_code == 401
+
+
+def test_session_state_summarizes_assets():
+    """세션에 쌓인 자산의 목록·개수를 그대로 옮겨 적는다 — 판단 없음, 읽기 전용."""
+
+    from jobis_ai.orchestrator.session import get_session_store
+
+    store = get_session_store()
+    store.update("v2-chat-conv1", {
+        "resume": {"sourceType": "text", "value": "이력서", "origin": "career_summary"},
+        "resume_library": [{"_label": "커리어 저장소"}],
+        "posting_library": [{"companyName": "가나다", "jobTitle": "백엔드"}],
+        "recommendations": [{"companyName": "라마바", "title": "프론트엔드",
+                             "url": "https://x.test/2"}],
+        "analysis": {"fitGrade": "중"},
+        "history": [{"role": "user", "content": "안녕"},
+                    {"role": "assistant", "content": "안녕하세요"}],
+    })
+    body = client.get("/v1/sessions/conv1", headers=HEADERS).json()
+    assert body["exists"] is True
+    assert body["activeResume"] == "커리어 저장소"
+    assert body["resumeLibrary"] == ["커리어 저장소"]
+    assert body["postingLibrary"] == [{"company": "가나다", "title": "백엔드"}]
+    assert body["recommendations"] == [{"company": "라마바", "title": "프론트엔드",
+                                        "url": "https://x.test/2"}]
+    assert body["analysisGrade"] == "중"
+    assert body["historyTurns"] == 2
+
+
+def test_session_state_for_unknown_session_is_empty_not_error():
+    """없는 세션은 404 가 아니라 빈 요약이다 — 백엔드가 폴링해도 오류 로그가 쌓이지 않게."""
+
+    body = client.get("/v1/sessions/no-such", headers=HEADERS).json()
+    assert body["exists"] is False
+    assert body["historyTurns"] == 0

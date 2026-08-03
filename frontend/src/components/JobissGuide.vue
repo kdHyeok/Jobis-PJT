@@ -4,7 +4,12 @@ defineProps<{ message: string }>();
 
 <template>
   <div class="guide">
-    <img class="guide-character guide-character--jobi" src="/img/jobi-mascot.png" alt="" />
+    <div class="guide-character" aria-hidden="true">
+      <span class="guide-antenna" />
+      <span class="guide-eye guide-eye--left" />
+      <span class="guide-eye guide-eye--right" />
+      <span class="guide-smile" />
+    </div>
     <p>{{ message }}</p>
   </div>
 </template>

@@ -1,8 +1,11 @@
+import json
+from datetime import UTC, datetime
 from functools import lru_cache
 from hmac import compare_digest
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from app.models import (
     AnalysisRequest,
@@ -11,6 +14,8 @@ from app.models import (
     CareerExtractionResponse,
     ChatRequest,
     ChatResponse,
+    CompetencyAssessmentRequest,
+    CompetencyAssessmentResponse,
     EvidenceVerificationRequest,
     EvidenceVerificationResponse,
 )
@@ -86,6 +91,61 @@ async def analyze(
 
 
 @app.post(
+    "/v1/analyses/stream",
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def analyze_stream(
+    request: AnalysisRequest,
+    service: Annotated[AnalysisService, Depends(get_analysis_service)],
+) -> StreamingResponse:
+    async def events():
+        try:
+            async for event in service.analyze_stream(request):
+                yield event.model_dump_json(by_alias=True) + "\n"
+        except ProviderNotConfigured as exception:
+            yield _stream_error(
+                request,
+                "AI_PROVIDER_NOT_CONFIGURED",
+                str(exception),
+            )
+        except InvalidProviderResponse as exception:
+            yield _stream_error(
+                request,
+                "INVALID_AI_RESPONSE",
+                str(exception),
+            )
+        except ProviderExecutionError as exception:
+            yield _stream_error(
+                request,
+                "AI_PROVIDER_UNAVAILABLE",
+                str(exception),
+            )
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")
+
+
+def _stream_error(
+    request: AnalysisRequest,
+    code: str,
+    message: str,
+) -> str:
+    return json.dumps(
+        {
+            "type": "ERROR",
+            "runId": str(request.analysis_job_id),
+            "sequence": 10000,
+            "occurredAt": datetime.now(UTC).isoformat(),
+            "stages": [],
+            "stage": None,
+            "result": None,
+            "errorCode": code,
+            "errorMessage": message,
+        },
+        ensure_ascii=False,
+    ) + "\n"
+
+
+@app.post(
     "/v1/chat",
     response_model=ChatResponse,
     response_model_by_alias=True,
@@ -155,6 +215,35 @@ async def extract_career(
 ) -> CareerExtractionResponse:
     try:
         return await service.extract_career(request)
+    except ProviderNotConfigured as exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_PROVIDER_NOT_CONFIGURED", "message": str(exception)},
+        ) from exception
+    except InvalidProviderResponse as exception:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "INVALID_AI_RESPONSE", "message": str(exception)},
+        ) from exception
+    except ProviderExecutionError as exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "AI_PROVIDER_UNAVAILABLE", "message": str(exception)},
+        ) from exception
+
+
+@app.post(
+    "/v1/competency-assessments",
+    response_model=CompetencyAssessmentResponse,
+    response_model_by_alias=True,
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def assess_competency(
+    request: CompetencyAssessmentRequest,
+    service: Annotated[AnalysisService, Depends(get_analysis_service)],
+) -> CompetencyAssessmentResponse:
+    try:
+        return await service.assess_competency(request)
     except ProviderNotConfigured as exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

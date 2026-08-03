@@ -37,7 +37,7 @@ public class EvidenceService {
                                 select 1
                                 from career_nodes
                                 where id = :nodeId
-                                  and kind <> 'FOUNDATION'
+                                  and kind in ('PROJECT', 'CREDENTIAL', 'EXPERIENCE')
                                   and archived_at is null
                             )
                             """)
@@ -48,7 +48,7 @@ public class EvidenceService {
                 throw new ApiException(
                         HttpStatus.BAD_REQUEST,
                         "NODE_NOT_EVIDENCE_VERIFIABLE",
-                        "증거를 제출할 수 없는 단계입니다."
+                        "기술 역량은 AI 문제로 검증하고, 프로젝트·자격·경력 단계에만 결과물 증거를 제출할 수 있습니다."
                 );
             }
             UUID id = jdbc.sql("""

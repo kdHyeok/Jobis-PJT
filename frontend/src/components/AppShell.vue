@@ -9,11 +9,11 @@ import {
   LogOut,
   Map,
   MessageCircle,
-  Orbit,
+  Plus,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
   Settings,
+  ClipboardCheck,
 } from "@lucide/vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
@@ -28,14 +28,11 @@ const initial = computed(() => session.user.value?.displayName.slice(0, 1) ?? "J
 const notifications = ref<NotificationItem[]>([]);
 const unreadCount = ref(0);
 const showNotifications = ref(false);
+const sidebarCollapsed = ref(
+  window.localStorage.getItem("jobiss:sidebar-collapsed") === "1",
+);
 const headerError = ref("");
-const sidebarCollapsed = ref(window.localStorage.getItem("jobis:sidebar-collapsed") === "1");
 let notificationTimer: number | null = null;
-
-function toggleSidebar() {
-  sidebarCollapsed.value = !sidebarCollapsed.value;
-  window.localStorage.setItem("jobis:sidebar-collapsed", sidebarCollapsed.value ? "1" : "0");
-}
 
 function sectionActive(section: string) {
   if (section === "/app") return route.path === section;
@@ -122,39 +119,52 @@ async function logout() {
   }
 }
 
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+  window.localStorage.setItem(
+    "jobiss:sidebar-collapsed",
+    sidebarCollapsed.value ? "1" : "0",
+  );
+}
+
 function handleUnauthorized() {
   session.clear();
   void router.push({ name: "login", query: { expired: "1" } });
 }
 
 onMounted(() => {
+  document.body.classList.add("app-body-locked");
   window.addEventListener("jobiss:unauthorized", handleUnauthorized);
   void loadNotifications();
   notificationTimer = window.setInterval(loadNotifications, 15000);
 });
 
 onBeforeUnmount(() => {
+  document.body.classList.remove("app-body-locked");
   window.removeEventListener("jobiss:unauthorized", handleUnauthorized);
   if (notificationTimer) window.clearInterval(notificationTimer);
 });
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'app-shell--sidebar-collapsed': sidebarCollapsed }">
+  <div
+    class="app-shell"
+    :class="{ 'app-shell--sidebar-collapsed': sidebarCollapsed }"
+  >
     <aside class="app-sidebar">
       <RouterLink class="brand app-sidebar__brand" :to="{ name: 'home' }">
         <span class="brand-mark">J</span>
-        <span class="sidebar-label">J.O.B.I.S</span>
+        <span class="sidebar-label">JOBISS</span>
       </RouterLink>
       <button
-        class="sidebar-toggle"
+        class="sidebar-collapse-button"
         type="button"
-        :aria-label="sidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'"
-        :title="sidebarCollapsed ? '메뉴 펼치기' : '메뉴 접기'"
+        :aria-label="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
+        :title="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
         @click="toggleSidebar"
       >
-        <PanelLeftOpen v-if="sidebarCollapsed" :size="20" />
-        <PanelLeftClose v-else :size="20" />
+        <PanelLeftOpen v-if="sidebarCollapsed" :size="18" />
+        <PanelLeftClose v-else :size="18" />
       </button>
 
       <nav class="main-nav app-sidebar__nav" aria-label="주요 메뉴">
@@ -194,19 +204,20 @@ onBeforeUnmount(() => {
           <span class="sidebar-label">커리어 지도</span>
         </RouterLink>
         <RouterLink
-          :class="{ 'nav-section-active': sectionActive('/app/map-2') }"
-          :to="{ name: 'map-2' }"
-        >
-          <Orbit :size="19" />
-          <span class="sidebar-label">커리어 지도 2</span>
-        </RouterLink>
-        <RouterLink
           :class="{ 'nav-section-active': sectionActive('/app/activity') }"
           :to="{ name: 'activity' }"
         >
           <Activity :size="19" />
           <span class="sidebar-label">활동 내역</span>
           <b v-if="unreadCount" class="nav-count">{{ unreadCount > 99 ? "99+" : unreadCount }}</b>
+        </RouterLink>
+        <RouterLink
+          v-if="session.user.value?.accountRole === 'OPERATOR'"
+          :class="{ 'nav-section-active': sectionActive('/app/operator') }"
+          :to="{ name: 'operator' }"
+        >
+          <ClipboardCheck :size="19" />
+          <span class="sidebar-label">운영 검토함</span>
         </RouterLink>
       </nav>
 
@@ -222,11 +233,11 @@ onBeforeUnmount(() => {
       <div class="app-sidebar__account">
         <RouterLink :to="{ name: 'settings' }" class="sidebar-profile">
           <span class="profile-button">{{ initial }}</span>
-          <span class="sidebar-label">
+          <span class="sidebar-account-copy">
             <strong>{{ session.user.value?.displayName }}</strong>
             <small>{{ session.user.value?.email }}</small>
           </span>
-          <Settings class="sidebar-label" :size="17" />
+          <Settings :size="17" />
         </RouterLink>
         <button class="icon-button" type="button" aria-label="로그아웃" @click="logout">
           <LogOut :size="19" />
@@ -237,7 +248,7 @@ onBeforeUnmount(() => {
     <header class="app-header app-topbar">
       <RouterLink class="brand app-topbar__brand" :to="{ name: 'home' }">
         <span class="brand-mark">J</span>
-        <span>J.O.B.I.S</span>
+        <span>JOBISS</span>
       </RouterLink>
       <span class="app-topbar__status">
         <i />
@@ -298,7 +309,10 @@ onBeforeUnmount(() => {
     </header>
     <p v-if="headerError" class="header-error">{{ headerError }}</p>
 
-    <div class="app-route">
+    <div
+      class="app-route"
+      :class="{ 'app-route--chat': route.name === 'chat' }"
+    >
       <RouterView />
     </div>
   </div>

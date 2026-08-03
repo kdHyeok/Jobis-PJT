@@ -48,7 +48,7 @@ async function submit() {
     <section class="login-story">
       <a class="brand brand--large" href="/">
         <span class="brand-mark">J</span>
-        <span>J.O.B.I.S</span>
+        <span>JOBISS</span>
       </a>
       <div class="login-copy">
         <p class="eyebrow">ONE CAREER, MANY DESTINATIONS</p>

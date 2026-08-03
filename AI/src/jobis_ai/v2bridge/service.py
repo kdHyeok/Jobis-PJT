@@ -415,6 +415,36 @@ def chat(request: ChatRequest) -> ChatResponse:
     return response
 
 
+def session_state(conversation_id: str) -> dict:
+    """대화 세션에 쌓인 자산 요약 — 디버그·백엔드 관측용(프로토타입 2.0.0 GET /session 이식, D128).
+
+    판단하지 않는다 — 세션 자산의 목록·개수를 옮겨 적을 뿐이다. 전에는 "이 세션이 지금
+    무엇을 기억하나"를 보려면 sessions.sqlite3 을 직접 열어야 했다.
+    """
+
+    from jobis_ai.agents._common import resume_identity
+    from jobis_ai.orchestrator.session import get_session_store
+
+    session = get_session_store().get(f"v2-chat-{conversation_id}")
+    analysis = session.get("analysis") or {}
+    return {
+        "conversationId": conversation_id,
+        "exists": bool(session),
+        "activeResume": resume_identity(session.get("resume"))[1],
+        "resumeLibrary": [str(r.get("_label") or "")
+                          for r in session.get("resume_library") or []],
+        "postingLibrary": [{"company": str(p.get("companyName") or ""),
+                            "title": str(p.get("jobTitle") or "")}
+                           for p in session.get("posting_library") or []],
+        "recommendations": [{"company": str(r.get("companyName") or ""),
+                             "title": str(r.get("title") or ""),
+                             "url": str(r.get("url") or "")}
+                            for r in session.get("recommendations") or []],
+        "analysisGrade": analysis.get("fitGrade"),
+        "historyTurns": len(session.get("history") or []),
+    }
+
+
 def _career_summary_text(request: ChatRequest) -> str:
     """CareerSummary → 이력 원천 텍스트. 백엔드가 보낸 확정 항목만 옮긴다."""
 

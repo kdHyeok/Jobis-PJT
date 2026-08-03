@@ -5,24 +5,35 @@ from typing import TypeVar
 from anthropic import APIError, APITimeoutError, AsyncAnthropic
 from pydantic import BaseModel
 
+from app.assessment_flow import (
+    assemble_assessment_response,
+    next_question_kind,
+)
 from app.models import (
     AnalysisRequest,
-    AnalysisResponse,
+    AssessmentAnswerEvaluation,
+    AssessmentQuestion,
     CareerExtractionRequest,
     CareerExtractionResponse,
     ChatRequest,
     ChatResponse,
     ClarificationDecision,
+    CompetencyAssessmentRequest,
+    CompetencyAssessmentResponse,
     CompletedAnalysisResponse,
+    Evaluation,
     EvidenceVerificationRequest,
     EvidenceVerificationResponse,
 )
 from app.prompts import (
+    assessment_grading_prompt,
+    assessment_question_prompt,
     career_extraction_prompt,
     chat_prompt,
     evidence_prompt,
     posting_analysis_prompt,
     posting_clarification_prompt,
+    shared_analysis_evaluation_prompt,
 )
 from app.providers.base import (
     AnalysisProvider,
@@ -48,24 +59,32 @@ class AnthropicApiProvider(AnalysisProvider):
         )
         self._model = settings.anthropic_model
 
-    async def analyze(self, request: AnalysisRequest) -> AnalysisResponse:
-        if request.question_count < 3:
-            decision = await self._ask(
-                posting_clarification_prompt(request),
-                ClarificationDecision,
-                1_500,
-            )
-            if decision.status == "NEEDS_INPUT":
-                return AnalysisResponse(
-                    status="NEEDS_INPUT",
-                    question=decision.question,
-                )
-        completed = await self._ask(
+    async def decide_clarification(
+        self, request: AnalysisRequest
+    ) -> ClarificationDecision:
+        return await self._ask(
+            posting_clarification_prompt(request),
+            ClarificationDecision,
+            1_500,
+        )
+
+    async def complete_posting_analysis(
+        self, request: AnalysisRequest
+    ) -> CompletedAnalysisResponse:
+        return await self._ask(
             posting_analysis_prompt(request),
             CompletedAnalysisResponse,
             12_000,
         )
-        return completed.to_analysis_response()
+
+    async def evaluate_shared_analysis(
+        self, request: AnalysisRequest
+    ) -> Evaluation:
+        return await self._ask(
+            shared_analysis_evaluation_prompt(request),
+            Evaluation,
+            3_000,
+        )
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         return await self._ask(chat_prompt(request), ChatResponse, 2_000)
@@ -83,6 +102,26 @@ class AnthropicApiProvider(AnalysisProvider):
             CareerExtractionResponse,
             8_000,
         )
+
+    async def assess_competency(
+        self, request: CompetencyAssessmentRequest
+    ) -> CompetencyAssessmentResponse:
+        evaluation = None
+        if request.turns and request.turns[-1].answer_text:
+            evaluation = await self._ask(
+                assessment_grading_prompt(request),
+                AssessmentAnswerEvaluation,
+                3_000,
+            )
+        kind = next_question_kind(request, evaluation)
+        question = None
+        if kind is not None:
+            question = await self._ask(
+                assessment_question_prompt(request, kind, evaluation),
+                AssessmentQuestion,
+                3_000,
+            )
+        return assemble_assessment_response(evaluation, question)
 
     async def _ask(self, prompt: str, response_model: type[T], max_tokens: int) -> T:
         try:

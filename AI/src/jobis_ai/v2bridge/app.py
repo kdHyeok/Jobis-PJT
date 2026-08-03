@@ -171,6 +171,16 @@ async def chat_stream(request: ChatRequest) -> "StreamingResponse":
     return StreamingResponse(_lines(), media_type="application/x-ndjson")
 
 
+@app.get(
+    "/v1/sessions/{conversation_id}",
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def session_state(conversation_id: str) -> dict:
+    """세션 자산 요약 조회 — 디버그·관측용(D128). 판단·수정 없음, 읽기 전용."""
+
+    return await _run(lambda: service.session_state(conversation_id))
+
+
 @app.post(
     "/v1/evidence-verifications",
     response_model=EvidenceVerificationResponse,

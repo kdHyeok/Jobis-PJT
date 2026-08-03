@@ -13,6 +13,8 @@ import {
   Plus,
   RefreshCw,
   Send,
+  Sparkles,
+  Trash2,
   X,
 } from "@lucide/vue";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
@@ -45,6 +47,7 @@ const answerSelections = ref<Record<string, string>>({});
 const chatJobsById = ref<Record<string, ChatReplyJob>>({});
 const actionJobId = ref<string | null>(null);
 const messageList = ref<HTMLElement | null>(null);
+const showNewMessages = ref(false);
 let pollTimer: number | null = null;
 
 const activeJobs = computed(() =>
@@ -76,54 +79,24 @@ function messageJob(item: ConversationMessage): AnalysisJob | null {
   return item.analysisJobId ? analysisById.value[item.analysisJobId] ?? null : null;
 }
 
+function roadmapCompetenciesFor(item: ConversationMessage) {
+  return (messageJob(item)?.proposal?.competencies ?? []).filter(
+    (competency) => competency.roadmapEligible !== false,
+  );
+}
+
+function qualitativeCompetenciesFor(item: ConversationMessage) {
+  return (messageJob(item)?.proposal?.competencies ?? []).filter(
+    (competency) => competency.roadmapEligible === false,
+  );
+}
+
 function chatJobForMessage(item: ConversationMessage): ChatReplyJob | null {
   return (
     Object.values(chatJobsById.value).find(
       (job) => job.triggerMessageId === item.id,
     ) ?? null
   );
-}
-
-// AI 응답 metadata.replySources — 문장별 화자(도구 render vs 대화형 LLM). 오라우팅 디버깅용 배지.
-type ReplySource = { agent: string; channel: string; text?: string };
-
-const CHANNEL_LABEL: Record<string, string> = {
-  tool_render: "도구+렌더",
-  agent_llm: "대화형 LLM",
-  attachment_ack: "첨부 확인",
-  lead: "계획 설명",
-  rule_note: "규칙",
-  consent_gate: "동의 질문",
-  notice: "안내",
-};
-
-function replySources(item: ConversationMessage): ReplySource[] {
-  const raw = (item.metadata as { replySources?: unknown } | null)?.replySources;
-  return Array.isArray(raw) ? (raw as ReplySource[]) : [];
-}
-
-function sourceLabel(source: ReplySource): string {
-  const channel = CHANNEL_LABEL[source.channel] ?? source.channel;
-  return source.agent && source.agent !== "orchestrator"
-    ? `${source.agent} · ${channel}`
-    : channel;
-}
-
-// AI 응답 metadata.progress — 턴 내부 진행 타임라인(플래너→실행 계획→에이전트→판정 노드).
-type ProgressStep = {
-  step: string;
-  label: string;
-  detail?: string;
-  elapsedMs?: number | null;
-};
-
-function progressSteps(item: ConversationMessage): ProgressStep[] {
-  const raw = (item.metadata as { progress?: unknown } | null)?.progress;
-  return Array.isArray(raw) ? (raw as ProgressStep[]) : [];
-}
-
-function stepTime(step: ProgressStep): string {
-  return step.elapsedMs == null ? "" : `${(step.elapsedMs / 1000).toFixed(1)}s`;
 }
 
 function verdictLabel(verdict?: string) {
@@ -142,12 +115,44 @@ function formatTime(value: string) {
   }).format(new Date(value));
 }
 
-async function scrollToBottom() {
+function isNearMessageBottom(threshold = 120) {
+  const list = messageList.value;
+  if (!list) return true;
+  return list.scrollHeight - list.scrollTop - list.clientHeight <= threshold;
+}
+
+function onMessageListScroll() {
+  if (isNearMessageBottom()) showNewMessages.value = false;
+}
+
+function messageUpdateSignature() {
+  const messages = (conversation.value?.messages ?? [])
+    .map((item) => `${item.id}:${item.content.length}`)
+    .join("|");
+  const analyses = Object.values(analysisById.value)
+    .map((item) => {
+      const lastEvent = item.progressEvents[item.progressEvents.length - 1];
+      const lastSequence = lastEvent?.sequence ?? 0;
+      return `${item.id}:${item.status}:${item.stage}:${lastSequence}`;
+    })
+    .sort()
+    .join("|");
+  const replies = Object.values(chatJobsById.value)
+    .map((item) => `${item.id}:${item.status}:${item.stage}`)
+    .sort()
+    .join("|");
+  return `${messages}::${analyses}::${replies}`;
+}
+
+async function scrollToBottom(behavior: ScrollBehavior = "smooth") {
   await nextTick();
-  messageList.value?.scrollTo({
-    top: messageList.value.scrollHeight,
-    behavior: "smooth",
+  const list = messageList.value;
+  if (!list) return;
+  list.scrollTo({
+    top: list.scrollHeight,
+    behavior,
   });
+  showNewMessages.value = false;
 }
 
 async function loadConversations(preferredId?: string) {
@@ -168,7 +173,7 @@ async function createConversation() {
   const created = await api.createConversation();
   conversation.value = created;
   await refreshConversationList();
-  await scrollToBottom();
+  await scrollToBottom("auto");
 }
 
 async function refreshConversationList() {
@@ -178,7 +183,22 @@ async function refreshConversationList() {
 async function openConversation(id: string) {
   conversation.value = await api.conversation(id);
   await hydrateJobs();
-  await scrollToBottom();
+  await scrollToBottom("auto");
+}
+
+async function deleteConversation(id: string) {
+  if (!window.confirm("이 대화 세션을 삭제할까요? 연결된 공고와 분석 기록은 유지됩니다.")) {
+    return;
+  }
+  error.value = "";
+  try {
+    await api.deleteConversation(id);
+    const next = conversations.value.find((item) => item.id !== id)?.id;
+    conversation.value = null;
+    await loadConversations(next);
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "대화를 삭제하지 못했습니다.";
+  }
 }
 
 async function hydrateJobs() {
@@ -212,6 +232,8 @@ function schedulePoll() {
 }
 
 async function pollJobs() {
+  const followLatest = isNearMessageBottom();
+  const previousSignature = messageUpdateSignature();
   const ids = activeJobs.value.map((item) => item.id);
   const chatIds = activeChatJobs.value.map((item) => item.id);
   await Promise.all(
@@ -234,6 +256,11 @@ async function pollJobs() {
   );
   if (conversation.value) {
     conversation.value = await api.conversation(conversation.value.id);
+  }
+  const contentChanged = previousSignature !== messageUpdateSignature();
+  if (contentChanged) {
+    if (followLatest) await scrollToBottom();
+    else showNewMessages.value = true;
   }
   schedulePoll();
 }
@@ -389,7 +416,7 @@ async function approve(job: AnalysisJob) {
     analysisById.value[job.id] = await api.analysisJob(job.id);
     await router.push({ name: "map" });
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "변경안을 반영하지 못했습니다.";
+    error.value = cause instanceof Error ? cause.message : "목표 공고에 추가하지 못했습니다.";
   } finally {
     actionJobId.value = null;
   }
@@ -469,21 +496,34 @@ onBeforeUnmount(() => {
           <Plus :size="20" />
         </button>
       </div>
-      <button
+      <div
         v-for="item in conversations"
         :key="item.id"
-        class="conversation-link"
-        :class="{ active: conversation?.id === item.id }"
-        type="button"
-        @click="openConversation(item.id)"
+        class="conversation-link-row"
       >
-        <MessageCircleMore :size="18" />
-        <span>
-          <strong>{{ item.title }}</strong>
-          <small>{{ item.lastMessage || "새 대화" }}</small>
-        </span>
-        <time>{{ formatTime(item.lastMessageAt) }}</time>
-      </button>
+        <button
+          class="conversation-link"
+          :class="{ active: conversation?.id === item.id }"
+          type="button"
+          @click="openConversation(item.id)"
+        >
+          <MessageCircleMore :size="18" />
+          <span>
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.lastMessage || "새 대화" }}</small>
+          </span>
+          <time>{{ formatTime(item.lastMessageAt) }}</time>
+        </button>
+        <button
+          class="conversation-delete"
+          type="button"
+          :aria-label="`${item.title} 삭제`"
+          title="대화 삭제"
+          @click="deleteConversation(item.id)"
+        >
+          <Trash2 :size="15" />
+        </button>
+      </div>
       <div v-if="conversations.length === 0 && !loading" class="sidebar-empty">
         첫 대화를 시작해 보세요.
       </div>
@@ -501,7 +541,12 @@ onBeforeUnmount(() => {
         </span>
       </header>
 
-      <div ref="messageList" class="message-list" aria-live="polite">
+      <div
+        ref="messageList"
+        class="message-list"
+        aria-live="polite"
+        @scroll.passive="onMessageListScroll"
+      >
         <div v-if="loading" class="state-panel">
           <LoaderCircle class="spin" :size="24" />
           대화를 불러오는 중입니다.
@@ -514,37 +559,10 @@ onBeforeUnmount(() => {
           :class="`chat-message--${item.role.toLowerCase()}`"
         >
           <div v-if="item.role === 'ASSISTANT'" class="assistant-avatar">
-            <img src="/img/jobi-mascot.png" alt="" />
+            <Sparkles :size="18" />
           </div>
           <div class="chat-bubble">
             <p>{{ item.content }}</p>
-            <details
-              v-if="item.role === 'ASSISTANT' && progressSteps(item).length"
-              class="agent-progress"
-            >
-              <summary>진행 과정 {{ progressSteps(item).length }}단계 보기</summary>
-              <ol>
-                <li v-for="(step, index) in progressSteps(item)" :key="index">
-                  <strong>{{ step.label }}</strong>
-                  <span v-if="step.detail">{{ step.detail }}</span>
-                  <small v-if="stepTime(step)">{{ stepTime(step) }}</small>
-                </li>
-              </ol>
-            </details>
-            <div
-              v-if="item.role === 'ASSISTANT' && replySources(item).length"
-              class="reply-sources"
-            >
-              <span
-                v-for="(source, index) in replySources(item)"
-                :key="index"
-                class="reply-source-chip"
-                :class="`reply-source-chip--${source.channel}`"
-                :title="source.text"
-              >
-                {{ sourceLabel(source) }}
-              </span>
-            </div>
             <time>{{ formatTime(item.createdAt) }}</time>
 
             <section
@@ -559,6 +577,8 @@ onBeforeUnmount(() => {
                     :status="messageJob(item)!.status"
                     :stage="messageJob(item)!.stage"
                     :stage-message="messageJob(item)?.stageMessage"
+                    :queue-position="messageJob(item)?.queuePosition"
+                    :events="messageJob(item)?.progressEvents"
                   />
                 </div>
               </template>
@@ -575,6 +595,8 @@ onBeforeUnmount(() => {
                     :status="messageJob(item)!.status"
                     :stage="messageJob(item)!.stage"
                     :stage-message="messageJob(item)?.stageMessage"
+                    :queue-position="messageJob(item)?.queuePosition"
+                    :events="messageJob(item)?.progressEvents"
                   />
                   <div class="analysis-card__question-heading">
                     <CircleHelp :size="22" />
@@ -585,6 +607,23 @@ onBeforeUnmount(() => {
                       <strong>{{ messageJob(item)?.pendingQuestion?.text }}</strong>
                     </div>
                   </div>
+                  <details
+                    v-if="messageJob(item)?.questionHistory?.length"
+                    class="analysis-question-history"
+                  >
+                    <summary>
+                      이전 확인 답변 {{ messageJob(item)?.questionHistory?.length ?? 0 }}개
+                    </summary>
+                    <ol>
+                      <li
+                        v-for="history in messageJob(item)?.questionHistory ?? []"
+                        :key="history.id"
+                      >
+                        <strong>{{ history.text }}</strong>
+                        <span>{{ history.answerValue }}</span>
+                      </li>
+                    </ol>
+                  </details>
                   <p>{{ messageJob(item)?.pendingQuestion?.reason }}</p>
                   <div class="analysis-question-options analysis-question-options--chat">
                     <button
@@ -662,28 +701,53 @@ onBeforeUnmount(() => {
 
                 <details v-if="messageJob(item)?.proposal" class="proposal-details">
                   <summary>
-                    지도 변경안 자세히 보기
+                    분석된 역량 자세히 보기
                     <span>
-                      노드 {{ messageJob(item)?.proposal?.nodes.length }},
-                      연결 {{ messageJob(item)?.proposal?.edges.length }},
+                      역량 {{ messageJob(item)?.proposal?.competencies.length }},
                       조건 {{ messageJob(item)?.proposal?.requirements.length }}
                     </span>
                     <ChevronDown :size="17" />
                   </summary>
                   <div class="proposal-section">
-                    <h4>역량과 기회</h4>
+                    <h4>로드맵 제작에 사용할 역량</h4>
                     <article
-                      v-for="node in messageJob(item)?.proposal?.nodes ?? []"
-                      :key="node.ref"
+                      v-for="competency in roadmapCompetenciesFor(item)"
+                      :key="competency.ref"
                       class="proposal-row"
                     >
-                      <span :class="`proposal-action proposal-action--${node.action.toLowerCase()}`">
-                        {{ node.action === "CREATE" ? "새로 추가" : "기존 연결" }}
+                      <span class="proposal-action proposal-action--create">
+                        {{ competency.stage }}
                       </span>
                       <div>
-                        <strong>{{ node.title }}</strong>
-                        <p>{{ node.scopeDefinition ?? "기존 지도에 정의된 범위를 재사용합니다." }}</p>
-                        <small>{{ node.domain }} · {{ node.kind }} · 수준 {{ node.level }}</small>
+                        <strong>{{ competency.title }}</strong>
+                        <p>{{ competency.scopeDefinition }}</p>
+                        <small>
+                          {{ competency.domain }} · {{ competency.kind }} · 요구 수준
+                          {{ competency.requiredLevel }}
+                        </small>
+                        <small v-if="competency.verificationMethod">
+                          검증: {{ competency.verificationMethod }}
+                        </small>
+                      </div>
+                    </article>
+                  </div>
+                  <div
+                    v-if="qualitativeCompetenciesFor(item).length"
+                    class="proposal-section proposal-section--qualitative"
+                  >
+                    <h4>정성적 채용 조건</h4>
+                    <p>
+                      로드맵과 준비도 계산에는 포함하지 않는 참고 조건입니다.
+                    </p>
+                    <article
+                      v-for="competency in qualitativeCompetenciesFor(item)"
+                      :key="competency.ref"
+                      class="proposal-row"
+                    >
+                      <span class="proposal-action">참고</span>
+                      <div>
+                        <strong>{{ competency.title }}</strong>
+                        <p>{{ competency.scopeDefinition }}</p>
                       </div>
                     </article>
                   </div>
@@ -691,17 +755,38 @@ onBeforeUnmount(() => {
                     <h4>공고 조건</h4>
                     <article
                       v-for="requirement in messageJob(item)?.proposal?.requirements ?? []"
-                      :key="`${requirement.nodeRef}-${requirement.kind}`"
+                      :key="`${requirement.competencyRef}-${requirement.relation}`"
                       class="proposal-row"
                     >
-                      <span :class="`requirement-pill requirement-pill--${requirement.kind.toLowerCase()}`">
-                        {{ requirement.kind === "REQUIRED" ? "필수" : "우대" }}
+                      <span
+                        :class="`requirement-pill requirement-pill--${requirement.relation.toLowerCase()}`"
+                      >
+                        {{
+                          requirement.relation === "REQUIRED"
+                            ? "필수"
+                            : requirement.relation === "PREFERRED"
+                              ? "우대"
+                              : "업무"
+                        }}
                       </span>
                       <div>
-                        <strong>{{ requirement.sourceText ?? "공고의 관련 조건" }}</strong>
-                        <small v-if="requirement.confidence !== null">
+                        <strong>{{ requirement.sourceText }}</strong>
+                        <small>
                           분석 신뢰도 {{ Math.round(requirement.confidence * 100) }}%
                         </small>
+                      </div>
+                    </article>
+                  </div>
+                  <div
+                    v-if="messageJob(item)?.proposal?.targetProject"
+                    class="proposal-section"
+                  >
+                    <h4>회사 맞춤 프로젝트</h4>
+                    <article class="proposal-row">
+                      <span class="proposal-action proposal-action--create">PROJECT</span>
+                      <div>
+                        <strong>{{ messageJob(item)?.proposal?.targetProject.title }}</strong>
+                        <p>{{ messageJob(item)?.proposal?.targetProject.objective }}</p>
                       </div>
                     </article>
                   </div>
@@ -723,11 +808,16 @@ onBeforeUnmount(() => {
                   <button
                     class="press-button press-button--primary"
                     type="button"
-                    :disabled="actionJobId === item.analysisJobId"
+                    :disabled="
+                      actionJobId === item.analysisJobId ||
+                      ['EXPIRED', 'CLOSED'].includes(
+                        messageJob(item)?.result?.job?.lifecycleStatus ?? '',
+                      )
+                    "
                     @click="approve(messageJob(item)!)"
                   >
                     <Check :size="18" />
-                    검토했고 지도에 반영
+                    목표 공고에 추가
                     <ArrowRight :size="17" />
                   </button>
                 </div>
@@ -736,7 +826,7 @@ onBeforeUnmount(() => {
                   class="analysis-resolution analysis-resolution--applied"
                 >
                   <Check :size="17" />
-                  커리어 지도에 반영되었습니다.
+                  목표 목록에 추가되었습니다. 로드맵에서 새 초안을 적용해 주세요.
                 </div>
                 <div
                   v-else-if="messageJob(item)?.changeSetStatus === 'REJECTED'"
@@ -781,6 +871,16 @@ onBeforeUnmount(() => {
           </div>
         </article>
       </div>
+
+      <button
+        v-if="showNewMessages"
+        class="chat-new-message"
+        type="button"
+        @click="scrollToBottom()"
+      >
+        새 메시지
+        <ChevronDown :size="16" :stroke-width="3" />
+      </button>
 
       <footer class="chat-composer">
         <p v-if="error" class="form-error">{{ error }}</p>

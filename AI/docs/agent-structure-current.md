@@ -1,7 +1,7 @@
 # 에이전트 현재 구조 분석 (agent-structure-current)
 
-> **지금 코드(`src/jobis_ai`) 기준의 구조 스냅샷 정본.** 2026-08-01 갱신
-> (`feat/ai/agent-hardening-0731`, D62~D108 반영). 여기까지 어떻게 왔는지의 역사는
+> **지금 코드(`src/jobis_ai`) 기준의 구조 스냅샷 정본.** 2026-08-03 갱신
+> (`feat/ai/agent-hardening-0731`, D62~D128 반영). 여기까지 어떻게 왔는지의 역사는
 > [`agent-structure-evolution.md`](./agent-structure-evolution.md), 실측 문제·해결 기록은
 > [`troubleshooting.md`](./troubleshooting.md) 참조.
 >
@@ -103,6 +103,8 @@ D70·D93 + 문장별 화자 replySources D67), 확신이 낮거나 실행할 것
 description 을 주입해 되돌려 돌린다. 2건은 승격 전 ASK/application_plan 으로 갈렸고, 2건은
 판별력이 없어 `note` 에 그렇다고 적었다).
 직전 07-31 은 0.965/0.986 이었다. 상세: `docs/eval-records/2026-08-01_planner-promoted-agents.md`.
+**08-03 재측정**(D125 — `targets` 어휘에 추천 목록·순번 추가 후, 같은 52케이스 × 3회):
+정확도 **1.0** · 안정성 **1.0** · stable_wrong **0** 유지(`evals/planner_baseline_rec_targets.json`).
 
 *이전 측정(지우지 않는다 — 어떤 변경이 무엇을 흔들었는지가 다음 판단의 근거다)*:
 07-31 은 0.965/0.986 — D72 신고 프롬프트를 넣은 비용(flaky 2건)과 이득(신고 정확도 1.0)을
@@ -125,8 +127,8 @@ description 을 주입해 되돌려 돌린다. 2건은 승격 전 ASK/applicatio
 | 에이전트 | 전제 | 산출 | 인자(플래너가 채움) | 비고 |
 |---|---|---|---|---|
 | `posting_fetch` | job_posting(URL) | 원문 승격 | — | **플래너 비노출(internal)** — 오케스트레이터가 결정론으로 삽입(D64). 3단 수집: jina 리더 → 상세요강 프레임 → **캡쳐 이미지 VLM**(D63). 여러 URL 병렬(D94) |
-| `fit_analysis` | resume+job_posting | analysis, roadmap | `targets`(복수 공고 지목) · `resumeTargets`(복수 이력서 지목, D119) | **무거움(동의 게이트 대상)**. 판정 그래프 전체 재사용. 여러 공고 각각 판정(D88) |
-| `job_recommend` | resume 또는 preferences | recommendations | `job_name`(직군 직접 지정) | RAG 의미 검색(D89) + 매칭 계산 |
+| `fit_analysis` | resume+job_posting | analysis, roadmap | `targets`(공고 지목 — 라이브러리 회사명 + **추천 목록 순번·이름**, D125) · `resumeTargets`(이력서 지목, D119) | **무거움(동의 게이트 대상)**. 판정 그래프 전체 재사용. 여러 공고 각각 판정(D88). 추천 공고 지목 시 URL 을 그 자리에서 수집해 활성 전환(D125). **지목 해석 실패는 강행이 아니라 되묻기**(D126) |
+| `job_recommend` | resume 또는 preferences | recommendations | `job_name`(직군 직접 지정) | RAG 의미 검색(D89) + 매칭 계산. 추천 목록은 **코드가 번호를 매겨** 나가고 사용자가 그 번호·회사명으로 판정을 이어간다(D125) |
 | `roadmap_manager` | roadmap | — | — | 저장된 로드맵 조회 |
 
 **대화형(7)** — 사용자와 이야기한다. 대부분 **자기 루프**(`agent_loop.py`: LLM 이 툴을 골라
@@ -135,7 +137,7 @@ description 을 주입해 되돌려 돌린다. 2건은 승격 전 ASK/applicatio
 | 에이전트 | 전제 | 산출 | 자기 루프 툴 | 비고 |
 |---|---|---|---|---|
 | `posting_analysis` | job_posting | — | `read_posting` · **`save_plan`** | **공고 담당 대화로 승격(D97)** — 요구사항 정리뿐 아니라 "이 공고 기준으로 뭘 공부할까" 류 공고 질문을 원문 근거로 받는다. 이력서 불요. 프로젝트 제안은 `save_plan` 으로만 답변에 실리고 **커버하는 요구사항 ID 를 대야 기록된다**(D104 — 도구가 검증한다) |
-| `resume_diagnosis` | resume | — | `read_resume` (인자 `targets` — 라이브러리 이력서 지목, D119) | **이력서 담당 대화로 승격(D97)** — 항목화뿐 아니라 **경험으로 뒷받침되는 강점 정리**·이름만 적힌 스킬의 보강 방향을 답한다. 프로필 빌더+completeness 재사용은 그대로 결정론 |
+| `resume_diagnosis` | resume | — | `read_resume` (인자 `targets` — 라이브러리 이력서 지목 D119, 해석 실패는 되묻기 D126) | **이력서 담당 대화로 승격(D97)** — 항목화뿐 아니라 **경험으로 뒷받침되는 강점 정리**·이름만 적힌 스킬의 보강 방향을 답한다. 프로필 빌더+completeness 재사용은 그대로 결정론 |
 | `career_chat` | (없음) | — | (루프 없음) | 고민·하소연·일반 질문. 자산이 하나도 없으면 여기가 자료를 청한다 |
 | `preference_intake` | (없음) | preferences | `record_preference`·`request_material`·**`preview_postings`(→job_recommend 위임)** | 공고 추천 요청 전용 — 다른 기능의 자료 결측을 대신 받지 않는다(D78) |
 | `interview_prep` | analysis | interview | `pick_material`·`find_evidence`·`check_answer`·`record_question` | 한 질문씩, 꼬리 질문. 여러 턴 진행 상태 유지 |
@@ -236,6 +238,9 @@ description 을 주입해 되돌려 돌린다. 2건은 승격 전 ASK/applicatio
 | 오라우팅 | 라우팅 가시화(progress D70·D93 + replySources D67) + 저신뢰 되묻기 + 결정론 검증기 + 플래너 평가셋(**52케이스**: 정확도 1.0·안정성 1.0·신고 1.0, 08-01. 케이스 판별력 검증 D101) |
 | **근거 없는 제안** | 프로젝트 제안은 `save_plan` 을 거쳐야 답변에 실리고, 도구가 **커버 요구사항 ID** 를 검증한다(**D104**). 빈 커버·공고에 없는 ID 는 기록되지 않는다. **연차 요건은 커버 목록에서 뺀다** — 프로젝트로 경력 연차를 채울 수는 없다 |
 | **정보 손실(연차 상한)** | 범위 표기("경력 3~7년")의 상한을 파싱에서 버리지 않는다(**D105** `maxYears`). 판정에 쓰는 것은 별 결정으로 남겼다 |
+| **지목 오해석 강행** | `targets`/`resumeTargets` 가 라이브러리·추천 어디에도 매칭되지 않으면(수집 실패·URL 없음 포함) **활성 자산으로 강행하지 않고** 기억하는 후보 목록과 함께 되묻는다(**D126**) — 전에는 경고만 남기고 활성 공고를 판정해 사용자는 그것이 지목한 공고의 판정인 줄 알았다 |
+| **턴 사후 추적 불가** | trace 는 턴이 끝나면 소멸했다 — `JOBIS_TRACE_DIR` 설정 시 턴마다 이벤트 전체를 JSON 파일로 영속(**D127**, opt-in). "어제 그 턴에 왜 이 에이전트가 돌았나"의 물증 |
+| **세션 내부 불가시** | `GET /v1/sessions/{id}` (v2bridge, 읽기 전용) — 활성 이력서·라이브러리·추천·판정 등급·턴 수 요약(**D128**). 전에는 sqlite 를 직접 열어야 했다 |
 | 플래너 환각 선택 | 선택지를 스키마 Literal 로 제한 — 미등록 에이전트는 애초에 못 낸다. 인자도 선언된 이름만 통과 |
 | 에이전트 폭주 | 스텝 상한 5 · 위임 읽기 전용 · **제출·결제·전송 툴 미보유** — 최종 행동은 사람만 가능 |
 | LLM 사망 은폐 | 폴백 답변에는 warnings 필수(§2-6) + "이 응답은 결정론 폴백" 로그 한 줄 |

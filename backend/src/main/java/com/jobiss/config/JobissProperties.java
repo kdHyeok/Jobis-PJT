@@ -17,7 +17,8 @@ public record JobissProperties(Auth auth, Ai ai) {
             String sharedSecret,
             boolean workerEnabled,
             long pollDelayMs,
-            long requestTimeoutSeconds
+            long requestTimeoutSeconds,
+            int maxConcurrentAnalyses
     ) {
     }
 }

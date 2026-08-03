@@ -1,4 +1,14 @@
+* text=auto
 ops/deploy-jobis text eol=lf
-ops/deploy-jobis-container text eol=lf
-*.sh text eol=lf
+Dockerfile text eol=lf
 gradlew text eol=lf
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.py text eol=lf
+*.vue text eol=lf
+*.ts text eol=lf
+*.css text eol=lf
+*.sql text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
