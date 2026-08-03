@@ -20,6 +20,7 @@ from crawl_jobkorea_it import (
     clean,
     detail_image_urls,
     is_developer_role,
+    load_excluded_ids,
     load_existing_rows,
     log_item,
     log_search,
@@ -287,6 +288,10 @@ def main() -> int:
 
     rows = [] if args.fresh else load_existing_rows(OUT)
     known_ids = {str(row["posting_id"]) for row in rows}
+    # 사람이 "본문을 채울 방법이 없다"고 판정해 데이터에서 지운 공고는 사이트에
+    # 그대로 살아 있어 그냥 두면 다음 수집에서 다시 들어온다. 이미 아는 공고와
+    # 같이 취급해 건너뛴다(제외 목록: exports/excluded_postings.json).
+    known_ids |= load_excluded_ids("고용24")
     text_count = sum(row.get("need_ocr") == "X" for row in rows)
     ocr_count = sum(row.get("need_ocr") == "O" for row in rows)
     if rows:
