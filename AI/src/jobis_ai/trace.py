@@ -37,7 +37,10 @@ import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Iterator
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _current: contextvars.ContextVar["TraceRecorder | None"] = contextvars.ContextVar(
     "jobis_trace_recorder", default=None
@@ -105,13 +108,100 @@ class TraceRecorder:
 
 
 def emit(kind: str, label: str, detail: dict[str, Any] | None = None) -> None:
-    """활성 레코더가 있으면 기록, 없으면 no-op."""
+    """활성 레코더가 있으면 기록, 없으면 no-op. **감사 대상 이벤트는 별도로 영속한다.**"""
 
     if kind == "token" and _mute_tokens.get():
         return
+    _audit(kind, label, detail)
     rec = _current.get()
     if rec is not None:
         rec.emit(kind, label, detail)
+
+
+# ── 감사 로그 ────────────────────────────────────────────────────────────────
+#
+# **승인·거부·차단은 턴이 끝나도 남아야 한다.** 이 저장소가 가장 비싸게 배운 두 사고가 전부
+# "기록이 없어서"였다 — 위임 거부가 관찰 문자열로만 사라져 hand-off 성공률의 **분모가 없었고**,
+# 자기 루프가 통째로 꺼진 채 폴백이 정상처럼 답하고 있었다(평가 리포트 §1-1·§3-3).
+#
+# `_persist`(JOBIS_TRACE_DIR) 와 다른 층이다: 저쪽은 **턴 하나 전체**를 파일 하나로 남기는
+# 디버깅용 opt-in 이고, 이쪽은 **정책 결정만** 골라 한 줄씩 잇는 append-only 다. 줄 단위라
+# `grep`·`jq` 로 세어지고, 그래서 "동의를 몇 번 물었고 몇 번 승인됐나"에 답할 수 있다.
+#
+# 기본 켜짐이다 — 끄려면 `JOBIS_AUDIT_LOG=off`, 경로를 옮기려면 같은 변수에 파일 경로를 준다.
+# 쓰기 실패는 삼킨다(관찰이 실행을 막지 않는다 — sink·_persist 와 같은 규약).
+AUDIT_KINDS = frozenset({
+    "consent_gate",         # 무거운 작업 — 실행 전 동의 요청
+    "consent_granted",      # 그 동의가 소진되어 실제로 실행됨
+    "resume_confirm_gate",  # 판정 전 이력서 확인 되묻기 (공고당 1회)
+    "delegate",             # 에이전트 간 위임 성공
+    "delegate_refused",     # 위임이 가드에 걸림 (사유 코드 6종) — 성공률의 분모
+    "limit",                # 상한 도달 (스텝·깊이)
+})
+
+
+def _audit_path() -> str | None:
+    setting = (os.getenv("JOBIS_AUDIT_LOG") or "").strip()
+    if setting.lower() in {"off", "0", "false"}:
+        return None
+    return setting or str(_REPO_ROOT / "logs" / "audit.jsonl")
+
+
+_AUDIT_MAX_CHARS = 200
+
+
+def _audit_trim(detail: dict[str, Any]) -> dict[str, Any]:
+    """긴 문자열은 자른다 — 감사 줄은 **세는 것**이지 읽는 것이 아니다.
+
+    위임 성공 이벤트는 상대의 답변 전문을 싣는다(관찰 UI 용). 그대로 append 하면 파일이
+    답변 로그가 되고, 정작 세려던 사유 코드가 그 안에 묻힌다. 전문이 필요하면 그 턴의
+    trace(`JOBIS_TRACE_DIR`)를 본다 — 층이 다르다.
+    """
+
+    return {k: (v[:_AUDIT_MAX_CHARS] + "…" if isinstance(v, str) and len(v) > _AUDIT_MAX_CHARS
+                else v)
+            for k, v in detail.items()}
+
+
+def _audit(kind: str, label: str, detail: dict[str, Any] | None) -> None:
+    """감사 대상이면 JSONL 한 줄로 잇는다. 대상이 아니면 즉시 반환(핫 패스)."""
+
+    if kind not in AUDIT_KINDS:
+        return
+    # LLM 호출 실패는 kind 가 llm_call 이라 위 집합에 없다 — 그쪽은 `structured.py` 가 이미
+    # WARNING/ERROR 로그를 남기고 있으므로(D56) 여기서 두 번 세지 않는다.
+    path = _audit_path()
+    if path is None:
+        return
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        line = json.dumps({
+            "at": datetime.now().isoformat(timespec="seconds"),
+            "sessionId": _audit_session.get(),
+            "kind": kind,
+            "label": label,
+            "detail": _audit_trim(detail or {}),
+        }, ensure_ascii=False)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:   # noqa: BLE001
+        pass
+
+
+_audit_session: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "jobis_audit_session", default=""
+)
+
+
+@contextmanager
+def audit_session(session_id: str) -> Iterator[None]:
+    """이 블록의 감사 줄에 세션 id 를 붙인다. **누구의 턴이었는지 없으면 감사가 아니다.**"""
+
+    token = _audit_session.set(str(session_id or ""))
+    try:
+        yield
+    finally:
+        _audit_session.reset(token)
 
 
 def active() -> bool:

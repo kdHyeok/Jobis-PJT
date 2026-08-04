@@ -490,7 +490,7 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
     흘린다. 동의 게이트로 일찍 끝나는 턴도 플래너 콜은 썼으므로 finally 로 잡는다.
     """
 
-    with llm_usage.collecting() as usage:
+    with llm_usage.collecting() as usage, trace.audit_session(request.sessionId):
         try:
             return _handle_chat_turn(request)
         finally:
@@ -501,8 +501,13 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
                           if s["inputTokens"] is not None else "미계측")
                 if s["unmeteredCalls"] and s["inputTokens"] is not None:
                     tokens += f"(+미계측 {s['unmeteredCalls']}콜)"
-                log.info("[%s] llm: 콜 %d건(재시도 %d·실패 %d) 토큰 %s 노드=%s",
-                         request.sessionId, s["calls"], s["retries"], s["failed"], tokens,
+                # 비용은 **잰 콜만** 더한 값이다 — 단가를 모르는 모델은 0 으로 지어내지 않고
+                # `uncostedCalls` 로 따로 센다(토큰 미계측과 같은 규약).
+                cost = (f" 비용 ${s['costUsd']:.4f}" if s["costUsd"] is not None else "")
+                if cost and s["uncostedCalls"]:
+                    cost += f"(+단가미상 {s['uncostedCalls']}콜)"
+                log.info("[%s] llm: 콜 %d건(재시도 %d·실패 %d) 토큰 %s%s 노드=%s",
+                         request.sessionId, s["calls"], s["retries"], s["failed"], tokens, cost,
                          ",".join(f"{n}×{c}" for n, c in s["byNode"].items()))
 
 
@@ -829,6 +834,12 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # **아직 묻고 있는 중이면 비우지 않는다**(D158: 부분 실행 턴) — 이 턴에 가벼운 담당만
     # 돌았고 무거운 것은 여전히 대기다. 여기서 비우면 아래에서 다시 심어야 한다.
     if session.get("pendingConsent") and not dispatch.ask:
+        # 승인은 감사 대상이다 — 물은 것만 남기고 **승인을 안 남기면** "몇 번 물어 몇 번
+        # 진행됐나"의 분모만 있고 분자가 없다(위임 거부에서 겪은 것과 같은 실수).
+        trace.emit("consent_granted", "동의 소진 — 무거운 작업 실행", {
+            "granted": list(session.get("pendingConsent") or []),
+            "agents": list(dispatch.agents),
+        })
         _stage({"pendingConsent": []})
 
     # 검증기가 계획을 바꿨는지 — 아래 로그와 계획 설명 문장이 함께 쓴다.

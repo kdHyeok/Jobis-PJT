@@ -62,15 +62,20 @@ def _cases() -> list[tuple]:
             ("", [("resume", RESUME)],
              lambda d, r, res: "resume_diagnosis" in d),
         ]),
-        # ⚠️ KNOWN FAILURE (2026-07-29). 기대는 "무거운 파이프라인은 먼저 묻는다"인데 결과가
-        # 갈린다: `resume_diagnosis`×2 / `fit_analysis>application_plan`×1.
-        #   · 정리 먼저 — "제출 턴이면 자료를 읽어 보여준다"(07-27 정책)
-        #   · 판정부터 — 플래너가 자소서의 전제로 fit_analysis 를 스스로 골라 실행(게이트 우회)
-        # 두 번째가 **동의 게이트의 알려진 구멍**이다(router.validate_plan 주석 참고).
-        # 기대값을 고쳐 덮지 않는다 — 구멍이 닫히기 전에 초록으로 만들면 그 사실이 사라진다.
+        # 갱신 (2026-08-04, 근거 D158). 이 술어는 원래 `d == []` 였다 — 게이트 턴에는 **아무
+        # 담당도 돌지 않는다**를 못 박은 것이고, 07-29 KNOWN FAILURE(게이트 우회)를 감시하던
+        # 자리다. D158 이 동작을 바꿨다: 게이트가 `Dispatch(())` 로 계획 **전체**를 막고 있어서
+        # 공고를 붙인 턴에 판정이 게이트에 걸리면 **공고 정리까지 사라지고 질문만** 나갔다.
+        # 이제 게이트 턴에도 `submission_review_inserts` 로 **이번 턴 제출물의 정리 단계만**
+        # 돌고 질문이 뒤에 붙는다.
+        #
+        # 그래서 재는 대상을 바꾸지 않고 **정확히 재도록** 좁혔다 — 이 케이스가 지키려는 것은
+        # "정리가 안 도는 것"이 아니라 **"무거운 판정이 묻기 전에 돌지 않는 것"** 이다.
+        # `fit_analysis not in d` 가 07-29 구멍(플래너가 전제로 fit_analysis 를 끼워 실행)을
+        # 그대로 감시한다. 관측에 맞춰 넓힌 것이 아니라, 결정(D158)이 정한 동작에 맞춘 것이다.
         ("S5 갭분석 동의게이트", [
             ("자소서 써줘", [("resume", RESUME), ("job_posting", POSTING)],
-             lambda d, r, res: d == [] and "진행할까요" in r),
+             lambda d, r, res: "fit_analysis" not in d and "진행할까요" in r),
         ]),
         ("S6 슬롯 오배정 교정", [
             ("", [("job_posting", RESUME)],   # 이력서를 공고 슬롯에
@@ -91,11 +96,11 @@ def _cases() -> list[tuple]:
             ("", [("resume", RESUME)],
              lambda d, r, res: "fit_analysis" in d),
         ]),
-        # S9: 동의 게이트 → 동의 → 실행(pendingConsent 소진). 턴1이 S5 와 같은 KNOWN
-        # FAILURE 영향권이다 — 게이트가 안 걸린 run 은 턴2도 실패로 찍힌다(덮지 않는다).
+        # S9: 동의 게이트 → 동의 → 실행(pendingConsent 소진). 턴1은 S5 와 같은 술어를 쓴다
+        # (갱신 근거 D158 — 위 S5 주석 참고). 게이트가 안 걸린 run 은 턴2도 실패로 찍힌다.
         ("S9 동의→갭분석 실행", [
             ("자소서 써줘", [("resume", RESUME), ("job_posting", POSTING)],
-             lambda d, r, res: d == [] and "진행할까요" in r),
+             lambda d, r, res: "fit_analysis" not in d and "진행할까요" in r),
             ("응, 진행해줘", [],
              lambda d, r, res: "fit_analysis" in d),
         ]),
