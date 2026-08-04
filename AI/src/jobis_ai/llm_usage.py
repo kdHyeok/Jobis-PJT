@@ -28,6 +28,29 @@ _current: contextvars.ContextVar["UsageCollector | None"] = contextvars.ContextV
     "jobis_llm_usage", default=None
 )
 
+# 모델별 단가 (USD / 1M 토큰, 입력·출력). **이 표는 낡는다** — 공급자가 가격을 바꾸면 여기도
+# 바뀌어야 하고, 안 바꾸면 비용 숫자가 조용히 죽는다(baseline 이 죽던 것과 같은 종류의 사고다).
+# 그래서 `costBasis` 로 기준일을 요약에 함께 실어 보낸다.
+#
+# **모르는 모델은 추정하지 않는다**(§2-1 모른다 ≠ 0): 표에 없으면 그 콜의 비용은 None 이고
+# `uncostedCalls` 로 따로 센다. 구독형(claude_code CLI)은 애초에 토큰을 안 주므로 여기 없다 —
+# 콜당 단가라는 개념이 성립하지 않는 경로이고, 그 사실이 `unmeteredCalls` 로 이미 남는다.
+MODEL_PRICES_USD_PER_MTOK: dict[str, tuple[float, float]] = {
+    "gpt-4.1":      (2.00, 8.00),
+    "gpt-4.1-mini": (0.40, 1.60),
+    "gpt-4.1-nano": (0.10, 0.40),
+}
+PRICE_BASIS = "2026-08-04"
+
+
+def call_cost_usd(model: str, input_tokens: int | None, output_tokens: int | None) -> float | None:
+    """콜 하나의 비용. 단가를 모르거나 토큰을 못 쟀으면 **None**(0 이 아니다)."""
+
+    price = MODEL_PRICES_USD_PER_MTOK.get((model or "").strip())
+    if price is None or input_tokens is None:
+        return None
+    return (input_tokens * price[0] + (output_tokens or 0) * price[1]) / 1_000_000
+
 
 class UsageCallbackHandler(BaseCallbackHandler):
     """LangChain 콜백으로 `usage_metadata` 를 걷는다.
@@ -84,6 +107,9 @@ class UsageCollector:
         by_node: dict[str, int] = {}
         for call in ok + failed:
             by_node[call["node"]] = by_node.get(call["node"], 0) + 1
+        costs = [call_cost_usd(c.get("model") or "", c.get("inputTokens"), c.get("outputTokens"))
+                 for c in ok + failed]
+        priced = [c for c in costs if c is not None]
         return {
             "calls": len(ok) + len(failed),
             "ok": len(ok),
@@ -93,6 +119,11 @@ class UsageCollector:
             "inputTokens": sum(c["inputTokens"] for c in metered) if metered else None,
             "outputTokens": sum(c.get("outputTokens") or 0 for c in metered) if metered else None,
             "unmeteredCalls": len(ok) + len(failed) - len(metered),
+            # 비용은 **단가를 아는 콜의 합**이다. 하나도 없으면 None — 0 이라고 하면
+            # "공짜로 돌았다"로 읽힌다.
+            "costUsd": round(sum(priced), 6) if priced else None,
+            "uncostedCalls": len(costs) - len(priced),
+            "costBasis": PRICE_BASIS,
             "durationMs": sum(int(c.get("durationMs") or 0) for c in ok + failed),
             "byNode": by_node,
         }
@@ -108,13 +139,23 @@ def record(
     input_tokens: int | None = None,
     output_tokens: int | None = None,
 ) -> None:
-    """활성 수집기가 있으면 논리 콜 1건을 기록, 없으면 no-op (trace.emit 과 같은 규약)."""
+    """활성 수집기가 있으면 논리 콜 1건을 기록, 없으면 no-op (trace.emit 과 같은 규약).
+
+    모델명은 인자로 받지 않고 **`Settings.active_model(tier)` 에서 파생한다** — 호출부가
+    따로 적으면 언젠가 실제 부른 모델과 갈린다(하네스가 `llm_model` 을 프로바이더와 무관하게
+    적어 baseline 에 모델이 오귀속됐던 것과 같은 실수다. §4-3·D58).
+    """
 
     collector = _current.get()
     if collector is None:
         return
+    try:
+        from jobis_ai.config import get_settings
+        model = get_settings().active_model(tier)
+    except Exception:   # noqa: BLE001 — 계측이 실행을 막지 않는다
+        model = ""
     collector.record({
-        "node": node, "tier": tier, "outcome": outcome, "attempts": attempts,
+        "node": node, "tier": tier, "model": model, "outcome": outcome, "attempts": attempts,
         "durationMs": duration_ms,
         "inputTokens": input_tokens, "outputTokens": output_tokens,
     })
