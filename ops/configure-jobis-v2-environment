@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Create the v2 application env while preserving the legacy env unchanged.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "configure-jobis-v2-environment must run as root." >&2
+  exit 1
+fi
+for command in openssl stat; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+
+readonly ORIGIN="${1:-}"
+readonly LEGACY_ENV="${JOBIS_LEGACY_ENV_FILE:-/etc/jobis/jobis.env}"
+readonly DB_ENV="${JOBIS_V2_DB_CREDENTIAL_FILE:-/etc/jobis/jobis-v2-db.env}"
+readonly OUTPUT_ENV="${JOBIS_V2_ENV_FILE:-/etc/jobis/jobis-v2.env}"
+readonly BACKUP_DIR="${JOBIS_BACKUP_DIR_OVERRIDE:-/mnt/jobis-backups/service-db}"
+readonly REQUIRE_SEPARATE="${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM_OVERRIDE:-true}"
+
+if [[ ! "$ORIGIN" =~ ^https://[^/[:space:]]+$ ]]; then
+  echo "usage: sudo $0 https://production-origin" >&2
+  exit 2
+fi
+if [[ -e "$OUTPUT_ENV" ]]; then
+  echo "Refusing to overwrite existing v2 environment: $OUTPUT_ENV" >&2
+  exit 1
+fi
+for source_file in "$LEGACY_ENV" "$DB_ENV"; do
+  if [[ ! -f "$source_file" || -L "$source_file" ||
+        "$(stat -c '%U:%G' "$source_file")" != "root:root" ||
+        "$(stat -c '%a' "$source_file")" != "600" ]]; then
+    echo "Required source env must be a root:root 0600 regular file: $source_file" >&2
+    exit 1
+  fi
+done
+if [[ "$REQUIRE_SEPARATE" != "true" && "$REQUIRE_SEPARATE" != "false" ]]; then
+  echo "Backup separate-filesystem override must be true or false." >&2
+  exit 2
+fi
+if [[ "$BACKUP_DIR" != /* ]]; then
+  echo "Backup directory must be absolute." >&2
+  exit 2
+fi
+
+set -a
+source "$LEGACY_ENV"
+legacy_jwt="${JWT_SECRET:-}"
+source "$DB_ENV"
+set +a
+if [[ ${#legacy_jwt} -lt 32 ]]; then
+  echo "Legacy JWT_SECRET is missing or too short." >&2
+  exit 1
+fi
+if [[ ! "$legacy_jwt" =~ ^[A-Za-z0-9._~+=/-]+$ ]]; then
+  echo "Legacy JWT_SECRET is not shell-safe for the deployment env contract." >&2
+  exit 1
+fi
+for variable in DB_URL DB_MIGRATOR_USER DB_MIGRATOR_PASSWORD DB_APP_USER DB_APP_PASSWORD; do
+  [[ -n "${!variable:-}" ]] || { echo "DB credential missing: $variable" >&2; exit 1; }
+done
+
+ai_shared_secret="$(openssl rand -hex 32)"
+umask 077
+{
+  printf 'DB_URL=%s\n' "$DB_URL"
+  printf 'DB_MIGRATOR_USER=%s\n' "$DB_MIGRATOR_USER"
+  printf 'DB_MIGRATOR_PASSWORD=%s\n' "$DB_MIGRATOR_PASSWORD"
+  printf 'DB_APP_USER=%s\n' "$DB_APP_USER"
+  printf 'DB_APP_PASSWORD=%s\n' "$DB_APP_PASSWORD"
+  printf 'JOBIS_IMAGE_PREFIX=\n'
+  printf 'JWT_SECRET=%s\n' "$legacy_jwt"
+  printf 'AI_SHARED_SECRET=%s\n' "$ai_shared_secret"
+  printf 'JOBISS_AI_SHARED_SECRET=%s\n' "$ai_shared_secret"
+  printf 'AI_SERVER_URL=http://127.0.0.1:8000\n'
+  printf 'AI_HTTP_TIMEOUT_SECONDS=660\n'
+  printf 'AI_MAX_CONCURRENT_ANALYSES=2\n'
+  printf 'LLM_PROVIDER=codex\n'
+  printf 'CODEX_MODEL=gpt-5.4\n'
+  printf 'CODEX_MODEL_LIGHT=gpt-5.4\n'
+  printf 'CODEX_MODEL_ROUTER=\n'
+  printf 'CODEX_REASONING_EFFORT=medium\n'
+  printf 'CODEX_TIMEOUT_SEC=200\n'
+  printf 'GMS_KEY=\n'
+  printf 'ANTHROPIC_API_KEY=\n'
+  printf 'RAG_PROVIDER=null\n'
+  printf 'RAG_SEARCH_URL=http://127.0.0.1:8765\n'
+  printf 'ALLOWED_ORIGINS=%s\n' "$ORIGIN"
+  printf 'COOKIE_SECURE=true\n'
+  printf 'SPRING_PROFILES_ACTIVE=prod\n'
+  printf 'JOBISS_HTTP_PORT=8088\n'
+  printf 'JOBIS_BACKUP_DIR=%s\n' "$BACKUP_DIR"
+  printf 'JOBIS_BACKUP_RETENTION_DAYS=14\n'
+  printf 'JOBIS_BACKUP_DOCKER_NETWORK=host\n'
+  printf 'JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM=%s\n' "$REQUIRE_SEPARATE"
+  printf 'JOBIS_REQUIRE_LEGACY_IMPORT=true\n'
+} >"$OUTPUT_ENV"
+chown root:root "$OUTPUT_ENV"
+chmod 0600 "$OUTPUT_ENV"
+
+echo "V2 environment created without printing secrets: $OUTPUT_ENV"
+echo "Legacy environment remains unchanged: $LEGACY_ENV"

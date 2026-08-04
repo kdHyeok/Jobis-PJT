@@ -73,7 +73,7 @@ def get_llm(tier: str = "default") -> Any:
         return ClaudeCodeChat(model=settings.active_model(tier), cli=settings.claude_cli)
 
     if settings.llm_provider in {"codex", "gpt"}:
-        # fake-ai에서 사용한 Codex OAuth/Responses 로직을 AI 패키지 안에 격리해 재사용한다.
+        # Codex OAuth/Responses 로직을 AI 패키지 안에 격리한다.
         # 노드의 system/human 메시지는 CodexChat이 instructions/input으로 그대로 보존한다.
         from jobis_ai.codex_llm import CodexChat
 

@@ -1,6 +1,6 @@
 // JOBIS Jenkins CI/CD
 //
-//   모든 브랜치 push/MR : CI (backend + AI/v2bridge + AI adapter + frontend + fake-ai + RAG + infra)
+//   모든 브랜치 push/MR : CI (backend + AI/v2bridge + frontend + RAG + infra)
 //   master push(병합)   : CI 통과 후 운영 서버 자동 배포
 //
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
@@ -36,7 +36,7 @@ pipeline {
                 ready=false
                 for i in $(seq 1 30); do
                   if docker exec "$POSTGRES_CONTAINER" \
-                    pg_isready -U jobiss_migrator -d jobiss >/dev/null 2>&1; then
+                    pg_isready -h 127.0.0.1 -U jobiss_migrator -d jobiss >/dev/null 2>&1; then
                     ready=true
                     break
                   fi
@@ -111,26 +111,9 @@ SQL
       }
     }
 
-    stage('AI adapter: test') {
-      agent {
-        docker { image 'python:3.12-slim' }
-      }
-      steps {
-        sh '''
-          python -m venv /tmp/jobis-adapter-venv
-          /tmp/jobis-adapter-venv/bin/python -m pip install \
-            --disable-pip-version-check --no-cache-dir -e "./ai-server[dev]"
-
-          cd ai-server
-          /tmp/jobis-adapter-venv/bin/python -m pytest -q
-          /tmp/jobis-adapter-venv/bin/python -m ruff check .
-        '''
-      }
-    }
-
     stage('Frontend: typecheck & build') {
       agent {
-        docker { image 'node:24' }
+        docker { image 'node:22-alpine' }
       }
       steps {
         sh '''
@@ -141,109 +124,15 @@ SQL
       }
     }
 
-    stage('fake-ai: test & package') {
-      agent {
-        docker { image 'node:24' }
-      }
-      steps {
-        sh '''
-          cd fake-ai
-          npm ci --omit=dev --ignore-scripts
-          node --check server.js
-          node --check llm.js
-          node --check providers/index.js
-          node --check providers/codex.js
-          node --check providers/codex-sidecar.js
-          npm test
-
-          # 스모크 테스트: CI에서는 실제 Claude/Codex를 호출하지 않고 /extract 계약만 확인
-          LLM_PROVIDER=claude LLM_DISABLED=1 node server.js > /tmp/fake-ai.log 2>&1 &
-          pid=$!
-          ready=false
-          for i in $(seq 1 20); do
-            if curl -fsS -X POST -H 'Content-Type: application/json' \
-              -d '{"sourceType":"TEXT","content":"Java Spring Boot MySQL"}' \
-              http://127.0.0.1:8000/extract >/dev/null 2>&1; then
-              ready=true; break
-            fi
-            sleep 1
-          done
-          kill "$pid" 2>/dev/null || true
-          [ "$ready" = true ] || { cat /tmp/fake-ai.log; exit 1; }
-
-          tar -czf fake-ai.tar.gz \
-            package.json package-lock.json server.js llm.js result.json \
-            README.md NOTICE pyproject.toml uv.lock codex_oauth_adapter providers node_modules
-        '''
-        stash name: 'fake-ai-tar', includes: 'fake-ai/fake-ai.tar.gz'
-      }
-    }
-
     stage('RAG: static validation') {
       agent {
         docker { image 'python:3.12-slim' }
       }
       steps {
         sh '''
+          python -m pip install --disable-pip-version-check --no-cache-dir rank_bm25==0.2.2
           python -m compileall -q RAG
-
-          # 이 브랜치에 이미 포함된 RAG 저장소 정합성 이슈 3건은 알려진 실패로 보고하되,
-          # 전체 테스트를 계속 실행해 그 외 회귀는 CI 실패로 처리한다.
-          python - <<'PY'
-import sys
-import unittest
-
-known_failures = {
-    "test_repository.RepositoryValidationTest.test_local_absolute_imports_resolve",
-    "test_repository.RepositoryValidationTest.test_personal_claude_settings_are_ignored",
-    "test_repository.RepositoryValidationTest.test_webapp_reads_v4_report",
-}
-
-
-def test_id(test):
-    # unittest subTest는 뒤에 " (path=..., ...)"를 붙이므로 본 테스트 ID만 비교한다.
-    return test.id().split(" (", 1)[0]
-
-
-class KnownFailureResult(unittest.TextTestResult):
-    def addFailure(self, test, err):
-        if test_id(test) in known_failures:
-            self.addExpectedFailure(test, err)
-            return
-        super().addFailure(test, err)
-
-    def addSubTest(self, test, subtest, err):
-        if (
-            err is not None
-            and issubclass(err[0], test.failureException)
-            and test_id(subtest) in known_failures
-        ):
-            self.addExpectedFailure(subtest, err)
-            return
-        super().addSubTest(test, subtest, err)
-
-
-suite = unittest.defaultTestLoader.discover("RAG/tests")
-result = unittest.TextTestRunner(
-    verbosity=2,
-    resultclass=KnownFailureResult,
-).run(suite)
-acknowledged = {test_id(test) for test, _ in result.expectedFailures}
-
-if acknowledged:
-    print("Known RAG repository issues (non-blocking):")
-    for test_id in sorted(acknowledged):
-        print(f"  - {test_id}")
-
-if not result.wasSuccessful():
-    print("Unexpected RAG test failure or error detected.", file=sys.stderr)
-    sys.exit(1)
-
-print(
-    f"RAG validation accepted: {result.testsRun} tests, "
-    f"{len(acknowledged)} known issue(s), no unexpected failures."
-)
-PY
+          python -m unittest discover -s RAG/tests -v
         '''
       }
     }
@@ -254,8 +143,36 @@ PY
         sh '''
           test -x ops/deploy-jobis-container
           bash -n ops/deploy-jobis-container
+          bash -n ops/backup-jobis-db
+          bash -n ops/restore-jobis-db-test
+          bash -n ops/restore-latest-jobis-db-test
+          bash -n ops/test-db-backup-restore
+          bash -n ops/test-v2-database-bootstrap
+          bash -n ops/prepare-jobis-server
+          bash -n ops/audit-jobis-server
+          bash -n ops/switch-jobis-nginx
+          bash -n ops/install-jobis-nginx-control
+          bash -n ops/bootstrap-jobis-v2-database
+          bash -n ops/configure-jobis-v2-environment
+          bash -n ops/migrate-jobis-legacy-to-v2
+          bash -n ops/prepare-jobis-v2-release
+          bash -n ops/test-legacy-data-migration
+          git diff --check HEAD^ HEAD
 
-          # Jenkins 컨테이너에는 운영 서버의 /etc/jobis/jobis.env가 없으므로
+          docker run --rm \
+            -v "$WORKSPACE:/workspace:ro" \
+            -w /workspace \
+            python:3.12-slim \
+            python ops/verify-release-config.py
+
+          # 활성 배포 경로가 제거된 계약 어댑터/fake-ai를 다시 참조하면 실패한다.
+          if grep -En 'jobis-fake-ai:|ai-server:|AGENT_WS_URL|AGENT_HTTP_URL' \
+            compose.yaml ops/docker-compose.prod.yml; then
+            echo 'Legacy AI deployment reference detected.' >&2
+            exit 1
+          fi
+
+          # Jenkins 컨테이너에는 운영 서버의 /etc/jobis/jobis-v2.env가 없으므로
           # 절대 경로와 env_file 내용은 해석하지 않고 Compose 모델만 검증한다.
           # Jenkins 컨테이너의 Docker CLI에는 Compose 플러그인이 없을 수 있다.
           # Compose가 포함된 공식 CLI 이미지에 파일을 표준입력으로 전달해 모델만 검증한다.
@@ -264,42 +181,86 @@ PY
             docker:28-cli \
             sh -ec '
               mkdir -p /etc/jobis
-              : > /etc/jobis/jobis.env
+              : > /etc/jobis/jobis-v2.env
               exec docker compose --project-name jobis-validation -f - \
                 config --quiet --no-path-resolution --no-env-resolution
             ' \
             < ops/docker-compose.prod.yml
+
+          docker run --rm \
+            -v "$WORKSPACE:/workspace:ro" \
+            -v "$WORKSPACE/ops/nginx-jobis-upstream-container.conf:/etc/jobis/nginx-active-upstream.conf:ro" \
+            nginx:1.27-alpine \
+            nginx -t -c /workspace/ops/nginx-jobis-app.test.conf
+
+          bash ops/test-db-backup-restore
+          bash ops/test-v2-database-bootstrap
+          bash ops/test-legacy-data-migration
         '''
       }
     }
 
-    // 도커 전환 2단계: 배포 이미지를 CI에서 빌드해 쌓아둔다 (ops/DOCKER.md 참고).
-    // Jenkins가 호스트 도커 데몬을 쓰므로(DooD) 빌드된 이미지는 곧바로 배포 서버에 존재한다.
-    // 이미지 정리는 배포 성공 후 deploy-jobis가 현재·직전 SHA를 보호하며 수행한다.
+    // develop에서도 컨테이너 빌드를 검증한다. JOBIS_IMAGE_PREFIX가 설정된 표준 구성은
+    // registry에 불변 SHA 태그를 push해 별도 배포 서버에서도 같은 이미지를 pull한다.
     stage('Docker images: build') {
-      when { branch 'master' }
+      when {
+        anyOf {
+          branch 'develop'
+          branch 'master'
+        }
+      }
       agent any
       steps {
-        sh '''
-          docker build -t "jobis-backend:$GIT_COMMIT" backend
-          docker build -t "jobis-fake-ai:$GIT_COMMIT" fake-ai
-        '''
+        script {
+          sh '''
+            prefix="${JOBIS_IMAGE_PREFIX:-}"
+            case "$prefix" in
+              ""|*/) ;;
+              *) echo 'JOBIS_IMAGE_PREFIX must be empty or end with /.' >&2; exit 2 ;;
+            esac
+            case "$prefix" in
+              *://*) echo 'JOBIS_IMAGE_PREFIX must not include a URL scheme.' >&2; exit 2 ;;
+            esac
+            docker build -t "${prefix}jobis-backend:$GIT_COMMIT" backend
+            docker build -t "${prefix}jobis-ai:$GIT_COMMIT" AI
+            docker build -t "${prefix}jobis-frontend:$GIT_COMMIT" frontend
+          '''
+
+          if (env.JOBIS_IMAGE_PREFIX?.trim()) {
+            withCredentials([usernamePassword(
+              credentialsId: 'jobis-container-registry',
+              usernameVariable: 'REGISTRY_USER',
+              passwordVariable: 'REGISTRY_PASSWORD'
+            )]) {
+              sh '''
+                registry="${JOBIS_IMAGE_PREFIX%%/*}"
+                printf '%s' "$REGISTRY_PASSWORD" | docker login "$registry" \
+                  --username "$REGISTRY_USER" --password-stdin
+                trap 'docker logout "$registry" >/dev/null 2>&1 || true' EXIT
+                docker push "${JOBIS_IMAGE_PREFIX}jobis-backend:$GIT_COMMIT"
+                docker push "${JOBIS_IMAGE_PREFIX}jobis-ai:$GIT_COMMIT"
+                docker push "${JOBIS_IMAGE_PREFIX}jobis-frontend:$GIT_COMMIT"
+              '''
+            }
+          } else {
+            echo 'JOBIS_IMAGE_PREFIX is empty; using the same-Docker-daemon deployment mode.'
+          }
+        }
       }
     }
 
     stage('Deploy production') {
       when { branch 'master' }
       agent any
-      // 컨테이너 배포(3단계)부터는 전송할 산출물이 없다.
-      // 위 스테이지가 호스트 도커 데몬에 이미지를 빌드했고(DooD), Jenkins와 배포 대상이
-      // 같은 호스트이므로 SHA만 넘기면 deploy-jobis가 해당 태그로 컨테이너를 교체한다.
+      // 위 단계가 만든 세 이미지를 서버 배포 명령이 백업 후 원자적으로 교체한다.
       steps {
         sshagent(credentials: ['jobis-deploy-ssh']) {
           sh '''
             test -n "$DEPLOY_HOST" || { echo "DEPLOY_HOST 전역 환경변수가 없습니다."; exit 1; }
             ssh -o StrictHostKeyChecking=accept-new \
               "jobis-deploy@$DEPLOY_HOST" \
-              "sudo -n /usr/local/sbin/deploy-jobis '$GIT_COMMIT'"
+              "sudo -n /usr/local/sbin/audit-jobis-server '$GIT_COMMIT' predeploy && \
+               sudo -n /usr/local/sbin/deploy-jobis '$GIT_COMMIT'"
           '''
         }
       }

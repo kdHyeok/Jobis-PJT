@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Restore the newest service DB dump into an isolated disposable PostgreSQL.
+set -Eeuo pipefail
+
+readonly ENV_FILE="${JOBIS_ENV_FILE:-/etc/jobis/jobis-v2.env}"
+readonly RESTORE_COMMAND="${JOBIS_RESTORE_COMMAND:-/usr/local/sbin/restore-jobis-db-test}"
+
+if [[ ! -f "$ENV_FILE" || ! -x "$RESTORE_COMMAND" ]]; then
+  echo "Environment file or restore command is missing." >&2
+  exit 1
+fi
+
+set -a
+source "$ENV_FILE"
+set +a
+
+readonly BACKUP_DIR="${JOBIS_BACKUP_DIR:-/var/backups/jobis/service-db}"
+if [[ ! -d "$BACKUP_DIR" ]]; then
+  echo "Backup directory is missing: $BACKUP_DIR" >&2
+  exit 1
+fi
+
+latest=""
+shopt -s nullglob
+for candidate in "$BACKUP_DIR"/*.dump; do
+  if [[ -z "$latest" || "$candidate" -nt "$latest" ]]; then
+    latest="$candidate"
+  fi
+done
+shopt -u nullglob
+
+if [[ -z "$latest" ]]; then
+  echo "No service DB dump is available for a restore drill." >&2
+  exit 1
+fi
+
+exec "$RESTORE_COMMAND" "$latest"

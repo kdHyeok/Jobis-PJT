@@ -1,11 +1,11 @@
-"""fake-ai에서 검증한 Codex OAuth + Responses SSE 변환 로직의 AI 전용 사본.
+"""Codex OAuth + Responses SSE 변환 로직의 AI 전용 구현.
 
-이 모듈은 ``fake-ai``를 import하지 않는다. 인증 파일 형식과 기본 위치는 기존 adapter와 같아
-한 번 로그인한 로컬 개발 환경에서는 토큰을 공유하지만, 코드는 ``jobis_ai`` 네임스페이스 안에
-격리한다. OAuth access/refresh token은 로그나 예외에 포함하지 않는다.
+이 모듈은 외부 서비스 구현을 import하지 않는다. 인증 상태는
+``CODEX_OAUTH_STATE_DIR``로 명시적인 영속 경로에 격리한다. OAuth access/refresh token은
+로그나 예외에 포함하지 않는다.
 
 참조 구현은 Hermes Agent 0.18.2 provider 코드의 축소·변형본이며 MIT 라이선스다. 저장소의
-``fake-ai/NOTICE``에 원 출처와 범위가 기록돼 있다.
+``AI/NOTICE``에 원 출처와 범위가 기록돼 있다.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def _uses_posix_permissions() -> bool:
 
 
 def state_file() -> Path:
-    """fake-ai adapter와 같은 인증 파일을 사용한다."""
+    """명시된 Codex OAuth 상태 디렉터리의 인증 파일을 사용한다."""
 
     root = os.getenv("CODEX_OAUTH_STATE_DIR")
     if root:

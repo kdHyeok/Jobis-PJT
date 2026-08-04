@@ -1,0 +1,321 @@
+#!/usr/bin/env bash
+# Validate server readiness without printing secret values.
+set -uo pipefail
+
+failures=0
+warnings=0
+
+pass() { printf '[PASS] %s\n' "$1"; }
+warn() { printf '[WARN] %s\n' "$1" >&2; warnings=$((warnings + 1)); }
+fail() { printf '[FAIL] %s\n' "$1" >&2; failures=$((failures + 1)); }
+
+readonly RELEASE_SHA="${1:-}"
+readonly AUDIT_PHASE="${2:-predeploy}"
+readonly ENV_FILE="/etc/jobis/jobis-v2.env"
+readonly COMPOSE_FILE="/opt/jobis/docker-compose.prod.yml"
+readonly DEPLOY_USER="jobis-deploy"
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "audit-jobis-server must run as root." >&2
+  exit 1
+fi
+if [[ -n "$RELEASE_SHA" && ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Optional release SHA must be 40 lowercase hexadecimal characters." >&2
+  exit 2
+fi
+if [[ "$AUDIT_PHASE" != "predeploy" && "$AUDIT_PHASE" != "postdeploy" ]]; then
+  echo "Audit phase must be 'predeploy' or 'postdeploy'." >&2
+  exit 2
+fi
+
+for command in curl df docker flock nginx stat systemctl visudo; do
+  if command -v "$command" >/dev/null 2>&1; then
+    pass "command available: $command"
+  else
+    fail "required command missing: $command"
+  fi
+done
+
+check_regular_file() {
+  local path="$1" expected_mode="$2"
+  if [[ ! -f "$path" || -L "$path" ]]; then
+    fail "required regular file missing: $path"
+    return
+  fi
+  local owner mode
+  owner="$(stat -c '%U:%G' "$path" 2>/dev/null || true)"
+  mode="$(stat -c '%a' "$path" 2>/dev/null || true)"
+  if [[ "$owner" == "root:root" && "$mode" == "$expected_mode" ]]; then
+    pass "file ownership and mode: $path"
+  else
+    fail "unexpected ownership or mode: $path (expected root:root $expected_mode)"
+  fi
+}
+
+check_regular_file "$ENV_FILE" 600
+check_regular_file "$COMPOSE_FILE" 644
+check_regular_file /usr/local/sbin/deploy-jobis 755
+check_regular_file /usr/local/sbin/backup-jobis-db 755
+check_regular_file /usr/local/sbin/restore-jobis-db-test 755
+check_regular_file /usr/local/sbin/restore-latest-jobis-db-test 755
+check_regular_file /usr/local/sbin/switch-jobis-nginx 755
+check_regular_file /etc/sudoers.d/jobis-deploy 440
+
+if visudo -cf /etc/sudoers.d/jobis-deploy >/dev/null 2>&1; then
+  pass "deployment sudoers syntax"
+else
+  fail "deployment sudoers syntax"
+fi
+
+if getent passwd "$DEPLOY_USER" >/dev/null 2>&1 &&
+   [[ "$(id -u "$DEPLOY_USER" 2>/dev/null || echo 0)" != "0" ]]; then
+  pass "non-root deployment user"
+else
+  fail "non-root deployment user is missing"
+fi
+deploy_home="$(getent passwd "$DEPLOY_USER" 2>/dev/null | cut -d: -f6)"
+if [[ -n "$deploy_home" && -s "${deploy_home}/.ssh/authorized_keys" ]]; then
+  pass "deployment SSH public key"
+else
+  fail "deployment SSH public key is missing"
+fi
+
+env_loaded=false
+if [[ -f "$ENV_FILE" && ! -L "$ENV_FILE" &&
+      "$(stat -c '%U:%G' "$ENV_FILE" 2>/dev/null)" == "root:root" &&
+      "$(stat -c '%a' "$ENV_FILE" 2>/dev/null)" == "600" ]]; then
+  set -a
+  if source "$ENV_FILE"; then
+    env_loaded=true
+    pass "production environment parsed"
+  else
+    fail "production environment is not shell-safe"
+  fi
+  set +a
+fi
+
+if [[ "$env_loaded" == true ]]; then
+  required_values=(
+    DB_URL DB_MIGRATOR_USER DB_MIGRATOR_PASSWORD DB_APP_USER DB_APP_PASSWORD
+    JWT_SECRET AI_SHARED_SECRET AI_SERVER_URL ALLOWED_ORIGINS COOKIE_SECURE
+    SPRING_PROFILES_ACTIVE LLM_PROVIDER JOBIS_BACKUP_DIR
+    JOBIS_BACKUP_DOCKER_NETWORK JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM
+    JOBIS_REQUIRE_LEGACY_IMPORT
+  )
+  for variable in "${required_values[@]}"; do
+    if [[ -n "${!variable:-}" ]]; then
+      pass "environment variable set: $variable"
+    else
+      fail "required environment variable missing: $variable"
+    fi
+  done
+  db_url="${DB_URL:-}"
+  ai_server_url="${AI_SERVER_URL:-}"
+  allowed_origins="${ALLOWED_ORIGINS:-}"
+  cookie_secure="${COOKIE_SECURE:-}"
+  spring_profile="${SPRING_PROFILES_ACTIVE:-}"
+  jwt_secret="${JWT_SECRET:-}"
+  ai_shared_secret="${AI_SHARED_SECRET:-}"
+  if grep -Eq '^JOBIS_IMAGE_PREFIX=' "$ENV_FILE"; then
+    pass "environment variable declared: JOBIS_IMAGE_PREFIX"
+  else
+    fail "environment variable declaration missing: JOBIS_IMAGE_PREFIX"
+  fi
+
+  for secret_name in DB_MIGRATOR_PASSWORD DB_APP_PASSWORD JWT_SECRET AI_SHARED_SECRET; do
+    secret_value="${!secret_name:-}"
+    if [[ ${#secret_value} -ge 24 &&
+          "$secret_value" != *replace-with* &&
+          "$secret_value" != *change-me* ]]; then
+      pass "secret appears configured: $secret_name"
+    else
+      fail "secret is short or still a placeholder: $secret_name"
+    fi
+  done
+  [[ ${#jwt_secret} -ge 32 ]] || fail "JWT_SECRET must be at least 32 characters"
+  [[ ${#ai_shared_secret} -ge 32 ]] || fail "AI_SHARED_SECRET must be at least 32 characters"
+
+  [[ "$db_url" == jdbc:postgresql://127.0.0.1:*/* ||
+     "$db_url" == jdbc:postgresql://localhost:*/* ]] \
+    && pass "database remains loopback-only" \
+    || fail "DB_URL must target host loopback for this Compose topology"
+  [[ "$ai_server_url" == "http://127.0.0.1:8000" ]] \
+    && pass "backend-to-AI route" \
+    || fail "AI_SERVER_URL must be http://127.0.0.1:8000"
+  [[ "$allowed_origins" == https://* ]] \
+    && pass "HTTPS allowed origin" \
+    || fail "ALLOWED_ORIGINS must use HTTPS"
+  [[ "$cookie_secure" == "true" ]] \
+    && pass "secure cookies enabled" \
+    || fail "COOKIE_SECURE must be true"
+  [[ "$spring_profile" == "prod" ]] \
+    && pass "production Spring profile" \
+    || fail "SPRING_PROFILES_ACTIVE must be prod"
+
+  image_prefix="${JOBIS_IMAGE_PREFIX:-}"
+  if [[ -z "$image_prefix" ||
+        ( "$image_prefix" == */ && "$image_prefix" != *://* ) ]]; then
+    pass "container image prefix format"
+  else
+    fail "JOBIS_IMAGE_PREFIX must be empty or end in / without a URL scheme"
+  fi
+
+  if [[ "${JOBIS_REQUIRE_LEGACY_IMPORT:-}" != "true" &&
+        "${JOBIS_REQUIRE_LEGACY_IMPORT:-}" != "false" ]]; then
+    fail "JOBIS_REQUIRE_LEGACY_IMPORT must be true or false"
+  fi
+
+  backup_dir="${JOBIS_BACKUP_DIR:-}"
+  if [[ -d "$backup_dir" && ! -L "$backup_dir" &&
+        "$(stat -c '%U:%G' "$backup_dir" 2>/dev/null)" == "root:root" &&
+        "$(stat -c '%a' "$backup_dir" 2>/dev/null)" == "700" ]]; then
+    pass "backup directory ownership and mode"
+  else
+    fail "backup directory is missing, symlinked, or not root:root 700"
+  fi
+  if [[ "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" == "true" &&
+        -d "$backup_dir" && -d /opt/jobis ]]; then
+    app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
+    backup_device="$(df -P "$backup_dir" | awk 'NR == 2 {print $1}')"
+    if [[ -n "$app_device" && -n "$backup_device" && "$app_device" != "$backup_device" ]]; then
+      pass "backup uses a separate filesystem"
+    else
+      fail "backup filesystem is not separate from /opt/jobis"
+    fi
+  elif [[ -n "$RELEASE_SHA" ]]; then
+    fail "separate backup filesystem enforcement is not enabled"
+  else
+    warn "backup uses the application filesystem; release remains blocked until separate storage is attached"
+  fi
+fi
+
+if docker info >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  pass "Docker Engine and Compose"
+else
+  fail "Docker Engine or Compose is unavailable"
+fi
+
+if [[ "$env_loaded" == true && -f "$COMPOSE_FILE" ]] &&
+   JOBIS_SHA=0000000000000000000000000000000000000000 \
+     docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet; then
+  pass "production Compose model"
+else
+  fail "production Compose model"
+fi
+
+if nginx -t >/dev/null 2>&1; then
+  pass "Nginx syntax"
+else
+  fail "Nginx syntax"
+fi
+if grep -RqsF 'include /etc/jobis/nginx-active-upstream.conf;' /etc/nginx/sites-enabled &&
+   [[ -f /etc/jobis/nginx-active-upstream.conf && ! -L /etc/jobis/nginx-active-upstream.conf ]]; then
+  pass "Nginx uses the controlled JOBISS upstream include"
+else
+  fail "Nginx controlled JOBISS upstream include is not active"
+fi
+if [[ -n "$RELEASE_SHA" && "$AUDIT_PHASE" == "postdeploy" ]]; then
+  if grep -Fqx 'proxy_pass http://127.0.0.1:8088;' /etc/jobis/nginx-active-upstream.conf 2>/dev/null; then
+    pass "Nginx routes the application to frontend port 8088"
+  else
+    fail "Nginx must target frontend port 8088 for a release audit"
+  fi
+elif grep -Eqx 'proxy_pass http://127\.0\.0\.1:(8080|8088);' \
+    /etc/jobis/nginx-active-upstream.conf 2>/dev/null; then
+  pass "Nginx active upstream is recognized"
+else
+  fail "Nginx active upstream is invalid"
+fi
+
+for timer in jobis-db-backup.timer jobis-db-restore-drill.timer; do
+  if systemctl is-enabled --quiet "$timer" 2>/dev/null; then
+    pass "systemd timer enabled: $timer"
+  elif [[ -n "$RELEASE_SHA" ]]; then
+    fail "systemd timer is not enabled: $timer"
+  else
+    warn "systemd timer is not enabled yet: $timer"
+  fi
+done
+for legacy in jobis-fake-ai.service jobis.service; do
+  if systemctl is-active --quiet "$legacy" 2>/dev/null; then
+    warn "initial-cutover legacy unit is still active: $legacy"
+  fi
+done
+
+if [[ "$env_loaded" == true && "${DB_URL:-}" == jdbc:postgresql://* ]]; then
+  connection="${DB_URL#jdbc:postgresql://}"
+  authority="${connection%%/*}"
+  database_with_query="${connection#*/}"
+  database="${database_with_query%%\?*}"
+  db_host="${authority%%:*}"
+  db_port="5432"
+  [[ "$authority" == *:* ]] && db_port="${authority##*:}"
+  network="${JOBIS_BACKUP_DOCKER_NETWORK:-host}"
+
+  check_db_role() {
+    local label="$1" user="$2" password="$3"
+    if docker run --rm --network "$network" \
+      -e "PGPASSWORD=$password" -e PGCONNECT_TIMEOUT=5 \
+      postgres:17-alpine psql \
+      --host "$db_host" --port "$db_port" --username "$user" --dbname "$database" \
+      --tuples-only --no-align --command 'select 1' 2>/dev/null | grep -qx '1'; then
+      pass "PostgreSQL connectivity: $label"
+    else
+      fail "PostgreSQL connectivity failed: $label"
+    fi
+  }
+  check_db_role app "${DB_APP_USER:-}" "${DB_APP_PASSWORD:-}"
+  check_db_role migrator "${DB_MIGRATOR_USER:-}" "${DB_MIGRATOR_PASSWORD:-}"
+
+  migration_version="$(docker run --rm --network "$network" \
+    -e "PGPASSWORD=${DB_MIGRATOR_PASSWORD:-}" -e PGCONNECT_TIMEOUT=5 \
+    postgres:17-alpine psql \
+    --host "$db_host" --port "$db_port" --username "${DB_MIGRATOR_USER:-}" --dbname "$database" \
+    --tuples-only --no-align --command \
+    "select coalesce(max(version::integer), 0) from flyway_schema_history where success" \
+    2>/dev/null || true)"
+  if [[ "$migration_version" =~ ^[0-9]+$ && "$migration_version" -ge 27 ]]; then
+    pass "Flyway schema includes legacy import audit contract"
+  elif [[ -n "$RELEASE_SHA" ]]; then
+    fail "Flyway schema is below V27 or unavailable"
+  else
+    warn "Flyway schema is not initialized through V27 yet"
+  fi
+
+  if [[ "${JOBIS_REQUIRE_LEGACY_IMPORT:-false}" == "true" ]]; then
+    legacy_import_count="$(docker run --rm --network "$network" \
+      -e "PGPASSWORD=${DB_MIGRATOR_PASSWORD:-}" -e PGCONNECT_TIMEOUT=5 \
+      postgres:17-alpine psql \
+      --host "$db_host" --port "$db_port" --username "${DB_MIGRATOR_USER:-}" --dbname "$database" \
+      --tuples-only --no-align --command \
+      "select count(*) from legacy_import_audit where source_database='jobiss'" \
+      2>/dev/null || true)"
+    if [[ "$legacy_import_count" == "1" ]]; then
+      pass "legacy jobiss import audit record"
+    elif [[ -n "$RELEASE_SHA" ]]; then
+      fail "required legacy jobiss import audit record is missing"
+    else
+      warn "legacy jobiss import has not been completed yet"
+    fi
+  fi
+fi
+
+if [[ -n "$RELEASE_SHA" && "$env_loaded" == true ]]; then
+  for image in jobis-ai jobis-backend jobis-frontend; do
+    reference="${JOBIS_IMAGE_PREFIX:-}${image}:${RELEASE_SHA}"
+    if [[ -n "${JOBIS_IMAGE_PREFIX:-}" ]]; then
+      docker manifest inspect "$reference" >/dev/null 2>&1 \
+        && pass "registry image available: $image" \
+        || fail "registry image unavailable: $image"
+    else
+      docker image inspect "$reference" >/dev/null 2>&1 \
+        && pass "local image available: $image" \
+        || fail "local image unavailable: $image"
+    fi
+  done
+else
+  warn "release SHA was not supplied; image availability was not checked"
+fi
+
+printf 'server-audit: failures=%d warnings=%d\n' "$failures" "$warnings"
+[[ "$failures" -eq 0 ]]

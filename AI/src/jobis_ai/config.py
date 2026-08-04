@@ -96,7 +96,7 @@ class Settings:
             # 로그인이 없으면 첫 호출이 실패하고 run_structured 가 경고로 남긴다.
             return True
         if self.llm_provider in {"codex", "gpt"}:
-            # fake-ai와 같은 로컬 OAuth 상태를 쓴다. 토큰 유효성은 provider가 갱신/검증한다.
+            # 명시한 OAuth 상태를 쓴다. 토큰 유효성은 provider가 갱신/검증한다.
             return True
         return bool(self.anthropic_api_key)
 

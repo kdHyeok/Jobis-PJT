@@ -1,4 +1,4 @@
-"""v2 HTTP 계약(엔드포인트·인증·오류 코드) 검증 — 팀 ai-server 의 계약 테스트와 같은 관점.
+"""v2 HTTP 계약(엔드포인트·인증·오류 코드) 검증.
 
 엔진은 monkeypatch 로 대체한다(LLM 없이 1초대). 여기서 지키는 것:
   · 인증: 헤더 없으면 422, 틀리면 401 (백엔드 RestClient 가 이 코드로 실패를 구분한다)
@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from jobis_ai.v2bridge import service
+import jobis_ai.v2bridge.app as app_module
 from jobis_ai.v2bridge.app import app
 from jobis_ai.v2bridge.models import (
     AnalysisQuestion,
@@ -107,6 +108,20 @@ def test_wrong_secret_is_401():
     response = client.post("/v1/analyses", json=analysis_request(),
                            headers={"X-JOBISS-AI-SECRET": "wrong"})
     assert response.status_code == 401
+
+
+def test_shared_secret_can_use_backend_env_name(monkeypatch):
+    monkeypatch.delenv("JOBISS_AI_SHARED_SECRET", raising=False)
+    monkeypatch.setenv("AI_SHARED_SECRET", "shared-production-secret")
+
+    assert app_module._shared_secret() == "shared-production-secret"
+
+
+def test_ai_specific_secret_takes_precedence(monkeypatch):
+    monkeypatch.setenv("AI_SHARED_SECRET", "shared-production-secret")
+    monkeypatch.setenv("JOBISS_AI_SHARED_SECRET", "ai-specific-secret")
+
+    assert app_module._shared_secret() == "ai-specific-secret"
 
 
 def test_health_reports_provider():

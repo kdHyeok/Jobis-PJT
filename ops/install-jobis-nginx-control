@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Replace the legacy app proxy with a controlled include without changing its target.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "install-jobis-nginx-control must run as root." >&2
+  exit 1
+fi
+for command in cp grep nginx readlink sed systemctl; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+
+readonly SITE_ENTRY="${1:-/etc/nginx/sites-enabled/jobis}"
+readonly INCLUDE_LINE="include /etc/jobis/nginx-active-upstream.conf;"
+if [[ ! -e "$SITE_ENTRY" ]]; then
+  echo "Nginx site entry is missing: $SITE_ENTRY" >&2
+  exit 1
+fi
+site_file="$(readlink -f -- "$SITE_ENTRY")"
+if [[ ! -f "$site_file" || "$site_file" != /etc/nginx/* ]]; then
+  echo "Nginx site must resolve to a regular file below /etc/nginx." >&2
+  exit 1
+fi
+if [[ ! -f /etc/jobis/nginx-active-upstream.conf ||
+      -L /etc/jobis/nginx-active-upstream.conf ]]; then
+  echo "Controlled upstream file is missing or symbolic." >&2
+  exit 1
+fi
+
+if grep -Fq "$INCLUDE_LINE" "$site_file"; then
+  nginx -t
+  echo "Nginx controlled upstream include is already installed: $site_file"
+  exit 0
+fi
+
+legacy_count="$(grep -Fc 'proxy_pass http://127.0.0.1:8080;' "$site_file" || true)"
+if [[ "$legacy_count" != "1" ]]; then
+  echo "Expected exactly one legacy application proxy, found: $legacy_count" >&2
+  exit 1
+fi
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+backup_file="${site_file}.pre-jobis-v2-${timestamp}"
+cp -a -- "$site_file" "$backup_file"
+sed -i 's|proxy_pass http://127.0.0.1:8080;|include /etc/jobis/nginx-active-upstream.conf;|' "$site_file"
+
+rollback() {
+  cp -a -- "$backup_file" "$site_file"
+  nginx -t >/dev/null 2>&1 || true
+  systemctl reload nginx >/dev/null 2>&1 || true
+}
+trap rollback ERR
+nginx -t
+systemctl reload nginx
+trap - ERR
+
+echo "Nginx control installed without changing the active 8080 target."
+echo "Preserved previous site file: $backup_file"

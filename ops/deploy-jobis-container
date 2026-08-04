@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# JOBIS 컨테이너 배포 — 전환 3단계
-#
-# 기존 deploy-jobis(jar + systemd)를 대체한다. 차이점:
-#   - 배포 산출물이 파일이 아니라 이미지 태그다. Jenkins가 호스트 도커 데몬에
-#     jobis-backend:<SHA> / jobis-fake-ai:<SHA>를 이미 빌드해뒀으므로 전송 단계가 없다.
-#   - 롤백은 심볼릭 링크 되돌리기가 아니라 이전 SHA 태그로 재기동이다.
-#
-# 설치: sudo install -o root -g root -m 0755 ops/deploy-jobis-container /usr/local/sbin/deploy-jobis
-#       sudo install -o root -g root -m 0644 ops/docker-compose.prod.yml /opt/jobis/docker-compose.prod.yml
+# Deploy immutable JOBISS frontend/backend/AI images and roll back atomically.
 set -Eeuo pipefail
 
-readonly COMPOSE_FILE="/opt/jobis/docker-compose.prod.yml"
-readonly STATE_FILE="/opt/jobis/.deployed-sha"
+readonly APP_ROOT="/opt/jobis"
+readonly COMPOSE_FILE="${APP_ROOT}/docker-compose.prod.yml"
+readonly COMPOSE_PROJECT="jobis-v2"
+readonly STATE_FILE="${APP_ROOT}/.deployed-sha"
+readonly LEGACY_BACKEND_STATE="${APP_ROOT}/.legacy-backend-container"
+readonly BACKUP_COMMAND="/usr/local/sbin/backup-jobis-db"
+readonly NGINX_SWITCH_COMMAND="/usr/local/sbin/switch-jobis-nginx"
+readonly AUDIT_COMMAND="/usr/local/sbin/audit-jobis-server"
+readonly ENV_FILE="/etc/jobis/jobis-v2.env"
+readonly IMAGE_NAMES=(jobis-ai jobis-backend jobis-frontend)
+# These units and the original containers are stopped, never deleted here.
 readonly LEGACY_UNITS=(jobis-fake-ai.service jobis.service)
-readonly KEEP_IMAGE_TAGS=3
 
 if [[ "$EUID" -ne 0 ]]; then
   echo "deploy-jobis must run as root." >&2
@@ -32,15 +32,46 @@ if [[ -z "$DEPLOY_ACTOR" || "$DEPLOY_ACTOR" == "root" ]]; then
   exit 1
 fi
 
-if [[ ! -f "$COMPOSE_FILE" ]]; then
-  echo "Compose file is missing: $COMPOSE_FILE" >&2
-  exit 1
+for required_file in "$COMPOSE_FILE" "$BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND" "$ENV_FILE"; do
+  if [[ ! -f "$required_file" ]]; then
+    echo "Required deployment file is missing: $required_file" >&2
+    exit 1
+  fi
+done
+for command in "$BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND"; do
+  if [[ ! -x "$command" ]]; then
+    echo "Required deployment command is not executable: $command" >&2
+    exit 1
+  fi
+done
+
+set -a
+# Root-owned and mode 0600; values must follow the shell-safe KEY=value format
+# documented in .env.production.example.
+source "$ENV_FILE"
+set +a
+readonly IMAGE_PREFIX="${JOBIS_IMAGE_PREFIX:-}"
+if [[ -n "$IMAGE_PREFIX" && "$IMAGE_PREFIX" != */ ]]; then
+  echo "JOBIS_IMAGE_PREFIX must end with '/': $IMAGE_PREFIX" >&2
+  exit 2
+fi
+if [[ "$IMAGE_PREFIX" == *://* ]]; then
+  echo "JOBIS_IMAGE_PREFIX must not include a URL scheme: $IMAGE_PREFIX" >&2
+  exit 2
 fi
 
-# 배포할 이미지가 실제로 있는지 먼저 확인한다 (CI 빌드 스테이지 산출물).
-for image in "jobis-backend:${RELEASE_SHA}" "jobis-fake-ai:${RELEASE_SHA}"; do
-  if ! docker image inspect "$image" >/dev/null 2>&1; then
-    echo "Required image is missing: $image" >&2
+compose() {
+  JOBIS_SHA="$1" docker compose --project-name "$COMPOSE_PROJECT" \
+    --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "${@:2}"
+}
+
+if [[ -n "$IMAGE_PREFIX" ]]; then
+  compose "$RELEASE_SHA" pull --quiet
+fi
+
+for image in "${IMAGE_NAMES[@]}"; do
+  if ! docker image inspect "${IMAGE_PREFIX}${image}:${RELEASE_SHA}" >/dev/null 2>&1; then
+    echo "Required image is missing: ${IMAGE_PREFIX}${image}:${RELEASE_SHA}" >&2
     exit 1
   fi
 done
@@ -48,21 +79,18 @@ done
 readonly PREVIOUS_SHA="$(cat "$STATE_FILE" 2>/dev/null || true)"
 
 compose_up() {
-  JOBIS_SHA="$1" docker compose -f "$COMPOSE_FILE" up -d --no-build
+  compose "$1" up -d --no-build
 }
 
-# fake-ai는 /extract 계약, backend는 /health로 확인한다 (기존 스크립트와 동일한 기준).
-wait_for_fake_ai() {
-  local _
-  for _ in {1..30}; do
-    if curl -fsS \
-      -X POST \
-      -H 'Content-Type: application/json' \
-      -d '{"sourceType":"TEXT","content":"Java Spring Boot MySQL"}' \
-      http://127.0.0.1:8000/extract >/dev/null; then
+wait_for_ai() {
+  local response _
+  for _ in {1..60}; do
+    response="$(curl -fsS http://127.0.0.1:8000/health 2>/dev/null || true)"
+    if grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' <<<"$response" &&
+       grep -Eq '"service"[[:space:]]*:[[:space:]]*"jobis-ai-v2bridge"' <<<"$response"; then
       return 0
     fi
-    sleep 1
+    sleep 2
   done
   return 1
 }
@@ -70,127 +98,169 @@ wait_for_fake_ai() {
 wait_for_backend() {
   local _
   for _ in {1..60}; do
-    if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+    if curl -fsS http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
       return 0
     fi
-    sleep 1
+    sleep 2
   done
   return 1
 }
 
-fallback_to_systemd() {
-  local recovery_failed=false
+wait_for_frontend() {
+  local _
+  for _ in {1..30}; do
+    if curl -fsS http://127.0.0.1:8088/ >/dev/null 2>&1 &&
+       curl -fsS http://127.0.0.1:8088/api/auth/csrf >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
 
-  echo "  falling back to systemd units" >&2
-  if ! JOBIS_SHA="$RELEASE_SHA" docker compose -f "$COMPOSE_FILE" down; then
-    echo "  failed to stop container services" >&2
-    recovery_failed=true
+wait_for_stack() {
+  wait_for_ai && wait_for_backend && wait_for_frontend
+}
+
+wait_for_legacy_ai() {
+  local _
+  for _ in {1..30}; do
+    if curl -fsS -X POST -H 'Content-Type: application/json' \
+      -d '{"sourceType":"TEXT","content":"Java Spring Boot PostgreSQL"}' \
+      http://127.0.0.1:8000/extract >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+wait_for_legacy_backend() {
+  local _
+  for _ in {1..30}; do
+    if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1 ||
+       curl -fsS http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+restore_initial_containers() {
+  local recovery_failed=false legacy_backend="" project=""
+
+  echo "No previous v2 release is available; restoring preserved legacy containers." >&2
+  compose "$RELEASE_SHA" down || recovery_failed=true
+
+  if [[ -f "$LEGACY_BACKEND_STATE" ]]; then
+    legacy_backend="$(cat "$LEGACY_BACKEND_STATE")"
   fi
-
-  for unit in "${LEGACY_UNITS[@]}"; do
-    if ! systemctl enable --now "$unit"; then
-      echo "  failed to enable and start legacy unit: $unit" >&2
+  if docker container inspect jobis-backend >/dev/null 2>&1; then
+    project="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' jobis-backend)"
+    if [[ "$project" == "$COMPOSE_PROJECT" ]]; then
+      echo "Unexpected v2 backend container remains after Compose down." >&2
       recovery_failed=true
     fi
+  elif [[ -n "$legacy_backend" ]] && docker container inspect "$legacy_backend" >/dev/null 2>&1; then
+    docker rename "$legacy_backend" jobis-backend || recovery_failed=true
+  else
+    echo "Preserved legacy backend container is unavailable." >&2
+    recovery_failed=true
+  fi
+
+  if docker container inspect jobis-backend >/dev/null 2>&1; then
+    docker start jobis-backend >/dev/null || recovery_failed=true
+  fi
+  if docker container inspect jobis-fake-ai >/dev/null 2>&1; then
+    docker start jobis-fake-ai >/dev/null || recovery_failed=true
+  else
+    echo "Preserved legacy fake-ai container is unavailable." >&2
+    recovery_failed=true
+  fi
+
+  "$NGINX_SWITCH_COMMAND" legacy || recovery_failed=true
+  wait_for_legacy_ai || recovery_failed=true
+  wait_for_legacy_backend || recovery_failed=true
+
+  [[ "$recovery_failed" == false ]]
+}
+
+preserve_initial_containers() {
+  local project legacy_name suffix unit
+
+  if docker container inspect jobis-backend >/dev/null 2>&1; then
+    project="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' jobis-backend)"
+    if [[ "$project" != "$COMPOSE_PROJECT" ]]; then
+      suffix="${PREVIOUS_SHA:0:12}"
+      [[ "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]] || suffix="$(date -u +%Y%m%dT%H%M%SZ)"
+      legacy_name="jobis-backend-legacy-${suffix}"
+      if docker container inspect "$legacy_name" >/dev/null 2>&1; then
+        echo "Legacy backend preservation name already exists: $legacy_name" >&2
+        return 1
+      fi
+      docker stop jobis-backend >/dev/null
+      docker rename jobis-backend "$legacy_name"
+      printf '%s\n' "$legacy_name" >"$LEGACY_BACKEND_STATE"
+    fi
+  fi
+  if docker container inspect jobis-fake-ai >/dev/null 2>&1; then
+    docker stop jobis-fake-ai >/dev/null 2>&1 || true
+  fi
+  for unit in "${LEGACY_UNITS[@]}"; do
+    systemctl stop "$unit" >/dev/null 2>&1 || true
+    systemctl disable "$unit" >/dev/null 2>&1 || true
   done
-
-  if ! wait_for_fake_ai; then
-    echo "  systemd fake-ai health check failed" >&2
-    recovery_failed=true
-  fi
-  if ! wait_for_backend; then
-    echo "  systemd backend health check failed" >&2
-    recovery_failed=true
-  fi
-
-  if [[ "$recovery_failed" == true ]]; then
-    return 1
-  fi
-
-  rm -f -- "$STATE_FILE"
-  echo "  systemd fallback completed successfully" >&2
 }
 
 rollback() {
-  local exit_code=$?
-  local image_rollback_ok=false
-  trap - ERR
+  local exit_code=$? image rollback_ready=true
+  trap - ERR HUP INT TERM
   echo "Deployment failed. Rolling back." >&2
 
-  if [[ "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]] &&
-     docker image inspect "jobis-backend:${PREVIOUS_SHA}" >/dev/null 2>&1 &&
-     docker image inspect "jobis-fake-ai:${PREVIOUS_SHA}" >/dev/null 2>&1; then
-    echo "  rolling back to ${PREVIOUS_SHA}" >&2
+  if [[ ! "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+    rollback_ready=false
+  else
+    if [[ -n "$IMAGE_PREFIX" ]]; then
+      compose "$PREVIOUS_SHA" pull --quiet || rollback_ready=false
+    fi
+    for image in "${IMAGE_NAMES[@]}"; do
+      docker image inspect "${IMAGE_PREFIX}${image}:${PREVIOUS_SHA}" >/dev/null 2>&1 || rollback_ready=false
+    done
+  fi
+
+  if [[ "$rollback_ready" == true ]]; then
     if compose_up "$PREVIOUS_SHA" &&
-       wait_for_fake_ai &&
-       wait_for_backend; then
+       wait_for_stack &&
+       "$NGINX_SWITCH_COMMAND" container; then
       printf '%s\n' "$PREVIOUS_SHA" >"$STATE_FILE"
-      image_rollback_ok=true
-      echo "  image rollback completed successfully" >&2
+      echo "Image rollback completed: $PREVIOUS_SHA" >&2
     else
-      echo "  previous image rollback failed" >&2
+      rollback_ready=false
     fi
   fi
 
-  if [[ "$image_rollback_ok" != true ]]; then
-    if ! fallback_to_systemd; then
-      echo "  automatic rollback failed; manual recovery is required" >&2
-    fi
+  if [[ "$rollback_ready" != true ]] && ! restore_initial_containers; then
+    echo "Automatic rollback failed; manual recovery is required." >&2
   fi
 
   exit "$exit_code"
 }
-trap rollback ERR
+# A deploy is not allowed to be the first time a backup path is tested.
+JOBIS_ENV_FILE="$ENV_FILE" "$BACKUP_COMMAND" "$RELEASE_SHA"
 
-cleanup_old_images() {
-  local image tag
+trap rollback ERR HUP INT TERM
 
-  for image in jobis-backend jobis-fake-ai; do
-    while IFS=$'\t' read -r _ tag; do
-      [[ -z "$tag" || "$tag" == "<none>" ]] && continue
-      [[ "$tag" == "$RELEASE_SHA" ]] && continue
-      [[ -n "$PREVIOUS_SHA" && "$tag" == "$PREVIOUS_SHA" ]] && continue
-
-      docker image rm "${image}:${tag}" ||
-        echo "  failed to remove old image tag: ${image}:${tag}" >&2
-    done < <(
-      docker images --format '{{.CreatedAt}}\t{{.Tag}}' "$image" |
-        grep -v '<none>' |
-        sort -r |
-        tail -n +$((KEEP_IMAGE_TAGS + 1))
-    )
-  done
-}
-
-# 최초 전환 시 systemd 서비스가 8000/8080 포트를 잡고 있으면 컨테이너가 기동하지 못한다.
-# 살아 있으면 중지하고, 재부팅 시 컨테이너와 충돌하지 않도록 자동 시작도 끈다.
-for unit in "${LEGACY_UNITS[@]}"; do
-  if systemctl is-active --quiet "$unit"; then
-    echo "Stopping legacy unit: $unit"
-    systemctl stop "$unit"
-  fi
-  if systemctl is-enabled --quiet "$unit" 2>/dev/null; then
-    systemctl disable "$unit" >/dev/null 2>&1 || true
-  fi
-done
+# Preserve the original containers only after images and backup are verified.
+preserve_initial_containers
 
 compose_up "$RELEASE_SHA"
-
-if ! wait_for_fake_ai; then
-  echo "fake-ai health check failed." >&2
-  false
-fi
-
-if ! wait_for_backend; then
-  echo "Backend health check failed." >&2
-  false
-fi
+wait_for_stack
+"$NGINX_SWITCH_COMMAND" container
+"$AUDIT_COMMAND" "$RELEASE_SHA" postdeploy
 
 printf '%s\n' "$RELEASE_SHA" >"$STATE_FILE"
-trap - ERR
-
-# 배포와 롤백이 모두 끝난 뒤에만 이미지를 정리한다.
-# 최신 3개 밖에 있더라도 현재 SHA와 직전 SHA는 항상 보존한다.
-cleanup_old_images || echo "image cleanup skipped (non-fatal)" >&2
+trap - ERR HUP INT TERM
 
 echo "Deployment completed successfully: $RELEASE_SHA"
+echo "Legacy containers and images remain preserved for explicit later cleanup."

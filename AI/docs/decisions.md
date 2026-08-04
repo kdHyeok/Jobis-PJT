@@ -3545,3 +3545,43 @@ analysis 비노출 스트리밍, 토큰 usage, default/light/router 모델 선�
 테스트로 고정한다. 전체 AI 회귀 798건이 통과했고, 기존 fake-ai OAuth 상태로 모델 목록을
 조회한 뒤 `LLM_PROVIDER=codex` + `structured.run_structured`의 실제 `gpt-5.4` 호출이
 `{"result":"OK"}`, `warnings=[]`를 반환했다.
+
+### D169 (08-05) 운영 AI는 v2bridge 하나로 고정하고 상태와 이미지를 분리한다
+
+**결정**: 운영 HTTP 서버는 `jobis_ai.v2bridge.app` 하나다. 별도 계약 어댑터와 옛
+WebSocket 서버 실행 경로를 제거하고, Jenkins가 `jobis-ai:<Git SHA>` 이미지를
+`backend`·`frontend`와 함께 검증·배포한다. 컨테이너에는 서비스 DB 자격증명을 주지 않는다.
+
+**상태 경계**: 세션 SQLite, Codex OAuth, 감사 로그는 이미지 안이 아니라
+`/var/lib/jobis-ai` 영속 경로에 둔다. 이미지는 Git SHA로 롤백하고 DB는 `pg_dump`와 실제
+복구 훈련으로 보호한다. DB volume이나 컨테이너 이미지는 백업으로 세지 않는다.
+
+**왜**: CI가 v2bridge를 테스트하면서 배포에서는 별도 adapter/fake AI를 빌드해 검증 대상과
+운영 대상이 갈려 있었다. 또한 이미지 안의 세션/OAuth 파일은 재배포 때 사라지고, DB 이미지를
+보관해도 사용자 데이터 시점 복구를 증명하지 못한다. 실행물·AI 상태·서비스 DB를 서로 다른
+복구 단위로 만들어야 각 실패 경계와 롤백 증거가 명확하다.
+
+**검증 게이트**: AI health는 HTTP 200만 보지 않고 `service=jobis-ai-v2bridge`를 확인한다.
+백엔드 health는 PostgreSQL `select 1`, 프론트 smoke는 `/`와 프록시된 `/api/auth/csrf`를
+확인한다. master CD는 세 이미지 존재와 배포 직전 DB 덤프 검증이 모두 성공해야 전환한다.
+
+### D170 (08-05) 최초 전환은 레거시 런타임과 DB를 보존한 별도 v2 경계에서 준비한다
+
+**결정**: 기존 `jobis` Compose 프로젝트와 `jobiss` DB를 제자리 변경하지 않는다. 신규 스택은
+`jobis-v2` 프로젝트, `/etc/jobis/jobis-v2.env`, `jobiss_v2` DB와
+`jobiss_migrator`/`jobiss_app` 역할을 사용한다. 최초 cutover에서만 기존 backend를
+stop 후 rename하고 fake AI를 stop한다. 컨테이너와 이미지는 자동 삭제하지 않는다.
+
+**데이터 경계**: Flyway V27이 이관 감사 테이블을 만들고, 운영자가 양쪽 DB 백업을 검증한 뒤
+레거시 핵심 데이터를 한 트랜잭션으로 가져온다. 기존 DB는 계속 보존하며 이관 감사 레코드가
+없으면 predeploy를 실패시킨다. DB dump가 애플리케이션과 같은 filesystem에 있으면 사전
+검증은 경고하지만 실제 release는 차단한다.
+
+**라우팅과 복구**: Nginx는 활성 upstream 파일 하나만 바꿔 기존 backend 8080과 신규 frontend
+8088 사이를 전환한다. 첫 배포 실패 시 보존한 backend 이름을 원복하고 fake AI를 다시 시작한다.
+RAG listener가 실제로 준비되기 전에는 `RAG_PROVIDER=null`로 두어 존재하지 않는 8765를 운영
+의존성으로 가장하지 않는다.
+
+**검증**: 격리 PostgreSQL에서 v2 DB bootstrap 멱등성, 레거시 DB 불변, 레거시/v2 dump 복원,
+V1~V27 스키마 위 데이터 이관, 재실행 차단을 확인한다. 서버 사전 감사와 SHA predeploy,
+배포 후 postdeploy 감사를 서로 다른 게이트로 둔다.

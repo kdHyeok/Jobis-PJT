@@ -1,4 +1,4 @@
-"""판정 엔진 산출물 → v2 계약 변환. **이 파일은 판단하지 않는다** (webbridge/adapter.py 와 같은 지위).
+"""판정 엔진 산출물 → v2 계약 변환. **이 파일은 판단하지 않는다.**
 
 점수·충족 여부·목표 상태는 판정 그래프와 application_plan 이 이미 확정한 값이고, 여기서는
 그 값을 v2 백엔드가 아는 스키마(JobContext/Evaluation/ChangeProposal)로 옮기기만 한다.
@@ -908,7 +908,8 @@ def chat_actions(
 # 커리어 스냅샷 → 판정 근거 텍스트
 # ---------------------------------------------------------------------------
 def career_text(career: CareerSnapshot) -> str:
-    """확정된 조각·노드를 이력 원천 텍스트로. webbridge/runner._evidence_text 와 같은 원리 —
+    """확정된 조각·노드를 이력 원천 텍스트로 변환한다.
+
     엔진은 텍스트 원천을 받으므로, 백엔드가 보낸 정형 조각을 줄글로 잇는다. 없는 사실을 더하지
     않고 조각의 필드만 옮긴다."""
 
@@ -956,7 +957,8 @@ def _detail(**fields: Any) -> dict[str, Any]:
 
 
 def fragments_from_profile(profile: dict) -> list[CareerFragmentSuggestion]:
-    """NormalizedUserProfile → v2 조각 제안. webbridge/_profile_to_fragments 와 같은 옮기기 —
+    """NormalizedUserProfile → v2 조각 제안.
+
     v2 는 조각 종류가 더 풍부해(EXPERIENCE/EDUCATION/ACHIEVEMENT) 그대로 대응시킨다."""
 
     out: list[Optional[CareerFragmentSuggestion]] = []

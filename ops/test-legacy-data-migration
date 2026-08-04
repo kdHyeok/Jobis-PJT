@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Integration test for the transactionally isolated legacy-to-v2 data import.
+set -Eeuo pipefail
+
+readonly CONTAINER="jobis-legacy-migration-ci-$$"
+
+cleanup() {
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker run -d \
+  --name "$CONTAINER" \
+  -e POSTGRES_PASSWORD=ci-postgres-password \
+  postgres:17 >/dev/null
+
+ready=false
+for _ in {1..30}; do
+  if docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+[[ "$ready" == true ]] || { echo "Temporary PostgreSQL did not become ready." >&2; exit 1; }
+
+docker exec -i "$CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
+CREATE ROLE jobiss_migrator LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+CREATE ROLE jobiss_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+CREATE DATABASE jobiss OWNER postgres;
+CREATE DATABASE jobiss_v2 OWNER jobiss_migrator;
+SQL
+
+docker exec -i "$CONTAINER" psql -U postgres -d jobiss -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
+CREATE TABLE users (
+  id bigint PRIMARY KEY, created_at timestamp NOT NULL, email varchar NOT NULL,
+  name varchar NOT NULL, password_hash varchar NOT NULL, status varchar NOT NULL,
+  updated_at timestamp NOT NULL, withdrawn_at timestamp
+);
+CREATE TABLE job_postings (
+  id bigint PRIMARY KEY, career varchar, code varchar, company varchar,
+  created_at timestamp NOT NULL, due varchar, parsed json, raw_text text,
+  role varchar, source_type varchar NOT NULL, stack json, url varchar, user_id bigint
+);
+CREATE TABLE conversations (
+  id bigint PRIMARY KEY, conversation_id varchar NOT NULL, created_at timestamp NOT NULL,
+  title varchar NOT NULL, updated_at timestamp NOT NULL, user_id bigint NOT NULL
+);
+CREATE TABLE analysis_runs (
+  id bigint PRIMARY KEY, analysis_id varchar NOT NULL, created_at timestamp NOT NULL,
+  engine varchar NOT NULL, parent_analysis_id varchar, selected_route varchar,
+  status varchar NOT NULL, updated_at timestamp NOT NULL, conversation_id bigint,
+  job_posting_id bigint NOT NULL, user_id bigint NOT NULL
+);
+CREATE TABLE analysis_results (
+  id bigint PRIMARY KEY, created_at timestamp NOT NULL, result json NOT NULL, run_id bigint NOT NULL
+);
+CREATE TABLE conversation_messages (
+  id bigint PRIMARY KEY, analysis_id varchar, content text, created_at timestamp NOT NULL,
+  role varchar NOT NULL, seq integer NOT NULL, conversation_id bigint NOT NULL
+);
+CREATE TABLE resume_documents (
+  id bigint PRIMARY KEY, content text, created_at timestamp NOT NULL, file_key varchar,
+  source_type varchar NOT NULL, source_url varchar, title varchar NOT NULL,
+  updated_at timestamp NOT NULL, user_id bigint NOT NULL
+);
+CREATE TABLE evidences (
+  id bigint PRIMARY KEY, created_at timestamp NOT NULL, description text, kind varchar NOT NULL,
+  label varchar NOT NULL, payload json, resume_document_id bigint, user_id bigint NOT NULL
+);
+CREATE TABLE saved_roadmaps (
+  id bigint PRIMARY KEY, analysis_id varchar NOT NULL, created_at timestamp NOT NULL,
+  goal_label varchar, representative boolean NOT NULL, roadmap_json text NOT NULL,
+  route_id varchar NOT NULL, user_id bigint NOT NULL
+);
+
+INSERT INTO users VALUES
+  (1, '2026-01-01 10:00:00', 'legacy@example.test', '레거시 사용자', '$2a$10$placeholderhash', 'ACTIVE', '2026-01-02 10:00:00', NULL);
+INSERT INTO job_postings VALUES
+  (10, '신입', 'P-10', '회사', '2026-01-03 10:00:00', '상시', '{"title":"백엔드"}', 'Spring Boot PostgreSQL backend posting', '백엔드 개발자', 'RAW', '["Java"]', NULL, 1),
+  (11, NULL, 'SAMPLE', '샘플', '2026-01-03 10:00:00', NULL, NULL, NULL, '샘플', 'SAMPLE', NULL, NULL, NULL);
+INSERT INTO conversations VALUES
+  (20, 'legacy-conversation', '2026-01-04 10:00:00', '기존 대화', '2026-01-04 11:00:00', 1);
+INSERT INTO analysis_runs VALUES
+  (30, 'analysis-complete', '2026-01-04 10:10:00', 'legacy', NULL, 'route-a', 'COMPLETED', '2026-01-04 10:20:00', 20, 10, 1),
+  (31, 'analysis-running', '2026-01-04 10:30:00', 'legacy', NULL, NULL, 'ANALYZING', '2026-01-04 10:40:00', 20, 10, 1);
+INSERT INTO analysis_results VALUES
+  (40, '2026-01-04 10:20:00', '{"score":88}', 30);
+INSERT INTO conversation_messages VALUES
+  (50, NULL, '공고를 분석해줘', '2026-01-04 10:05:00', 'USER', 1, 20),
+  (51, 'analysis-complete', NULL, '2026-01-04 10:21:00', 'ANALYSIS', 2, 20);
+INSERT INTO resume_documents VALUES
+  (60, 'Java와 Spring Boot 프로젝트 경험이 있는 이력 자료입니다.', '2026-01-05 10:00:00', NULL, 'TEXT', NULL, '기존 이력', '2026-01-05 11:00:00', 1);
+INSERT INTO evidences VALUES
+  (70, '2026-01-05 10:30:00', '프로젝트 증거', 'PROJECT', '백엔드 프로젝트', '{"verified":false}', 60, 1);
+INSERT INTO saved_roadmaps VALUES
+  (80, 'analysis-complete', '2026-01-06 10:00:00', '백엔드 취업', true, '{"stages":[{"title":"기초"}]}', 'route-a', 1);
+SQL
+
+while IFS= read -r migration; do
+  docker exec -i "$CONTAINER" psql -U jobiss_migrator -d jobiss_v2 -v ON_ERROR_STOP=1 \
+    <"$migration" >/dev/null
+done < <(find backend/src/main/resources/db/migration -maxdepth 1 -type f -name 'V*.sql' | sort -V)
+
+docker exec -i "$CONTAINER" psql -U jobiss_migrator -d jobiss_v2 -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
+CREATE TABLE flyway_schema_history(version varchar(50), success boolean);
+INSERT INTO flyway_schema_history VALUES ('27', true);
+SQL
+
+docker exec -u 0 "$CONTAINER" mkdir -p /opt/jobis
+docker cp ops/migrate-jobis-legacy-to-v2 "$CONTAINER:/usr/local/sbin/migrate-jobis-legacy-to-v2" >/dev/null
+docker cp ops/migrate-jobis-legacy-to-v2.sql "$CONTAINER:/opt/jobis/migrate-jobis-legacy-to-v2.sql" >/dev/null
+docker exec -u 0 "$CONTAINER" bash -ec '
+  chmod 0755 /usr/local/sbin/migrate-jobis-legacy-to-v2
+  chmod 0644 /opt/jobis/migrate-jobis-legacy-to-v2.sql
+  mkdir -p /mnt/jobis-backups/legacy-db /mnt/jobis-backups/service-db
+  touch /mnt/jobis-backups/legacy-db/jobiss-test.dump
+  touch /mnt/jobis-backups/service-db/jobiss_v2-test.dump
+  /usr/local/sbin/migrate-jobis-legacy-to-v2
+' >/dev/null
+
+counts="$(docker exec "$CONTAINER" psql -U postgres -d jobiss_v2 -At -F ':' -v ON_ERROR_STOP=1 -c \
+  "select (select count(*) from users), (select count(*) from job_postings), (select count(*) from conversations), (select count(*) from conversation_messages), (select count(*) from analysis_jobs), (select count(*) from career_sources), (select count(*) from evidence), (select count(*) from roadmap_versions), (select count(*) from legacy_import_audit)")"
+legacy_counts="$(docker exec "$CONTAINER" psql -U postgres -d jobiss -At -F ':' -v ON_ERROR_STOP=1 -c \
+  "select (select count(*) from users), (select count(*) from job_postings), (select count(*) from analysis_runs)")"
+
+if [[ "$counts" != "1:1:1:2:2:1:1:1:1" || "$legacy_counts" != "1:2:2" ]]; then
+  echo "Legacy migration count validation failed: target=$counts legacy=$legacy_counts" >&2
+  exit 1
+fi
+if docker exec -u 0 "$CONTAINER" /usr/local/sbin/migrate-jobis-legacy-to-v2 >/dev/null 2>&1; then
+  echo "A repeated legacy import was not rejected." >&2
+  exit 1
+fi
+
+echo "legacy-data-migration-ci: ok"

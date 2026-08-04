@@ -12,7 +12,7 @@
   · 답변 5개를 채우면 종료 — 무한히 묻지 않는다
   · `requiredQuestionKind` 가 오면 그대로 따른다(백엔드가 재시험 종류를 지정하는 경로)
 
-`ai-server/app/assessment_flow.py` 를 참고해 옮겼다(D132 — 가져오되 빚은 지지 않는다).
+초기 계약 어댑터의 평가 흐름을 참고해 옮겼으며 현재 정본은 이 모듈이다(D132).
 """
 
 from __future__ import annotations

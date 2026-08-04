@@ -3,12 +3,9 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $backendRoot = Join-Path $projectRoot "backend"
 $frontendRoot = Join-Path $projectRoot "frontend"
-$aiRoot = Join-Path $projectRoot "ai-server"
-$aiPython = Join-Path $aiRoot ".venv\Scripts\python.exe"
-
-if (-not (Test-Path -LiteralPath $aiPython)) {
-    throw "AI server virtual environment is missing: $aiPython"
-}
+$aiRoot = Join-Path $projectRoot "AI"
+$aiPytestTemp = Join-Path $projectRoot ".local\pytest-ai-check"
+$uvCommand = Get-Command uv -ErrorAction Stop
 
 $javaCommand = Get-Command java -ErrorAction Stop
 $javaHomeForJobiss = Split-Path -Parent (Split-Path -Parent $javaCommand.Source)
@@ -31,14 +28,18 @@ finally {
 
 Push-Location $aiRoot
 try {
-    & $aiPython -m pytest
+    $env:PYTHONUTF8 = "1"
+    New-Item -ItemType Directory -Force -Path $aiPytestTemp | Out-Null
+    & $uvCommand.Source run --frozen --extra dev --extra prototype pytest -q `
+        --basetemp $aiPytestTemp
     if ($LASTEXITCODE -ne 0) {
-        throw "AI server tests failed."
+        throw "AI v2bridge tests failed."
     }
 
-    & $aiPython -m ruff check .
+    & $uvCommand.Source run --frozen --extra prototype python -m jobis_ai.explain `
+        | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "AI server lint failed."
+        throw "AI architecture explanation check failed."
     }
 }
 finally {
@@ -56,4 +57,4 @@ finally {
     Pop-Location
 }
 
-Write-Host "All available JOBISS checks passed."
+Write-Host "Backend, AI v2bridge, and frontend checks passed."

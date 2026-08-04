@@ -26,7 +26,7 @@ JOBISS는 AI와 자유롭게 대화하고 채용 공고를 분석해, 사용자�
 
 - `frontend`: Vue 3, TypeScript, Vite
 - `backend`: Java 17, Spring Boot, Spring Security, Flyway
-- `ai-server`: Python 3.12, FastAPI, Claude CLI 또는 Anthropic API
+- `AI`: Python 3.11, FastAPI v2bridge, 멀티에이전트, GMS/Anthropic/Claude Code/Codex
 - `PostgreSQL 17`: 사용자별 Row-Level Security(RLS)
 
 원본 `C:\jobiss-backend`와 UI 실험 폴더 `C:\ui_proto`는 수정하지 않습니다.
@@ -41,19 +41,20 @@ JOBISS는 AI와 자유롭게 대화하고 채용 공고를 분석해, 사용자�
 powershell -ExecutionPolicy Bypass -File C:\jobiss-service\scripts\start-local-postgres.ps1
 ```
 
-### 2. AI 서버
+### 2. AI/v2bridge
 
-Claude CLI 사용 시 먼저 `claude` 명령이 로그인된 상태여야 합니다.
+`AI\.env.example`을 복사하고 사용할 LLM provider만 설정합니다. Codex를 쓰면 최초 한 번
+`uv run jobis-codex-oauth --login`으로 인증합니다. 인증 파일 내용은 출력하거나 커밋하지 않습니다.
 
 ```powershell
-cd C:\jobiss-service\ai-server
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+cd C:\jobiss-service\AI
 Copy-Item .env.example .env
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
+uv run --frozen --extra prototype python -m uvicorn `
+  jobis_ai.v2bridge.app:app --host 127.0.0.1 --port 8000
 ```
 
-Anthropic API를 쓰려면 `ai-server\.env`에서 공급자를 `anthropic`으로 바꾸고 API 키를 설정합니다. 모델이 연결되지 않으면 가짜 분석을 생성하지 않고 명시적인 실패와 재시도 기능을 제공합니다.
+`http://127.0.0.1:8000/health`의 `service`가 `jobis-ai-v2bridge`인지 확인합니다.
+모델이 연결되지 않으면 가짜 분석을 생성하지 않고 명시적인 실패를 반환합니다.
 
 Windows에서 `--reload`는 별도 감시 프로세스를 만들기 때문에 Claude CLI 하위
 프로세스 실행과 충돌할 수 있습니다. AI 서버를 실제로 시험할 때는 위 명령처럼
@@ -90,28 +91,31 @@ npm run dev
 powershell -ExecutionPolicy Bypass -File C:\jobiss-service\scripts\check.ps1
 ```
 
-이 명령은 Java 버전을 확인한 뒤 백엔드 테스트, AI 계약 테스트와 린트, 프론트엔드 타입 검사와 프로덕션 번들을 실행합니다.
+이 명령은 Java 버전을 확인한 뒤 백엔드 테스트, AI v2bridge 회귀/구조 검사,
+프론트엔드 타입 검사와 프로덕션 번들을 실행합니다.
 
 ## 컨테이너 실행
 
-로컬 Docker 실행은 Anthropic API 키가 필요합니다.
+로컬 Docker 실행은 선택한 LLM provider의 인증이 필요합니다.
 
 ```powershell
 cd C:\jobiss-service
 Copy-Item .env.compose-local.example .env
-# .env의 비밀번호와 ANTHROPIC_API_KEY를 수정
+# .env의 비밀번호와 LLM provider 설정을 수정
 docker compose up --build -d
 ```
 
 접속 주소는 `http://localhost:8088`입니다. 데이터베이스·백엔드·AI 서버는 내부 네트워크에만 있고 프론트 프록시만 외부에 노출됩니다.
 
-실서비스는 `.env.production.example`을 기준으로 강한 비밀값과 실제 HTTPS 도메인을 설정합니다. 운영 스택은 TLS 종료 프록시 뒤에 배치해야 하며 `COOKIE_SECURE=true`, `SPRING_PROFILES_ACTIVE=prod`를 유지합니다. 운영 검증기는 개발 비밀값, 로컬 CORS 주소, 비보안 쿠키로는 기동을 거부합니다.
+실서비스는 `.env.production.example`을 기준으로 강한 비밀값과 실제 HTTPS 도메인을
+설정합니다. 운영 준비, DB 백업/복구, `develop → master`, CD, 롤백의 정본은
+[배포 런북](ops/DEPLOYMENT.md)입니다.
 
 ## 운영상 중요한 규칙
 
 - 브라우저의 사용자 ID는 신뢰하지 않고 인증 쿠키에서만 사용자 문맥을 결정합니다.
 - 모든 사용자 데이터 쿼리는 트랜잭션 범위의 PostgreSQL RLS를 거칩니다.
-- AI 서버에는 DB 자격 증명이 없습니다.
+- AI 서버에는 서비스 DB 자격 증명이 없습니다. AI 세션/OAuth/감사 로그는 별도 영속 경로를 씁니다.
 - AI 출력은 제안일 뿐이며 서버가 노드 정체성, 참조, 지원 판단, 역량 검증 점수, 허용 간선과 그래프 버전을 재검증합니다.
 - 분석과 증빙 작업은 재진입 가능한 DB 큐에서 처리됩니다.
 - 대화 답변과 커리어 자료 파편화도 같은 방식의 재진입 가능한 DB 큐에서 처리됩니다.

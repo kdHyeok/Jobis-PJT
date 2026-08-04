@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Initialize Flyway, import legacy data, prove restore, and arm DB timers without stopping legacy.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "prepare-jobis-v2-release must run as root." >&2
+  exit 1
+fi
+
+readonly RELEASE_SHA="${1:-}"
+readonly ENV_FILE="/etc/jobis/jobis-v2.env"
+readonly BACKUP_COMMAND="/usr/local/sbin/backup-jobis-db"
+readonly RESTORE_COMMAND="/usr/local/sbin/restore-latest-jobis-db-test"
+readonly MIGRATION_COMMAND="/usr/local/sbin/migrate-jobis-legacy-to-v2"
+readonly LEGACY_BACKUP_DIR="/mnt/jobis-backups/legacy-db"
+
+if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Release SHA must be a 40-character lowercase Git commit SHA." >&2
+  exit 2
+fi
+for command in docker sha256sum systemctl; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+for required in "$ENV_FILE" "$BACKUP_COMMAND" "$RESTORE_COMMAND" "$MIGRATION_COMMAND"; do
+  if [[ ! -f "$required" ]]; then
+    echo "Required release preparation asset is missing: $required" >&2
+    exit 1
+  fi
+done
+
+set -a
+source "$ENV_FILE"
+set +a
+if [[ "${JOBIS_REQUIRE_LEGACY_IMPORT:-}" != "true" ]]; then
+  echo "JOBIS_REQUIRE_LEGACY_IMPORT must be true for this cutover." >&2
+  exit 1
+fi
+if [[ "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" != "true" ]]; then
+  echo "A separate backup filesystem is required before data import." >&2
+  exit 1
+fi
+
+latest_legacy=""
+shopt -s nullglob
+for candidate in "$LEGACY_BACKUP_DIR"/jobiss-*.dump; do
+  if [[ -z "$latest_legacy" || "$candidate" -nt "$latest_legacy" ]]; then
+    latest_legacy="$candidate"
+  fi
+done
+shopt -u nullglob
+if [[ -z "$latest_legacy" || ! -f "${latest_legacy}.sha256" ]]; then
+  echo "A checksummed legacy DB backup is required." >&2
+  exit 1
+fi
+(cd -- "$LEGACY_BACKUP_DIR" && sha256sum --check "$(basename -- "${latest_legacy}.sha256")")
+
+readonly IMAGE="${JOBIS_IMAGE_PREFIX:-}jobis-backend:${RELEASE_SHA}"
+if [[ -n "${JOBIS_IMAGE_PREFIX:-}" ]]; then
+  docker pull --quiet "$IMAGE" >/dev/null
+fi
+docker image inspect "$IMAGE" >/dev/null
+
+readonly INIT_CONTAINER="jobis-v2-schema-init-${RELEASE_SHA:0:12}"
+if docker container inspect "$INIT_CONTAINER" >/dev/null 2>&1; then
+  echo "Schema initialization container already exists: $INIT_CONTAINER" >&2
+  exit 1
+fi
+
+schema_ready=false
+cleanup_schema_container() {
+  if [[ "$schema_ready" == true ]]; then
+    docker rm -f "$INIT_CONTAINER" >/dev/null 2>&1 || true
+  else
+    docker stop "$INIT_CONTAINER" >/dev/null 2>&1 || true
+    echo "Schema initializer is preserved for inspection: $INIT_CONTAINER" >&2
+  fi
+}
+trap cleanup_schema_container EXIT
+
+docker run -d \
+  --name "$INIT_CONTAINER" \
+  --network host \
+  --env-file "$ENV_FILE" \
+  -e SERVER_PORT=18080 \
+  -e AI_WORKER_ENABLED=false \
+  "$IMAGE" >/dev/null
+
+for _ in {1..90}; do
+  if curl -fsS http://127.0.0.1:18080/api/health >/dev/null 2>&1; then
+    schema_ready=true
+    break
+  fi
+  if [[ "$(docker inspect --format '{{.State.Running}}' "$INIT_CONTAINER" 2>/dev/null || true)" != "true" ]]; then
+    break
+  fi
+  sleep 2
+done
+if [[ "$schema_ready" != true ]]; then
+  echo "Flyway schema initialization did not become healthy." >&2
+  exit 1
+fi
+docker rm -f "$INIT_CONTAINER" >/dev/null
+trap - EXIT
+
+JOBIS_ENV_FILE="$ENV_FILE" "$BACKUP_COMMAND" manual
+"$MIGRATION_COMMAND"
+JOBIS_ENV_FILE="$ENV_FILE" "$BACKUP_COMMAND" manual
+JOBIS_ENV_FILE="$ENV_FILE" JOBIS_RESTORE_PROFILE=v2 "$RESTORE_COMMAND"
+
+systemctl enable --now jobis-db-backup.timer jobis-db-restore-drill.timer
+/usr/local/sbin/audit-jobis-server
+
+echo "V2 release data preparation completed without stopping legacy services."

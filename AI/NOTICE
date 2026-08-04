@@ -1,0 +1,11 @@
+The Codex OAuth adapter in this package contains a standalone, reduced
+implementation informed by Hermes Agent 0.18.2 provider code:
+
+  Copyright (c) Nous Research and Hermes Agent contributors
+  https://github.com/NousResearch/hermes-agent
+  License: MIT
+
+The adapted areas are limited to the OpenAI Codex device-code OAuth flow,
+token refresh, Codex backend request headers, Responses API request shape,
+and SSE response assembly. Hermes Agent is not a runtime dependency of this
+project. See the upstream LICENSE for the full MIT license text.

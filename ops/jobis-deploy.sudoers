@@ -1,0 +1,1 @@
+jobis-deploy ALL=(root) NOPASSWD: /usr/local/sbin/audit-jobis-server *, /usr/local/sbin/deploy-jobis *

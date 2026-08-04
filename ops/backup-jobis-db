@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# Create a verified logical backup of the service PostgreSQL database.
+set -Eeuo pipefail
+
+readonly ENV_FILE="${JOBIS_ENV_FILE:-/etc/jobis/jobis-v2.env}"
+readonly RELEASE_SHA="${1:-manual}"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Environment file is missing: $ENV_FILE" >&2
+  exit 1
+fi
+if [[ "$RELEASE_SHA" != "manual" && ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Release must be 'manual' or a 40-character lowercase Git SHA." >&2
+  exit 2
+fi
+
+set -a
+# The file is root-owned deployment configuration and must contain shell-safe
+# KEY=value entries, as documented in the production env example.
+source "$ENV_FILE"
+set +a
+
+# The full production env uses DB_* names. Local Compose examples only need
+# POSTGRES_* names, so the latter are accepted as a safe test/development fallback.
+DB_MIGRATOR_USER="${DB_MIGRATOR_USER:-${DB_USERNAME:-${POSTGRES_MIGRATOR_USER:-}}}"
+DB_MIGRATOR_PASSWORD="${DB_MIGRATOR_PASSWORD:-${DB_PASSWORD:-${POSTGRES_MIGRATOR_PASSWORD:-}}}"
+
+readonly BACKUP_DIR="${JOBIS_BACKUP_DIR:-/var/backups/jobis/service-db}"
+readonly RETENTION_DAYS="${JOBIS_BACKUP_RETENTION_DAYS:-14}"
+readonly DOCKER_NETWORK="${JOBIS_BACKUP_DOCKER_NETWORK:-host}"
+readonly REQUIRE_SEPARATE_FILESYSTEM="${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-false}"
+
+if [[ -z "${DB_URL:-}" || -z "${DB_MIGRATOR_USER:-}" || -z "${DB_MIGRATOR_PASSWORD:-}" ]]; then
+  echo "DB_URL, DB_MIGRATOR_USER, and DB_MIGRATOR_PASSWORD are required." >&2
+  exit 2
+fi
+if [[ ! "$RETENTION_DAYS" =~ ^[0-9]+$ ]]; then
+  echo "JOBIS_BACKUP_RETENTION_DAYS must be a non-negative integer." >&2
+  exit 2
+fi
+if [[ ! "$DOCKER_NETWORK" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
+  echo "JOBIS_BACKUP_DOCKER_NETWORK contains invalid characters." >&2
+  exit 2
+fi
+if [[ "$REQUIRE_SEPARATE_FILESYSTEM" != "true" &&
+      "$REQUIRE_SEPARATE_FILESYSTEM" != "false" ]]; then
+  echo "JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM must be true or false." >&2
+  exit 2
+fi
+
+readonly JDBC_PREFIX="jdbc:postgresql://"
+if [[ "$DB_URL" != "$JDBC_PREFIX"* ]]; then
+  echo "Only jdbc:postgresql:// DB_URL values are supported." >&2
+  exit 2
+fi
+
+connection="${DB_URL#${JDBC_PREFIX}}"
+authority="${connection%%/*}"
+database_with_query="${connection#*/}"
+database="${database_with_query%%\?*}"
+host="${authority%%:*}"
+if [[ "$authority" == *:* ]]; then
+  port="${authority##*:}"
+else
+  port=5432
+fi
+
+if [[ ! "$database" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]]; then
+  echo "Invalid PostgreSQL database name in DB_URL." >&2
+  exit 2
+fi
+if [[ ! "$port" =~ ^[0-9]{1,5}$ ]]; then
+  echo "Invalid PostgreSQL port in DB_URL." >&2
+  exit 2
+fi
+if [[ -z "$host" ]]; then
+  echo "PostgreSQL host is empty in DB_URL." >&2
+  exit 2
+fi
+
+mkdir -p -- "$BACKUP_DIR"
+resolved_backup_dir="$(cd -- "$BACKUP_DIR" && pwd -P)"
+case "$resolved_backup_dir" in
+  /|/etc|/home|/mnt|/opt|/root|/srv|/usr|/var)
+    echo "Refusing unsafe backup directory: $resolved_backup_dir" >&2
+    exit 2
+    ;;
+esac
+
+if [[ "$REQUIRE_SEPARATE_FILESYSTEM" == "true" ]]; then
+  readonly APP_STORAGE_REFERENCE="/opt/jobis"
+  if [[ ! -d "$APP_STORAGE_REFERENCE" ]]; then
+    echo "Application storage reference is missing: $APP_STORAGE_REFERENCE" >&2
+    exit 2
+  fi
+  app_device="$(df -P "$APP_STORAGE_REFERENCE" | awk 'NR == 2 {print $1}')"
+  backup_device="$(df -P "$resolved_backup_dir" | awk 'NR == 2 {print $1}')"
+  if [[ -z "$app_device" || -z "$backup_device" || "$app_device" == "$backup_device" ]]; then
+    echo "Backup storage must use a different filesystem from /opt/jobis." >&2
+    exit 1
+  fi
+fi
+
+exec 9>"${resolved_backup_dir}/.backup.lock"
+if ! flock -n 9; then
+  echo "Another service DB backup is already running." >&2
+  exit 1
+fi
+
+umask 077
+timestamp="$(date -u +%Y%m%dT%H%M%S%NZ)"
+base_name="${database}-${timestamp}-${RELEASE_SHA}"
+dump_file="${resolved_backup_dir}/${base_name}.dump"
+temporary_dump="${dump_file}.tmp"
+manifest="${resolved_backup_dir}/${base_name}.manifest"
+
+cleanup() {
+  rm -f -- "$temporary_dump"
+}
+trap cleanup EXIT
+
+docker run --rm --network "$DOCKER_NETWORK" \
+  -e "PGPASSWORD=${DB_MIGRATOR_PASSWORD}" \
+  postgres:17-alpine \
+  pg_dump \
+    --host "$host" \
+    --port "$port" \
+    --username "$DB_MIGRATOR_USER" \
+    --dbname "$database" \
+    --format custom \
+    --no-owner \
+    --no-privileges >"$temporary_dump"
+
+if [[ ! -s "$temporary_dump" ]]; then
+  echo "PostgreSQL dump is empty." >&2
+  exit 1
+fi
+
+docker run --rm --network none -i postgres:17-alpine \
+  pg_restore --list <"$temporary_dump" >/dev/null
+mv -- "$temporary_dump" "$dump_file"
+sha256sum "$dump_file" >"${dump_file}.sha256"
+
+cat >"$manifest" <<EOF
+created_at_utc=$timestamp
+release_sha=$RELEASE_SHA
+database=$database
+postgres_image=postgres:17-alpine
+docker_network=$DOCKER_NETWORK
+dump=$(basename -- "$dump_file")
+EOF
+sha256sum "$manifest" >"${manifest}.sha256"
+
+find "$resolved_backup_dir" -maxdepth 1 -type f -mtime "+$RETENTION_DAYS" \
+  \( -name '*.dump' -o -name '*.dump.sha256' -o -name '*.manifest' -o -name '*.manifest.sha256' \) \
+  -delete
+
+trap - EXIT
+echo "[service-db-backup] status=completed file=$dump_file"

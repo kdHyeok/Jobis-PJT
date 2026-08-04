@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the JOBISS isolated restore drill monthly
+
+[Timer]
+OnCalendar=*-*-01 04:15:00
+Persistent=true
+RandomizedDelaySec=20m
+Unit=jobis-db-restore-drill.service
+
+[Install]
+WantedBy=timers.target

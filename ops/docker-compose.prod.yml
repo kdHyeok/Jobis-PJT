@@ -1,43 +1,71 @@
-# JOBIS 운영 배포 — 컨테이너 전환 3단계
+# JOBISS production application stack.
 #
-# 로컬 개발용 루트 docker-compose.yml과 별개 파일이다.
-#   - 로컬: 브리지 네트워크 + 컨테이너 postgres + 서비스명 DNS
-#   - 운영: 호스트 네트워크 + 호스트 postgres (systemd 방식과 1:1 대응)
-#
-# 호스트 네트워크를 쓰는 이유: 운영 postgres가 127.0.0.1에만 바인딩돼 있고
-# pg_hba도 127.0.0.1/32만 허용한다. 호스트 네트워크면 postgres 설정을 바꾸지 않고
-# (재시작 없이) 지금과 동일하게 접속되며, nginx 프록시 대상(127.0.0.1:8080)도 그대로다.
-#
-# deploy-jobis가 JOBIS_SHA를 넣어 호출한다:
-#   JOBIS_SHA=<40자리 커밋 SHA> docker compose -f ops/docker-compose.prod.yml up -d
+# PostgreSQL, host Nginx/TLS, Jenkins, and the optional Airflow/RAG stack stay
+# on the host during this cutover. The three application processes are
+# immutable images tagged with the Git commit SHA. Host networking preserves
+# the existing loopback-only DB/RAG/Nginx contracts without widening pg_hba.
 
 services:
-  fake-ai:
-    image: jobis-fake-ai:${JOBIS_SHA:?JOBIS_SHA 환경변수가 필요합니다}
-    container_name: jobis-fake-ai
-    network_mode: host          # :8000 (분석 WS + /extract), :8001 (codex sidecar, 컨테이너 내부)
-    init: true                  # node가 PID 1일 때 SIGTERM이 무시되는 문제 방지
+  ai:
+    image: ${JOBIS_IMAGE_PREFIX:-}jobis-ai:${JOBIS_SHA:?JOBIS_SHA is required}
+    container_name: jobis-ai
+    network_mode: host
+    env_file:
+      - /etc/jobis/jobis-v2.env
     environment:
-      NODE_ENV: production
-      LLM_PROVIDER: codex
-      CODEX_BASE_URL: http://127.0.0.1:8001
-      CODEX_MODEL: gpt-5.4
-      CODEX_REASONING_EFFORT: medium
-      CODEX_TIMEOUT_MS: "200000"
-      LLM_MAX_CONCURRENT: "1"
-      # codex OAuth 자격증명 위치. 토큰 갱신 시 파일에 다시 쓰므로 읽기 전용 마운트 불가.
-      # 호스트 ubuntu(uid 1000)와 컨테이너 node(uid 1000)가 일치해 권한 조정이 필요 없다.
-      CODEX_OAUTH_STATE_DIR: /codex-state
+      SESSION_STORE: sqlite
+      SESSION_DB_PATH: /var/lib/jobis-ai/sessions.sqlite3
+      JOBIS_AUDIT_LOG: /var/lib/jobis-ai/logs/audit.jsonl
+      CODEX_OAUTH_STATE_DIR: /var/lib/jobis-ai/codex
     volumes:
-      - /home/ubuntu/.local/state/codex-oauth-test:/codex-state
+      - /var/lib/jobis-ai:/var/lib/jobis-ai
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d['status']=='ok' and d['service']=='jobis-ai-v2bridge'"
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
     restart: unless-stopped
 
   backend:
-    image: jobis-backend:${JOBIS_SHA:?JOBIS_SHA 환경변수가 필요합니다}
+    image: ${JOBIS_IMAGE_PREFIX:-}jobis-backend:${JOBIS_SHA:?JOBIS_SHA is required}
     container_name: jobis-backend
-    network_mode: host          # :8080 — nginx가 127.0.0.1:8080으로 프록시
+    network_mode: host
     env_file:
-      - /etc/jobis/jobis.env    # DB_URL·JWT_SECRET·AGENT_*_URL (호스트 네트워크라 127.0.0.1 값 그대로 유효)
+      - /etc/jobis/jobis-v2.env
     depends_on:
-      - fake-ai
+      ai:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -q --spider http://127.0.0.1:8080/api/health"
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 20
+    restart: unless-stopped
+
+  frontend:
+    image: ${JOBIS_IMAGE_PREFIX:-}jobis-frontend:${JOBIS_SHA:?JOBIS_SHA is required}
+    container_name: jobis-frontend
+    network_mode: host
+    environment:
+      NGINX_PORT: "8088"
+      BACKEND_UPSTREAM: http://127.0.0.1:8080
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -q --spider http://127.0.0.1:8088/"
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
     restart: unless-stopped

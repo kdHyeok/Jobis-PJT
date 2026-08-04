@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# Install JOBISS deployment assets without overwriting secrets or live Nginx.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "prepare-jobis-server must run as root." >&2
+  exit 1
+fi
+
+SOURCE_ROOT="${1:-}"
+if [[ -z "$SOURCE_ROOT" || ! -d "$SOURCE_ROOT" ]]; then
+  echo "usage: sudo $0 /absolute/path/to/repository" >&2
+  exit 2
+fi
+readonly SOURCE_ROOT="$(cd -- "$SOURCE_ROOT" && pwd -P)"
+readonly DEPLOY_USER="jobis-deploy"
+readonly ENV_FILE="/etc/jobis/jobis-v2.env"
+readonly DEFAULT_BACKUP_DIR="/mnt/jobis-backups/service-db"
+
+required_sources=(
+  ops/docker-compose.prod.yml
+  ops/deploy-jobis-container
+  ops/backup-jobis-db
+  ops/restore-jobis-db-test
+  ops/restore-latest-jobis-db-test
+  ops/audit-jobis-server
+  ops/switch-jobis-nginx
+  ops/install-jobis-nginx-control
+  ops/bootstrap-jobis-v2-database
+  ops/configure-jobis-v2-environment
+  ops/migrate-jobis-legacy-to-v2
+  ops/migrate-jobis-legacy-to-v2.sql
+  ops/prepare-jobis-v2-release
+  ops/jobis-deploy.sudoers
+  ops/nginx-jobis-app.location.conf
+  ops/nginx-jobis-upstream-legacy.conf
+  ops/nginx-jobis-upstream-container.conf
+  ops/jobis-db-backup.service
+  ops/jobis-db-backup.timer
+  ops/jobis-db-restore-drill.service
+  ops/jobis-db-restore-drill.timer
+  .env.production.example
+)
+for relative in "${required_sources[@]}"; do
+  candidate="${SOURCE_ROOT}/${relative}"
+  if [[ ! -f "$candidate" || -L "$candidate" ]]; then
+    echo "Required regular source file is missing: $candidate" >&2
+    exit 1
+  fi
+done
+for command in getent install stat useradd visudo; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Required server command is missing: $command" >&2
+    exit 1
+  fi
+done
+
+if ! getent passwd "$DEPLOY_USER" >/dev/null; then
+  useradd --create-home --shell /bin/bash "$DEPLOY_USER"
+fi
+if [[ "$(id -u "$DEPLOY_USER")" == "0" ]]; then
+  echo "Deployment user must not be root: $DEPLOY_USER" >&2
+  exit 1
+fi
+
+deploy_home="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
+install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 0700 "${deploy_home}/.ssh"
+install -d -o root -g root -m 0755 /opt/jobis /etc/jobis
+install -d -o 1000 -g 1000 -m 0750 /var/lib/jobis-ai
+
+backup_dir="$DEFAULT_BACKUP_DIR"
+if [[ -f "$ENV_FILE" ]]; then
+  chown root:root "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+  set -a
+  source "$ENV_FILE"
+  set +a
+  backup_dir="${JOBIS_BACKUP_DIR:-$DEFAULT_BACKUP_DIR}"
+fi
+if [[ "$backup_dir" != /* ]]; then
+  echo "JOBIS_BACKUP_DIR must be absolute." >&2
+  exit 2
+fi
+case "$backup_dir" in
+  /|/etc|/home|/mnt|/opt|/root|/srv|/usr|/var)
+    echo "Refusing unsafe backup directory: $backup_dir" >&2
+    exit 2
+    ;;
+esac
+install -d -o root -g root -m 0700 "$backup_dir"
+
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/docker-compose.prod.yml" /opt/jobis/docker-compose.prod.yml
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/nginx-jobis-app.location.conf" /opt/jobis/nginx-jobis-app.location.conf
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/nginx-jobis-upstream-legacy.conf" /opt/jobis/nginx-jobis-upstream-legacy.conf
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/nginx-jobis-upstream-container.conf" /opt/jobis/nginx-jobis-upstream-container.conf
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/migrate-jobis-legacy-to-v2.sql" /opt/jobis/migrate-jobis-legacy-to-v2.sql
+if [[ ! -e /etc/jobis/nginx-active-upstream.conf ]]; then
+  install -o root -g root -m 0644 \
+    "${SOURCE_ROOT}/ops/nginx-jobis-upstream-legacy.conf" /etc/jobis/nginx-active-upstream.conf
+fi
+install -o root -g root -m 0600 \
+  "${SOURCE_ROOT}/.env.production.example" /etc/jobis/jobis-v2.env.example
+
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/deploy-jobis-container" /usr/local/sbin/deploy-jobis
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/backup-jobis-db" /usr/local/sbin/backup-jobis-db
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/restore-jobis-db-test" /usr/local/sbin/restore-jobis-db-test
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/restore-latest-jobis-db-test" /usr/local/sbin/restore-latest-jobis-db-test
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/audit-jobis-server" /usr/local/sbin/audit-jobis-server
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/switch-jobis-nginx" /usr/local/sbin/switch-jobis-nginx
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/install-jobis-nginx-control" /usr/local/sbin/install-jobis-nginx-control
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/bootstrap-jobis-v2-database" /usr/local/sbin/bootstrap-jobis-v2-database
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/configure-jobis-v2-environment" /usr/local/sbin/configure-jobis-v2-environment
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/migrate-jobis-legacy-to-v2" /usr/local/sbin/migrate-jobis-legacy-to-v2
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/prepare-jobis-v2-release" /usr/local/sbin/prepare-jobis-v2-release
+
+visudo -cf "${SOURCE_ROOT}/ops/jobis-deploy.sudoers" >/dev/null
+install -o root -g root -m 0440 \
+  "${SOURCE_ROOT}/ops/jobis-deploy.sudoers" /etc/sudoers.d/jobis-deploy
+visudo -cf /etc/sudoers.d/jobis-deploy >/dev/null
+
+for unit in \
+  jobis-db-backup.service \
+  jobis-db-backup.timer \
+  jobis-db-restore-drill.service \
+  jobis-db-restore-drill.timer; do
+  install -o root -g root -m 0644 \
+    "${SOURCE_ROOT}/ops/${unit}" "/etc/systemd/system/${unit}"
+done
+if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+  systemctl daemon-reload
+else
+  echo "warning: systemd is not active; run 'systemctl daemon-reload' on the host." >&2
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Environment is not activated. Create $ENV_FILE from /etc/jobis/jobis-v2.env.example (mode 0600)."
+fi
+if [[ ! -s "${deploy_home}/.ssh/authorized_keys" ]]; then
+  echo "SSH key is not installed for $DEPLOY_USER. Add the Jenkins public key before CD."
+fi
+
+echo "Server assets installed. Live Nginx and timers were not enabled automatically."
+echo "Next: configure secrets, registry login, Nginx include, timers, then run audit-jobis-server."

@@ -32,7 +32,6 @@ prototype = [
     "fastapi>=0.110",          # 프로토타입 관찰 UI (개발 전용, prototype/)
     "uvicorn>=0.29",
     "python-multipart>=0.0.9", # 파일 업로드(multipart form) 파싱 (/api/upload)
-    "websockets>=12",          # 웹 브릿지의 WebSocket 서버 (webbridge/, 웹백엔드가 접속)
 ]
 
 [project.scripts]
