@@ -1,0 +1,56 @@
+{
+ "n_scored": 14,
+ "n_agree": 6,
+ "gate_min": 12,
+ "passed": false,
+ "disagreements": [
+  {
+   "qid": "q44",
+   "uid": "사람인:54047377",
+   "human": "Ambiguous",
+   "judge": "Correct"
+  },
+  {
+   "qid": "q49",
+   "uid": "고용24:54326213",
+   "human": "Incorrect",
+   "judge": "Correct"
+  },
+  {
+   "qid": "q50",
+   "uid": "잡코리아:49629392",
+   "human": "Incorrect",
+   "judge": "Correct"
+  },
+  {
+   "qid": "q50",
+   "uid": "잡코리아:49412683",
+   "human": "Ambiguous",
+   "judge": "Correct"
+  },
+  {
+   "qid": "q48",
+   "uid": "잡코리아:49482198",
+   "human": "Incorrect",
+   "judge": "Ambiguous"
+  },
+  {
+   "qid": "q48",
+   "uid": "원티드:246176",
+   "human": "Incorrect",
+   "judge": "Ambiguous"
+  },
+  {
+   "qid": "q50",
+   "uid": "잡코리아:49480458",
+   "human": "Ambiguous",
+   "judge": "Incorrect"
+  },
+  {
+   "qid": "q44",
+   "uid": "인크루트:2606300000046",
+   "human": "Ambiguous",
+   "judge": "Incorrect"
+  }
+ ]
+}

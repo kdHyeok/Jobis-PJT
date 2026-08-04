@@ -13,6 +13,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
+import CareerFragmentBody from "@/components/CareerFragmentBody.vue";
 import type { CareerFragment, CareerSourceDetail } from "@/types";
 
 const route = useRoute();
@@ -216,7 +217,10 @@ onBeforeUnmount(() => {
               <div>
                 <small>{{ fragment.kind }}</small>
                 <strong>{{ fragment.title }}</strong>
-                <p>{{ fragment.description }}</p>
+                <CareerFragmentBody
+                  :description="fragment.description"
+                  :detail="fragment.detail"
+                />
               </div>
               <div v-if="detail.source.status !== 'CONFIRMED'" class="review-fragment-actions">
                 <button type="button" aria-label="수정" @click="beginEdit(fragment)">

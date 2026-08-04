@@ -25,7 +25,8 @@ from jobis_ai.career_graph import get_career_graph
 from jobis_ai.cert_db import Certification, get_cert_db
 from jobis_ai.config import get_settings
 from jobis_ai.experience_estimator import estimate_experience_months
-from jobis_ai.gap_matcher import get_gap_matcher, overall_fit, to_gap_payload
+from jobis_ai.gap_matcher import get_gap_matcher
+from jobis_ai.grade_decision import decide_grade
 from jobis_ai.graph.node_common import (
     MAX_VERIFY_RETRY,
     _gen_retry_updates,
@@ -329,9 +330,14 @@ def ask_user(state: GraphState) -> dict[str, Any]:
 def analyze_gap(state: GraphState) -> dict[str, Any]:
     """공고 요구사항 vs 사용자 프로필 → GapAnalysisResult (설계 10장 + §3.5).
 
-    **판정은 `gap_matcher` 가 결정론으로 한다. 이 노드는 LLM 을 호출하지 않는다.**
-    충족/미충족·심각도·점수는 전부 계산 결과다. reason 문장을 사람 말투로 다듬는 일은
-    `nl_render`(말하기 계층)가 맡는다 — 그때도 판정 자체는 바뀌지 않는다.
+    **요구사항별 판정은 `gap_matcher` 가 결정론으로 한다.** 충족/미충족·심각도·점수는
+    전부 계산 결과다. reason 문장을 사람 말투로 다듬는 일은 `nl_render`(말하기 계층)가
+    맡는다 — 그때도 판정 자체는 바뀌지 않는다.
+
+    **종합 등급(fitGrade)은 하이브리드다** (2026-08-04, §1 원칙의 의도적 예외 —
+    설계·측정 근거는 개발 사본의 `_fitgrade/` 폴더): 재검증(미충족·판정불가 건만 원본
+    근거로 상향 재판정) → LLM 루브릭 등급 제안 → 하드 룰 G1~G6 클램프(`grade_decision`).
+    LLM 실패 시 기존 가중평균(`overall_fit`)으로 폴백하며 warning 을 남긴다.
 
     기업 맥락은 RAG 어댑터로 조회해 **근거로 첨부**한다. RAG 미연결이면 빈 결과 + warning 이며,
     프로필 근거만으로 판정한다(RAG 실패를 전체 실패로 만들지 않는다).
@@ -358,15 +364,21 @@ def analyze_gap(state: GraphState) -> dict[str, Any]:
     warnings.extend(rag.warnings)
     sources.extend(rag.sources)
 
-    # 판정 — gap_matcher 결정론 엔진 (§3.5). LLM 호출 없음.
+    # 요구사항별 판정 — gap_matcher 결정론 엔진 (§3.5). LLM 호출 없음.
     report = get_gap_matcher().match(requirements, profile)
     warnings.extend(report.warnings)
 
-    result = GapAnalysisResult(**to_gap_payload(report))
-
-    # 종합 적합도 등급 (2026-07-21). 상이면 로드맵/대안 없이 진단만, 중·하면 로드맵·대안까지
-    # 이어 붙인다(라우팅은 route_after_gap / route_after_roadmap 이 이 값을 읽어 분기한다).
-    result.overallScore, result.fitGrade = overall_fit(result.scoreBasis.model_dump())
+    # 종합 적합도 등급 — 하이브리드 (재검증 → LLM 루브릭 → 하드 룰 클램프).
+    # decision.payload 는 재검증으로 **갱신된** 판정 기록이다 — to_gap_payload(report) 를
+    # 따로 부르면 진단과 등급이 어긋난다. 상이면 로드맵/대안 없이 진단만, 중·하면
+    # 로드맵·대안까지(라우팅은 route_after_gap / route_after_roadmap 이 이 값을 읽는다).
+    decision = decide_grade(report, profile, posting={
+        "title": posting.get("jobTitle", ""),
+        "roleCategory": posting.get("roleCategory", ""),
+    })
+    warnings.extend(decision.warnings)
+    result = GapAnalysisResult(**decision.payload)
+    result.overallScore, result.fitGrade = decision.score, decision.grade
 
     if not requirements:
         warnings.append({
@@ -895,7 +907,7 @@ def assemble_output(state: GraphState) -> dict[str, Any]:
     summary = ""
     render_warnings: list[dict] = []
     if status == "completed":
-        summary, render_warnings = render_summary(gap, roadmap, posting)
+        summary, render_warnings = render_summary(gap, posting)
 
     analysis_result = {
         "analysisId": state.get("analysisId", ""),

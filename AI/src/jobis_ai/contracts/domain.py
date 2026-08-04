@@ -38,6 +38,16 @@ class NormalizedJobPosting(BaseModel):
     yearsEvidence: str = ""
     requiredRequirements: list[Requirement] = Field(default_factory=list)
     preferredRequirements: list[Requirement] = Field(default_factory=list)
+    # **담당업무·조직·전형·기타 조건은 요건과 함께 읽는다(D157).** 전에는 칸이 없어서 공고
+    # 담당이 `read_posting`(원문 grep)으로 긁게 했는데, grep 은 줄 단위라 여러 줄로 적힌
+    # 담당업무·전형 절차 블록을 못 잡았다 — 실측(2026-08-02) 근무시간·복리후생이 원문에
+    # 있는데 "기재 없음"으로 나갔고, 외부 LLM 과 비교(2026-08-04)에서 담당업무·조직이
+    # 통째로 빠진 것이 가장 큰 격차였다. 읽기는 읽기 계층에서 한 번에 한다(§1).
+    responsibilities: list[str] = Field(default_factory=list)
+    # "라벨: 값" 한 줄씩 — 공고마다 항목이 다르므로 스키마를 늘리지 않고 자유 목록으로 받는다.
+    conditions: list[str] = Field(default_factory=list)
+    hiringProcess: list[str] = Field(default_factory=list)
+    teamContext: str = ""
     techStack: list[str] = Field(default_factory=list)
     domainKeywords: list[str] = Field(default_factory=list)
     rawChunks: list[str] = Field(default_factory=list)

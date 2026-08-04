@@ -225,7 +225,14 @@ def test_roadmap_manager_reads_session_roadmap():
 
     rendered, _ = render_roadmap_manager(result.data, session)
     assert "2개 항목" in rendered
-    assert "Kafka 기초 강의" in rendered
+    # **반전(D142, 2026-08-03)**: 전에는 항목 제목("Kafka 기초 강의")이 답변에 나오는 것을
+    # 박아 뒀다. 로드맵은 커리어지도에서 그리기로 정해졌고, 지도에 생긴 것을 채팅이 다시
+    # 읊으면 사용자는 같은 내용을 두 번 보고 지도를 열 이유가 없어진다. 채팅은 개수와 어디서
+    # 보는지까지만 말한다 — 그래서 이제 제목이 **없어야** 한다.
+    assert "Kafka 기초 강의" not in rendered
+    assert "커리어지도" in rendered
+    # 지도의 상태를 모르므로 "이미 그려져 있다"고 단정하지 않는다(채우는 것은 분석 작업이다).
+    assert "준비 중" not in rendered
 
     empty = run_roadmap({})
     assert any(w["code"] == "no_roadmap" for w in empty.warnings)
@@ -315,3 +322,42 @@ def test_declared_tools_return_no_reply():
         assert rendered.strip(), f"{name}: render 가 빈 문장을 냈다"
 
 
+
+
+def test_fit_analysis_reuses_the_judgment_when_nothing_changed(monkeypatch):
+    """같은 공고·같은 이력서면 다시 판정하지 않는다.
+
+    판정은 (공고 × 이력서)의 함수이고 결정론 계층은 같은 입력에 같은 값을 낸다 — 다시 도는
+    것은 수십 초와 LLM 콜 여러 건을 태워 같은 결론을 얻는 일이다. 실측(2026-08-03): 한 대화에서
+    적합도 판정이 두 번 돌았다(채팅 턴 + 분석 작업). 재사용 사실은 경고로 남는다(§2-6).
+    """
+
+    from jobis_ai.agents import fit_analysis as fit_mod
+
+    session = {
+        "resume": {"sourceType": "text", "value": "Python Django 백엔드 3년"},
+        "job_posting": {"sourceType": "text",
+                        "value": "백엔드 개발자 채용. 자격요건: Python, Django 3년 이상"},
+    }
+    first = fit_mod.run(session)
+    session = {**session, **first.sessionUpdates}
+    assert "analysis_key" in first.sessionUpdates, "무엇으로부터 판정했는지 남겨야 재사용할 수 있다"
+
+    def _must_not_run(*_a, **_k):
+        raise AssertionError("같은 입력인데 판정 파이프라인이 다시 돌았다")
+
+    monkeypatch.setattr(fit_mod, "run_pipeline_with_state", _must_not_run)
+    again = fit_mod.run(session)
+    assert any(w["code"] == "analysis_reused" for w in again.warnings)
+    assert again.data.get("analysisId") == first.data.get("analysisId")
+    # 재사용 턴은 판정 자산을 다시 쓰지 않는다(이미 그 값이다)
+    assert "analysis" not in again.sessionUpdates
+
+    # 이력서가 바뀌면 다시 판정한다 — 판정은 이력서의 함수다
+    changed = {**session, "resume": {"sourceType": "text", "value": "Java Spring 백엔드 5년"}}
+    try:
+        fit_mod.run(changed)
+    except AssertionError as exc:
+        assert "다시 돌았다" in str(exc), exc
+    else:
+        raise AssertionError("이력서가 바뀌었는데 옛 판정을 재사용했다")

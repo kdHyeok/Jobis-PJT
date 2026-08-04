@@ -1,0 +1,141 @@
+﻿session,seq,qid,query,uid,label
+easy,1,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49563520,Incorrect
+easy,2,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49532154,Correct
+easy,3,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49437844,Incorrect
+easy,4,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),사람인:54507867,Incorrect
+easy,5,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49622169,Incorrect
+easy,6,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49627795,Ambiguous
+easy,7,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49465898,Correct
+easy,8,SA13,데이터 분석가 SQL Python (신입),잡코리아:49622292,Correct
+easy,9,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49552463,Incorrect
+easy,10,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49506570,Ambiguous
+easy,11,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),고용24:54373853,Correct
+easy,12,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49435378,Incorrect
+easy,13,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49590716,Correct
+easy,14,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49592973,Correct
+easy,15,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49608369,Ambiguous
+easy,16,SA13,데이터 분석가 SQL Python (신입),잡코리아:49496601,Correct
+easy,17,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49431707,Correct
+easy,18,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49565620,Correct
+easy,19,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49608128,Ambiguous
+easy,20,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49622226,Correct
+easy,21,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49608767,Incorrect
+easy,22,SA14,QA 엔지니어 Python Git (경력 2년),잡코리아:49621791,Incorrect
+easy,23,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49482414,Ambiguous
+easy,24,SA02,백엔드 개발자 Python Django PostgreSQL (신입),잡코리아:49525711,Correct
+easy,25,SA09,SRE 엔지니어 Kubernetes Linux Terraform (경력 4년),사람인:54517463,Correct
+easy,26,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49460463,Incorrect
+easy,27,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49532810,Incorrect
+easy,28,SA09,SRE 엔지니어 Kubernetes Linux Terraform (경력 4년),잡코리아:49636999,Incorrect
+easy,29,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49636851,Correct
+easy,30,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49627451,Incorrect
+easy,31,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49365716,Correct
+easy,32,SA14,QA 엔지니어 Python Git (경력 2년),잡코리아:49537118,Incorrect
+easy,33,SA14,QA 엔지니어 Python Git (경력 2년),잡코리아:49564982,Incorrect
+easy,34,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49431213,Incorrect
+easy,35,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49437711,Correct
+easy,36,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49494356,Incorrect
+easy,37,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49536203,Incorrect
+easy,38,SA13,데이터 분석가 SQL Python (신입),잡코리아:49573876,Incorrect
+easy,39,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49313375,Incorrect
+easy,40,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49496346,Incorrect
+easy,41,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),원티드:374086,Correct
+easy,42,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49543186,Correct
+easy,43,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),사람인:54508442,Correct
+easy,44,SA02,백엔드 개발자 Python Django PostgreSQL (신입),고용24:54499849,Correct
+easy,45,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49581585,Incorrect
+easy,46,SA14,QA 엔지니어 Python Git (경력 2년),사람인:54517432,Ambiguous
+easy,47,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),사람인:54517432,Ambiguous
+easy,48,SA02,백엔드 개발자 Python Django PostgreSQL (신입),잡코리아:49458500,Incorrect
+easy,49,SA13,데이터 분석가 SQL Python (신입),잡코리아:49568306,Incorrect
+easy,50,SA02,백엔드 개발자 Python Django PostgreSQL (신입),잡코리아:49604252,Incorrect
+easy,51,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49575576,Incorrect
+easy,52,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),고용24:54500505,Incorrect
+easy,53,SA02,백엔드 개발자 Python Django PostgreSQL (신입),사람인:54506153,Incorrect
+easy,54,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49552463,Correct
+easy,55,SA07,안드로이드 개발자 Kotlin Android (경력 3년),사람인:54516415,Correct
+easy,56,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),인크루트:2607020004993,Correct
+easy,57,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),인크루트:2607010005107,Incorrect
+easy,58,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49502796,Incorrect
+easy,59,SA13,데이터 분석가 SQL Python (신입),잡코리아:49326244,Ambiguous
+easy,60,SA13,데이터 분석가 SQL Python (신입),잡코리아:49468522,Incorrect
+easy,61,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),사람인:54515771,Correct
+easy,62,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49571707,Ambiguous
+easy,63,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49538549,Correct
+easy,64,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49476057,Incorrect
+easy,65,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49550723,Correct
+easy,66,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49593707,Correct
+easy,67,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49529159,Correct
+easy,68,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49432381,Correct
+easy,69,SA15,보안 엔지니어 Linux (경력 3년),인크루트:2607210000306,Correct
+easy,70,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),원티드:371907,Correct
+easy,71,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49389603,Incorrect
+easy,72,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49559776,Incorrect
+easy,73,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),인크루트:2607210000364,Ambiguous
+easy,74,SA09,SRE 엔지니어 Kubernetes Linux Terraform (경력 4년),잡코리아:49589105,Incorrect
+easy,75,SA02,백엔드 개발자 Python Django PostgreSQL (신입),잡코리아:49423388,Correct
+easy,76,SA14,QA 엔지니어 Python Git (경력 2년),잡코리아:49474526,Incorrect
+easy,77,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49420583,Incorrect
+easy,78,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49489804,Incorrect
+easy,79,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49601725,Ambiguous
+easy,80,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49560553,Correct
+easy,81,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49575211,Incorrect
+easy,82,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49523604,Correct
+easy,83,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),사람인:54517432,Correct
+easy,84,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49489581,Ambiguous
+easy,85,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49522396,Incorrect
+easy,86,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49608767,Correct
+easy,87,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49622243,Correct
+easy,88,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49482198,Incorrect
+easy,89,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49500715,Correct
+easy,90,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49267491,Correct
+easy,91,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49606573,Incorrect
+easy,92,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49343218,Correct
+easy,93,SA14,QA 엔지니어 Python Git (경력 2년),잡코리아:49496601,Incorrect
+easy,94,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49446632,Incorrect
+easy,95,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49622216,Correct
+easy,96,SA07,안드로이드 개발자 Kotlin Android (경력 3년),잡코리아:49524932,Correct
+easy,97,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49362663,Ambiguous
+easy,98,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49572536,Incorrect
+easy,99,SA02,백엔드 개발자 Python Django PostgreSQL (신입),잡코리아:49627370,Correct
+easy,100,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49613905,Correct
+ambiguous,1,SA15,보안 엔지니어 Linux (경력 3년),사람인:54517463,Correct
+ambiguous,2,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),고용24:54514809,Incorrect
+ambiguous,3,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49614412,Incorrect
+ambiguous,4,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49542627,Incorrect
+ambiguous,5,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49577794,Incorrect
+ambiguous,6,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49469120,Ambiguous
+ambiguous,7,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49597520,Ambiguous
+ambiguous,8,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49502951,Ambiguous
+ambiguous,9,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49613256,Incorrect
+ambiguous,10,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49508463,Incorrect
+ambiguous,11,SA10,데이터 엔지니어 Python Kafka SQL (경력 3년),잡코리아:49606573,Ambiguous
+ambiguous,12,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49585247,Ambiguous
+ambiguous,13,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49482418,Incorrect
+ambiguous,14,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49483067,Incorrect
+ambiguous,15,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),원티드:373738,Incorrect
+ambiguous,16,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49615765,Correct
+ambiguous,17,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),사람인:54508743,Correct
+ambiguous,18,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49367911,Correct
+ambiguous,19,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49610868,Incorrect
+ambiguous,20,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),잡코리아:49583770,Ambiguous
+recheck,1,SA09,SRE 엔지니어 Kubernetes Linux Terraform (경력 4년),잡코리아:49589105,Incorrect
+recheck,2,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49476057,Incorrect
+recheck,3,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49362663,Incorrect
+recheck,4,SA02,백엔드 개발자 Python Django PostgreSQL (신입),잡코리아:49627370,Correct
+recheck,5,SA09,SRE 엔지니어 Kubernetes Linux Terraform (경력 4년),사람인:54517463,Correct
+recheck,6,SA05,프론트엔드 개발자 Vue JavaScript (신입),잡코리아:49482418,Incorrect
+recheck,7,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49536203,Incorrect
+recheck,8,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49460463,Incorrect
+recheck,9,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49508463,Incorrect
+recheck,10,SA11,데이터 사이언티스트 Python TensorFlow (경력 2년),잡코리아:49627795,Ambiguous
+recheck,11,SA12,머신러닝 엔지니어 Python PyTorch LLM (경력 3년),잡코리아:49615765,Correct
+recheck,12,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49502951,Ambiguous
+recheck,13,SA03,백엔드 개발자 Go Redis Kafka (경력 7년),잡코리아:49571707,Incorrect
+recheck,14,SA08,DevOps 엔지니어 Docker Kubernetes AWS Jenkins (경력 5년),잡코리아:49614412,Ambiguous
+recheck,15,SA04,프론트엔드 개발자 React TypeScript Next.js (경력 2년),잡코리아:49446632,Correct
+recheck,16,SA15,보안 엔지니어 Linux (경력 3년),잡코리아:49565620,Incorrect
+recheck,17,SA01,백엔드 개발자 Java Spring Boot JPA MySQL (경력 3년),사람인:54508743,Correct
+recheck,18,SA02,백엔드 개발자 Python Django PostgreSQL (신입),사람인:54506153,Incorrect
+recheck,19,SA14,QA 엔지니어 Python Git (경력 2년),잡코리아:49537118,Incorrect
+recheck,20,SA06,풀스택 개발자 React Node.js MySQL (경력 4년),잡코리아:49532810,Incorrect

@@ -1,0 +1,2905 @@
+{
+ "generated_at": "2026-08-04T01:08:18.518947+00:00",
+ "pool_meta": {
+  "version": "pool_v2",
+  "generated_at": "2026-08-03T06:46:29.568740+00:00",
+  "snapshot_hash": "edf0e54ba81c9313",
+  "n_postings": 6116,
+  "embed_model": "BAAI/bge-m3",
+  "reranker_backend": "bge-reranker-v2-m3(cuda)",
+  "depth": 50,
+  "n_random": 30,
+  "configs": {
+   "full": [],
+   "noregion": [
+    "region"
+   ],
+   "nofilter": [
+    "region",
+    "exp"
+   ]
+  },
+  "split": {
+   "rule": "축 층화(기술8/지역7/제약8/난이도7) + sha256(id:text) 정렬 상위",
+   "dev": [
+    "q03",
+    "q04",
+    "q08",
+    "q09",
+    "q17",
+    "q19",
+    "q20",
+    "q21",
+    "q22",
+    "q23",
+    "q25",
+    "q26",
+    "q27",
+    "q28",
+    "q30",
+    "q31",
+    "q32",
+    "q34",
+    "q38",
+    "q39",
+    "q41",
+    "q44",
+    "q48",
+    "q49",
+    "q50",
+    "q53",
+    "q54",
+    "q57",
+    "q63",
+    "q64"
+   ],
+   "holdout": [
+    "q01",
+    "q02",
+    "q05",
+    "q06",
+    "q07",
+    "q10",
+    "q11",
+    "q12",
+    "q13",
+    "q14",
+    "q15",
+    "q16",
+    "q18",
+    "q24",
+    "q29",
+    "q33",
+    "q35",
+    "q36",
+    "q37",
+    "q40",
+    "q42",
+    "q43",
+    "q45",
+    "q46",
+    "q47",
+    "q51",
+    "q52",
+    "q55",
+    "q56",
+    "q58",
+    "q59",
+    "q60",
+    "q61",
+    "q62",
+    "q65"
+   ]
+  },
+  "elapsed_sec": 154.1
+ },
+ "judge_backend": "claude_cli(anthropic.claude-code-2.1.220-win32-x64)+prompt_v4",
+ "n_queries_scored": 30,
+ "headline": {
+  "metric": "normalized nDCG@3 (dev 30, 풀 오라클 대비)",
+  "best_arm": "rrf_ce",
+  "scores": {
+   "random": 0.0,
+   "dense": 0.6599,
+   "bm25": 0.3729,
+   "rrf": 0.7334,
+   "rrf_ce": 0.8393,
+   "rrf_noregion": 0.7194,
+   "rrf_nofilter": 0.5743,
+   "rrf_relax": 0.7334,
+   "alpha_0.5_minmax": 0.6439
+  },
+  "raw_ndcg3": {
+   "random": 0.0344,
+   "dense": 0.742,
+   "bm25": 0.5304,
+   "rrf": 0.8078,
+   "rrf_ce": 0.8716,
+   "rrf_noregion": 0.7951,
+   "rrf_nofilter": 0.694,
+   "rrf_relax": 0.8078,
+   "alpha_0.5_minmax": 0.7519
+  }
+ },
+ "decisions": {
+  "CE_리랭커": {
+   "rule": "rrf vs rrf_ce — CI가 0을 걸치면 제거",
+   "mean_delta": 0.1057,
+   "ci_95": [
+    0.023,
+    0.1879
+   ],
+   "significant": true,
+   "verdict": "유지"
+  },
+  "BM25_축": {
+   "rule": "dense vs rrf — rrf가 유의하게 낫지 않으면 BM25 축 제거",
+   "mean_delta": 0.0738,
+   "ci_95": [
+    -0.0607,
+    0.2152
+   ],
+   "significant": false,
+   "verdict": "제거"
+  },
+  "하드필터": {
+   "rule": "rrf vs rrf_nofilter — 필터 이득 없으면 랭킹 주장에서 제외",
+   "mean_delta": 0.1596,
+   "ci_95": [
+    0.0007,
+    0.3242
+   ],
+   "significant": true,
+   "verdict": "유지"
+  },
+  "완화_로직": {
+   "rule": "rrf vs rrf_relax — nDCG를 깎으면 제거·단순화",
+   "mean_delta": 0.0,
+   "ci_95": [
+    0.0,
+    0.0
+   ],
+   "significant": false,
+   "verdict": "유지"
+  },
+  "융합_방식": {
+   "rule": "alpha 가중합 vs RRF — 유의차 없으면 단순한 쪽(RRF) 유지",
+   "best_alpha": "0.7_minmax",
+   "mean_delta": 0.0285,
+   "ci_95": [
+    -0.0754,
+    0.1279
+   ],
+   "significant": false,
+   "verdict": "RRF_유지"
+  },
+  "role_category_필터": {
+   "rule": "role_on vs role_off — adapter 시나리오",
+   "verdict": "측정불가_이번회차제외",
+   "note": "role_category 하드필터는 이미 코드에서 제거됨(search.py). adapter 경유 시나리오는 골든셋에 role 지정 질의가 없어 이번 풀로는 측정 불가."
+  },
+  "쿼리_파서": {
+   "rule": "rrf vs rrf_rawtext — 파서 기여 없으면 단순화",
+   "note": "spec.text가 원문 그대로라 rawtext arm ≡ rrf_nofilter(필터만 파서 산출물).",
+   "delegated_to": "하드필터"
+  }
+ },
+ "sweeps": {
+  "rrf_k": {
+   "curve": {
+    "10": 0.6981,
+    "20": 0.715,
+    "40": 0.7331,
+    "60": 0.7334,
+    "90": 0.7334
+   },
+   "best": 60,
+   "plateau_choice": 60,
+   "default": 60,
+   "changed": false
+  },
+  "cand_k": {
+   "curve": {
+    "10": 0.5604,
+    "20": 0.6753,
+    "30": 0.7334,
+    "40": 0.7364,
+    "50": 0.7364
+   },
+   "best": 40,
+   "plateau_choice": 30,
+   "default": 30,
+   "changed": false
+  },
+  "rerank_n": {
+   "curve": {
+    "5": 0.7881,
+    "10": 0.8316,
+    "15": 0.8393,
+    "20": 0.8356,
+    "30": 0.8502
+   },
+   "best": 30,
+   "plateau_choice": 30,
+   "default": 15,
+   "changed": true
+  },
+  "min_results": {
+   "curve": {
+    "3": 0.7334,
+    "5": 0.7334,
+    "8": 0.7334
+   },
+   "best": 3,
+   "plateau_choice": 5,
+   "default": 5,
+   "changed": false
+  },
+  "alpha": {
+   "0.3_minmax": 0.5053,
+   "0.3_zscore": 0.5169,
+   "0.5_minmax": 0.6439,
+   "0.5_zscore": 0.5933,
+   "0.7_minmax": 0.7622,
+   "0.7_zscore": 0.7583
+  }
+ },
+ "by_axis": {
+  "기술": {
+   "random": 0.0,
+   "dense": 0.5736,
+   "bm25": 0.5723,
+   "rrf": 0.6168,
+   "rrf_ce": 0.7509,
+   "rrf_noregion": 0.5446,
+   "rrf_nofilter": 0.5979,
+   "rrf_relax": 0.6168,
+   "alpha_0.5_minmax": 0.5106,
+   "n": 8
+  },
+  "지역": {
+   "random": 0.0,
+   "dense": 0.8406,
+   "bm25": 0.3091,
+   "rrf": 0.906,
+   "rrf_ce": 1.0,
+   "rrf_noregion": 0.9024,
+   "rrf_nofilter": 0.6115,
+   "rrf_relax": 0.906,
+   "alpha_0.5_minmax": 0.6489,
+   "n": 7
+  },
+  "제약": {
+   "random": 0.0,
+   "dense": 0.7457,
+   "bm25": 0.3831,
+   "rrf": 0.8828,
+   "rrf_ce": 0.939,
+   "rrf_noregion": 0.7885,
+   "rrf_nofilter": 0.44,
+   "rrf_relax": 0.8828,
+   "alpha_0.5_minmax": 0.9013,
+   "n": 8
+  },
+  "난이도": {
+   "random": 0.0,
+   "dense": 0.4798,
+   "bm25": 0.197,
+   "rrf": 0.5235,
+   "rrf_ce": 0.6655,
+   "rrf_noregion": 0.6572,
+   "rrf_nofilter": 0.6637,
+   "rrf_relax": 0.5235,
+   "alpha_0.5_minmax": 0.4969,
+   "n": 7
+  }
+ },
+ "loss_funnel": {
+  "recall_causes": {
+   "fusion_rank": 32,
+   "filter_region": 28,
+   "candidate_window": 9,
+   "filter_exp": 4,
+   "ce_demoted": 3,
+   "data_missing_regions": 3,
+   "outside_pool_atoms": 1
+  },
+  "precision_causes": {
+   "ranking_error": 7,
+   "data_missing_exp": 1
+  },
+  "per_query": {
+   "q03": {
+    "oracle_top3": [
+     "고용24:51183401",
+     "고용24:54294683",
+     "고용24:54352987"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51183401",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54294683",
+      "grade": "Correct",
+      "cause": "ce_demoted"
+     },
+     {
+      "uid": "고용24:54352987",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q04": {
+    "oracle_top3": [
+     "사람인:54429985",
+     "사람인:54448747",
+     "사람인:54477194"
+    ],
+    "recall_losses": [
+     {
+      "uid": "사람인:54429985",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     },
+     {
+      "uid": "사람인:54448747",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "사람인:54477194",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q08": {
+    "oracle_top3": [
+     "고용24:51282680",
+     "고용24:54266607",
+     "고용24:54282488"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51282680",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     },
+     {
+      "uid": "고용24:54266607",
+      "grade": "Correct",
+      "cause": "ce_demoted"
+     },
+     {
+      "uid": "고용24:54282488",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q09": {
+    "oracle_top3": [
+     "고용24:54194177",
+     "고용24:54290077",
+     "고용24:54309090"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54194177",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54290077",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q17": {
+    "oracle_top3": [
+     "사람인:54268106",
+     "사람인:54335534",
+     "사람인:54335872"
+    ],
+    "recall_losses": [
+     {
+      "uid": "사람인:54268106",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "사람인:54335534",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     },
+     {
+      "uid": "사람인:54335872",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q19": {
+    "oracle_top3": [
+     "고용24:51220679",
+     "고용24:51244591",
+     "고용24:54133629"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51220679",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54133629",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q20": {
+    "oracle_top3": [
+     "고용24:51257089",
+     "고용24:54170020",
+     "고용24:54290077"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51257089",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54170020",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54290077",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q21": {
+    "oracle_top3": [
+     "고용24:51282680",
+     "고용24:54266607",
+     "고용24:54282488"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51282680",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54266607",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54282488",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q22": {
+    "oracle_top3": [
+     "고용24:51091146",
+     "고용24:51091150",
+     "고용24:51288457"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51091146",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:51091150",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:51288457",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q23": {
+    "oracle_top3": [
+     "고용24:51260896",
+     "고용24:54027145",
+     "고용24:54109454"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51260896",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54027145",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54109454",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q25": {
+    "oracle_top3": [
+     "고용24:51244591",
+     "고용24:54133629",
+     "고용24:54133661"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51244591",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     },
+     {
+      "uid": "고용24:54133661",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q26": {
+    "oracle_top3": [
+     "고용24:54109454",
+     "고용24:54254709",
+     "고용24:54302487"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54109454",
+      "grade": "Correct",
+      "cause": "filter_exp"
+     },
+     {
+      "uid": "고용24:54254709",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     },
+     {
+      "uid": "고용24:54302487",
+      "grade": "Correct",
+      "cause": "filter_exp"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q27": {
+    "oracle_top3": [
+     "고용24:51219502",
+     "고용24:51263655",
+     "고용24:51291689"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51219502",
+      "grade": "Correct",
+      "cause": "outside_pool_atoms"
+     },
+     {
+      "uid": "고용24:51263655",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:51291689",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q28": {
+    "oracle_top3": [
+     "고용24:51219502",
+     "고용24:51257089",
+     "고용24:54004668"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51219502",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:51257089",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54004668",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q30": {
+    "oracle_top3": [
+     "원티드:321821",
+     "원티드:326794",
+     "원티드:363969"
+    ],
+    "recall_losses": [
+     {
+      "uid": "원티드:321821",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     },
+     {
+      "uid": "원티드:326794",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "원티드:363969",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": [
+     {
+      "uid": "잡코리아:49555072",
+      "cause": "ranking_error"
+     },
+     {
+      "uid": "잡코리아:49585261",
+      "cause": "ranking_error"
+     }
+    ]
+   },
+   "q31": {
+    "oracle_top3": [
+     "고용24:51220679",
+     "고용24:51244591",
+     "고용24:54133629"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51220679",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54133629",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q32": {
+    "oracle_top3": [
+     "고용24:51257089",
+     "고용24:54170020",
+     "사람인:54039918"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51257089",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "사람인:54039918",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q34": {
+    "oracle_top3": [
+     "고용24:54298864",
+     "고용24:54434737",
+     "사람인:54025418"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54298864",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54434737",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "사람인:54025418",
+      "grade": "Correct",
+      "cause": "data_missing_regions"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q38": {
+    "oracle_top3": [
+     "고용24:51263655",
+     "고용24:54373853",
+     "사람인:54242449"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51263655",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54373853",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "사람인:54242449",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q39": {
+    "oracle_top3": [
+     "고용24:51244591",
+     "고용24:54133629",
+     "고용24:54133661"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51244591",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54133629",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54133661",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q41": {
+    "oracle_top3": [
+     "고용24:54027145",
+     "고용24:54290077",
+     "고용24:54363767"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54290077",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "고용24:54363767",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q44": {
+    "oracle_top3": [
+     "고용24:51263655",
+     "사람인:54047377",
+     "사람인:54483607"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51263655",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "사람인:54047377",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "사람인:54483607",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": [
+     {
+      "uid": "고용24:54384434",
+      "cause": "data_missing_exp"
+     },
+     {
+      "uid": "사람인:54459599",
+      "cause": "ranking_error"
+     },
+     {
+      "uid": "사람인:54410679",
+      "cause": "ranking_error"
+     }
+    ]
+   },
+   "q48": {
+    "oracle_top3": [
+     "사람인:54090445",
+     "사람인:54332459",
+     "사람인:54346270"
+    ],
+    "recall_losses": [
+     {
+      "uid": "사람인:54090445",
+      "grade": "Correct",
+      "cause": "data_missing_regions"
+     },
+     {
+      "uid": "사람인:54332459",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "사람인:54346270",
+      "grade": "Correct",
+      "cause": "filter_region"
+     }
+    ],
+    "precision_intrusions": [
+     {
+      "uid": "사람인:54501827",
+      "cause": "ranking_error"
+     },
+     {
+      "uid": "사람인:54501855",
+      "cause": "ranking_error"
+     },
+     {
+      "uid": "사람인:54557256",
+      "cause": "ranking_error"
+     }
+    ]
+   },
+   "q49": {
+    "oracle_top3": [
+     "고용24:54266607",
+     "고용24:54282488",
+     "고용24:54326213"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54266607",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54282488",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54326213",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q50": {
+    "oracle_top3": [
+     "고용24:51244591",
+     "고용24:54133629",
+     "고용24:54133661"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54133629",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54133661",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q53": {
+    "oracle_top3": [
+     "사람인:54308752",
+     "사람인:54332459",
+     "사람인:54347399"
+    ],
+    "recall_losses": [
+     {
+      "uid": "사람인:54308752",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "사람인:54332459",
+      "grade": "Correct",
+      "cause": "filter_region"
+     },
+     {
+      "uid": "사람인:54347399",
+      "grade": "Correct",
+      "cause": "candidate_window"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q54": {
+    "oracle_top3": [
+     "고용24:51063325",
+     "고용24:54073991",
+     "고용24:54239357"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:51063325",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54073991",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54239357",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q57": {
+    "oracle_top3": [
+     "고용24:54109454",
+     "고용24:54301258",
+     "고용24:54576986"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54301258",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     },
+     {
+      "uid": "고용24:54576986",
+      "grade": "Correct",
+      "cause": "ce_demoted"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q63": {
+    "oracle_top3": [
+     "사람인:54481243",
+     "원티드:374476",
+     "잡코리아:49520074"
+    ],
+    "recall_losses": [
+     {
+      "uid": "사람인:54481243",
+      "grade": "Correct",
+      "cause": "data_missing_regions"
+     },
+     {
+      "uid": "원티드:374476",
+      "grade": "Correct",
+      "cause": "filter_exp"
+     }
+    ],
+    "precision_intrusions": []
+   },
+   "q64": {
+    "oracle_top3": [
+     "고용24:54373853",
+     "고용24:54445101",
+     "고용24:54510464"
+    ],
+    "recall_losses": [
+     {
+      "uid": "고용24:54373853",
+      "grade": "Correct",
+      "cause": "filter_exp"
+     },
+     {
+      "uid": "고용24:54510464",
+      "grade": "Correct",
+      "cause": "fusion_rank"
+     }
+    ],
+    "precision_intrusions": []
+   }
+  }
+ },
+ "parser_check_summary": {
+  "n_mismatch": 0,
+  "mismatched": []
+ },
+ "scope_notes": [
+  "판정자: claude_cli(anthropic.claude-code-2.1.220-win32-x64)+prompt_v4 — 단일 모델·단일 프롬프트, 앵커 대리 검증(사전등록 §5)",
+  "지역/구어체 축 절대수치는 참고용 (사람 앵커 미커버)",
+  "holdout 35질의 봉인 — 스윕 확정 후 개봉해 재확인"
+ ],
+ "per_query": {
+  "q03": {
+   "query": "서울 5년차 Python 데이터 엔지니어",
+   "category": "tech_focus",
+   "n_pool": 142,
+   "n_judged": 142,
+   "label_dist": {
+    "Incorrect": 86,
+    "Ambiguous": 27,
+    "Correct": 29
+   },
+   "random_floor": 0.2988,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6654
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6654
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6654
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6654
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.3308
+    }
+   }
+  },
+  "q04": {
+   "query": "서울 경력무관 TypeScript 쓰는 회사",
+   "category": "tech_focus",
+   "n_pool": 140,
+   "n_judged": 140,
+   "label_dist": {
+    "Incorrect": 109,
+    "Correct": 20,
+    "Ambiguous": 11
+   },
+   "random_floor": 0.1865,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.5866,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.4918
+    },
+    "bm25": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4232
+    },
+    "rrf": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7116
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7116
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7116
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7116
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7116
+    }
+   }
+  },
+  "q08": {
+   "query": "서울 3년차 Python 개발자 채용",
+   "category": "region_focus",
+   "n_pool": 145,
+   "n_judged": 145,
+   "label_dist": {
+    "Correct": 62,
+    "Ambiguous": 24,
+    "Incorrect": 59
+   },
+   "random_floor": 0.5114,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.2346,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7599
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7599
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    }
+   }
+  },
+  "q09": {
+   "query": "경기도 신입 Java 개발자",
+   "category": "region_focus",
+   "n_pool": 205,
+   "n_judged": 205,
+   "label_dist": {
+    "Incorrect": 105,
+    "Correct": 55,
+    "Ambiguous": 45
+   },
+   "random_floor": 0.382,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5209
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6203
+    }
+   }
+  },
+  "q17": {
+   "query": "서울 경력무관 React 개발자 채용",
+   "category": "exp_focus",
+   "n_pool": 127,
+   "n_judged": 127,
+   "label_dist": {
+    "Ambiguous": 22,
+    "Incorrect": 68,
+    "Correct": 37
+   },
+   "random_floor": 0.3751,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7631
+    },
+    "bm25": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.1507
+    },
+    "rrf": {
+     "ndcg3": 0.648,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.4367
+    },
+    "rrf_ce": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8122
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.5753
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.5753
+    },
+    "rrf_relax": {
+     "ndcg3": 0.648,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.4367
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6245
+    }
+   }
+  },
+  "q19": {
+   "query": "강남에서 3년차 Java 백엔드 개발자",
+   "category": "colloquial_region",
+   "n_pool": 185,
+   "n_judged": 185,
+   "label_dist": {
+    "Correct": 75,
+    "Ambiguous": 25,
+    "Incorrect": 85
+   },
+   "random_floor": 0.4705,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.1173,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4408
+    },
+    "bm25": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5569
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5569
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.2961,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q20": {
+   "query": "판교 신입 React 프론트엔드 개발자",
+   "category": "colloquial_region",
+   "n_pool": 210,
+   "n_judged": 210,
+   "label_dist": {
+    "Ambiguous": 26,
+    "Incorrect": 111,
+    "Correct": 73
+   },
+   "random_floor": 0.4071,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6043
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q21": {
+   "query": "분당 경력무관 Python 개발자 채용",
+   "category": "colloquial_region",
+   "n_pool": 181,
+   "n_judged": 181,
+   "label_dist": {
+    "Correct": 99,
+    "Incorrect": 82
+   },
+   "random_floor": 0.55,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.3421
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.3421
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4786
+    }
+   }
+  },
+  "q22": {
+   "query": "여의도 3년차 금융 IT Java 개발자",
+   "category": "colloquial_region",
+   "n_pool": 194,
+   "n_judged": 194,
+   "label_dist": {
+    "Incorrect": 69,
+    "Correct": 115,
+    "Ambiguous": 10
+   },
+   "random_floor": 0.618,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q23": {
+   "query": "성남 신입 Spring 백엔드",
+   "category": "colloquial_region",
+   "n_pool": 223,
+   "n_judged": 223,
+   "label_dist": {
+    "Incorrect": 114,
+    "Correct": 101,
+    "Ambiguous": 8
+   },
+   "random_floor": 0.468,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4435
+    },
+    "bm25": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0024
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.2346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4435
+    }
+   }
+  },
+  "q25": {
+   "query": "서울 3년차 스프링부트 하는 회사",
+   "category": "tech_alias",
+   "n_pool": 154,
+   "n_judged": 154,
+   "label_dist": {
+    "Incorrect": 85,
+    "Correct": 68,
+    "Ambiguous": 1
+   },
+   "random_floor": 0.45,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5734
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5734
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5734
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5734
+    }
+   }
+  },
+  "q26": {
+   "query": "서울 신입 리액트 개발자",
+   "category": "tech_alias",
+   "n_pool": 152,
+   "n_judged": 152,
+   "label_dist": {
+    "Incorrect": 66,
+    "Correct": 84,
+    "Ambiguous": 2
+   },
+   "random_floor": 0.5562,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4712
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4712
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q27": {
+   "query": "서울 5년차 쿠버네티스 다루는 데브옵스",
+   "category": "tech_alias",
+   "n_pool": 151,
+   "n_judged": 151,
+   "label_dist": {
+    "Incorrect": 82,
+    "Correct": 68,
+    "Ambiguous": 1
+   },
+   "random_floor": 0.4445,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.2961,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.1553
+    },
+    "rrf": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5776
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5776
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5776
+    }
+   }
+  },
+  "q28": {
+   "query": "경기 3년차 도커 쓰는 백엔드",
+   "category": "tech_alias",
+   "n_pool": 207,
+   "n_judged": 207,
+   "label_dist": {
+    "Incorrect": 119,
+    "Correct": 85,
+    "Ambiguous": 3
+   },
+   "random_floor": 0.4255,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.2346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4847
+    }
+   }
+  },
+  "q30": {
+   "query": "서울 경력무관 파이썬 데이터 분석가",
+   "category": "tech_alias",
+   "n_pool": 145,
+   "n_judged": 145,
+   "label_dist": {
+    "Ambiguous": 21,
+    "Incorrect": 117,
+    "Correct": 7
+   },
+   "random_floor": 0.1208,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "bm25": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_ce": {
+     "ndcg3": 0.2346,
+     "p3": 0.0,
+     "norm_ndcg3": 0.1295
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_relax": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    }
+   }
+  },
+  "q31": {
+   "query": "서울에서 3년차 Java Spring 백엔드",
+   "category": "combo_balanced",
+   "n_pool": 160,
+   "n_judged": 160,
+   "label_dist": {
+    "Correct": 80,
+    "Ambiguous": 27,
+    "Incorrect": 53
+   },
+   "random_floor": 0.5871,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.2346,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.148,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7039,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.2829
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q32": {
+   "query": "경기 신입 React 프론트엔드",
+   "category": "combo_balanced",
+   "n_pool": 175,
+   "n_judged": 175,
+   "label_dist": {
+    "Incorrect": 80,
+    "Correct": 52,
+    "Ambiguous": 43
+   },
+   "random_floor": 0.4187,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.2346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.5964
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q34": {
+   "query": "서울 신입 TypeScript 프론트엔드 개발자",
+   "category": "combo_balanced",
+   "n_pool": 179,
+   "n_judged": 179,
+   "label_dist": {
+    "Incorrect": 88,
+    "Ambiguous": 41,
+    "Correct": 50
+   },
+   "random_floor": 0.3872,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.2346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q38": {
+   "query": "경기 5년차 Docker 데브옵스",
+   "category": "combo_balanced",
+   "n_pool": 189,
+   "n_judged": 189,
+   "label_dist": {
+    "Incorrect": 131,
+    "Ambiguous": 30,
+    "Correct": 28
+   },
+   "random_floor": 0.219,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8498
+    },
+    "bm25": {
+     "ndcg3": 0.2346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.02
+    },
+    "rrf": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8498
+    },
+    "rrf_ce": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6996
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8498
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8498
+    },
+    "rrf_relax": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8498
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8104
+    }
+   }
+  },
+  "q39": {
+   "query": "서울 강남 스프링부트 3년차 백엔드",
+   "category": "combo_dense",
+   "n_pool": 196,
+   "n_judged": 196,
+   "label_dist": {
+    "Incorrect": 120,
+    "Correct": 56,
+    "Ambiguous": 20
+   },
+   "random_floor": 0.3395,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.2895
+    },
+    "bm25": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.2895
+    },
+    "rrf": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7759
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.1965
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.1965
+    },
+    "rrf_relax": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7759
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7759
+    }
+   }
+  },
+  "q41": {
+   "query": "부산 신입 Java 백엔드 개발자",
+   "category": "combo_dense",
+   "n_pool": 179,
+   "n_judged": 179,
+   "label_dist": {
+    "Incorrect": 118,
+    "Correct": 30,
+    "Ambiguous": 31
+   },
+   "random_floor": 0.252,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6863
+    },
+    "bm25": {
+     "ndcg3": 0.6173,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.4884
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6863
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.3726
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q44": {
+   "query": "대구에서 5년차 Kubernetes 다루는 시니어 개발자",
+   "category": "sparse_relax",
+   "n_pool": 210,
+   "n_judged": 210,
+   "label_dist": {
+    "Incorrect": 166,
+    "Ambiguous": 24,
+    "Correct": 20
+   },
+   "random_floor": 0.1521,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "bm25": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_ce": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.5,
+     "p3": 0.0,
+     "norm_ndcg3": 0.4103
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.5,
+     "p3": 0.0,
+     "norm_ndcg3": 0.4103
+    },
+    "rrf_relax": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    }
+   }
+  },
+  "q48": {
+   "query": "경남 3년차 Go 시스템 프로그래머",
+   "category": "sparse_relax",
+   "n_pool": 163,
+   "n_judged": 163,
+   "label_dist": {
+    "Incorrect": 136,
+    "Ambiguous": 19,
+    "Correct": 8
+   },
+   "random_floor": 0.1072,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "bm25": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 0.1173,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0113
+    },
+    "rrf_ce": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.5866,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.537
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.5866,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.537
+    },
+    "rrf_relax": {
+     "ndcg3": 0.1173,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0113
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    }
+   }
+  },
+  "q49": {
+   "query": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까",
+   "category": "freeform",
+   "n_pool": 140,
+   "n_judged": 140,
+   "label_dist": {
+    "Incorrect": 41,
+    "Ambiguous": 41,
+    "Correct": 58
+   },
+   "random_floor": 0.5569,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.5307,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "rrf": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4704
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4704
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4704
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4704
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4704
+    }
+   }
+  },
+  "q50": {
+   "query": "서울 3년차 재택 가능한 Java 백엔드 개발자 자리 찾아요",
+   "category": "freeform",
+   "n_pool": 162,
+   "n_judged": 162,
+   "label_dist": {
+    "Correct": 51,
+    "Incorrect": 76,
+    "Ambiguous": 35
+   },
+   "random_floor": 0.4205,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.2961,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.0
+    },
+    "bm25": {
+     "ndcg3": 0.5307,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.1902
+    },
+    "rrf": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7446
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7446
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7446
+    },
+    "rrf_relax": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7446
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7446
+    }
+   }
+  },
+  "q53": {
+   "query": "서울 golang 10년차 서버 개발자",
+   "category": "parser_trap",
+   "n_pool": 128,
+   "n_judged": 128,
+   "label_dist": {
+    "Incorrect": 96,
+    "Ambiguous": 8,
+    "Correct": 24
+   },
+   "random_floor": 0.2176,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7001
+    },
+    "bm25": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.3217
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q54": {
+   "query": "서울 3년차 React TypeScript 프론트엔드 개발자",
+   "category": "multi_tech",
+   "n_pool": 141,
+   "n_judged": 141,
+   "label_dist": {
+    "Correct": 79,
+    "Incorrect": 51,
+    "Ambiguous": 11
+   },
+   "random_floor": 0.6046,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6256
+    },
+    "bm25": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4065
+    },
+    "rrf_ce": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4065
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4065
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4065
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4065
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.4065
+    }
+   }
+  },
+  "q57": {
+   "query": "서울 경력 1년차 Spring 백엔드 개발자",
+   "category": "boundary_exp",
+   "n_pool": 182,
+   "n_judged": 182,
+   "label_dist": {
+    "Correct": 49,
+    "Incorrect": 109,
+    "Ambiguous": 24
+   },
+   "random_floor": 0.3362,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.5866,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.3772
+    },
+    "bm25": {
+     "ndcg3": 0.4134,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.1163
+    },
+    "rrf": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7654,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.6465
+    },
+    "rrf_relax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    }
+   }
+  },
+  "q63": {
+   "query": "서울 3년차 Python QA 엔지니어 테스트 자동화",
+   "category": "low_resource_role",
+   "n_pool": 134,
+   "n_judged": 134,
+   "label_dist": {
+    "Incorrect": 80,
+    "Ambiguous": 48,
+    "Correct": 6
+   },
+   "random_floor": 0.2228,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.0,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "bm25": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "rrf": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "rrf_ce": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "rrf_relax": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6586
+    }
+   }
+  },
+  "q64": {
+   "query": "서울 3년차 AWS SRE 엔지니어 채용",
+   "category": "low_resource_role",
+   "n_pool": 146,
+   "n_judged": 146,
+   "label_dist": {
+    "Incorrect": 85,
+    "Ambiguous": 25,
+    "Correct": 36
+   },
+   "random_floor": 0.3293,
+   "oracle_ndcg3": 1.0,
+   "arms": {
+    "random": {
+     "ndcg3": 0.148,
+     "p3": 0.0,
+     "norm_ndcg3": 0.0
+    },
+    "dense": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "bm25": {
+     "ndcg3": 0.4693,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.2088
+    },
+    "rrf": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7793
+    },
+    "rrf_ce": {
+     "ndcg3": 1.0,
+     "p3": 1.0,
+     "norm_ndcg3": 1.0
+    },
+    "rrf_noregion": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7793
+    },
+    "rrf_nofilter": {
+     "ndcg3": 0.8827,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.8251
+    },
+    "rrf_relax": {
+     "ndcg3": 0.852,
+     "p3": 0.6667,
+     "norm_ndcg3": 0.7793
+    },
+    "alpha_0.5_minmax": {
+     "ndcg3": 0.7346,
+     "p3": 0.3333,
+     "norm_ndcg3": 0.6044
+    }
+   }
+  }
+ },
+ "difficulty_axis_conclusive": false,
+ "gates": [
+  {
+   "gate": 1,
+   "name": "coverage_100",
+   "passed": true,
+   "detail": {}
+  },
+  {
+   "gate": 2,
+   "name": "random_baseline",
+   "passed": true
+  },
+  {
+   "gate": "3a",
+   "name": "judge_kappa_anchor120",
+   "passed": true,
+   "kappa_binary_strict": 0.6198
+  },
+  {
+   "gate": "3b",
+   "name": "difficulty_15pairs",
+   "passed": false,
+   "agree": "6/14",
+   "soft": true
+  },
+  {
+   "gate": 4,
+   "name": "self_consistency_vs_judge",
+   "passed": true,
+   "human_self": 0.7333,
+   "judge": 0.6198,
+   "note": "사람 자기일관성 < judge κ면 게이트3 해석 무효"
+  },
+  {
+   "gate": 5,
+   "name": "axis_n>=7",
+   "passed": true,
+   "counts": {
+    "기술": 8,
+    "지역": 7,
+    "제약": 8,
+    "난이도": 7
+   }
+  }
+ ]
+}

@@ -80,6 +80,36 @@ def llm_unconfigured(warnings: list[dict]) -> bool:
     return any(w.get("code") == "llm_not_configured" for w in warnings)
 
 
+# 형식 위반(JSON 이 아님·스키마 불일치)의 지문. 네트워크·레이트리밋·타임아웃 실패와 갈라야
+# 한다 — 그건 프롬프트 잘못이 아니라서 교정문을 붙일 이유가 없다.
+_FORMAT_ERROR_MARKS = ("validation error", "json_invalid", "invalid json",
+                       "jsondecodeerror", "expecting value", "field required")
+
+
+def _repair_message(exc: Exception) -> str | None:
+    """형식 위반 재시도에 실을 교정문. 형식 문제가 아니면 None.
+
+    **왜 필요한가**: 재시도가 같은 프롬프트를 그대로 다시 보내면 형식 위반은 같은 자리에서
+    같은 실패를 반복한다(flaky 가 아니라 stable-wrong — AGENTS.md §3-3). 실측(2026-08-03,
+    `posting_analysis` 자기 루프): 모델이 `LoopDecision` 을 JSON 대신 마크다운
+    (`**action**: read_posting …`)으로 내 3회 재시도가 전부 죽고, 결정론 폴백이 사용자에게
+    "분석 결과"처럼 나갔다. 지시(“JSON 하나만”)는 이미 있었다 — 없던 것은 **틀렸다는 사실을
+    모델에게 돌려주는 일**이다.
+
+    스키마를 서버가 강제하는 공급자(openai/anthropic)는 이 자리에 오지 않는다.
+    """
+
+    text = str(exc)
+    if not any(mark in text.lower() for mark in _FORMAT_ERROR_MARKS):
+        return None
+    return (
+        "직전 응답이 규격을 어겨 사용할 수 없었다. 검증 오류:\n"
+        f"{text[:500]}\n"
+        "이번에는 스키마에 맞는 **JSON 객체 하나만** 출력하라. 첫 글자는 `{` 여야 한다. "
+        "마크다운(`**필드**: 값`)·제목·설명·코드펜스를 붙이지 마라."
+    )
+
+
 def run_structured(
     schema: type[T],
     system_prompt: str,
@@ -138,6 +168,7 @@ def run_structured(
     # 일시적 오류(네트워크·레이트리밋·파싱)를 흡수하기 위해 여러 번 재시도한다.
     last_exc: Exception | None = None
     started = time.perf_counter()
+    base_messages = messages
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
             result = structured_llm.invoke(messages, **invoke_kwargs)
@@ -159,6 +190,11 @@ def run_structured(
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
             if attempt < _MAX_ATTEMPTS:
+                # 형식 위반은 **같은 프롬프트를 다시 보내면 같은 실패가 반복된다.**
+                # 힌트는 매번 base 위에 하나만 붙인다(쌓으면 입력이 불어난다).
+                repair = _repair_message(exc)
+                messages = base_messages if repair is None else [
+                    *base_messages, ("human", repair)]
                 time.sleep(_RETRY_BACKOFF_SEC * attempt)
 
     warnings.append({

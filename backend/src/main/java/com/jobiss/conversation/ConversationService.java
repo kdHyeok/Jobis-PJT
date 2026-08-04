@@ -176,28 +176,51 @@ public class ConversationService {
                         conversationId,
                         "ASSISTANT",
                         "ANALYSIS_STATUS",
-                        created.reusedAnalysis() ? created.reuseMessage() :
-                        "공고를 저장했고 백그라운드 분석을 시작했어요. 다른 대화를 계속해도 완료되면 알려드릴게요.",
+                        // **사용자향 문장은 에이전트가 쓴다.** 이 행은 진행 휠이 붙는 자리
+                        // (analysis_job_id 를 실은 메시지)라 필요하지만, 그 말까지 우리가
+                        // 지으면 같은 턴에 에이전트가 하는 답과 겹쳐 두 번 말하는 셈이 된다
+                        // — 첨부에도 답변 작업을 만들면서(D145) 에이전트가 이 턴에 답한다.
+                        // 재사용 안내는 그대로 둔다: 그건 이 서비스가 아는 사실(같은 공고의
+                        // 기존 분석을 이어 쓴다)이고 에이전트는 모른다.
+                        created.reusedAnalysis() ? created.reuseMessage() : "",
                         created.postingId(),
                         created.analysisJobId(),
                         null,
                         metadata
                 );
             });
+            // 공고 첨부도 **대화**다 — 에이전트가 답해야 한다.
+            //
+            // 전에는 여기서 chatReplyJobId 를 null 로 돌려줘 AI 대화 서버가 아예 불리지 않았다.
+            // 그래서 같은 URL 을 채팅 본문에 쓰면 에이전트가 공고를 정리해 주는데, 왼쪽 첨부
+            // 버튼으로 넣으면 "백그라운드 분석을 시작했어요" 한 줄만 오고 대화가 없었다 —
+            // 사용자에게 그 둘은 같은 행동이므로 결과도 같아야 한다.
+            //
+            // 발화(userMessage.content)에 이미 주소나 원문이 들어 있으므로 AI 쪽은 채팅 본문에
+            // URL 을 쓴 경우와 **같은 경로**를 탄다(chat.py 의 URL 인테이크). 여기서 따로 실어
+            // 보낼 것은 없다.
+            UUID attachmentChatJobId = enqueueChatReply(userId, conversationId, userMessage.id());
             return new SendResult(
                     userMessage,
                     assistant,
                     created.analysisJobId(),
-                    null,
+                    attachmentChatJobId,
                     true
             );
         }
 
-        UUID chatReplyJobId = chatReplyJobs.enqueue(
-                userId,
-                conversationId,
-                userMessage.id()
-        );
+        UUID chatReplyJobId = enqueueChatReply(userId, conversationId, userMessage.id());
+        return new SendResult(userMessage, null, null, chatReplyJobId, true);
+    }
+
+    /**
+     * 사용자 메시지에 대한 AI 답변 작업을 큐에 넣고, 그 id 를 메시지 메타데이터에 심는다.
+     *
+     * <p>일반 발화 경로와 공고 첨부 경로가 **같은 함수**를 쓴다 — 두 벌로 두면 한쪽만 고쳐지고
+     * (실제로 첨부 경로에는 이 호출이 아예 없어서 대화가 끊겼다) 화면 동작이 갈린다.
+     */
+    private UUID enqueueChatReply(UUID userId, UUID conversationId, UUID messageId) {
+        UUID chatReplyJobId = chatReplyJobs.enqueue(userId, conversationId, messageId);
         rls.write(userId, jdbc -> {
             jdbc.sql("""
                             update conversation_messages
@@ -208,11 +231,11 @@ public class ConversationService {
                             where id = :messageId
                             """)
                     .param("chatReplyJobId", chatReplyJobId)
-                    .param("messageId", userMessage.id())
+                    .param("messageId", messageId)
                     .update();
             return null;
         });
-        return new SendResult(userMessage, null, null, chatReplyJobId, true);
+        return chatReplyJobId;
     }
 
     public void archive(UUID userId, UUID conversationId) {

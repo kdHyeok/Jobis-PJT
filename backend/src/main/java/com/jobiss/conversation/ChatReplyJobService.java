@@ -5,6 +5,8 @@ import com.jobiss.common.ApiException;
 import com.jobiss.db.RlsTransactionExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -15,13 +17,16 @@ public class ChatReplyJobService {
 
     private final RlsTransactionExecutor rls;
     private final AiUsageLimitService usageLimit;
+    private final ObjectMapper objectMapper;
 
     public ChatReplyJobService(
             RlsTransactionExecutor rls,
-            AiUsageLimitService usageLimit
+            AiUsageLimitService usageLimit,
+            ObjectMapper objectMapper
     ) {
         this.rls = rls;
         this.usageLimit = usageLimit;
+        this.objectMapper = objectMapper;
     }
 
     public UUID enqueue(UUID userId, UUID conversationId, UUID triggerMessageId) {
@@ -58,12 +63,20 @@ public class ChatReplyJobService {
                             error_message,
                             created_at,
                             started_at,
-                            completed_at
+                            completed_at,
+                            (
+                                select coalesce(
+                                    jsonb_agg(event_data order by sequence),
+                                    '[]'::jsonb
+                                )::text
+                                from chat_reply_agent_events
+                                where chat_reply_job_id = chat_reply_jobs.id
+                            ) as progress_steps
                         from chat_reply_jobs
                         where id = :jobId
                         """)
                 .param("jobId", jobId)
-                .query(ChatReplyJobService::map)
+                .query(this::map)
                 .optional()
                 .orElseThrow(ChatReplyJobService::notFound));
     }
@@ -82,14 +95,22 @@ public class ChatReplyJobService {
                             error_message,
                             created_at,
                             started_at,
-                            completed_at
+                            completed_at,
+                            (
+                                select coalesce(
+                                    jsonb_agg(event_data order by sequence),
+                                    '[]'::jsonb
+                                )::text
+                                from chat_reply_agent_events
+                                where chat_reply_job_id = chat_reply_jobs.id
+                            ) as progress_steps
                         from chat_reply_jobs
                         where conversation_id = :conversationId
                         order by created_at, id
                         limit 200
                         """)
                 .param("conversationId", conversationId)
-                .query(ChatReplyJobService::map)
+                .query(this::map)
                 .list());
     }
 
@@ -129,7 +150,7 @@ public class ChatReplyJobService {
         });
     }
 
-    private static ChatReplyJobView map(java.sql.ResultSet rs, int rowNum)
+    private ChatReplyJobView map(java.sql.ResultSet rs, int rowNum)
             throws java.sql.SQLException {
         return new ChatReplyJobView(
                 rs.getObject("id", UUID.class),
@@ -143,8 +164,24 @@ public class ChatReplyJobService {
                 rs.getString("error_message"),
                 rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("started_at", OffsetDateTime.class),
-                rs.getObject("completed_at", OffsetDateTime.class)
+                rs.getObject("completed_at", OffsetDateTime.class),
+                readJson(rs.getString("progress_steps"))
         );
+    }
+
+    /**
+     * 저장된 진행 단계를 그대로 통과시킨다 — AI 가 만든 화자 키·문구를 백엔드가 다시
+     * 해석하지 않는다(분석 작업의 progressEvents 와 같은 규약).
+     */
+    private JsonNode readJson(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(value);
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("Stored chat progress JSON is invalid", exception);
+        }
     }
 
     private static ApiException notFound() {
@@ -167,7 +204,13 @@ public class ChatReplyJobService {
             String errorMessage,
             OffsetDateTime createdAt,
             OffsetDateTime startedAt,
-            OffsetDateTime completedAt
+            OffsetDateTime completedAt,
+            /**
+             * 이 턴에서 어느 에이전트가 무엇을 했는지 순서대로 —
+             * {@code [{agent, step, label, detail, elapsedMs}, …]}. 화면은 {@code agent} 키로
+             * 에이전트별 색·로고를 붙여 말풍선을 그린다.
+             */
+            JsonNode progressSteps
     ) {
     }
 }

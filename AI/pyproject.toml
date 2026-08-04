@@ -17,6 +17,10 @@ dependencies = [
     "python-dotenv>=1.0",
     "python-docx>=1.1",   # 이력서/공고 .docx 텍스트 추출 (extract.py)
     "pypdf>=4.0",         # 이력서/공고 .pdf 텍스트 추출 (extract.py)
+    # 이미지 공고를 VLM 이 받을 크기로 줄이고 세로로 쪼갠다 (feat_url/). 실측 2026-08-04:
+    # 잡코리아 이미지 공고가 5.2MB·세로로 매우 긴 PNG 여서 Clova 가 40063 Invalid image size
+    # 로 거부했다 — 필수요건·우대사항이 통째로 그 이미지 안에 있었다.
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]

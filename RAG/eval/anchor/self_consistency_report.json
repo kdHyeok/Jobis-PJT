@@ -1,0 +1,39 @@
+{
+  "n_pairs": 20,
+  "agreement": 0.75,
+  "kappa_3class": 0.5671,
+  "kappa_binary_strict": 0.7333,
+  "disagreements": [
+    {
+      "qid": "SA11",
+      "uid": "잡코리아:49362663",
+      "orig": "Ambiguous",
+      "recheck": "Incorrect"
+    },
+    {
+      "qid": "SA03",
+      "uid": "잡코리아:49571707",
+      "orig": "Ambiguous",
+      "recheck": "Incorrect"
+    },
+    {
+      "qid": "SA08",
+      "uid": "잡코리아:49614412",
+      "orig": "Incorrect",
+      "recheck": "Ambiguous"
+    },
+    {
+      "qid": "SA04",
+      "uid": "잡코리아:49446632",
+      "orig": "Incorrect",
+      "recheck": "Correct"
+    },
+    {
+      "qid": "SA15",
+      "uid": "잡코리아:49565620",
+      "orig": "Correct",
+      "recheck": "Incorrect"
+    }
+  ],
+  "note": "정본=anchor_labeled.csv (대화 제공 라벨본). timestamp 미기록 — 피로도 미측정."
+}

@@ -323,6 +323,40 @@ export type SendMessageResult = {
   aiAvailable: boolean;
 };
 
+/**
+ * 대화 한 턴의 진행 단계 하나 — 어느 에이전트가 무슨 도구로 무엇을 했나.
+ *
+ * `agent` 는 화자 키다(에이전트 이름 또는 `orchestrator`). 색·로고는 이 키로 `agents.ts`
+ * 등록부에서 고른다 — `label` 은 다듬을 수 있는 문구라 화면 식별자로 쓰지 않는다.
+ */
+export type ChatAgentStep = {
+  agent: string;
+  step: string;
+  label: string;
+  detail: string;
+  elapsedMs: number | null;
+  /** 담당이 완성한 사용자향 발화 본문(D153) — 있으면 과정 라벨과 별개의 말풍선 내용이 된다. */
+  message?: string | null;
+};
+
+/**
+ * AI 답변 메타데이터 중 화면이 읽는 항목. 전체 응답이 메시지 metadata 에 그대로 저장된다.
+ *
+ * `degradedReason` 이 있으면 그 답변은 LLM 실패 뒤 만들어진 결정론 요약본이다 —
+ * 분석 결과처럼 읽히면 안 되므로 화면에 그대로 알린다.
+ */
+export type ChatReplyMetadata = {
+  replySources?: ChatReplySource[];
+  degradedReason?: string;
+};
+
+/** 최종 답변의 문장별 화자 — 여러 담당이 만든 답변을 화자별 말풍선으로 나누는 근거. */
+export type ChatReplySource = {
+  agent: string;
+  channel: string;
+  text: string;
+};
+
 export type ChatReplyJob = {
   id: string;
   conversationId: string;
@@ -336,6 +370,7 @@ export type ChatReplyJob = {
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  progressSteps: ChatAgentStep[] | null;
 };
 
 export type NotificationItem = {

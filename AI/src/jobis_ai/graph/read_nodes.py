@@ -97,6 +97,23 @@ class _JobPostingRead(BaseModel):
         "안 된다 — 이 문자열이 원문에 그대로 없으면 값 전체가 버려진다. 근거가 없으면 빈 문자열."))
     requiredRequirements: list[Requirement] = Field(default_factory=list)
     preferredRequirements: list[Requirement] = Field(default_factory=list)
+    responsibilities: list[str] = Field(default_factory=list, description=(
+        "이 자리가 **무슨 일을 하는가**. '담당업무·주요업무·Responsibilities·What you'll do' "
+        "섹션의 항목을 한 줄씩. 여러 축으로 나뉘어 있으면(예: '앱 백엔드' / '공통 플랫폼' / "
+        "'크레딧 원장') 축마다 한 줄로, 그 축이 무엇을 만드는지까지 적는다. "
+        "**요건(할 줄 알아야 하는 것)이 아니라 업무(하게 될 일)다** — 섞지 않는다. "
+        "원문에 담당업무 서술이 없으면 빈 목록."))
+    conditions: list[str] = Field(default_factory=list, description=(
+        "요건·업무 밖의 **채용 조건**을 '라벨: 값' 한 줄씩. 원문에 적힌 것만: "
+        "고용형태(정규직/계약직), 수습 기간, 계약 기간, 근무지, 근무 시간, 급여, 학력, "
+        "접수 기간·마감일, 접수 방법, 복리후생. 예: '고용형태: 정규직(수습 3개월)'. "
+        "**원문에 없는 항목은 줄을 만들지 않는다** — '미기재'라고 적지 말고 그냥 뺀다."))
+    hiringProcess: list[str] = Field(default_factory=list, description=(
+        "전형 절차를 순서대로 한 단계씩(예: '서류 전형', '1차 면접(실무)', '2차 면접(임원)'). "
+        "원문에 절차 서술이 없으면 빈 목록 — 일반적인 절차를 지어내지 않는다."))
+    teamContext: str = Field(default="", description=(
+        "이 자리가 속한 **조직·팀**과 협업 상대를 원문 근거로 한두 문장. 팀 이름, 그 팀이 "
+        "책임지는 영역, 함께 일하는 조직. 원문에 조직 서술이 없으면 빈 문자열."))
     techStack: list[str] = Field(default_factory=list)
     domainKeywords: list[str] = Field(default_factory=list)
     uncertainties: list[str] = Field(default_factory=list)
@@ -114,6 +131,8 @@ _JOB_PARSER_SYSTEM = """너는 채용공고에서 필드를 뽑아내는 추출�
 - requiredSection 이 비어 있지 않으면 requiredRequirements 는 **그 섹션에서만** 뽑는다. preferredSection 도 마찬가지.
   두 섹션이 모두 비어 있을 때만 fullText 에서 "우대/있으면 좋음" 같은 표현으로 필수·우대를 구분한다.
 - 각 requirement 는 한 문장 단위로 쪼갠다. requirementId 는 아무 값이나 넣어도 된다(뒤에서 룰이 재부여한다).
+- **위 섹션 제약은 requiredRequirements/preferredRequirements 에만 적용된다.** responsibilities·conditions·hiringProcess·teamContext 는 **fullText 전체에서** 읽는다 — 이 항목들은 요건 섹션 밖(제목 근처, 표, 공고 아래쪽)에 흩어져 있다. 끝까지 훑고 나서 채운다.
+- responsibilities 와 requiredRequirements 를 섞지 않는다: **하게 될 일**은 responsibilities, **갖고 있어야 하는 것**은 requirements 다. 같은 문장을 양쪽에 넣지 않는다.
 - techStack 은 knownTechStack 에 **없는** 기술/언어/도구만. domainKeywords 는 산업·서비스 도메인 키워드(예: 커머스, 핀테크).
 - roleCategory 는 **목록에서 고르는 것**이지 지어내는 것이 아니다. 직무명 표기가 목록과 달라도 하는 일이 같으면 그 키를 고르고, 정말 해당이 없으면 빈 문자열로 둔다.
 - 연차(minYears/maxYears)는 **지원 자격으로 요구한 것만** 읽는다. 회사 설립연도·연혁("2025년 차세대"), 수행 프로젝트 나열 속 연수, "학력무관"의 무관은 요구 연차가 아니다. 헤더/요약에 적힌 요구 연차가 본문 어딘가의 숫자보다 우선한다. yearsEvidence 에는 그 근거를 **원문 그대로** 옮긴다.
@@ -146,7 +165,8 @@ def _mock_job_posting() -> NormalizedJobPosting:
 # 그대로 두면 하류가 그걸 진짜 값으로 믿는다 — 예: fetch_company_context("<UNKNOWN>") 로 RAG 호출.
 _PLACEHOLDER_VALUES = {
     "<unknown>", "unknown", "n/a", "na", "none", "null", "미상", "없음", "불명",
-    "미명시", "명시되지 않음", "-", "?", "??",
+    "미명시", "명시되지 않음", "미기재", "기재없음", "기재 없음", "해당없음", "해당 없음",
+    "-", "?", "??",
 }
 
 
@@ -185,6 +205,15 @@ def _normalize_job_schema(posting: NormalizedJobPosting) -> NormalizedJobPosting
 
     posting.techStack = get_skill_taxonomy().normalize_all(posting.techStack)
     posting.domainKeywords = _dedup_keep_order(posting.domainKeywords)
+    posting.responsibilities = _dedup_keep_order(posting.responsibilities)
+    posting.hiringProcess = _dedup_keep_order(posting.hiringProcess)
+    # 자리표시자 줄("근무지: 미기재")은 버린다 — 못 찾은 것을 없다고 단정하게 되고, 그건
+    # 사용자가 원문에 있는 조건을 놓치는 경로다(§2-1 모른다 ≠ 아니다).
+    posting.conditions = [
+        line for line in _dedup_keep_order(posting.conditions)
+        if _clean_field(line.partition(":")[2] or line)
+    ]
+    posting.teamContext = _clean_field(posting.teamContext)
     posting.rawChunks = []  # 원문 청크는 상태 비대화 방지로 비운다
     return posting
 

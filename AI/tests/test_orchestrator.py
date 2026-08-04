@@ -253,9 +253,57 @@ def test_chat_heavy_precondition_asks_consent(monkeypatch):
         sessionId="s9", message="자소서 써줘",
         attachments=[_resume_attachment(), _posting_attachment()],
     ))
-    assert res.dispatched == []                       # 아직 아무것도 실행하지 않았다
+    # **무거운 것만 미룬다(D158).** 전에는 `dispatched == []` 였다 — 게이트가 걸리면 턴이
+    # 질문 하나로 끝나서, 방금 낸 자료의 정리(D71)까지 삼켜졌다. 판정·자소서는 여전히 안 돈다.
+    assert res.dispatched == ["posting_analysis", "resume_diagnosis"]
+    assert "fit_analysis" not in res.dispatched, "무거운 작업은 동의 전에 돌지 않는다"
+    assert "coverletter_draft" not in res.dispatched, "판정 산출을 기대하는 뒷단계도 미룬다"
     assert "진행할까요" in res.reply                   # 먼저 묻는다
     assert any(q.get("field") == "confirm_pipeline" for q in res.followUpQuestions)
+
+
+def test_resume_confirm_gate_asks_once_per_posting(monkeypatch, fresh_session_store):
+    """커리어 저장소 이력서로 판정하려 할 때 **이 공고용 이력서가 따로 있는지** 한 번 묻는다(D159).
+
+    이 서비스의 이력서는 대화 중에 들어오므로 저장소의 것이 이 공고를 위해 낸 것이라는
+    보장이 없다. 묻는 동안에도 방금 낸 공고의 정리는 나간다(D158).
+    """
+
+    fresh_session_store.update("rc-1", {
+        "resume": {"sourceType": "text", "value": "Python Django 백엔드 개발 3년",
+                   "origin": "career_summary"},
+    })
+    # 사용자가 판정을 직접 청했으므로 동의 게이트는 안 걸린다 — 걸리는 것은 이력서 확인이다.
+    stub_planner(monkeypatch, ["fit_analysis"])
+    first = handle_chat(ChatRequest(sessionId="rc-1", message="이 공고로 적합도 분석해줘",
+                                   attachments=[_posting_attachment()]))
+    assert "fit_analysis" not in first.dispatched, "확인 전에는 판정하지 않는다"
+    assert first.dispatched == ["posting_analysis"], "공고 정리는 삼키지 않는다(D158)"
+    assert "따로 있으신가요" in first.reply
+    card = next(q for q in first.followUpQuestions if q.get("field") == "confirm_resume")
+    # `resume` 가 아니다 — /analyze 가 그 필드를 "자료 없음"으로 읽어 분석을 실패로 끝낸다.
+    assert not any(q.get("field") == "resume" for q in first.followUpQuestions)
+    # 선택지가 있어야 왼쪽 패널(/analyze)이 선택형 질문으로 올릴 수 있다(build_question).
+    assert len(card.get("options") or []) == 2
+
+    # 두 번째 턴 — 같은 공고로 두 번 묻지 않고 저장소 이력서로 판정한다.
+    second = handle_chat(ChatRequest(sessionId="rc-1", message="따로 없어요"))
+    assert "fit_analysis" in second.dispatched
+    assert "따로 있으신가요" not in second.reply
+
+
+def test_resume_confirm_gate_stays_silent_for_a_resume_from_this_chat(monkeypatch):
+    """대화창에 붙여넣은 이력서(`pasted`)에는 묻지 않는다 — 사용자가 방금 준 것이 곧 답이다.
+
+    이번 턴 제출만 보는 것으로는 부족했다: 직전 턴에 붙여넣은 이력서에도 되물었다.
+    """
+
+    stub_planner(monkeypatch, ["fit_analysis"])
+    res = handle_chat(ChatRequest(
+        sessionId="rc-2", message="적합도 분석해줘",
+        attachments=[_resume_attachment(), _posting_attachment()]))
+    assert "따로 있으신가요" not in res.reply
+    assert "fit_analysis" in res.dispatched
 
 
 def test_chat_explicit_heavy_producer_runs_without_gate(monkeypatch):
@@ -1335,7 +1383,9 @@ def test_consent_gate_records_what_it_asked_and_passes_next_turn(monkeypatch, fr
     first = handle_chat(ChatRequest(
         sessionId="consent-1", message="자소서 써줘",
         attachments=[_resume_attachment(), _posting_attachment()]))
-    assert first.dispatched == [], "청하지 않은 무거운 작업은 먼저 묻는다"
+    # 청하지 않은 무거운 작업은 먼저 묻는다 — 다만 방금 낸 자료의 정리는 보여준다(D158).
+    assert "fit_analysis" not in first.dispatched
+    assert first.dispatched == ["posting_analysis", "resume_diagnosis"]
     assert "진행할까요" in first.reply
     assert fresh_session_store.get("consent-1")["pendingConsent"] == ["fit_analysis"]
 
@@ -1529,3 +1579,58 @@ def test_seniority_requirements_are_not_coverable_by_a_project():
     })
     assert "req-1" not in index, "순수 연차 줄이 커버 가능으로 남았다"
     assert "req-2" in index and "req-3" in index
+
+
+def test_user_facts_runs_beside_the_agents_and_keeps_its_observability(
+        monkeypatch, fresh_session_store):
+    """D144: 사실 추출은 발화 하나만 보므로 **에이전트와 동시에** 돈다.
+
+    전에는 턴 맨 끝에 순차로 돌아 6~9초가 답변 뒤에 그대로 붙었다(실측 08-03: 28초 턴에서
+    6.6초). 순서만 바꾸는 변경인데 **깨질 수 있는 것은 관측**이다 — 새 스레드는 contextvars 를
+    물려받지 않아서, 그대로 두면 이 콜의 trace 이벤트가 진행 스트림에서 사라지고 턴 요약의
+    콜 수가 줄어든다. 그래서 여기서 그 둘을 못 박는다.
+    """
+
+    import threading
+
+    from jobis_ai import llm_usage, trace
+
+    main_thread = threading.current_thread().name
+    seen: dict = {}
+
+    def fake_extract(message, existing):
+        seen["thread"] = threading.current_thread().name
+        # 사실 추출은 LLM 콜 하나다 — 그 콜의 관측이 살아 있어야 한다.
+        trace.emit("llm_call", "user_facts: 호출", {"node": "user_facts", "outcome": "ok"})
+        llm_usage.record(node="user_facts", tier="light", outcome="ok", attempts=1)
+        return ["9월까지 취업 희망"], []
+
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.extract_user_facts", fake_extract)
+
+    with llm_usage.collecting() as usage, trace.recording() as recorder:
+        handle_chat(ChatRequest(sessionId="uf-parallel", message="9월까지는 꼭 취업하고 싶어요"))
+
+    assert seen["thread"] != main_thread, "본 스레드에서 돌면 답변 뒤에 그대로 붙는다"
+    assert fresh_session_store.get("uf-parallel")["user_facts"] == ["9월까지 취업 희망"]
+    # 관측이 살아 있다 — trace 이벤트와 사용량 집계 둘 다 턴에 남는다(contextvars 복사).
+    assert any(e.get("kind") == "llm_call"
+               and (e.get("detail") or {}).get("node") == "user_facts"
+               for e in recorder.events)
+    assert "user_facts" in usage.summary()["byNode"]
+
+
+def test_user_facts_timeout_does_not_hold_the_turn(monkeypatch, fresh_session_store):
+    """거두지 못하면 그냥 넘어간다 — 강화(enrichment)라 턴을 늘려 붙잡을 값어치가 없다."""
+
+    import threading
+
+    from jobis_ai.orchestrator import chat as chat_mod
+
+    monkeypatch.setattr(chat_mod, "_USER_FACTS_TIMEOUT_SEC", 0.2)
+    monkeypatch.setattr(chat_mod, "extract_user_facts",
+                        lambda message, existing: (threading.Event().wait(5),
+                                                   (["안 올 사실"], []))[1])
+    response = handle_chat(ChatRequest(sessionId="uf-slow", message="9월까지 취업하고 싶어요"))
+    assert response.reply, "사실 추출이 늦어도 답변은 나간다"
+    assert not (fresh_session_store.get("uf-slow").get("user_facts") or [])
+    assert any(w["code"] == "user_facts_timeout" for w in response.warnings)

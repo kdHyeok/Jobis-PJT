@@ -1,0 +1,66 @@
+﻿id,category,query,기대_지역,기대_연차,기대_기술,검수결과,비고
+q01,tech_focus,서울 3년차 Java 백엔드 개발자,서울,3,Java,OK,
+q02,tech_focus,경기 신입 React 프론트엔드 채용,경기,0,React,OK,
+q03,tech_focus,서울 5년차 Python 데이터 엔지니어,서울,5,Python,OK,
+q04,tech_focus,서울 경력무관 TypeScript 쓰는 회사,서울,무관,TypeScript,OK,
+q05,tech_focus,서울 5년차 AWS 인프라 엔지니어,서울,5,AWS,OK,
+q06,tech_focus,경기 3년차 PostgreSQL 다루는 백엔드,경기,3,PostgreSQL,OK,
+q07,tech_focus,서울 경력무관 LLM 활용하는 AI 엔지니어,서울,무관,"LLM,Claude,OpenAI",수정,
+q08,region_focus,서울 3년차 Python 개발자 채용,서울,3,Python,OK,
+q09,region_focus,경기도 신입 Java 개발자,경기,0,Java,OK,
+q10,region_focus,대전 3년차 React 소프트웨어 엔지니어,대전,3,React,OK,
+q11,region_focus,부산 신입 Spring 개발자 채용,부산,0,Spring,OK,
+q12,region_focus,인천 경력무관 프론트엔드 React 개발자,인천,무관,React,OK,
+q13,region_focus,광주 신입 Node.js 백엔드 개발자,광주,0,Node.js,OK,
+q14,exp_focus,서울 신입 Python 개발자 채용,서울,0,Python,OK,
+q15,exp_focus,서울 경력 3년 이상 Java 개발자,서울,3,Java,OK,
+q16,exp_focus,경기 경력 5년차 Spring 백엔드,경기,5,Spring,OK,
+q17,exp_focus,서울 경력무관 React 개발자 채용,서울,무관,React,OK,
+q18,exp_focus,서울 시니어 Java 개발자,서울,7,Java,OK,시니어=연차 미상 — 7로 간주(관례). 다르게 보면 수정
+q19,colloquial_region,강남에서 3년차 Java 백엔드 개발자,서울 강남구,3,Java,OK,
+q20,colloquial_region,판교 신입 React 프론트엔드 개발자,경기 성남시,0,React,OK,판교=성남시 분당구 생활권
+q21,colloquial_region,분당 경력무관 Python 개발자 채용,경기 성남시,무관,Python,OK,
+q22,colloquial_region,여의도 3년차 금융 IT Java 개발자,서울 영등포구,3,Java,OK,금융 도메인 의도는 구조 밖(지역/연차/기술 아님)
+q23,colloquial_region,성남 신입 Spring 백엔드,경기 성남시,0,Spring,OK,
+q24,colloquial_region,역삼 경력무관 React 스타트업 채용,서울 강남구,무관,React,OK,스타트업 의도는 구조 밖
+q25,tech_alias,서울 3년차 스프링부트 하는 회사,서울,3,Spring Boot,OK,
+q26,tech_alias,서울 신입 리액트 개발자,서울,0,React,OK,
+q27,tech_alias,서울 5년차 쿠버네티스 다루는 데브옵스,서울,5,Kubernetes,OK,
+q28,tech_alias,경기 3년차 도커 쓰는 백엔드,경기,3,Docker,OK,
+q29,tech_alias,서울 신입 노드js 백엔드 개발자,서울,0,Node.js,OK,
+q30,tech_alias,서울 경력무관 파이썬 데이터 분석가,서울,무관,Python,OK,
+q31,combo_balanced,서울에서 3년차 Java Spring 백엔드,서울,3,Java;Spring,OK,
+q32,combo_balanced,경기 신입 React 프론트엔드,경기,0,React,OK,
+q33,combo_balanced,서울 3년차 Python 개발자,서울,3,Python,OK,
+q34,combo_balanced,서울 신입 TypeScript 프론트엔드 개발자,서울,0,TypeScript,OK,
+q35,combo_balanced,서울 5년 이상 AWS 인프라 엔지니어,서울,5,AWS,OK,
+q36,combo_balanced,서울 경력무관 LLM 엔지니어,서울,무관,LLM,보류,
+q37,combo_balanced,서울 신입 Spring 백엔드 개발자,서울,0,Spring,OK,
+q38,combo_balanced,경기 5년차 Docker 데브옵스,경기,5,Docker,OK,
+q39,combo_dense,서울 강남 스프링부트 3년차 백엔드,서울 강남구,3,Spring Boot,OK,"서울이 아니라 ""서울 강남구""가 의도 — 동의하면 OK"
+q40,combo_dense,경기 판교 신입 프론트엔드 리액트,경기 성남시,0,React,OK,
+q41,combo_dense,부산 신입 Java 백엔드 개발자,부산,0,Java,OK,
+q42,combo_dense,대전 경력무관 Python 데이터 엔지니어,대전,무관,Python,OK,
+q43,combo_dense,서울 시니어 쿠버네티스 데브옵스,서울,7,Kubernetes,OK,시니어=7 간주
+q44,sparse_relax,대구에서 5년차 Kubernetes 다루는 시니어 개발자,대구,5,Kubernetes,OK,5년차와 시니어 공존 — 명시 숫자 5 우선
+q45,sparse_relax,제주에서 신입 React 프론트엔드 개발자,제주,0,React,OK,
+q46,sparse_relax,울산 3년차 Python 데이터 엔지니어,울산,3,Python,OK,
+q47,sparse_relax,충북 신입 Java 백엔드 개발자,충북,0,Java,OK,
+q48,sparse_relax,경남 3년차 Go 시스템 프로그래머,경남,3,Go,OK,
+q49,freeform,서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까,서울,무관,Python,OK,AI 스타트업 의도는 구조 밖
+q50,freeform,서울 3년차 재택 가능한 Java 백엔드 개발자 자리 찾아요,서울,3,Java,OK,재택 의도는 구조 밖
+q51,parser_trap,서울 3년차 설립 10년 이상 된 회사에서 Java 백엔드 개발자,서울,3,Java,OK,"함정: ""10년""은 회사 업력 — 연차가 3이어야 정답"
+q52,parser_trap,서울 Vue 3년 경험 프론트엔드,서울,3,Vue,OK,"함정: ""Vue 3""(버전)이 아니라 Vue + 3년 경험"
+q53,parser_trap,서울 golang 10년차 서버 개발자,서울,10,Go,OK,golang=Go
+q54,multi_tech,서울 3년차 React TypeScript 프론트엔드 개발자,서울,3,React;TypeScript,OK,
+q55,multi_tech,서울 신입 Python FastAPI 백엔드,서울,0,Python;FastAPI,OK,
+q56,multi_tech,서울 5년차 Docker Kubernetes 다루는 인프라 엔지니어,서울,5,Docker;Kubernetes,OK,
+q57,boundary_exp,서울 경력 1년차 Spring 백엔드 개발자,서울,1,Spring,OK,
+q58,boundary_exp,서울 경력 10년 이상 Java 시니어 아키텍트,서울,10,Java,OK,
+q59,boundary_exp,서울 2년차 Python 주니어 개발자,서울,2,Python,OK,
+q60,negative_signal,서울 3년차 Java 쓰는데 Spring 말고 다른 프레임워크 쓰는 곳,서울,3,Java,OK,"함정: ""Spring 말고""는 제외 의도 — Spring을 기대 기술에 넣으면 안 됨"
+q61,negative_signal,서울 3년차 핀테크 쪽 Java 개발자 자리 괜찮은 데 있을까,서울,3,Java,OK,핀테크 의도는 구조 밖
+q62,negative_signal,서울 신입 계약직 말고 정규직 Python 백엔드 개발자,서울,0,Python,OK,정규직 의도는 구조 밖
+q63,low_resource_role,서울 3년차 Python QA 엔지니어 테스트 자동화,서울,3,Python,OK,
+q64,low_resource_role,서울 3년차 AWS SRE 엔지니어 채용,서울,3,AWS,OK,
+q65,low_resource_role,서울 3년차 Python 보안 엔지니어 취약점 분석,서울,3,Python,OK,

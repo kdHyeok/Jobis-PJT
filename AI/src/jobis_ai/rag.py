@@ -70,6 +70,63 @@ class NullRagAdapter:
         )
 
 
+# 같은 공고가 채용 사이트마다 한 건씩 크롤돼 있다 — posting_id·URL·제목이 사이트별로 다르다.
+# 실측(2026-08-03, 세션 c1470d00): 추천 5건이 실제로는 공고 3개였고(같은 posting_id 가 work24·
+# saramin 로 2번), 대안 5건도 에버엑스·피트인이 각각 2번이었다("에버엑스㈜"/"에버엑스 주식회사",
+# 제목 뒤 "(채용시 마감)" 만 다름). 사용자는 5개를 받았다고 믿는다.
+# **후보를 만드는 자리는 여기 하나**이므로(job_recommend·_alternatives_from_rag·application_plan
+# 이 전부 이 items 를 받는다) 중복 제거도 여기서 한 번만 한다.
+_CORP_FORMS = ("주식회사", "(주)", "㈜", "(유)", "유한회사")
+# 제목에 붙는 상태 표기만 지운다 — 괄호를 통째로 지우면 '백엔드(신입)'·'백엔드(경력)' 처럼
+# 실제로 다른 공고가 하나로 합쳐진다.
+_STATUS_MARKS = ("(채용시 마감)", "(상시채용)", "(수시채용)", "(채용마감)")
+
+
+def _posting_identity(item: dict) -> tuple[str, str]:
+    def norm(value: object, drops: tuple[str, ...]) -> str:
+        text = str(value or "")
+        for drop in drops:
+            text = text.replace(drop, "")
+        return "".join(text.split()).lower()
+
+    return norm(item.get("companyName"), _CORP_FORMS), norm(item.get("title"), _STATUS_MARKS)
+
+
+def dedupe_postings(items: list[dict]) -> list[dict]:
+    """회사+직무가 같은 크롤 중복을 지운다. 먼저 온 것(=점수 높은 쪽)을 남긴다.
+
+    결과 수가 top_k 보다 줄어들 수 있다 — 중복으로 자릿수를 채우는 것보다 낫다.
+    """
+
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    for item in items:
+        key = _posting_identity(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+    return out
+
+
+def company_context_unsupported(company_name: str) -> RagResult:
+    """검색은 붙어 있으나 **기업 맥락**을 낼 소스가 없는 경우 — '미연결'과 구별한다.
+
+    실측(2026-08-03, 세션 c1470d00): 실 RAG(HTTP)가 정상 동작해 공고를 찾고 있는데 분석
+    경고에는 `rag_not_connected` "RAG 미연결"이 찍혔다. 공고 검색 어댑터들이 기업 맥락 조회를
+    `NullRagAdapter` 로 위임해 **그쪽 사유 문구까지 함께 가져온** 탓이다. 붙어 있는데 미연결로
+    적으면 다음 사람이 없는 장애를 좇는다 — 폴백이 사유를 삼키는 것(§2-6)의 거울상이다.
+
+    사유는 여전히 남는다: 공고 검색 서비스는 인재상·기술문화를 대답할 소스가 아니다.
+    """
+
+    return RagResult(warnings=[{
+        "code": "company_context_unsupported",
+        "message": (f"'{company_name or '기업'}' 기업 맥락(인재상·기술문화)은 공고 검색으로 "
+                    "답할 수 없어 조회하지 않았습니다 — 프로필 근거만으로 판정합니다."),
+    }])
+
+
 class LocalPostingsRagAdapter:
     """크롤링 공고 DB(postings_db) 기반 키워드 검색 — RAG 실구현 전까지의 실데이터 자리.
 
@@ -79,8 +136,8 @@ class LocalPostingsRagAdapter:
     """
 
     def fetch_company_context(self, company_name: str, requirements: list[dict]) -> RagResult:
-        # 기업 맥락(인재상·기술문화)은 공고 DB 로 대답할 수 없다 — 정직하게 Null 동작.
-        return NullRagAdapter().fetch_company_context(company_name, requirements)
+        # 기업 맥락(인재상·기술문화)은 공고 DB 로 대답할 수 없다 — 빈 결과 + 사유.
+        return company_context_unsupported(company_name)
 
     def search(self, query: str, *, top_k: int = 5) -> RagResult:
         from jobis_ai.postings_db import search_postings
@@ -106,6 +163,7 @@ class LocalPostingsRagAdapter:
             "score": float(p.get("score") or 0.0),
             "matchReason": p.get("match_reason") or {},
         } for p in hits]
+        items = dedupe_postings(items)
         sources = [{"title": i["title"], "url": i["url"], "company": i["companyName"]}
                    for i in items]
         return RagResult(items=items, sources=sources)
@@ -131,8 +189,8 @@ class HttpRagAdapter:
         self._base = (base_url or "").rstrip("/")
 
     def fetch_company_context(self, company_name: str, requirements: list[dict]) -> RagResult:
-        # 기업 맥락(인재상·기술문화)은 공고 검색 서비스로 대답할 수 없다 — 정직하게 Null 동작.
-        return NullRagAdapter().fetch_company_context(company_name, requirements)
+        # 기업 맥락(인재상·기술문화)은 공고 검색 서비스로 대답할 수 없다 — 빈 결과 + 사유.
+        return company_context_unsupported(company_name)
 
     def search(self, query: str | dict, *, top_k: int = 5) -> RagResult:
         import json as json_mod
@@ -180,6 +238,7 @@ class HttpRagAdapter:
             "score": float(p.get("score") or 0.0),
             "matchReason": p.get("match_reason") or {},
         } for p in postings]
+        items = dedupe_postings(items)
         sources = [{"title": i["title"], "url": i["url"], "company": i["companyName"]}
                    for i in items]
         return RagResult(items=items, sources=sources)

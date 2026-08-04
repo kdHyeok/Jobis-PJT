@@ -297,11 +297,39 @@ def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any],
                      and getattr(registry[n], "heavy", False)]
     if unasked_heavy:
         goals = [n for n in plan if n not in unasked_heavy]
-        goal_label = " · ".join(agent_label(n) for n in goals) or "요청하신 작업"
         heavy_label = " · ".join(agent_label(n) for n in unasked_heavy)
+        # 여기서는 아무것도 실행하지 않는다 — 계획의 나머지는 미루는 것의 산출을 기대하고
+        # 배치된 것이라(자소서는 판정 뒤에 온다) 생산자 없이 돌리면 근거가 빈 산출이 된다.
+        # **다만 방금 낸 자료의 정리는 보여줘야 한다** — 그 판단은 이번 턴 제출물을 아는
+        # 오케스트레이터가 한다(`chat.py` 의 게이트 분기, D158).
+        # 문장은 **사용자가 방금 한 일**에서 출발한다 — 자료를 주자마자 "…에는 먼저 …이
+        # 필요해요"로 받으면, 방금 준 자료가 아니라 부족한 것을 말하는 것으로 읽힌다
+        # (실측 2026-08-04: 공고·이력서를 다 준 턴에 "이력서 진단에는 먼저 적합도 분석이
+        # 필요해요"가 나갔다). 가진 자료로 바로 할 수 있다는 사실을 먼저 말하고, 미루는
+        # 목표는 뒤에 붙인다. 라벨에는 조사를 붙이지 않는다(받침에 따라 갈린다 —
+        # observe_rules 와 같은 규칙).
+        materials = " · ".join(
+            asset_label(a) for a in registry[unasked_heavy[0]].preconditions
+            if a in assets
+        )
+        opening = f"주신 {materials} 기반으로 " if materials else ""
+        # 뒷문장은 **사용자가 직접 청한 목표일 때만** 그 이름을 말한다. 자동으로 끼워진
+        # 목표를 "이어서 해드릴게요"로 약속하면 사용자가 청한 적 없는 일이 예고된다 —
+        # 특히 이력서 진단은 이력서를 받는 즉시 이미 돌아서(정리 에이전트) 판정 뒤에
+        # 다시 예고할 일이 아니다. 청한 것이 없으면 판정 **결과로 열리는 선택지**를 알린다.
+        # 이력서 진단은 예고하지 않는다 — 이력서를 받는 즉시 정리 에이전트가 이미 돌린다
+        # (판정 뒤에 다시 해줄 일로 말하면 없는 순서를 약속하게 된다).
+        asked_goals = [n for n in goals
+                       if n in requested_set and n != "resume_diagnosis"]
+        follow = (
+            f" 끝나면 이어서 {' · '.join(agent_label(n) for n in asked_goals)}까지 해드릴게요."
+            if asked_goals else
+            " 분석 결과에 따라 자소서 초안 · 면접 준비 · 로드맵 안내 · 대안 공고 추천까지"
+            " 이어서 해드릴 수 있어요."
+        )
         return Dispatch((), pending=tuple(unasked_heavy), ask=(
-            f"{goal_label}에는 먼저 {heavy_label}이 필요해요. "
-            f"시간이 조금 걸리는 작업인데(수십 초), 바로 진행할까요?"))
+            f"{opening}{heavy_label}부터 진행할 수 있어요. "
+            f"수십 초 정도 걸리는데 바로 진행할까요?{follow}"))
 
     labels = " → ".join(agent_label(n) for n in plan)
     if dropped:

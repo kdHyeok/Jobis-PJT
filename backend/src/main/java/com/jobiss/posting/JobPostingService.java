@@ -451,6 +451,12 @@ public class JobPostingService {
                           and posting.content_fingerprint = :contentFingerprint
                         """ + conversationPredicate + """
                           and job.status in ('QUEUED', 'RUNNING', 'WAITING_FOR_INPUT')
+                          -- 락이 만료된 RUNNING 은 "진행 중"이 아니라 버려진 작업이다.
+                          -- 그걸 진행 중으로 세면 새 요청이 좀비에 붙어 영원히 "분석 중"이
+                          -- 된다(실측 08-04). 회수는 claim_analysis_job(V25)이 하고, 여기서는
+                          -- 붙이지 않는 것만 한다.
+                          -- 락이 없는 RUNNING 도 버려진 것으로 본다(V25 의 회수 조건과 같다).
+                          and (job.status <> 'RUNNING' or job.locked_until >= now())
                         order by job.created_at desc
                         limit 1
                         """;
