@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import logging
 import re
 import sys
 
@@ -176,7 +177,10 @@ def search(conn, input_data, top_k: int = TOP_K_DEFAULT,
         # 무의미 질의 가드: 기술·직군 신호가 전혀 없고 어휘 매치(BM25)도 전무하면
         # dense 최근접만으로 채우지 않고 0건을 반환한다 (empty_ok 계약).
         if not spec.tech and not spec.role_category and not spec.regions:
-            if not any(h.bm25_rank is not None for h in hits):
+            # Reranking may promote dense-only hits into the final top-k even when
+            # the lexical axis produced valid candidates.  Check the full BM25
+            # candidate set, not only the already-reranked final hits.
+            if result.bm25_candidates == 0:
                 return {"postings": []}
 
         raw_map = _fetch_raw(conn, [h.posting_uid for h in hits])
@@ -195,6 +199,7 @@ def search(conn, input_data, top_k: int = TOP_K_DEFAULT,
 
         return {"postings": postings}
     except Exception:                        # noqa: BLE001 — 계약: 예외 금지
+        logging.getLogger(__name__).exception("RAG specification search failed")
         return {"postings": []}
 
 

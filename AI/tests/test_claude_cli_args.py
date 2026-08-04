@@ -10,7 +10,19 @@
 
 from __future__ import annotations
 
-from jobis_ai.claude_code_llm import ClaudeCodeChat, _COMMON_ARGS, extract_json
+import json
+import subprocess
+
+import pytest
+
+from jobis_ai.claude_code_llm import (
+    ClaudeCodeChat,
+    ClaudeCodeCLIError,
+    _COMMON_ARGS,
+    _raise_cli_error,
+    _run_cli,
+    extract_json,
+)
 
 
 def test_builtin_tools_are_disabled():
@@ -42,3 +54,61 @@ def test_json_extraction_strips_fences_and_prose():
     assert extract_json('```json\n{"a": 1}\n```') == '{"a": 1}'
     assert extract_json('네, 결과입니다: {"a": 1} 이상입니다.') == '{"a": 1}'
     assert extract_json('{"a": 1}') == '{"a": 1}'
+
+
+def test_cli_error_uses_result_instead_of_truncated_wrapper():
+    """실제 원인은 JSON 뒤쪽 result 에 있다 — wrapper 앞부분을 잘라 기록하지 않는다."""
+
+    wrapper = {
+        "is_error": True,
+        "duration_api_ms": 0,
+        "usage": {"input_tokens": 0, "output_tokens": 0},
+        "terminal_reason": "api_error",
+        "api_error_status": 429,
+        "result": "You've hit your weekly limit · resets 5pm (Asia/Seoul)",
+    }
+    out = subprocess.CompletedProcess(
+        args=["claude"], returncode=1, stdout=json.dumps(wrapper), stderr=""
+    )
+
+    with pytest.raises(ClaudeCodeCLIError) as caught:
+        _raise_cli_error(out)
+
+    message = str(caught.value)
+    assert "HTTP 429" in message
+    assert "weekly limit" in message
+    assert "resets 5pm (Asia/Seoul)" in message
+    assert caught.value.retryable is False
+
+
+def test_non_quota_cli_error_remains_retryable():
+    wrapper = {
+        "is_error": True,
+        "terminal_reason": "api_error",
+        "api_error_status": 503,
+        "result": "service temporarily unavailable",
+    }
+    out = subprocess.CompletedProcess(
+        args=["claude"], returncode=1, stdout=json.dumps(wrapper), stderr=""
+    )
+
+    with pytest.raises(ClaudeCodeCLIError) as caught:
+        _raise_cli_error(out)
+
+    assert "HTTP 503" in str(caught.value)
+    assert "service temporarily unavailable" in str(caught.value)
+    assert caught.value.retryable is True
+
+
+def test_timeout_error_does_not_expose_prompt(monkeypatch):
+    """TimeoutExpired 의 command 문자열에는 프롬프트가 있으므로 그대로 로그에 내면 안 된다."""
+
+    def timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], timeout=180)
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+    with pytest.raises(ClaudeCodeCLIError) as caught:
+        _run_cli(["claude"], "sonnet", "민감한 사용자 입력")
+
+    assert "응답 시간 초과" in str(caught.value)
+    assert "민감한 사용자 입력" not in str(caught.value)

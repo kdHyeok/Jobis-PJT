@@ -45,6 +45,103 @@ _CALL_TIMEOUT_SEC = 180
 _COMMON_ARGS = ["--output-format", "json", "--max-turns", "1",
                 "--strict-mcp-config", "--tools", ""]
 
+_ERROR_DETAIL_LIMIT = 1000
+
+
+class ClaudeCodeCLIError(RuntimeError):
+    """Claude CLI 호출 실패.
+
+    ``retryable`` 은 호출부가 같은 요청을 다시 보낼 가치가 있는지 나타낸다. 주간 사용 한도처럼
+    재실행해도 결과가 바뀌지 않는 오류는 False 로 올려 불필요한 CLI 재기동을 막는다.
+    """
+
+    def __init__(self, message: str, *, retryable: bool = True) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def _compact_error_detail(value: Any) -> str:
+    """로그 한 줄에 안전하게 넣을 수 있도록 오류 설명만 짧게 정리한다."""
+
+    text = " ".join(str(value or "").split())
+    return text[:_ERROR_DETAIL_LIMIT]
+
+
+def _decode_wrapper(stdout: str) -> dict[str, Any] | None:
+    """Claude CLI JSON wrapper 를 읽는다. 비 JSON stderr 경로는 호출부가 별도로 처리한다."""
+
+    try:
+        parsed = json.loads(stdout or "")
+    except (json.JSONDecodeError, TypeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _raise_cli_error(out: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+    """종료 코드와 JSON wrapper 를 함께 판정해 사람이 읽을 수 있는 예외로 바꾼다.
+
+    Claude CLI 는 API 오류도 stdout 의 JSON ``result`` 에 싣는다. 기존 구현은 stdout 앞
+    300자만 남겨 뒤쪽의 실제 원인(예: 주간 한도와 리셋 시각)을 잘라 버렸다.
+    """
+
+    wrapper = _decode_wrapper(out.stdout)
+    is_error = out.returncode != 0 or bool(wrapper and wrapper.get("is_error"))
+    if not is_error:
+        if wrapper is None:
+            detail = _compact_error_detail(out.stderr or out.stdout) or "빈 응답"
+            raise ClaudeCodeCLIError(f"claude CLI JSON 응답 파싱 실패: {detail}")
+        return wrapper
+
+    status = wrapper.get("api_error_status") if wrapper else None
+    terminal_reason = wrapper.get("terminal_reason") if wrapper else None
+    detail = _compact_error_detail(
+        (wrapper.get("result") if wrapper else None) or out.stderr or out.stdout
+    ) or "상세 오류 없음"
+
+    # 일반 429는 잠깐 뒤 회복할 수 있지만, 구독 주간 한도는 리셋 전까지 같은 결과라 재시도가
+    # 무의미하다. 문구와 상태를 함께 보아 이 경우만 영구 실패로 분류한다.
+    weekly_limit = status == 429 and (
+        "weekly limit" in detail.lower() or "resets" in detail.lower()
+    )
+    if weekly_limit:
+        raise ClaudeCodeCLIError(
+            f"claude CLI 사용 한도 초과 (HTTP 429): {detail}", retryable=False
+        )
+
+    context = []
+    if status is not None:
+        context.append(f"HTTP {status}")
+    if terminal_reason:
+        context.append(str(terminal_reason))
+    context_text = f" ({', '.join(context)})" if context else ""
+    raise ClaudeCodeCLIError(
+        f"claude CLI 종료 코드 {out.returncode}{context_text}: {detail}"
+    )
+
+
+def _run_cli(cli: list[str], model: str, prompt: str) -> dict[str, Any]:
+    """Claude CLI 한 번을 실행하고 성공 wrapper 만 반환한다."""
+
+    try:
+        out = subprocess.run(
+            [*cli, "-p", prompt, "--model", model, *_COMMON_ARGS],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
+            # 레포 밖에서 실행 — 프로젝트 CLAUDE.md·설정·훅이 판정 프롬프트에 섞이지 않게.
+            cwd=tempfile.gettempdir(),
+        )
+    except subprocess.TimeoutExpired as exc:
+        # TimeoutExpired 문자열에는 전체 명령(즉 프롬프트 원문)이 포함된다. 사용자 입력을 로그에
+        # 유출하지 않고 제한시간만 알린다.
+        raise ClaudeCodeCLIError(
+            f"claude CLI 응답 시간 초과 ({_CALL_TIMEOUT_SEC}초)"
+        ) from exc
+    except OSError as exc:
+        raise ClaudeCodeCLIError(
+            f"claude CLI 실행 실패: {_compact_error_detail(exc)}", retryable=False
+        ) from exc
+    return _raise_cli_error(out)
+
 
 def extract_json(text: str) -> str:
     """CLI 응답 텍스트에서 JSON 본문을 꺼낸다. 코드펜스·앞뒤 잡담을 벗긴다.
@@ -86,19 +183,7 @@ class ClaudeCodeChat:
         human = "\n\n".join(m[1] for m in messages if m[0] != "system")
         prompt = f"{system}\n\n---\n[입력]\n{human}"
 
-        out = subprocess.run(
-            [*self.cli, "-p", prompt, "--model", self.model, *_COMMON_ARGS],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
-            cwd=tempfile.gettempdir(),
-        )
-        if out.returncode != 0:
-            raise RuntimeError(
-                f"claude CLI 종료 코드 {out.returncode}: {(out.stderr or out.stdout)[:300]}"
-            )
-        wrapper = json.loads(out.stdout)
-        if wrapper.get("is_error"):
-            raise RuntimeError(f"claude CLI 오류 응답: {str(wrapper.get('result'))[:300]}")
+        wrapper = _run_cli(self.cli, self.model, prompt)
         return _TextResult(str(wrapper.get("result") or ""))
 
 
@@ -127,19 +212,5 @@ class _Structured:
             f"어떻게 채울지에 대한 지시다.\n[JSON Schema]\n{schema_json}"
         )
 
-        out = subprocess.run(
-            [*self._chat.cli, "-p", prompt, "--model", self._chat.model, *_COMMON_ARGS],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=_CALL_TIMEOUT_SEC, stdin=subprocess.DEVNULL,
-            # 레포 밖에서 실행 — 프로젝트 CLAUDE.md·설정·훅이 판정 프롬프트에 섞이지 않게.
-            cwd=tempfile.gettempdir(),
-        )
-        if out.returncode != 0:
-            raise RuntimeError(
-                f"claude CLI 종료 코드 {out.returncode}: {(out.stderr or out.stdout)[:300]}"
-            )
-
-        wrapper = json.loads(out.stdout)
-        if wrapper.get("is_error"):
-            raise RuntimeError(f"claude CLI 오류 응답: {str(wrapper.get('result'))[:300]}")
+        wrapper = _run_cli(self._chat.cli, self._chat.model, prompt)
         return self._schema.model_validate_json(extract_json(str(wrapper.get("result") or "")))

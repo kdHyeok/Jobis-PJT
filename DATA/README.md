@@ -5,7 +5,7 @@
 기본 수집 대상으로 하고, **이미지 안에만 내용이 있는 공고**(`need_ocr="O"`)는 이미지 URL만
 따로 모아 OCR로 본문을 채운다. `detail_text`에는 요약이 아니라 실제 상세 원문만 저장한다.
 
-## 파이프라인 4단계
+## 로컬 파일 파이프라인 4단계
 
 ```
 ① 크롤링    crawl_*.py            5개 사이트에서 공고 수집
@@ -18,6 +18,11 @@
 하므로, 순서를 바꾸면 이미지형 공고가 본문 없이 통합본에 들어간다.
 
 네 단계를 한 번에 돌리려면 **`run_daily_update.py`** 를 쓴다(아래 "자동 실행" 참고).
+
+Airflow 운영 경로는 PostgreSQL을 OCR 작업 큐로 사용한다. 사이트별 JSON의 `X/O` 행을
+`export_postgres.py --from-source-jsons`로 먼저 적재한 뒤 `ocr_postgres.py`가 DB 행을
+선점해 같은 행을 갱신한다. 따라서 Airflow에서는 `enrich_ocr.py --in-place`와 파일 병합을
+운영 상태 저장소로 사용하지 않는다.
 
 크롤링·통합·SQL은 표준 라이브러리만 쓰고, OCR만 별도 패키지가 필요하다.
 
@@ -59,6 +64,8 @@ python3 crawl_work24_it.py   --max-results 2000 --max-ocr-pending-results 500 --
 ```
 
 - `--max-results`는 **텍스트 공고** 상한, `--max-ocr-pending-results`는 **이미지형 공고** 상한이다(서로 별개).
+- `--max-candidates 20`은 신규 저장 여부와 관계없이 발견 후보 20개까지만 검사하는 소량 테스트용
+  상한이다. 기본값 `0`은 제한 없음이다.
 - 두 상한을 모두 채우거나 검색 결과가 소진되면 멈춘다. 목표에 못 미치면 `--pages-per-keyword`를 더 키운다.
 - `--delay`는 사이트 정책을 지키기 위한 요청 간격이다. **1.2초보다 짧게 설정하지 말 것.**
 
@@ -88,6 +95,16 @@ python3 crawl_work24_it.py   --max-results 2000 --max-ocr-pending-results 500 --
 - 실패한 공고는 `exports/<사이트>_job_postings_ocr_failed.json` 에 기록되어 다음 실행에서
   건너뛴다. 다시 시도하려면 `--retry-failed` 를 준다.
 
+Airflow에서는 다음 형태로 PostgreSQL 대기열을 처리한다.
+
+```bash
+.venv/bin/python ocr_postgres.py --site jobkorea --max 20 --max-attempts 2
+```
+
+- `FOR UPDATE SKIP LOCKED`로 한 행을 선점하고 lease가 만료된 작업만 다시 가져간다.
+- 성공 시 `detail_text`, `text_source='ocr'`, `need_ocr='X'`, `ocr_status='succeeded'`를 갱신한다.
+- 실패 시 `ocr_attempt_count`를 누적하고 지수 백오프 후 재시도하며 최대 횟수에서 `dead`가 된다.
+
 ## ③ 전체를 하나로 합치기 (중복 제거)
 
 **같은 회사의 같은 공고명**을 사이트 간 중복으로 보고, 텍스트 상세·메타데이터가 더 풍부한
@@ -112,10 +129,15 @@ python3 merge_job_postings.py
 
 ```bash
 python3 export_postgres.py
+# Airflow: 사이트별 완료/OCR 대기 행을 모두 선적재
+python3 export_postgres.py --from-source-jsons
 ```
 
 - 결과: `exports/all_job_postings_postgres.sql`
-- `ON CONFLICT DO NOTHING` 이라 **같은 파일을 여러 번 실행해도 안전**하다.
+- `ON CONFLICT DO UPDATE`라 **같은 파일을 여러 번 실행해도 안전**하다. 새 OCR 본문은
+  기존 동일 PK 행에 반영하고, 새 본문이 비어 있으면 기존 본문과 OCR 상태를 보존한다.
+- 테이블 스키마는 `infra/airflow/migrations/jobrag`의 Flyway 이력이 관리하므로 DB 적재
+  전에 마이그레이션을 적용해야 한다.
 - `text_source` 컬럼으로 본문 출처를 구분한다: `original`(사이트 원문) / `ocr`(이미지 추출).
 - `deadline_date` 는 원본 마감일 문자열에서 파싱한 `DATE` 값이다(비교·정렬용).
 

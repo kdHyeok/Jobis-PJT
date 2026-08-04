@@ -84,34 +84,29 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(html)
             return
         if self.path == "/api/eval":
-            try:
-                from eval import harness
-                if not harness.OUT.exists():
-                    self._send_json(404, {"error": "아직 실행 안 됨 — '다시 계산' 버튼을 눌러줘"})
-                    return
-                self._send_json(200, json.loads(harness.OUT.read_text(encoding="utf-8")))
-            except ImportError:
-                self._send_json(501, {"error": "eval.harness 모듈 미설치"})
+            from eval.run import REPORT_PATH
+            if not REPORT_PATH.exists():
+                self._send_json(404, {"error": "아직 실행 안 됨 — '다시 계산' 버튼을 눌러줘"})
+                return
+            self._send_json(200, json.loads(REPORT_PATH.read_text(encoding="utf-8")))
             return
         self._send_json(404, {"error": "not found"})
 
     def do_POST(self):
         if self.path == "/api/eval/run":
             try:
-                from eval import harness
+                from eval.run import POOL_PATH, check_gates, measure
+                if not POOL_PATH.exists():
+                    self._send_json(409, {"error": "eval/pool.json 없음 — 먼저 평가 풀을 생성해야 합니다"})
+                    return
+                pool_data = json.loads(POOL_PATH.read_text(encoding="utf-8"))
+                failed = [gate for gate in check_gates(pool_data) if not gate["passed"]]
+                if failed:
+                    self._send_json(409, {"error": "평가 게이트 실패", "gates": failed})
+                    return
                 with _pool.connection() as conn:
-                    report = {
-                        "generated_at": __import__("datetime").datetime.now().isoformat(),
-                        "search": harness.eval_search(conn, _vocab),
-                        "discrimination": harness.eval_discrimination(conn, _vocab),
-                        "parsing": harness.eval_parsing(_vocab),
-                        "latency": harness.eval_latency(),
-                        "chunking": harness.eval_chunking(conn),
-                    }
-                harness.OUT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                    report = measure(conn, pool_data)
                 self._send_json(200, report)
-            except ImportError:
-                self._send_json(501, {"error": "eval.harness 모듈 미설치"})
             except Exception:
                 self._send_json(500, {"error": traceback.format_exc()})
             return

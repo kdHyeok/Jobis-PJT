@@ -336,6 +336,7 @@ name = "jobis-ai"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "langchain-anthropic" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
@@ -362,6 +363,7 @@ prototype = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", marker = "extra == 'prototype'", specifier = ">=0.110" },
+    { name = "httpx", specifier = ">=0.28,<1" },
     { name = "langchain-anthropic", specifier = ">=0.3.0" },
     { name = "langchain-core", specifier = ">=0.3.0" },
     { name = "langchain-openai", specifier = ">=0.2.0" },

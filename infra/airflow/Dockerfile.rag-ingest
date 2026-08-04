@@ -1,10 +1,8 @@
 # RAG 적재 이미지: run_ingest_additive.py + BGE-M3 (CPU).
 #
-# RAG/ 소스는 feat/ai/rag 브랜치에 있으므로 그 브랜치 체크아웃을 컨텍스트로 빌드한다:
-#   git worktree add /srv/jobis-rag feat/ai/rag
+# 최신 develop에 포함된 RAG/를 저장소 루트 컨텍스트로 빌드한다:
 #   docker build -t jobis/rag-ingest:latest \
-#     -f infra/airflow/Dockerfile.rag-ingest /srv/jobis-rag
-# (-f는 이 브랜치의 파일 경로, 컨텍스트는 RAG 브랜치 체크아웃 — 서로 달라도 된다)
+#     -f infra/airflow/Dockerfile.rag-ingest .
 FROM python:3.11-slim
 
 RUN apt-get update \

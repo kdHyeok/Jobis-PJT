@@ -3498,3 +3498,50 @@ D59 로 이미 재고 있었으므로 남은 것은 단가를 곱하는 일뿐�
 
 **측정**: `pytest -q` 769건 통과(`test_audit_and_cost.py` 2건 신설 — 단가 미상은 None,
 합계는 아는 콜만 더하고 나머지는 `uncostedCalls` 로 따로 센다).
+
+### D167 (08-05) Claude CLI 오류는 wrapper 가 아니라 result 를 남기고 영구 한도는 재시도하지 않는다
+
+**결정**: Claude CLI 의 비정상 종료는 stdout JSON wrapper 의 `result`·`api_error_status`·
+`terminal_reason` 을 파싱해 예외로 올린다. `HTTP 429` 중 `weekly limit`·리셋 시각이 명시된
+구독 주간 한도는 `retryable=False` 로 표시해 구조화·표현 경로 모두 한 번만 시도한다.
+일반 429나 5xx·형식 오류는 기존 재시도 정책을 유지한다.
+
+**왜**: 실측(08-05)에서 모든 노드가 종료 코드 1로 실패했지만 로그는 JSON 앞 300자만 잘라
+실제 원인인 `You've hit your weekly limit · resets 5pm (Asia/Seoul)` 을 숨겼다. 인증과 설치는
+정상이었고 최소 CLI 호출도 `duration_api_ms=0`, 토큰 0, `api_error_status=429` 로 같은 원인을
+반환했다. 리셋 전에는 같은 호출을 세 번 보내도 성공 가능성이 없고 실패 지연만 늘어난다.
+
+**보안 경계**: 타임아웃 예외는 전체 command 를 포함하므로 프롬프트 원문을 로그에 남기지 않고
+제한시간만 기록한다. CLI 오류 원문도 wrapper 전체 대신 `result` 중심으로 1000자까지만 남긴다.
+
+**측정**: quota result 보존·일시적 503 재시도 가능·타임아웃 프롬프트 비노출·구조화/표현
+영구 실패 1회 호출을 단위 테스트로 고정한다. 실제 한도 상태의 최소 CLI 호출로 HTTP 429와
+리셋 안내가 파싱 대상과 일치함을 확인했다.
+
+### D168 (08-05) Codex는 새 분기로만 붙이고 노드 지침과 판단 로직은 공유한다
+
+**결정**: `LLM_PROVIDER=codex`(`gpt` alias)를 추가한다. 인증·토큰 갱신·Codex Responses
+SSE 조립은 `fake-ai/codex_oauth_adapter/provider.py`에서 검증한 로직을
+`jobis_ai.codex_oauth_adapter` 네임스페이스 안에 독립 사본으로 둔다. 기존 `openai`(GMS),
+`anthropic`, `claude_code` 분기와 노드 코드는 바꾸지 않는다.
+
+**지침 경계**: `structured.py`와 표현 노드가 이미 만드는 `(system, human)` 메시지를 Codex
+어댑터가 각각 Responses API의 `instructions`, `input`으로 옮긴다. 프롬프트를 provider별로
+복사하지 않는다. 그래야 GMS에서 쓰던 모델 지침·스키마·금지표현 검증이 Codex 선택 시에도
+같은 단일 출처를 사용하고, 한쪽만 수정돼 행동이 갈리는 일을 막는다.
+
+**모델 경계**: GMS의 default/light 티어와 Claude의 router 티어 계약을 그대로 적용해
+`CODEX_MODEL`, `CODEX_MODEL_LIGHT`, `CODEX_MODEL_ROUTER`를 둔다. Codex 고유 설정은
+`CODEX_REASONING_EFFORT`, `CODEX_TIMEOUT_SEC`뿐이다. 샘플링 temperature는 Codex reasoning
+모델 계약에 없는 값이라 전송하지 않는다. 공통 `LLM_MAX_TOKENS`도 실제 호출에서
+`HTTP 400: Unsupported parameter: max_output_tokens`가 확인돼 Codex 경로에는 보내지 않는다.
+
+**인증 경계**: 기본 상태 파일 위치와 형식은 fake-ai와 같아 이미 한 OAuth 로그인이 있으면
+재사용한다. `CODEX_OAUTH_STATE_DIR`로 분리할 수 있다. 토큰은 환경 예시·로그·예외에 넣지
+않고, 최초 로그인은 `uv run jobis-codex-oauth --login` 명령으로만 수행한다.
+
+**측정**: payload에서 system/user 경계와 JSON Schema 보존, 구조화 파싱,
+analysis 비노출 스트리밍, 토큰 usage, default/light/router 모델 선택을 네트워크 없는 회귀
+테스트로 고정한다. 전체 AI 회귀 798건이 통과했고, 기존 fake-ai OAuth 상태로 모델 목록을
+조회한 뒤 `LLM_PROVIDER=codex` + `structured.run_structured`의 실제 `gpt-5.4` 호출이
+`{"result":"OK"}`, `warnings=[]`를 반환했다.

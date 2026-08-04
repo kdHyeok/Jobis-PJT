@@ -11,7 +11,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@postgres/airflow
-    JOBRAG_PG_DSN: postgresql://jobrag:${JOBRAG_DB_PASSWORD}@postgres:5432/jobrag
+    JOBRAG_PG_DSN: postgresql://jobrag:${JOBRAG_DB_PASSWORD}@postgres:5432/${JOBRAG_DB_NAME:-jobrag}
   volumes:
     - ./dags:/opt/airflow/dags:ro
     - airflow-logs:/opt/airflow/logs
@@ -29,6 +29,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:?}
       JOBRAG_DB_PASSWORD: ${JOBRAG_DB_PASSWORD:?}
+      JOBRAG_DB_NAME: ${JOBRAG_DB_NAME:-jobrag}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
@@ -37,12 +38,70 @@ services:
       interval: 5s
       retries: 12
 
+  jobrag-migrate:
+    image: flyway/flyway:13.0.0-alpine
+    command: -connectRetries=60 migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${JOBRAG_DB_NAME:-jobrag}
+      FLYWAY_USER: jobrag
+      FLYWAY_PASSWORD: ${JOBRAG_DB_PASSWORD:?}
+      # Adopt the existing schema as version 0, then execute V1's idempotent
+      # reconciliation. A fresh empty database executes V1 directly.
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "0"
+      FLYWAY_BASELINE_DESCRIPTION: pre-flyway-jobrag-schema
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ./migrations/jobrag:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  rag-search:
+    build:
+      context: ../..
+      dockerfile: infra/airflow/Dockerfile.rag-search
+    image: jobis/rag-search:latest
+    environment:
+      PG_DSN: postgresql://jobrag:${JOBRAG_DB_PASSWORD}@postgres:5432/${JOBRAG_DB_NAME:-jobrag}
+      HF_HOME: /hf
+    volumes:
+      - hf-cache:/hf
+    ports:
+      - "8765:8765"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; data=json.load(urllib.request.urlopen('http://localhost:8765/health', timeout=3)); assert data['status']=='ok' and data['warm']"
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 5m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jobrag-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   airflow-init:
     <<: *airflow-common
-    command: >
-      bash -c "airflow db migrate && airflow users create
-      --username admin --password ${AIRFLOW_ADMIN_PASSWORD:?}
-      --firstname Admin --lastname Admin --role Admin --email admin@example.com"
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        airflow db migrate
+        airflow pools set ocr_pool 1 'PaddleOCR tasks run one at a time'
+        if ! airflow users list --output json | python -c \
+          'import json, sys; sys.exit(0 if any(user.get("username") == "admin" for user in json.load(sys.stdin)) else 1)'; then
+          airflow users create \
+            --username admin --password '${AIRFLOW_ADMIN_PASSWORD:?}' \
+            --firstname Admin --lastname Admin --role Admin --email admin@example.com
+        fi
     restart: "no"
 
   airflow-scheduler:
@@ -58,9 +117,15 @@ services:
       - airflow-logs:/opt/airflow/logs
       - crawl-state:/opt/jobis/DATA/data
       - crawl-exports:/opt/jobis/DATA/exports
+      - ocr-paddlex-cache:/home/airflow/.paddlex
+      - ocr-paddle-cache:/home/airflow/.paddleocr
+      # 일회성 jobis_legacy_import DAG 입력. 컨테이너에서는 고정 영문 경로로 읽는다.
+      - "${JOBIS_LEGACY_SQLITE_PATH:-../../RAG/Jobis_통합본_20260728/Jobis_통합본_20260728/all_job_postings.db}:/opt/jobis/imports/all_job_postings.db:ro"
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       airflow-init:
+        condition: service_completed_successfully
+      jobrag-migrate:
         condition: service_completed_successfully
 
   airflow-webserver:
@@ -72,6 +137,8 @@ services:
     depends_on:
       airflow-init:
         condition: service_completed_successfully
+      jobrag-migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
@@ -82,6 +149,10 @@ volumes:
     name: jobis-crawl-exports
   hf-cache:
     name: jobis-hf-cache
+  ocr-paddlex-cache:
+    name: jobis-ocr-paddlex-cache
+  ocr-paddle-cache:
+    name: jobis-ocr-paddle-cache
 
 networks:
   default:

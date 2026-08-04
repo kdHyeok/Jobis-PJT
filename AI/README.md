@@ -103,14 +103,15 @@ uvicorn jobis_ai.webbridge.app:app --host 127.0.0.1 --port 8000
 
 ### LLM 프로바이더 선택 (`.env` 의 `LLM_PROVIDER`)
 
-둘 중 아무거나 골라 쓴다 — 기능 차이는 없고 속도·비용만 다르다.
+세 경로 중 하나를 고른다. 노드·프롬프트·JSON 스키마·재시도 로직은 provider 밖에 있어
+어느 경로를 골라도 같은 AI 지침을 사용한다.
 
-| | `claude_code` | `openai` (GMS) |
-|---|---|---|
-| 필요한 것 | 그 머신에 `claude` CLI 로그인(팀 플랜) | `GMS_KEY` |
-| 비용 | 무과금 (구독 시트) | GMS 토큰 과금 |
-| 속도 | 느림 — 호출마다 CLI 기동(수 초) | 빠름 (턴당 4~10초) |
-| 토큰 스트리밍 | X (완성본 한 덩어리) | **O** |
+| | `claude_code` | `openai` (GMS) | `codex` (`gpt` alias) |
+|---|---|---|---|
+| 필요한 것 | `claude` CLI 로그인 | `GMS_KEY` | 최초 1회 Codex OAuth 로그인 |
+| 인증 | Claude 구독 세션 | SSAFY GMS 키 | 로컬 OAuth 상태 파일 |
+| 모델 설정 | `CLAUDE_CODE_MODEL*` | `LLM_MODEL*` | `CODEX_MODEL*` |
+| 토큰 스트리밍 | X (완성본 한 덩어리) | O | O |
 
 ```bash
 # (A) Claude Code CLI — GMS_KEY 불필요
@@ -123,11 +124,25 @@ EMBED_PROVIDER=null              # GMS_KEY 가 없으면 임베딩은 어차피 
 # (B) GMS — 토큰 스트리밍까지 확인할 때
 LLM_PROVIDER=openai
 GMS_KEY=본인_GMS_키
+
+# (C) Codex OAuth — fake-ai와 같은 인증/Responses 로직
+# 최초 1회 실행: uv run jobis-codex-oauth --login
+LLM_PROVIDER=codex
+CODEX_MODEL=gpt-5.4
+CODEX_MODEL_LIGHT=gpt-5.4
+CODEX_REASONING_EFFORT=medium
 ```
 
 바꾼 뒤에는 브릿지를 **재시작**해야 적용된다.
 `GMS_KEY` 가 없어도 임베딩 계층은 예외를 던지지 않고 경고만 남기고 건너뛴다
-(`embed_impl/gms_openai.py` — "예외를 던지지 않는다" 규칙). 즉 키 없이 `claude_code` 만으로 정상 동작한다.
+(`embed_impl/gms_openai.py` — "예외를 던지지 않는다" 규칙). 즉 키 없이 `claude_code`나
+`codex`만으로도 LLM은 동작하고, 임베딩만 건너뛴다.
+
+Codex 코드는 `src/jobis_ai/codex_oauth_adapter/`에 격리돼 `fake-ai`를 import하지 않는다.
+기본 인증 파일 위치와 형식은 `fake-ai` adapter와 같아 기존 로그인을 재사용한다. 인증을
+분리하려면 `CODEX_OAUTH_STATE_DIR`을 지정한다. GMS의 system 지침은 Codex
+`instructions`로, human 입력은 `input`으로 전달된다. `LLM_MAX_TOKENS`는 Codex OAuth
+backend가 해당 파라미터를 거부하므로 Codex 경로에는 보내지 않는다.
 
 ### 공고 데이터 (실공고 추천·URL 조회)
 
