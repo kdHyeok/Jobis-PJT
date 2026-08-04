@@ -1,0 +1,26 @@
+{
+  "backend": "claude_cli(anthropic.claude-code-2.1.220-win32-x64)+prompt_v2",
+  "n_scored": 120,
+  "n_missing_in_db": 0,
+  "n_unparsed": 0,
+  "agreement_3class": 0.6167,
+  "kappa_3class": 0.348,
+  "agreement_binary_strict": 0.7583,
+  "kappa_binary_strict": 0.4535,
+  "gate_3a": "FAIL",
+  "gate_threshold": 0.6,
+  "confusion_human_vs_judge": {
+    "Incorrect->Incorrect": 49,
+    "Correct->Correct": 23,
+    "Correct->Incorrect": 18,
+    "Ambiguous->Incorrect": 15,
+    "Correct->Ambiguous": 6,
+    "Incorrect->Correct": 3,
+    "Incorrect->Ambiguous": 2,
+    "Ambiguous->Ambiguous": 2,
+    "Ambiguous->Correct": 2
+  },
+  "missing_in_db": [],
+  "unparsed": [],
+  "note": "질의 분포가 직군형(SA)이라 골든셋 대비 대리 검증임 — 사전등록 §5"
+}

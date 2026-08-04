@@ -1,0 +1,853 @@
+{
+  "q01": {
+    "query": "서울 3년차 Java 백엔드 개발자",
+    "category": "tech_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q02": {
+    "query": "경기 신입 React 프론트엔드 채용",
+    "category": "tech_focus",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q03": {
+    "query": "서울 5년차 Python 데이터 엔지니어",
+    "category": "tech_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q04": {
+    "query": "서울 경력무관 TypeScript 쓰는 회사",
+    "category": "tech_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": null,
+    "tech": [
+      "TypeScript"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q05": {
+    "query": "서울 5년차 AWS 인프라 엔지니어",
+    "category": "tech_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "AWS"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q06": {
+    "query": "경기 3년차 PostgreSQL 다루는 백엔드",
+    "category": "tech_focus",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "PostgreSQL"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q07": {
+    "query": "서울 경력무관 LLM 활용하는 AI 엔지니어",
+    "category": "tech_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": null,
+    "tech": [
+      "LLM",
+      "Claude",
+      "OpenAI"
+    ],
+    "review": "수정",
+    "note": ""
+  },
+  "q08": {
+    "query": "서울 3년차 Python 개발자 채용",
+    "category": "region_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q09": {
+    "query": "경기도 신입 Java 개발자",
+    "category": "region_focus",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q10": {
+    "query": "대전 3년차 React 소프트웨어 엔지니어",
+    "category": "region_focus",
+    "regions": [
+      "대전"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q11": {
+    "query": "부산 신입 Spring 개발자 채용",
+    "category": "region_focus",
+    "regions": [
+      "부산"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Spring"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q12": {
+    "query": "인천 경력무관 프론트엔드 React 개발자",
+    "category": "region_focus",
+    "regions": [
+      "인천"
+    ],
+    "exp_years": null,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q13": {
+    "query": "광주 신입 Node.js 백엔드 개발자",
+    "category": "region_focus",
+    "regions": [
+      "광주"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Node.js"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q14": {
+    "query": "서울 신입 Python 개발자 채용",
+    "category": "exp_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q15": {
+    "query": "서울 경력 3년 이상 Java 개발자",
+    "category": "exp_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q16": {
+    "query": "경기 경력 5년차 Spring 백엔드",
+    "category": "exp_focus",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "Spring"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q17": {
+    "query": "서울 경력무관 React 개발자 채용",
+    "category": "exp_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": null,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q18": {
+    "query": "서울 시니어 Java 개발자",
+    "category": "exp_focus",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 7,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": "시니어=연차 미상 — 7로 간주(관례). 다르게 보면 수정"
+  },
+  "q19": {
+    "query": "강남에서 3년차 Java 백엔드 개발자",
+    "category": "colloquial_region",
+    "regions": [
+      "서울 강남구"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q20": {
+    "query": "판교 신입 React 프론트엔드 개발자",
+    "category": "colloquial_region",
+    "regions": [
+      "경기 성남시"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": "판교=성남시 분당구 생활권"
+  },
+  "q21": {
+    "query": "분당 경력무관 Python 개발자 채용",
+    "category": "colloquial_region",
+    "regions": [
+      "경기 성남시"
+    ],
+    "exp_years": null,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q22": {
+    "query": "여의도 3년차 금융 IT Java 개발자",
+    "category": "colloquial_region",
+    "regions": [
+      "서울 영등포구"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": "금융 도메인 의도는 구조 밖(지역/연차/기술 아님)"
+  },
+  "q23": {
+    "query": "성남 신입 Spring 백엔드",
+    "category": "colloquial_region",
+    "regions": [
+      "경기 성남시"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Spring"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q24": {
+    "query": "역삼 경력무관 React 스타트업 채용",
+    "category": "colloquial_region",
+    "regions": [
+      "서울 강남구"
+    ],
+    "exp_years": null,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": "스타트업 의도는 구조 밖"
+  },
+  "q25": {
+    "query": "서울 3년차 스프링부트 하는 회사",
+    "category": "tech_alias",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Spring Boot"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q26": {
+    "query": "서울 신입 리액트 개발자",
+    "category": "tech_alias",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q27": {
+    "query": "서울 5년차 쿠버네티스 다루는 데브옵스",
+    "category": "tech_alias",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "Kubernetes"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q28": {
+    "query": "경기 3년차 도커 쓰는 백엔드",
+    "category": "tech_alias",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Docker"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q29": {
+    "query": "서울 신입 노드js 백엔드 개발자",
+    "category": "tech_alias",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Node.js"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q30": {
+    "query": "서울 경력무관 파이썬 데이터 분석가",
+    "category": "tech_alias",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": null,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q31": {
+    "query": "서울에서 3년차 Java Spring 백엔드",
+    "category": "combo_balanced",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java",
+      "Spring"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q32": {
+    "query": "경기 신입 React 프론트엔드",
+    "category": "combo_balanced",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q33": {
+    "query": "서울 3년차 Python 개발자",
+    "category": "combo_balanced",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q34": {
+    "query": "서울 신입 TypeScript 프론트엔드 개발자",
+    "category": "combo_balanced",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "TypeScript"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q35": {
+    "query": "서울 5년 이상 AWS 인프라 엔지니어",
+    "category": "combo_balanced",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "AWS"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q36": {
+    "query": "서울 경력무관 LLM 엔지니어",
+    "category": "combo_balanced",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": null,
+    "tech": [
+      "LLM"
+    ],
+    "review": "보류",
+    "note": ""
+  },
+  "q37": {
+    "query": "서울 신입 Spring 백엔드 개발자",
+    "category": "combo_balanced",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Spring"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q38": {
+    "query": "경기 5년차 Docker 데브옵스",
+    "category": "combo_balanced",
+    "regions": [
+      "경기"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "Docker"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q39": {
+    "query": "서울 강남 스프링부트 3년차 백엔드",
+    "category": "combo_dense",
+    "regions": [
+      "서울 강남구"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Spring Boot"
+    ],
+    "review": "OK",
+    "note": "서울이 아니라 \"서울 강남구\"가 의도 — 동의하면 OK"
+  },
+  "q40": {
+    "query": "경기 판교 신입 프론트엔드 리액트",
+    "category": "combo_dense",
+    "regions": [
+      "경기 성남시"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q41": {
+    "query": "부산 신입 Java 백엔드 개발자",
+    "category": "combo_dense",
+    "regions": [
+      "부산"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q42": {
+    "query": "대전 경력무관 Python 데이터 엔지니어",
+    "category": "combo_dense",
+    "regions": [
+      "대전"
+    ],
+    "exp_years": null,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q43": {
+    "query": "서울 시니어 쿠버네티스 데브옵스",
+    "category": "combo_dense",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 7,
+    "tech": [
+      "Kubernetes"
+    ],
+    "review": "OK",
+    "note": "시니어=7 간주"
+  },
+  "q44": {
+    "query": "대구에서 5년차 Kubernetes 다루는 시니어 개발자",
+    "category": "sparse_relax",
+    "regions": [
+      "대구"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "Kubernetes"
+    ],
+    "review": "OK",
+    "note": "5년차와 시니어 공존 — 명시 숫자 5 우선"
+  },
+  "q45": {
+    "query": "제주에서 신입 React 프론트엔드 개발자",
+    "category": "sparse_relax",
+    "regions": [
+      "제주"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "React"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q46": {
+    "query": "울산 3년차 Python 데이터 엔지니어",
+    "category": "sparse_relax",
+    "regions": [
+      "울산"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q47": {
+    "query": "충북 신입 Java 백엔드 개발자",
+    "category": "sparse_relax",
+    "regions": [
+      "충북"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q48": {
+    "query": "경남 3년차 Go 시스템 프로그래머",
+    "category": "sparse_relax",
+    "regions": [
+      "경남"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Go"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q49": {
+    "query": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까",
+    "category": "freeform",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": null,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": "AI 스타트업 의도는 구조 밖"
+  },
+  "q50": {
+    "query": "서울 3년차 재택 가능한 Java 백엔드 개발자 자리 찾아요",
+    "category": "freeform",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": "재택 의도는 구조 밖"
+  },
+  "q51": {
+    "query": "서울 3년차 설립 10년 이상 된 회사에서 Java 백엔드 개발자",
+    "category": "parser_trap",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": "함정: \"10년\"은 회사 업력 — 연차가 3이어야 정답"
+  },
+  "q52": {
+    "query": "서울 Vue 3년 경험 프론트엔드",
+    "category": "parser_trap",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Vue"
+    ],
+    "review": "OK",
+    "note": "함정: \"Vue 3\"(버전)이 아니라 Vue + 3년 경험"
+  },
+  "q53": {
+    "query": "서울 golang 10년차 서버 개발자",
+    "category": "parser_trap",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 10,
+    "tech": [
+      "Go"
+    ],
+    "review": "OK",
+    "note": "golang=Go"
+  },
+  "q54": {
+    "query": "서울 3년차 React TypeScript 프론트엔드 개발자",
+    "category": "multi_tech",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "React",
+      "TypeScript"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q55": {
+    "query": "서울 신입 Python FastAPI 백엔드",
+    "category": "multi_tech",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Python",
+      "FastAPI"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q56": {
+    "query": "서울 5년차 Docker Kubernetes 다루는 인프라 엔지니어",
+    "category": "multi_tech",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 5,
+    "tech": [
+      "Docker",
+      "Kubernetes"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q57": {
+    "query": "서울 경력 1년차 Spring 백엔드 개발자",
+    "category": "boundary_exp",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 1,
+    "tech": [
+      "Spring"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q58": {
+    "query": "서울 경력 10년 이상 Java 시니어 아키텍트",
+    "category": "boundary_exp",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 10,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q59": {
+    "query": "서울 2년차 Python 주니어 개발자",
+    "category": "boundary_exp",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 2,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q60": {
+    "query": "서울 3년차 Java 쓰는데 Spring 말고 다른 프레임워크 쓰는 곳",
+    "category": "negative_signal",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": "함정: \"Spring 말고\"는 제외 의도 — Spring을 기대 기술에 넣으면 안 됨"
+  },
+  "q61": {
+    "query": "서울 3년차 핀테크 쪽 Java 개발자 자리 괜찮은 데 있을까",
+    "category": "negative_signal",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Java"
+    ],
+    "review": "OK",
+    "note": "핀테크 의도는 구조 밖"
+  },
+  "q62": {
+    "query": "서울 신입 계약직 말고 정규직 Python 백엔드 개발자",
+    "category": "negative_signal",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 0,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": "정규직 의도는 구조 밖"
+  },
+  "q63": {
+    "query": "서울 3년차 Python QA 엔지니어 테스트 자동화",
+    "category": "low_resource_role",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q64": {
+    "query": "서울 3년차 AWS SRE 엔지니어 채용",
+    "category": "low_resource_role",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "AWS"
+    ],
+    "review": "OK",
+    "note": ""
+  },
+  "q65": {
+    "query": "서울 3년차 Python 보안 엔지니어 취약점 분석",
+    "category": "low_resource_role",
+    "regions": [
+      "서울"
+    ],
+    "exp_years": 3,
+    "tech": [
+      "Python"
+    ],
+    "review": "OK",
+    "note": ""
+  }
+}

@@ -1,0 +1,12 @@
+{
+ "n": 120,
+ "agreement_3class": 0.9583,
+ "kappa_3class": 0.9346,
+ "agreement_binary_strict": 0.9833,
+ "kappa_binary_strict": 0.9634,
+ "flips": {
+  "Ambiguous->Correct": 2,
+  "Incorrect->Ambiguous": 2,
+  "Ambiguous->Incorrect": 1
+ }
+}
