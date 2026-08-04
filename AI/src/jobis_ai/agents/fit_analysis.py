@@ -137,6 +137,39 @@ def _needs_input(ask: dict, warnings: list[dict], axis: str = "posting") -> Agen
     )
 
 
+def _analysis_key(posting_hash: str, resume: dict | None) -> dict[str, str]:
+    """이 판정이 **무엇으로부터** 나왔는지 — 재사용 판단의 유일한 기준.
+
+    판정은 (공고 × 이력서)의 함수다. 둘 중 하나라도 바뀌면 키가 달라지고 다시 판정한다.
+    이력서 지문은 `resume_source_hash` 를 그대로 쓴다 — 이력서 축 비교(D119)가 이미 쓰는
+    함수이고, 같은 판별을 두 벌 두지 않는다.
+    """
+
+    from jobis_ai.agents._common import resume_source_hash
+
+    return {"posting": posting_hash, "resume": resume_source_hash(resume)}
+
+
+def _from_cached(session: dict[str, Any], analysis: dict, warnings: list[dict],
+                 switched: dict) -> AgentResult:
+    """이미 있는 판정을 그대로 낸다 — 파이프라인을 돌리지 않는다.
+
+    표현 계층은 새로 돈다(`render_fit_analysis`) — 판정은 같아도 다음 행동 제안은 이번 턴의
+    맥락에 붙는 문장이다. 세션 갱신은 활성 전환분만: 판정 자산은 이미 그 값이다.
+    """
+
+    data = dict(analysis)
+    if not session.get("preparationPeriodWeeks"):
+        data["assumedPeriod"] = {"weeks": DEFAULT_WEEKS, "hours": DEFAULT_HOURS}
+    return AgentResult(
+        reply="",
+        data=data,
+        warnings=warnings,
+        followUpQuestions=[],
+        sessionUpdates=dict(switched),
+    )
+
+
 def _archive(session: dict[str, Any], session_updates: dict, posting_hash: str,
              analysis: dict, resume_label: str = "") -> None:
     """판정 요약을 공고 라이브러리 항목에 남긴다 — 활성 슬롯이 무효화돼도 조회 가능하게.
@@ -238,6 +271,20 @@ def run(session: dict[str, Any]) -> AgentResult:
     if session.get("profile"):
         state["normalizedUserProfile"] = session["profile"]
 
+    # **같은 공고·같은 이력서면 다시 판정하지 않는다.** 판정은 (공고 × 이력서)의 함수이고
+    # 결정론 계층은 같은 입력에 같은 값을 낸다 — 다시 도는 것은 수십 초와 LLM 콜 여러 건을
+    # 태워 같은 결론을 얻는 일이다. 실측(08-03): 한 대화에서 적합도 판정이 두 번 돌았다.
+    # 재사용 사실은 경고로 남긴다(§2-6) — 왜 즉시 답이 나왔는지가 사라지지 않게.
+    reuse_key = _analysis_key(source_hash, session.get("resume"))
+    cached_analysis = session.get("analysis") or {}
+    if (cached_analysis.get("status") == "completed"
+            and session.get("analysis_key") == reuse_key):
+        fetch_warnings.append({
+            "code": "analysis_reused",
+            "message": "같은 공고·이력서의 판정이 이미 있어 다시 판정하지 않고 그 결과를 씁니다.",
+        })
+        return _from_cached(session, cached_analysis, fetch_warnings, switched)
+
     response, final_state = run_pipeline_with_state(state)
     result = response.model_dump()
 
@@ -261,6 +308,18 @@ def run(session: dict[str, Any]) -> AgentResult:
         session_updates["profile"] = built_profile
     if response.status == "completed":
         session_updates["analysis"] = result
+        # 이 판정이 무엇으로부터 나왔는지 — 다음 턴의 재사용 판단 기준(위 reuse_key).
+        session_updates["analysis_key"] = reuse_key
+        # **요건별 판정을 남긴다**(`judgment_summary` 의 선언된 용도 — "요건별 매칭·점수 산출").
+        # 그래프 상태는 턴이 끝나면 사라지는데, 지도 재료(competencyProposal)를 만들려면
+        # 요건별 상태가 필요하다. 여기서 안 남기면 브릿지가 `gap_matcher` 를 다시 돌려야 하고
+        # (서술형 요건에 LLM 을 또 태운다) 같은 판정을 두 번 계산하는 셈이 된다.
+        gap_state = final_state.get("gapAnalysisResult") or {}
+        if gap_state.get("requirementStatus"):
+            session_updates["judgment_summary"] = {
+                "requirementStatus": gap_state["requirementStatus"],
+                "scoreBasis": gap_state.get("scoreBasis") or {},
+            }
         _archive(session, session_updates, source_hash, result)
         if response.roadmap:
             # 로드맵도 세션 자산으로 승격 — roadmap_manager 가 대화로 조회한다.

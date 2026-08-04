@@ -132,10 +132,8 @@ class AiAnalysisClientTest {
                             "Tester",
                             List.of(new AiContracts.ChatMessage("USER", "hello")),
                             new AiContracts.CareerSummary(
-                                    List.of(),
-                                    List.of(),
-                                    List.of(),
-                                    List.of()
+                                    List.of(), List.of(), List.of(), List.of(),
+                                    List.of(), null, List.of(), List.of(), null, null
                             )
                     )
             );
@@ -223,5 +221,79 @@ class AiAnalysisClientTest {
                 List.of(),
                 null
         );
+    }
+
+    @Test
+    void parsesCollectedAssetsFromChatResponse() throws Exception {
+        // AI 가 대화로 확보한 자산을 실어 보낸다(D141). 이 칸이 어긋나면 Jackson 이 null 로
+        // 읽고 적재가 조용히 사라진다 — 그 침묵을 막는 계약 테스트다.
+        byte[] responseBody = """
+                {
+                  "message": "공고를 정리했어요.",
+                  "intent": "POSTING_ANALYSIS",
+                  "shouldRequestPosting": false,
+                  "suggestedActions": [],
+                  "collected": {
+                    "posting": {
+                      "sourceType": "URL",
+                      "sourceUrl": "https://example.test/jobs/1",
+                      "rawText": "가나테크 백엔드 자격요건 Java 3년 이상"
+                    },
+                    "resume": {
+                      "sourceType": "TEXT",
+                      "title": "대화로 받은 이력서",
+                      "rawText": "저는 백엔드 개발자입니다."
+                    },
+                    "preferences": {"roles": ["백엔드"]},
+                    "facts": ["백엔드 개발자로 취업이 목표"]
+                  }
+                }
+                """.getBytes(StandardCharsets.UTF_8);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1/chat", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            exchange.getResponseHeaders().set(
+                    "Content-Type",
+                    MediaType.APPLICATION_JSON_VALUE
+            );
+            exchange.sendResponseHeaders(200, responseBody.length);
+            exchange.getResponseBody().write(responseBody);
+            exchange.close();
+        });
+        server.start();
+        try {
+            AiContracts.ChatResponse response = client(
+                    "http://127.0.0.1:" + server.getAddress().getPort()
+            ).chat(new AiContracts.ChatRequest(
+                    UUID.randomUUID(),
+                    "Tester",
+                    List.of(new AiContracts.ChatMessage("USER", "이 공고 봐줘")),
+                    new AiContracts.CareerSummary(List.of(), List.of(), List.of(), List.of(),
+                    List.of(), null, List.of(), List.of(), null, null)
+            ));
+
+            AiContracts.CollectedAssets collected = response.collected();
+            assertThat(collected).isNotNull();
+            // 공고는 첨부 경로와 같은 CreatePosting 으로 넘어간다 — 원문이 주소가 아니어야 한다.
+            assertThat(collected.posting().sourceType()).isEqualTo("URL");
+            assertThat(collected.posting().sourceUrl()).isEqualTo("https://example.test/jobs/1");
+            assertThat(collected.posting().rawText()).contains("자격요건");
+            assertThat(collected.resume().rawText()).startsWith("저는 백엔드");
+            assertThat(collected.preferences().get("roles").get(0).stringValue())
+                    .isEqualTo("백엔드");
+            assertThat(collected.facts()).containsExactly("백엔드 개발자로 취업이 목표");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void chatResponseWithoutCollectedStaysNull() {
+        // 자산을 확보하지 않은 턴 — 적재를 돌리지 않는다.
+        AiContracts.ChatResponse response = new ObjectMapper().readValue("""
+                {"message":"무엇을 도와드릴까요?","intent":"GENERAL_CAREER",
+                 "shouldRequestPosting":false}
+                """, AiContracts.ChatResponse.class);
+        assertThat(response.collected()).isNull();
     }
 }

@@ -474,11 +474,15 @@ export const api = {
     return request(`/api/career-sources/${id}`);
   },
 
+  // docx 는 ZIP 이라 브라우저가 텍스트로 못 읽는다 — 바이트를 base64 로 올리고 서버
+  // (`DocumentText`)가 푼다. md·txt 는 프론트에서 읽어 rawText 로 보내는 기존 경로 그대로다.
   createCareerSource(payload: {
     sourceType: "TEXT" | "FILE" | "URL";
     title: string;
     sourceUrl: string | null;
     rawText: string;
+    fileBase64?: string;
+    fileName?: string;
   }): Promise<CareerSourceDetail> {
     return request("/api/career-sources", {
       method: "POST",

@@ -1,5 +1,6 @@
 package com.jobiss.analysis;
 
+import com.jobiss.roadmap.RoadmapService;
 import com.jobiss.db.RlsTransactionExecutor;
 import com.jobiss.config.JobissProperties;
 import jakarta.annotation.PreDestroy;
@@ -43,6 +44,7 @@ public class AnalysisWorker {
     private final int maxConcurrentAnalyses;
     private final ExecutorService executor;
     private final AtomicInteger activeAnalyses = new AtomicInteger();
+    private final RoadmapService roadmapService;
 
     public AnalysisWorker(
             JdbcClient jdbcClient,
@@ -50,13 +52,15 @@ public class AnalysisWorker {
             AiAnalysisClient aiClient,
             ObjectMapper objectMapper,
             TransactionTemplate transactionTemplate,
-            JobissProperties properties
+            JobissProperties properties,
+            RoadmapService roadmapService
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
+        this.roadmapService = roadmapService;
         this.workerId = hostName() + "-" + UUID.randomUUID();
         this.maxConcurrentAnalyses = Math.max(
                 1,
@@ -138,6 +142,10 @@ public class AnalysisWorker {
             }
             updateStage(job, "VALIDATING", "추출한 역량과 공고 조건을 검증하고 있어요");
             complete(job, request, response);
+            // 재료가 적재됐으면 지도를 자동으로 그린다 — 페이지에서 버튼을 한 번 더 누르지
+            // 않아도 되고 "분석했는데 지도가 비어 있다"가 사라진다. 규칙은 RoadmapService
+            // 한 곳에 있다(대화 경로도 같은 메서드를 부른다).
+            roadmapService.autoGenerateAfterAnalysis(job.userId(), job.id());
         } catch (Exception exception) {
             log.warn("Analysis job {} failed: {}", job.id(), exception.getMessage());
             fail(job, exception);
@@ -609,7 +617,19 @@ public class AnalysisWorker {
                                 experience_text = :experienceText,
                                 closes_at = :closesAt,
                                 lifecycle_status = :lifecycleStatus,
-                                parsed_data = cast(:parsedData as jsonb)
+                                parsed_data = cast(:parsedData as jsonb),
+                                -- 주소만 받은 공고의 자리표시를 수집 원문으로 되메운다.
+                                -- 사용자가 직접 붙여넣은 원문은 건드리지 않는다:
+                                -- raw_text 가 source_url 과 같을 때만 바꾼다.
+                                -- 존재 여부는 boolean 파라미터로 판별한다(AGENTS.md SQL 규칙 —
+                                -- nullable 이름 파라미터를 `is not null` 로 재지 않는다).
+                                raw_text = case
+                                    when :hasSourceText
+                                         and p.source_url is not null
+                                         and p.raw_text = p.source_url
+                                    then cast(:sourceText as text)
+                                    else p.raw_text
+                                end
                             from analysis_jobs j
                             where j.id = :jobId
                               and p.id = j.posting_id
@@ -624,6 +644,9 @@ public class AnalysisWorker {
                             effectiveLifecycleStatus(response.job())
                     )
                     .param("parsedData", writeJson(response.job().parsedData()))
+                    .param("hasSourceText", blankToNull(response.job().sourceText()) != null)
+                    .param("sourceText", blankToNull(response.job().sourceText()) == null
+                            ? "" : response.job().sourceText())
                     .param("jobId", job.id())
                     .update();
 
@@ -637,7 +660,7 @@ public class AnalysisWorker {
                     .single();
 
             AiContracts.ExperienceRequirement experience =
-                    response.job().experienceRequirement();
+                    experienceOrNone(response);
             jdbc.sql("""
                             insert into posting_path_profiles (
                                 posting_id,
@@ -675,7 +698,7 @@ public class AnalysisWorker {
                     .param("postingId", postingId)
                     .param("userId", job.userId())
                     .param("jobId", job.id())
-                    .param("primaryTrack", response.job().primaryTrack())
+                    .param("primaryTrack", trackOrDefault(response))
                     .param("experienceType", experience.type())
                     .param("minimumMonths", experience.minimumMonths())
                     .param("maximumMonths", experience.maximumMonths())
@@ -891,7 +914,7 @@ public class AnalysisWorker {
                                 )
                                 """)
                         .param("postingId", postingId)
-                        .param("primaryTrack", response.job().primaryTrack())
+                        .param("primaryTrack", trackOrDefault(response))
                         .param("experienceType", experience.type())
                         .param("minimumMonths", experience.minimumMonths())
                         .param("maximumMonths", experience.maximumMonths())
@@ -1239,7 +1262,8 @@ public class AnalysisWorker {
                                 p.conversation_id,
                                 'ASSISTANT',
                                 'ANALYSIS_STATUS',
-                                '공고 분석이 완료됐어요. 역량과 맞춤 프로젝트를 확인해 주세요.',
+                                -- 완료 안내도 에이전트가 한다 — 여기는 카드 자리만 남긴다.
+                                '',
                                 p.id,
                                 j.id,
                                 jsonb_build_object(
@@ -1342,8 +1366,7 @@ public class AnalysisWorker {
                         """)
                 .query(Integer.class)
                 .single();
-        AiContracts.ExperienceRequirement experience =
-                response.job().experienceRequirement();
+        AiContracts.ExperienceRequirement experience = experienceOrNone(response);
         boolean experienceMet = !"REQUIRED".equals(experience.type())
                 || experienceMonths >= experience.minimumMonths();
         int experienceShortage = Math.max(
@@ -1426,7 +1449,12 @@ public class AnalysisWorker {
                                 p.conversation_id,
                                 'ASSISTANT',
                                 'ANALYSIS_STATUS',
-                                '공고 분석을 완료하지 못했어요. 오류를 확인하고 다시 시도할 수 있습니다.',
+                                -- **문장을 담지 않는다.** 이 턴에 말할 주체는 에이전트다.
+                                -- 이 행은 진행 카드가 붙는 자리로만 남긴다(카드가 상태 FAILED ·
+                                -- errorMessage · "다시 분석"을 보여준다). 실측(08-03 22:47):
+                                -- 에이전트가 공고를 정리해 답하는 턴에 "이력서를 주시겠어요?"가
+                                -- 화자 없이 따로 떠서 누가 무엇을 요구하는지 흐려졌다.
+                                '',
                                 p.id,
                                 j.id,
                                 jsonb_build_object(
@@ -1450,6 +1478,11 @@ public class AnalysisWorker {
                     .optional();
             return null;
         });
+    }
+
+    /** 빈 문자열은 "값 없음"이다 — SQL 에서 null 로 다뤄야 되메우기 조건이 성립한다. */
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private String writeJson(Object value) {
@@ -1505,6 +1538,36 @@ public class AnalysisWorker {
         }
     }
 
+    /**
+     * AI 계약상 경력 근거가 없는 공고는 {@code experienceRequirement} 가 null 이다
+     * (근거 없이 "요건 없음"을 단정하지 않는다는 AI 쪽 원칙). 경력 관문은
+     * {@code REQUIRED·개월>0} 에서만 생기므로 'NONE'/0 은 V11 백필과 같은 무관문 표기다 —
+     * null 그대로 쓰면 NPE 로 분석 job 이 통째로 죽는다(실측 08-04, 캐시 재사용 경로).
+     */
+    /** 트랙을 못 정한 공고도 지도에 올린다 — `primary_track` 은 두 테이블에서 NOT NULL 이다.
+
+     * <p>AI 계약상 `primaryTrack` 은 null 이 될 수 있다(모르면 짐작하지 않는다). 그런데
+     * `posting_path_profiles`·`posting_catalog` 는 10종 중 하나를 강제하고 'ETC' 가 없어,
+     * null 을 그대로 넣으면 성공한 분석이 마지막 적재에서 통째로 죽는다(실측 08-04:
+     * job 765a595e, `null value in column "primary_track"`). 조회 쪽이 이미
+     * `coalesce(profile.primary_track, 'BACKEND')` 로 같은 기본값을 쓰므로(RoadmapService)
+     * 쓰기도 같은 값으로 맞춘다 — 받는 쪽은 넉넉하게.
+     */
+    private static String trackOrDefault(AiContracts.AnalysisResponse response) {
+        String track = response.job().primaryTrack();
+        return track == null || track.isBlank() ? "BACKEND" : track;
+    }
+
+    private static AiContracts.ExperienceRequirement experienceOrNone(
+            AiContracts.AnalysisResponse response
+    ) {
+        AiContracts.ExperienceRequirement experience =
+                response.job().experienceRequirement();
+        return experience != null
+                ? experience
+                : new AiContracts.ExperienceRequirement("NONE", 0, null, "");
+    }
+
     private AiContracts.AnalysisResponse reuseSharedAnalysis(
             ClaimedJob job,
             AiContracts.SharedPostingAnalysis shared
@@ -1540,6 +1603,7 @@ public class AnalysisWorker {
                 job.experienceRequirement(),
                 job.closesAt(),
                 job.lifecycleStatus(),
+                job.sourceText(),
                 job.parsedData()
         );
     }

@@ -98,6 +98,10 @@ def _parse(session: dict) -> tuple[dict, dict, dict, list[dict], str]:
     cached = session.get("posting_summary") or {}
     session_updates: dict = {}
     from_cache = cached.get("_sourceHash") == source_hash
+    # **파싱을 재사용하는 것과, 사용자에게 이미 보여준 것은 다르다.** 백엔드에서 복원해 심은
+    # 파싱 결과(`_origin="backend"`)는 이 대화에서 보여준 적이 없다 — 그걸 "봤다"로 세면
+    # 공고를 처음 붙인 턴에도 전 항목 정리를 건너뛴다(실측 08-03: 요건 정리가 안 나왔다).
+    already_shown = from_cache and cached.get("_origin") != "backend"
     if from_cache:
         posting = {k: v for k, v in cached.items() if not k.startswith("_")}
         warnings = list(fetch_warnings)
@@ -155,8 +159,11 @@ def _parse(session: dict) -> tuple[dict, dict, dict, list[dict], str]:
 
     # fromCache — 이미 보여준 공고의 조회성 재실행 신호. 표를 다시 내지 않고 물은 것에만
     # 답하는 데 쓴다(D81).
+    # alreadyShown — 그중 **이 대화에서 실제로 보여준 것만**. 백엔드에서 복원해 심은 파싱
+    # 결과는 파싱 재사용에는 쓰지만 "봤다"로 세지 않는다(자산 복원이 에이전트의 "방금
+    # 받았나" 판단을 덮어쓰면, 공고를 처음 붙인 턴에도 요건 정리가 사라진다 — 실측 08-03).
     data = {"postingAnalysis": posting, "readable": readable, "fromCache": from_cache,
-            "extraPostings": extra_postings}
+            "alreadyShown": already_shown, "extraPostings": extra_postings}
     return posting, data, session_updates, warnings, str(posting_input.get("value") or "")
 
 
@@ -299,24 +306,45 @@ _GOAL_SYSTEM = """너는 취업 서비스의 **공고 담당** 상담원이다. 
 입력:
 - facts.userMessage: 사용자가 물은 것. **이것에 대한 답이 응답의 본문이다.** 물은 것을
   "해드릴 수 있습니다"로 되돌려 묻지 않는다 — 물었으면 이번 턴에 답한다.
-- facts.posting: 파싱된 활성 공고(필수 요건·우대 사항·요구 기술·요구 연차). 간단한 질문은 이것으로 답한다.
+- facts.posting: 파싱된 활성 공고. 필수 요건·우대 사항·요구 기술·요구 연차와 함께
+  **responsibilities(담당업무)·teamContext(소속 조직)·conditions(고용형태·근무지·급여·마감 등
+  '라벨: 값' 줄)·hiringProcess(전형 절차)** 가 이미 원문에서 읽혀 있다. 대부분의 질문은 이것으로
+  답한다 — 여기 있는 것을 read_posting 으로 다시 찾지 않는다.
 - facts.otherPostings: 이 대화의 다른 공고들(앞서 정리한 것 + 이번 턴에 함께 받은 것).
   사용자가 그 회사를 물으면 여기서 답한다. 여러 공고를 함께 물으면 회사별로 나눠 답한다.
 - facts.othersThisTurn: **이번 턴에 이어서 실행되는 다른 담당들.** 비어 있지 않으면 사용자가
   물은 것 중 네 몫이 아닌 부분은 그들이 처리한다 — **"저는 그건 못 해요"라고 말하지 않는다.**
   네가 할 수 있는 부분만 답하고, 나머지를 언급하지 말고 넘긴다(그들의 답이 바로 뒤에 붙는다).
 - facts.firstLook: true 면 이 공고를 **방금 받은** 턴이다. 사용자가 **아무것도 묻지 않았으면**
-  (자료만 보냈으면) 무엇을 요구하는 공고인지 항목별 줄로 정리해 보여주는 것이 곧 답이다.
-  이때는 **빠뜨리지 않는 것이 목적이다**: 필수 요건과 우대 사항을 하나도 빼지 말고 전부 적고,
-  요구 연차는 facts.posting.yearsEvidence(공고가 한 말)로 적는다. 그리고 파싱 요약에 칸이
-  없는 조건(고용 형태·계약 기간·근무지·근무 시간·마감일·접수 방법·전형 절차·복리후생)은
-  **read_posting 으로 원문을 확인한 뒤** 있는 것만 함께 정리한다. 낱말 몇 개로 한 번에 끝내지
-  말고, 안 걸린 항목은 다른 낱말로 한 번 더 찾아본다. 원문에 없는 항목은 그냥 뺀다 —
-  **"…는 기재가 없습니다"라고 쓰지 않는다.** 못 찾은 것과 안 적힌 것을 구별할 수 없는데
-  없다고 단정하면 사용자가 원문에 있는 조건을 놓친다(실측 2026-08-02: 근무시간·복리후생이
-  원문에 있는데 "기재 없음"으로 나갔다).
+  (자료만 보냈으면) 이 공고가 어떤 자리인지 정리해 보여주는 것이 곧 답이다. 이때는
+  **빠뜨리지 않는 것이 목적이다.** 이 순서로 쓴다:
+
+    ① **어떤 자리인가** — 회사·직무·요구 연차(facts.posting.yearsEvidence, 공고가 한 말 그대로)
+       와 teamContext(소속 조직·협업 상대)를 한두 줄로.
+    ② **하는 일** — responsibilities 를 하나도 빼지 말고 항목별 줄로. 여러 축으로 나뉘어
+       있으면 축을 살려 쓴다. **사용자가 먼저 알아야 할 것은 무엇을 요구하는지가 아니라
+       무슨 일을 하는지다** — 이 절을 요건보다 앞에 둔다.
+    ③ **필수 요건** / ④ **우대 사항** — 하나도 빼지 말고 전부.
+    ⑤ **채용 조건** — conditions 와 hiringProcess 를 있는 것만. 전형 절차는 순서를 살려 쓴다.
+    ⑥ **읽어야 할 신호** — 아래 별도 규칙.
+
+  ②·⑤ 에 쓸 것은 facts.posting 에 이미 있다. 거기 비어 있는 항목만 read_posting 으로 한 번
+  더 찾아보고, 그래도 없으면 그냥 뺀다 — **"…는 기재가 없습니다"라고 쓰지 않는다.** 못 찾은
+  것과 안 적힌 것을 구별할 수 없는데 없다고 단정하면 사용자가 원문에 있는 조건을 놓친다
+  (실측 2026-08-02: 근무시간·복리후생이 원문에 있는데 "기재 없음"으로 나갔다).
   **물은 것이 있으면 그 답이 본문이고**, 요건은 답에 필요한 만큼만 인용한다(전체 목록을
   따로 낭독하지 않는다). false 면 이미 정리해 본 공고의 후속 질문이므로 물은 것만 답한다.
+
+**읽어야 할 신호 (firstLook 정리의 마지막 절, 2~3줄)** — 항목을 나열만 하면 사용자는 목록을
+그대로 다시 읽은 것뿐이다. 공고가 **함께 적어 둔 것들을 이어서** 이 자리의 무게가 어디에
+있는지 말한다. 규칙은 하나다: **그 줄의 근거가 되는 원문 표현을 그 줄에 인용한다.**
+  · 예: 담당업무에 "레거시 데이터 구조를 도메인 모델로 재정의"가 있고 우대에 "레거시 시스템
+    이관"이 있으면 — 이 자리는 그린필드 개발이 아니라 절반이 이관이다.
+  · 예: 요건이 프레임워크 **내부 동작**까지 적었으면("영속성 컨텍스트 관리") 그 깊이를 실제로
+    확인하겠다는 뜻이다.
+  · 인용할 원문 표현이 없으면 **이 절을 쓰지 않는다.** 특히 공고가 말하지 않은 회사 사정·
+    전환 계획·조직 규모의 함의를 "…일 가능성이 높습니다"로 추정하지 않는다. 추정은 사용자가
+    사실로 읽고, 우리가 준 근거 없는 문장은 근거 없는 결정이 된다.
 
 하는 일:
 - **무엇을 공부할지·어떤 프로젝트를 만들지 물으면** 답한다. 근거는 공고가 요구한 항목이다 —
@@ -354,6 +382,7 @@ def run(session: dict) -> AgentResult:
 
     posting, data, session_updates, warnings, text = _parse(session)
     readable, from_cache = data["readable"], data["fromCache"]
+    already_shown = bool(data.get("alreadyShown", from_cache))
 
     # 카드에 실리는 질문은 **결정론**이다. 맥락을 살린 문장은 루프가 쓰고 대화 답변으로 나간다
     # — 데이터 계약(질문 카드)과 표현을 같은 문자열로 묶지 않는다.
@@ -400,7 +429,8 @@ def run(session: dict) -> AgentResult:
                               + [tool_render.posting_facts(p)
                                  for p in (session.get("posting_library") or [])
                                  if p.get("_sourceHash") != source_hash])[:5],
-            "firstLook": not from_cache,
+            # 파싱 재사용(from_cache)이 아니라 **보여준 적 있나**(already_shown)를 본다.
+            "firstLook": not already_shown,
             "hasResume": bool(session.get("resume") or session.get("profile")),
             "othersThisTurn": others_this_turn(session, "posting_analysis"),
             # 프로젝트 제안이 커버 ID 로 인용할 수 있는 요구사항. save_plan 이 검증한다.

@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import logging
 import re
 import time
@@ -349,6 +350,77 @@ def submission_review_inserts(queue: list[str] | tuple[str, ...],
             if name in submitted_reviewers and name not in queue]
 
 
+# 이력서 확인 질문(D159)의 필드와 선택지 — **`resume` 를 쓰면 안 된다.** `/analyze` 는
+# `field="resume"` 를 "자료가 없다"로 읽어 분석을 CAREER_DATA_REQUIRED 로 끝낸다
+# (`v2bridge.service._ASSET_REQUEST_CODE`). 여기서는 자료가 **있는데** 어느 것을 쓸지 묻는
+# 것이라 그 코드는 거짓말이 된다. 선택지를 함께 내는 이유는 `mapping.build_question` 이
+# 선택지 없는 질문을 만들지 않아서다 — 없으면 왼쪽 패널 경로에서 질문이 사라진다.
+# 아래 두 문자열은 **계약**이다: v2bridge 가 "다른 이력서" 선택을 알아보고 업로드를 청한다.
+RESUME_CONFIRM_FIELD = "confirm_resume"
+RESUME_CONFIRM_KEEP = "커리어 저장소 이력서로 분석해 주세요"
+RESUME_CONFIRM_OTHER = "다른 이력서를 올릴게요"
+
+
+def _ask_card(field: str, question: str, options: list[str]) -> dict:
+    """게이트 질문 카드. 선택지가 없으면 `options` 칸을 만들지 않는다 — 빈 목록을 실으면
+    소비자가 "선택지가 있는데 비었다"로 읽는다."""
+
+    card = {"field": field, "question": question}
+    return {**card, "options": list(options)} if options else card
+
+
+def posting_fingerprint(session: dict) -> str:
+    """활성 공고 원천의 지문. 원문이 아니라 **자산 값**으로 센다 — 파싱 전에도 값이 있어야
+    하고(URL 이면 주소), 이력서 확인 게이트가 공고 도착 턴에 바로 물어야 하기 때문이다."""
+
+    value = str((session.get("job_posting") or {}).get("value") or "")
+    return hashlib.md5(value.encode("utf-8")).hexdigest() if value else ""
+
+
+def resume_confirm_ask(dispatch: Dispatch, session: dict) -> str:
+    """판정 전에 **어느 이력서로 볼지** 공고당 한 번 묻는 문구. 안 물으면 "" (D159).
+
+    이 서비스의 이력서는 **대화 중에** 들어온다 — 커리어 저장소에 있는 것이 이 공고를 위해
+    낸 것이라는 보장이 없다. 강행하면 사용자는 그 판정이 자기가 의도한 이력서의 것인 줄
+    안다(`switch_active_resume` 가 지목 실패에서 이미 고른 방향, D126).
+
+    **커리어 저장소 이력서일 때만 묻는다.** 판단 기준은 `resume_identity` 의 origin 이고
+    새 표식을 심지 않는다: `career_summary`(저장소에서 실려 온 것)만 확인 대상이다.
+    `pasted`·`uploaded` 는 사용자가 **이 대화에서 직접 준** 것이므로 되물으면 소음이다 —
+    이번 턴 제출만 보는 것으로는 부족했다(직전 턴에 붙여넣은 이력서에도 물었다).
+
+    그 밖에 묻지 않는 경우:
+      · 판정이 예정되지 않았다(`agents` 도 `pending` 도 아니다).
+      · 이력서가 아예 없다 — 그건 확인이 아니라 자료 요청이고, 담당이 자기 문구로 청한다.
+      · 이 공고로 이미 물었다(`resumeAskedFor`) — 같은 질문을 매 턴 되풀이하지 않는다.
+    """
+
+    from jobis_ai.agents._common import resume_identity
+
+    if "fit_analysis" not in dispatch.agents and "fit_analysis" not in dispatch.pending:
+        return ""
+    resume = session.get("resume")
+    if not resume:
+        return ""
+    if resume_identity(resume)[0] != "career_summary":
+        return ""
+    key = posting_fingerprint(session)
+    if not key or session.get("resumeAskedFor") == key:
+        return ""
+
+    labels = [str(r.get("_label") or "").strip()
+              for r in (session.get("resume_library") or []) if r.get("_label")]
+    # 문구는 **무엇을 쓸지 밝히고** 바꿀 길을 준다. 저장된 것이 여럿이면 이름을 보여준다 —
+    # 어느 것으로 볼지는 사용자만 안다.
+    if len(labels) > 1:
+        return ("이 공고에 맞춰 분석할 이력서가 따로 있으신가요? 파일(md·docx)이나 내용을 "
+                f"보내주시면 그걸로 볼게요. 없으면 커리어 저장소의 '{labels[0]}'(으)로 "
+                f"분석할게요. 저장된 것 중에서 고르시려면 이름을 말씀해 주세요 — {', '.join(labels)}.")
+    stored = f"커리어 저장소의 '{labels[0]}'" if labels else "커리어 저장소에 저장된 이력서"
+    return ("이 공고에 맞춰 분석할 이력서가 따로 있으신가요? 파일(md·docx)이나 내용을 "
+            f"보내주시면 그걸로 볼게요. 없으면 {stored}(으)로 분석할게요.")
+
+
 def _submission_grounds_plan(agents: tuple[str, ...] | list[str],
                              submitted_kinds: list[str]) -> bool:
     """이번 턴 제출물이 계획 첫 에이전트의 전제를 채우는가 — 확신 문턱 면제의 근거.
@@ -432,6 +504,69 @@ def handle_chat(request: ChatRequest) -> ChatResponse:
                 log.info("[%s] llm: 콜 %d건(재시도 %d·실패 %d) 토큰 %s 노드=%s",
                          request.sessionId, s["calls"], s["retries"], s["failed"], tokens,
                          ",".join(f"{n}×{c}" for n, c in s["byNode"].items()))
+
+
+# 지속 사실 추출을 시작하지 않는 발화 — 합성 발화는 자료 제출이지 사용자의 말이 아니다.
+_SYNTHETIC_UTTERANCE = "방금 드린 자료로 이어서 진행해 주세요."
+
+
+def _start_user_facts(message: str, session: dict[str, Any]):
+    """지속 사실 추출(D82)을 **별 스레드로 띄운다.** 안 돌릴 턴이면 None.
+
+    입력이 발화 하나뿐이라 플래너·에이전트와 독립이므로 동시에 돌 수 있다. 스킵 조건은
+    종전 그대로다(빈 발화 / 합성 발화) — **그 이상 좁히지 않는다**: 한국어는 주어를 생략해서
+    "9월까지 취업하고 싶어" 처럼 1인칭 표지가 없는 진짜 사실이 흔하고, 어휘 화이트리스트로
+    거르면 목록 밖 표현이 조용히 버려진다(§3-1 이 경고하는 규칙 추가 쪽이다).
+    느린 이유가 '필요 없는 일'이 아니라 '줄을 잘못 선 일'이었으므로 순서만 바꾼다.
+
+    **컨텍스트를 복사해 넘긴다**(`copy_context`). 새 스레드는 contextvars 를 물려받지 않으므로
+    그대로 두면 `trace` 기록 싱크를 못 찾아 이 콜이 진행 스트림에서 사라지고,
+    `llm_usage` 수집기도 못 찾아 턴 요약의 콜 수가 줄어든다(관측 손실).
+    """
+
+    import contextvars
+    import threading
+
+    text = (message or "").strip()
+    if not text or text == _SYNTHETIC_UTTERANCE:
+        return None
+
+    existing = list(session.get("user_facts") or [])
+    box: dict[str, Any] = {}
+    ctx = contextvars.copy_context()
+
+    def _run() -> None:
+        try:
+            box["result"] = ctx.run(extract_user_facts, text, existing)
+        except Exception as exc:      # noqa: BLE001 — 사실 축적은 강화지 기능이 아니다
+            box["error"] = exc
+
+    thread = threading.Thread(target=_run, daemon=True, name="user-facts")
+    thread.start()
+    return thread, box
+
+
+def _collect_user_facts(job, session: dict[str, Any]):
+    """띄워 둔 사실 추출을 거둔다 → (facts, warnings). 안 돌렸거나 실패면 (None, [])."""
+
+    if job is None:
+        return None, []
+    thread, box = job
+    thread.join(_USER_FACTS_TIMEOUT_SEC)
+    if thread.is_alive():
+        log.warning("[%s] user_facts: %.0f초 안에 끝나지 않아 이번 턴은 건너뜁니다",
+                    session.get("_sessionId") or "", _USER_FACTS_TIMEOUT_SEC)
+        return None, [{"code": "user_facts_timeout",
+                       "message": "발화의 지속 사실 추출이 제한 시간을 넘겨 이번 턴은 건너뜁니다."}]
+    if "error" in box:
+        log.warning("[%s] user_facts 실패: %r", session.get("_sessionId") or "", box["error"])
+        return None, []
+    return box.get("result") or (None, [])
+
+
+# 사실 추출을 기다리는 상한 — 답변이 끝났는데 이것 때문에 턴이 늘어지면 안 된다.
+# 강화(enrichment)라 못 거두면 다음 턴에 같은 발화가 다시 오지 않을 뿐, 기능은 멀쩡하다.
+_USER_FACTS_TIMEOUT_SEC = 20.0
 
 
 def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
@@ -555,6 +690,12 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # 저확신으로 실행하지 않은 플래너 추측(D124) — 턴 끝에 확인 버튼으로 복구 경로를 만든다.
     low_conf_guess: list[str] = []
 
+    # 0) 지속 사실 추출을 **먼저 띄운다**(D144) — 입력이 발화 하나뿐이라 플래너·에이전트와
+    #    독립이다. 전에는 턴 맨 끝에 순차로 돌아 6~9초가 답변 뒤에 그대로 붙었다(실측 08-03:
+    #    28초 턴에서 6.6초). 결과를 거두고 세션에 반영하는 자리는 그대로 턴 끝이다 —
+    #    **상태 전이는 오케스트레이터 독점**(§2-4)이고, 이 스레드는 값만 계산한다.
+    facts_job = _start_user_facts(request.message, session)
+
     # 1) 플래너 — LLM 이 발화·상태를 보고 에이전트를 직접 고른다(자율 추론).
     plan, warnings = plan_agents(request.message, session)
     warnings = attach_warnings + warnings
@@ -624,9 +765,45 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         label, confidence = FALLBACK_AGENT, 0.0
         dispatch = Dispatch((FALLBACK_AGENT,))
 
+    # 이력서 확인 게이트(D159) — 판정 전에 **어느 이력서로 볼지** 공고당 한 번 묻는다.
+    # 동의 게이트보다 **먼저** 본다: 둘 다 걸릴 상황이면 이 질문이 더 구체적이고, 답이
+    # 동의까지 겸한다("따로 없어요" = 진행해도 좋다). 두 질문을 겹쳐 묻지 않는다.
+    #
+    # 아래 동의 게이트와 **같은 배관**을 탄다(D158): 물어본 이름을 `pending` 에 실어 두면
+    # 방금 낸 자료의 정리는 실행되고, 질문은 그 뒤에 붙고, `pendingConsent` 로 다음 턴에
+    # 통과권이 생긴다. 새 흐름을 만들지 않고 있는 것을 쓴다.
+    # 질문 카드 — 단순 동의는 버튼(`confirm_pipeline`), 이력서 확인은 선택지가 붙은
+    # `confirm_resume` 다(위 상수 주석: `resume` 를 쓰면 /analyze 가 자료 결측으로 끝낸다).
+    ask_field, ask_options = "confirm_pipeline", []
+    confirm_resume = resume_confirm_ask(dispatch, session)
+    if confirm_resume:
+        ask_field = RESUME_CONFIRM_FIELD
+        ask_options = [RESUME_CONFIRM_KEEP, RESUME_CONFIRM_OTHER]
+        deferred = tuple(dict.fromkeys((*dispatch.pending, "fit_analysis")))
+        dispatch = Dispatch((), ask=confirm_resume, pending=deferred)
+        _stage({"resumeAskedFor": posting_fingerprint(session)})
+        trace.emit("resume_confirm_gate", "판정 전 이력서 확인 — 공고당 1회", {
+            "ask": confirm_resume, "deferred": list(deferred),
+        })
+        log.info("[%s] resume_confirm_gate: 판정 보류하고 이력서 확인 (대기=%s)",
+                 session_id, list(deferred))
+
     # 동의 게이트 — 사용자가 청하지 않은 무거운 작업은 실행하지 않고 먼저 묻는다.
     # 물어본 이름을 세션에 적어 둔다 — 다음 턴 계획에 다시 들어오면 그것이 동의다(router).
+    # **묻는 동안에도 방금 낸 자료의 정리는 보여준다(D158).** 전에는 게이트가 걸리면 턴이
+    # 통째로 질문 하나로 끝났다 — 공고를 붙였는데 판정이 게이트에 걸리면 **공고 정리까지
+    # 삼켜져서** 사용자는 자료를 냈는데 아무 정리 없이 질문만 받았다. 게이트의 목적은 무거운
+    # 것을 말없이 시작하지 않는 것이지(§2-7), 가벼운 담당의 입을 막는 것이 아니다.
+    #
+    # 무엇을 실행할지는 **이번 턴 제출물**이 정한다 — D71 의 정리 단계(공고 분석·이력서 진단)
+    # 그대로다. 계획의 나머지(자소서 등)는 미루는 것의 산출을 기대하므로 함께 미룬다.
+    # `dispatch.pending` 을 넘긴다: `submission_review_inserts` 는 판정이 예정된 큐에서만
+    # 삽입하고, 그 판정은 지금 pending 에 들어 있다.
     if dispatch.ask:
+        review = submission_review_inserts(dispatch.pending, stored_kinds)
+        if review:
+            dispatch = Dispatch(tuple(review), ask=dispatch.ask, pending=dispatch.pending)
+    if dispatch.ask and not dispatch.agents:
         trace.emit("consent_gate", "청하지 않은 무거운 작업 — 실행 전 동의 요청", {
             "ask": dispatch.ask, "plannedAgents": list(plan.agents) if plan else [],
             "pendingConsent": list(dispatch.pending),
@@ -637,7 +814,7 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         return ChatResponse(
             sessionId=session_id, reply=final_reply, intent=label,
             confidence=confidence, dispatched=[], results={},
-            followUpQuestions=[{"field": "confirm_pipeline", "question": dispatch.ask}],
+            followUpQuestions=[_ask_card(ask_field, dispatch.ask, ask_options)],
             warnings=warnings,
             replySources=[_src("orchestrator", "attachment_ack", a) for a in acks]
                          + [_src("orchestrator", "consent_gate", dispatch.ask)],
@@ -649,7 +826,9 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
         label = dispatch.agents[0]
 
     # 게이트를 통과했으므로 대기 중인 동의는 소진됐다 — 남겨 두면 다음 턴에도 통과권이 된다.
-    if session.get("pendingConsent"):
+    # **아직 묻고 있는 중이면 비우지 않는다**(D158: 부분 실행 턴) — 이 턴에 가벼운 담당만
+    # 돌았고 무거운 것은 여전히 대기다. 여기서 비우면 아래에서 다시 심어야 한다.
+    if session.get("pendingConsent") and not dispatch.ask:
         _stage({"pendingConsent": []})
 
     # 검증기가 계획을 바꿨는지 — 아래 로그와 계획 설명 문장이 함께 쓴다.
@@ -961,14 +1140,14 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
                 log.warning("[%s] 요청 미완수 — %s (dispatched=%s)", session_id, name, dispatched)
 
     # 발화의 지속 사실(목표·제약·상황)을 세션에 누적한다(D82) — 다음 턴의 그라운딩.
-    # 합성 발화(첨부만 온 턴)는 자료이지 발화가 아니므로 건너뛴다.
-    if (request.message or "").strip() and request.message != "방금 드린 자료로 이어서 진행해 주세요.":
-        facts, fact_warnings = extract_user_facts(request.message, session.get("user_facts"))
-        warnings.extend(fact_warnings)
-        if facts != [str(f).strip() for f in (session.get("user_facts") or [])]:
-            _stage({"user_facts": facts})
-            trace.emit("user_facts", "발화의 지속 사실을 세션에 누적", {"facts": facts})
-            log.info("[%s] user_facts: %d건 누적", session_id, len(facts))
+    # 위에서 띄운 계산을 여기서 거둔다(D144): 에이전트가 도는 동안 이미 끝나 있으면 대기 0.
+    facts, fact_warnings = _collect_user_facts(facts_job, session)
+    warnings.extend(fact_warnings)      # 못 거둔 이유도 올린다 — 경고를 조건 안에 두면 삼킨다
+    if facts is not None and facts != [
+            str(f).strip() for f in (session.get("user_facts") or [])]:
+        _stage({"user_facts": facts})
+        trace.emit("user_facts", "발화의 지속 사실을 세션에 누적", {"facts": facts})
+        log.info("[%s] user_facts: %d건 누적", session_id, len(facts))
 
     # 저확신으로 실행하지 않은 추측 계획(D124) — 대화(career_chat)가 발화에 답한 뒤, 추측이
     # 맞았을 때의 복구 경로를 **구조로** 남긴다: 확인 버튼(사용자 행동) + pendingConsent(다음
@@ -999,6 +1178,22 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
             follow_up.append({"field": missing_field, "question": (
                 f"{asset_label(missing_field)}를 보내주시면 "
                 f"{agent_label(str(pending_now['agent']))}을 이어서 진행할게요.")})
+
+    # 부분 실행 턴의 동의 질문(D158) — 가벼운 담당이 먼저 답하고, 무거운 작업의 동의는
+    # **그 답 뒤에** 묻는다. 질문을 앞에 두면 사용자가 방금 낸 자료의 정리를 못 보고 결정해야
+    # 한다. 대기 동의는 여기서 심는다(위 소진 분기를 통과했다).
+    if dispatch.ask and dispatch.agents:
+        _stage({"pendingConsent": list(dispatch.pending)})
+        replies.append(dispatch.ask)
+        said_sources.append(_src("orchestrator", "consent_gate", dispatch.ask))
+        if not any(str(q.get("field") or "") == ask_field for q in follow_up):
+            follow_up.append(_ask_card(ask_field, dispatch.ask, ask_options))
+        trace.emit("consent_gate", "가벼운 담당은 실행하고 무거운 작업만 동의 대기", {
+            "ask": dispatch.ask, "ran": list(dispatch.agents),
+            "pendingConsent": list(dispatch.pending),
+        })
+        log.info("[%s] consent_gate: 부분 실행 — 실행=%s 대기=%s",
+                 session_id, list(dispatch.agents), list(dispatch.pending))
 
     final_reply = compose_reply(acks, replies, ack=ack, note=dispatch.note,
                                 steps=len(dispatch.agents), changed_by=changed_by)

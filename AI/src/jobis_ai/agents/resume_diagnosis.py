@@ -33,6 +33,7 @@ from jobis_ai.agents._common import (
 )
 from jobis_ai.agents.agent_loop import ToolSpec, run_agent_loop
 from jobis_ai.profile_completeness import build_completion_questions, find_missing_enum_fields
+from jobis_ai.resume_observations import observe
 
 _SECTION_LABELS = {
     "education": "학력",
@@ -105,6 +106,9 @@ def _parse(session: dict[str, Any]) -> tuple[dict, dict, list[dict], list[dict]]
         "resumeLabel": label,
         # 표현·우측 패널이 함께 쓰는 항목화 결과.
         "resumeSummary": tool_render.resume_facts(profile),
+        # 항목화 밖의 **서술 관찰**(결정론). resumeSummary 는 제목까지만 평평하게 만들어서
+        # 프로젝트의 기간·팀 규모·담당 범위·성과 문장이 루프에 닿지 않았다 — 그 배관이다.
+        "observations": observe(profile, resume_source_text(session.get("resume"))),
         # 이 대화에서 받은 다른 이력서들 — 비교·지목의 근거이자, 사용자가 무엇을 갖고
         # 있는지 보여 주는 목록이다.
         "otherResumes": [tool_render.library_resume_facts(r)
@@ -148,6 +152,19 @@ _GOAL_SYSTEM = """너는 취업 서비스의 **이력서 담당** 상담원이�
 - facts.resume: 정리된 항목(기술 스택·프로젝트·경력·학력·자격증·어학)과 비어 있는 섹션.
 - facts.evidencedSkills: 프로젝트·경력 **서술로 뒷받침되는** 스킬. 강점을 말할 근거는 이쪽이다.
 - facts.unverifiedSkills: 이력서에 **이름만 적힌** 스킬. 근거가 없다는 사실 자체가 정보다.
+- facts.projectDetails: 프로젝트별 **맥락 세 칸**(period 기간 / teamSize 팀 규모 / role 담당
+  범위)과 성과 문장·기술. `missingContext` 는 그 셋 중 **원문에 안 적힌 칸의 이름**이다.
+  채용담당자가 프로젝트에서 가장 먼저 가리는 것이 "6주짜리 실습인가, 사용자가 있는 서비스인가"
+  이고, 이 셋이 비면 **작게 추정된다** — 그래서 비었다는 사실을 알려 주는 것이 도움이다.
+- facts.quantifiedClaims / facts.unquantifiedClaims: 성과 서술 문장을 **숫자가 든 것과 안 든
+  것으로 갈라** 담았다(원문 그대로 + 어느 프로젝트인지). 숫자 없는 문장이 훨씬 많으면 그
+  비대칭 자체를 짚는다.
+- facts.selfAssessedLines: **이력서 안에서 검증할 수 없는 자기평가 어휘**가 든 원문 줄
+  ("집요함"·"학습 의지"·"이해도 보유" 등). 이 줄들이 무엇으로 뒷받침되는지 물을 자리다.
+- facts.skillQualifiers: 스킬 이름에 **괄호로 붙인 수식어**("Redis (Caching / Distributed
+  Lock)" → Redis 의 수식어 둘)와, 그 말이 프로젝트·경력 서술에도 나오는지(`inNarrative`).
+  글자 그대로의 대조라서 **false 는 "표기가 다를 수도 있다"는 뜻이다** — 서술을 보고 정말
+  짝이 없을 때만 말하고, 없다고 단정하지 말고 확인을 청한다.
 - facts.firstLook: true 면 이력서를 방금 읽은 턴이다. 사용자가 **아무것도 묻지 않았으면**
   무엇을 읽어냈는지 항목별 줄로 정리해 보여주는 것이 곧 답이다. **물은 것이 있으면 그 답이
   본문이고**, 정리 항목은 답에 필요한 만큼만 인용한다. false 면 후속 질문이므로 물은 것만 답한다.
@@ -166,6 +183,18 @@ _GOAL_SYSTEM = """너는 취업 서비스의 **이력서 담당** 상담원이�
   네가 할 수 있는 부분만 답하고, 나머지를 언급하지 말고 넘긴다(그들의 답이 바로 뒤에 붙는다).
 
 하는 일:
+- **정형 항목을 항목별 줄로 밝히는 것은 언제나 한다** — 기술 스택·프로젝트·경력·학력·자격·어학,
+  그리고 비어 있는 섹션. 이건 사용자가 무엇을 근거로 판정받을지 확인하는 자리라 **생략하거나
+  요약해서 뭉개지 않는다.** 디테일은 이 항목화를 **대체하는 것이 아니라 뒤에 덧붙이는 것**이다.
+- **항목화 뒤에 서술의 디테일을 짚는다** — 위 facts 로 근거가 있는 만큼만: 프로젝트에 안 적힌
+  맥락 칸, 숫자 없는 성과 문장, 검증 불가능한 자기평가 줄, 서술에 짝이 없어 보이는 스킬 수식어.
+  각 지적에는 **원문 문장을 인용한다** — 인용할 문장이 없으면 그 지적을 하지 않는다.
+- **문장 하나를 골라 고쳐 쓰는 예시를 보인다**(요청받았거나 지적할 문장이 있을 때). 순서는
+  무엇을 → 어떻게 진단했나 → 왜 그 방법을 택했나 → 결과 수치. **수치·도구·팀 규모를 지어내
+  채우지 않는다** — 모르는 자리는 `p95 ___ms → ___ms` 처럼 **빈칸으로 남기고** 무엇을 채워야
+  하는지 알려 준다. 지어낸 숫자로 채운 예시는 사용자가 면접에서 답할 수 없는 이력서를 만든다.
+- **추측으로 채우지 않고 되묻는다.** 이력서 전체 재작성이나 강한 재구성을 청하면, 먼저
+  missingContext 에 있는 것(기간·팀 규모·담당 범위)과 부트캠프/실무 여부를 확인한다.
 - **강점을 정리해 달라는 요청에 답한다.** 근거는 evidencedSkills 와 프로젝트·경력 서술이다 —
   어떤 스킬이 어떤 경험으로 뒷받침되는지 묶어서 말한다. 근거 없는 스킬을 강점으로 세지 않는다.
 - 이름만 적힌 스킬(unverifiedSkills)은 **결함이 아니라 보강 지점**으로 말한다. 그 스킬을 쓴
@@ -259,6 +288,12 @@ def run(session: dict[str, Any]) -> AgentResult:
             "emptySections": data["emptySections"],
             "evidencedSkills": data["evidencedSkills"],
             "unverifiedSkills": data["unverifiedSkills"],
+            # 항목 밖의 서술 관찰(결정론) — 디테일을 말할 근거는 전부 이쪽이다.
+            "projectDetails": data["observations"]["projects"],
+            "quantifiedClaims": data["observations"]["quantifiedClaims"],
+            "unquantifiedClaims": data["observations"]["unquantifiedClaims"],
+            "selfAssessedLines": data["observations"]["selfAssessedLines"],
+            "skillQualifiers": data["observations"]["skillQualifiers"],
             "firstLook": not had_profile,
             "hasPosting": bool(session.get("job_posting")),
             "resumeLabel": data["resumeLabel"],

@@ -3,6 +3,10 @@
 네트워크·Clova 호출은 전부 monkeypatch. 실제 API 계약은 여기서 검증하지 않는다.
 """
 
+import io
+
+import pytest
+
 import jobis_ai.feat_url as feat_url
 
 PAGE_URL = "https://www.jobkorea.example/Recruit/GI_Read/49664777"
@@ -37,14 +41,55 @@ def test_image_iframe_uses_vlm(monkeypatch):
         feat_url, "_get", _fake_get({"GI_Read_Comt_Ifrm": IFRAME_HTML_IMG, PAGE_URL: PAGE_HTML})
     )
     called = []
+    # 이미지는 이제 **우리가 받아서 쪼개** 넘긴다(`_image_text`) — 전에는 URL 을 Clova 에
+    # 그대로 줬는데, 세로로 긴 공고가 40063 Invalid image size 로 통째로 버려졌다(§3-5).
     monkeypatch.setattr(
         feat_url,
-        "_clova_vlm_text",
-        lambda image_url, result: called.append(image_url) or "이미지에서 추출한 우대사항",
+        "_image_text",
+        lambda image_url, page_url, result: (
+            called.append(image_url) or "이미지에서 추출한 우대사항"),
     )
     result = feat_url.fetch_job_posting(PAGE_URL)
     assert called == ["https://www.jobkorea.example/img/posting_01.png"]  # 상대경로 절대화 확인
     assert "이미지에서 추출한 우대사항" in result.text
+
+
+def test_extensionless_image_url_is_accepted():
+    """확장자 없는 `<img src>` 도 이미지로 받는다.
+
+    실측(2026-08-04, 잡코리아 Gno=49525099): 공고 본문이 세로로 긴 이미지 한 장이었는데 그 URL 이
+    `…/DownImage/CorpEditor?file_No=1787352` — 확장자가 없어서 걸러졌고, 필수요건·우대사항이
+    통째로 사라진 채 806자 껍데기로 공고를 정리했다.
+    """
+
+    assert feat_url._looks_like_image(
+        "https://file2.jobkorea.co.kr/Net/Mng/DownImage/CorpEditor?file_No=1787352")
+    assert feat_url._looks_like_image("https://x.test/a/posting.png")
+    # 이미지가 아닌 것이 분명한 둘만 거른다.
+    assert not feat_url._looks_like_image("data:image/gif;base64,R0lGOD")
+    assert not feat_url._looks_like_image("https://x.test/logo.svg")
+    # 쿼리에 확장자가 섞여도 경로 확장자가 기준이다.
+    assert feat_url._looks_like_image("https://x.test/download?name=a.png")
+
+
+def test_tall_image_is_sliced_into_tiles():
+    """세로로 긴 이미지는 여러 타일로 쪼갠다 — 한 장으로는 Clova 가 거부한다(40063)."""
+
+    from jobis_ai.extract import ExtractResult
+
+    Image = pytest.importorskip("PIL.Image")
+    result = ExtractResult(text="")
+    buffer = io.BytesIO()
+    # 실측 공고와 같은 모양(폭보다 10배 이상 긴 이미지).
+    Image.new("RGB", (940, 9400), (255, 255, 255)).save(buffer, "PNG")
+
+    tiles = feat_url._vlm_tiles(buffer.getvalue(), result, "tall.png")
+
+    assert len(tiles) > 1, "한 장으로 보내면 크기 초과로 거부된다"
+    assert len(tiles) <= feat_url._MAX_VLM_TILES
+    assert all(t.startswith("data:image/jpeg;base64,") for t in tiles)
+    # 폭이 상한 아래면 축소하지 않는다 — 줄이면 글자가 안 읽힌다.
+    assert 940 <= feat_url._VLM_TILE_MAX_WIDTH
 
 
 def test_script_injected_iframe_found(monkeypatch):

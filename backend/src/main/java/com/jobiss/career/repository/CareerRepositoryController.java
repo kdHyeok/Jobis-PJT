@@ -37,13 +37,19 @@ public class CareerRepositoryController {
             @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody CreateSourceRequest request
     ) {
+        // 파일이 함께 왔으면 그것이 원문이다 — docx 는 브라우저가 못 읽어 base64 로 온다.
+        // 여기서 텍스트로 바꿔 놓으면 그 아래(서비스·DB·AI)는 전부 기존 계약 그대로다.
+        String rawText = request.rawText();
+        if (request.fileBase64() != null && !request.fileBase64().isBlank()) {
+            rawText = DocumentText.fromUpload(request.fileName(), request.fileBase64());
+        }
         return service.create(
                 userId,
                 new CareerRepositoryService.CreateSource(
                         request.sourceType(),
                         request.title(),
                         request.sourceUrl(),
-                        request.rawText()
+                        rawText
                 )
         );
     }
@@ -174,14 +180,30 @@ public class CareerRepositoryController {
             String title,
             @Size(max = 2_000)
             String sourceUrl,
-            @NotBlank
-            @Size(min = 20, max = 100_000)
-            String rawText
+            @Size(max = 100_000)
+            String rawText,
+            // docx 는 ZIP 이라 브라우저가 텍스트로 읽을 수 없다 — 바이트를 base64 로 받아
+            // 서버(DocumentText)가 푼다. 상한은 원문 2MB 가 base64 로 약 1.34배 커지는 값.
+            @Size(max = 2_800_000)
+            String fileBase64,
+            @Size(max = 260)
+            String fileName
     ) {
         @AssertTrue(message = "URL 방식에서는 sourceUrl이 필요합니다.")
         public boolean isSourceConsistent() {
             return !"URL".equals(sourceType)
                     || (sourceUrl != null && !sourceUrl.isBlank());
+        }
+
+        /**
+         * 원문이 직접 왔거나 파일이 왔거나 — 둘 중 하나는 있어야 한다.
+         * 전에는 {@code rawText} 가 {@code @NotBlank} 였는데, 그러면 docx 업로드(원문 없이
+         * 바이트만)가 400 으로 막힌다.
+         */
+        @AssertTrue(message = "원문을 20자 이상 입력하거나 파일을 올려 주세요.")
+        public boolean hasContent() {
+            return (rawText != null && rawText.strip().length() >= 20)
+                    || (fileBase64 != null && !fileBase64.isBlank());
         }
     }
 

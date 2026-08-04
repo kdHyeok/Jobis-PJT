@@ -451,6 +451,13 @@ def test_progress_shows_loop_steps_delegation_and_data_flow():
         "sessionUpdates": ["coverletter"]}})
     assert "넘김: coverletter" in end["detail"]                   # 오케스트레이터로의 상태 전이
 
+    # 화자 키 — 웹이 이걸로 에이전트별 색·로고를 고른다. 에이전트가 한 일은 그 에이전트
+    # 이름으로, 에이전트를 고르는 쪽(플래너·실행 계획)은 orchestrator 로 나간다.
+    assert [start["agent"], step["agent"], end["agent"]] == ["coverletter_draft"] * 3
+    assert delegate["agent"] == "application_plan"                # 위임의 화자는 묻는 쪽
+    assert mapper.map({"kind": "planner", "elapsedMs": 1, "detail": {
+        "selectedAgents": ["fit_analysis"], "confidence": 0.9}})["agent"] == "orchestrator"
+
 
 def test_progress_labels_distinguish_recall_from_analysis():
     """D83: 저장된 분석을 본 턴은 '공고 분석'이 아니라 '분석 자료 검토'로, 저장 정보를 대화
@@ -585,3 +592,376 @@ def test_session_state_for_unknown_session_is_empty_not_error():
     body = client.get("/v1/sessions/no-such", headers=HEADERS).json()
     assert body["exists"] is False
     assert body["historyTurns"] == 0
+
+
+def test_degraded_reason_marks_deterministic_fallback():
+    """LLM 호출 실패로 나간 답변은 **사용자에게 폴백이라고 알린다**(08-03 사고).
+
+    폴백 문장이 그럴듯해서 사용자가 요약본을 분석 결과로 읽었다. 판정하지 않고
+    `llm_call_failed` 경고가 달렸다는 사실만 옮긴다 — 그 경고는 재시도를 소진했을 때만 붙는다.
+    """
+
+    from jobis_ai.v2bridge.mapping import degraded_reason
+
+    reason = degraded_reason([
+        {"code": "llm_call_failed",
+         "message": "posting_analysis: LLM 호출 3회 재시도 후 실패 — Invalid JSON"},
+        {"code": "loop_reply_rewritten", "message": "career_chat: 금지표현"},
+    ])
+    assert "공고 분석" in reason            # 노드 키가 아니라 사람이 읽는 이름
+    assert "분석 결과가 아닙니다" in reason
+    assert len(reason) <= 300               # ChatResponse.degraded_reason 상한
+
+    # 재시도로 흡수된 턴·정상 턴은 표식이 없다 — 있는 실패만 말한다.
+    assert degraded_reason([{"code": "loop_reply_rewritten", "message": "career_chat: x"}]) == ""
+    assert degraded_reason([]) == ""
+
+
+# ---------------------------------------------------------------------------
+# 대화로 확보한 자산의 백엔드 적재 (D141)
+# ---------------------------------------------------------------------------
+def _collected(session: dict, attachment_kinds: tuple[str, ...], dispatched: tuple[str, ...],
+               monkeypatch):
+    class _Att:
+        def __init__(self, kind): self.kind = kind
+
+    monkeypatch.setattr("jobis_ai.orchestrator.session.get_session_store",
+                        lambda: type("S", (), {"get": lambda _s, _sid: session})())
+    # outputs_before=세션 그대로 — 이 턴에 산출물·블롭이 안 바뀐 상황을 본다(블롭은 ⓐ 이후
+    # 무엇이든 바뀌면 통째로 실리므로, 여기 관심사인 posting/resume 칸만 남게 고정한다).
+    return service._collected_assets(
+        "v2-chat-x", [_Att(k) for k in attachment_kinds], list(dispatched),
+        outputs_before=session)
+
+
+def test_collected_carries_the_fetched_body_not_the_url(monkeypatch):
+    """**URL 로 받은 공고도 원문이 실려 나간다** — 백엔드가 그것으로 채용공고 행을 만든다.
+
+    실측(2026-08-03): 채팅에 URL 을 붙이면 AI 는 수집·파싱·판정까지 하는데 백엔드는 그 공고를
+    모른다(`ConversationService` 는 첨부 UI 경로에서만 공고를 만들고 `ChatRequest` 는
+    role·content 만 싣는다). 세션 `v2-chat-c1470d00` 의 공고가 `job_postings` 에 없었고,
+    그래서 사이드바 채용공고 페이지도 커리어지도도 그 공고를 볼 수 없었다.
+    """
+
+    session = {
+        "job_posting": {"sourceType": "text", "value": "가나테크 백엔드 개발자\n자격요건\n- Java 3년",
+                        "sourceUrl": "https://example.test/jobs/1"},
+        "posting_summary": {"companyName": "가나테크", "jobTitle": "백엔드 개발자",
+                            "yearsEvidence": "경력 3년 이상", "requiredRequirements": ["Java 3년"]},
+    }
+    collected = _collected(session, (), ("posting_fetch", "fit_analysis"), monkeypatch)
+    assert collected is not None and collected.posting is not None
+    assert collected.posting.source_type == "URL"
+    assert collected.posting.source_url == "https://example.test/jobs/1"
+    assert "자격요건" in collected.posting.raw_text, "주소가 아니라 수집한 원문이어야 한다"
+    # 파싱 결과는 싣지 않는다 — `company_name`·`parsed_data` 의 writer 는
+    # `AnalysisWorker.complete` 하나다. 여기서 또 내면 같은 열을 둘이 쓴다.
+    assert not hasattr(collected.posting, "parsed_data")
+
+
+def test_collected_is_absent_when_nothing_was_captured_this_turn(monkeypatch):
+    """자산이 세션에 있다는 것만으로 싣지 않는다 — 턴마다 보내면 같은 공고가 계속 다시 만들어진다."""
+
+    session = {"job_posting": {"sourceType": "text", "value": "가나테크 백엔드 자격요건 Java"}}
+    assert _collected(session, (), ("career_chat",), monkeypatch) is None
+
+
+def test_collected_never_ships_a_bare_url_as_the_body(monkeypatch):
+    """수집이 실패해 주소만 남았으면 싣지 않는다 — 주소를 원문 칸에 넣는 그 사고를 되풀이하지 않는다."""
+
+    session = {"job_posting": {"sourceType": "url", "value": "https://example.test/jobs/1"}}
+    assert _collected(session, ("job_posting",), ("posting_fetch",), monkeypatch) is None
+
+
+def test_collected_does_not_echo_the_backend_career_summary(monkeypatch):
+    """백엔드가 실어 보낸 확정 요약은 되돌려주지 않는다 — 자기가 준 것을 다시 적재하게 된다."""
+
+    session = {"resume": {"sourceType": "text", "value": "[보유 증빙]\n- SKILL · Java",
+                          "origin": "career_summary"}}
+    assert _collected(session, ("resume",), (), monkeypatch) is None
+
+    session["resume"] = {"sourceType": "text", "value": "저는 백엔드 개발자입니다. Java 3년."}
+    collected = _collected(session, ("resume",), (), monkeypatch)
+    assert collected is not None and collected.resume is not None
+    assert collected.resume.raw_text.startswith("저는 백엔드")
+
+
+def test_collected_ships_preferences_and_facts_only_when_they_change(monkeypatch):
+    """선호·지속 사실도 백엔드 테이블에 적재된다 (D141) — 단, **이번 턴에 바뀐 경우만.**
+
+    전에는 이 둘이 AI 세션에만 있었다: 대화가 끝나거나 세션이 지워지면 사라진다.
+    턴마다 실어 보내면 payload 만 커지므로 턴 시작 전 상태와 비교한다 — 백엔드가 무엇을
+    갖고 있는지 우리는 모르므로(요청의 career 에 선호·사실이 없다) 기준점은 우리 직전 상태다.
+    """
+
+    session = {"preferences": {"roles": ["백엔드"], "domains": []},
+               "user_facts": ["백엔드 개발자로 취업이 목표", "SSAFY 수료"]}
+
+    def collected(before):
+        monkeypatch.setattr("jobis_ai.orchestrator.session.get_session_store",
+                            lambda: type("S", (), {"get": lambda _s, _sid: session})())
+        return service._collected_assets("v2-chat-x", [], ["preference_intake"], before,
+                                         outputs_before=session)
+
+    # 선호가 바뀌고 사실이 늘었다 → 둘 다 싣는다(사실은 누적 전량 — upsert 는 멱등이다)
+    got = collected(({}, 0))
+    assert got is not None
+    assert got.preferences == {"roles": ["백엔드"], "domains": []}
+    assert got.facts == ["백엔드 개발자로 취업이 목표", "SSAFY 수료"]
+
+    # 아무것도 안 바뀐 턴 → 싣지 않는다
+    assert collected(({"roles": ["백엔드"], "domains": []}, 2)) is None
+
+    # 사실만 늘어난 턴 → 사실만
+    only_facts = collected(({"roles": ["백엔드"], "domains": []}, 1))
+    assert only_facts is not None
+    assert only_facts.preferences is None and len(only_facts.facts) == 2
+
+
+def test_collected_serializes_by_alias_for_the_backend(monkeypatch):
+    """`collected` 는 백엔드가 파싱할 camelCase 로 나가야 한다 (D141).
+
+    이 경로는 e2e 로 확인하지 못했다(로컬 PostgreSQL 컨테이너가 없다). 백엔드는
+    `collected.posting.rawText` 를 읽어 JobPostingService.create 를 부르므로, alias 가 어긋나면
+    Jackson 이 그 칸을 null 로 읽고 **적재가 조용히 사라진다.** 그 침묵을 여기서 막는다.
+    """
+
+    from jobis_ai.v2bridge.models import CollectedAssets, CollectedPosting, CollectedResume
+
+    monkeypatch.setattr(service, "chat", lambda request: ChatResponse(
+        message="공고를 정리했어요.",
+        intent="POSTING_ANALYSIS",
+        collected=CollectedAssets(
+            posting=CollectedPosting(source_type="URL",
+                                     source_url="https://example.test/jobs/1",
+                                     raw_text="가나테크 백엔드\n자격요건\n- Java 3년"),
+            resume=CollectedResume(title="대화로 받은 이력서", raw_text="저는 백엔드 개발자입니다."),
+            preferences={"roles": ["백엔드"]},
+            facts=["백엔드 개발자로 취업이 목표"],
+        ),
+    ))
+
+    body = client.post("/v1/chat", json=chat_request(), headers=HEADERS).json()
+    collected = body["collected"]
+    assert collected["posting"]["sourceType"] == "URL"
+    assert collected["posting"]["sourceUrl"] == "https://example.test/jobs/1"
+    assert "자격요건" in collected["posting"]["rawText"]
+    assert collected["resume"]["rawText"].startswith("저는 백엔드")
+    assert collected["preferences"] == {"roles": ["백엔드"]}
+    assert collected["facts"] == ["백엔드 개발자로 취업이 목표"]
+
+
+def test_collected_omits_empty_fields_instead_of_sending_null():
+    """`collected` 의 빈 칸은 **null 로도 내지 않는다** — 키 자체가 없어야 한다.
+
+    실측(08-03, ⓐ 첫 실경로): 백엔드 Jackson 은 `JsonNode` 칸의 JSON null 을 `NullNode` 로
+    읽어 `!= null` 가드를 통과시킨다. `"profile": null` 이 그 가드를 지나 `ai_user_profiles`
+    에 null 을 넣다 shape check 에 걸렸고, **같은 트랜잭션의 블롭 적재까지 함께 죽었다.**
+    """
+
+    import json as json_mod
+
+    from jobis_ai.v2bridge.models import CollectedAssets, CollectedOutputs
+
+    payload = json_mod.loads(CollectedAssets(
+        outputs=CollectedOutputs(session_state={"user_facts": ["9월 취업"]}),
+    ).model_dump_json(by_alias=True))
+    assert payload == {"outputs": {"sessionState": {"user_facts": ["9월 취업"]}}}
+
+
+def test_collected_is_null_when_nothing_was_captured(monkeypatch):
+    """자산을 확보하지 않은 턴은 `collected` 가 null 이다 — 백엔드가 빈 적재를 돌리지 않게."""
+
+    monkeypatch.setattr(service, "chat", lambda request: ChatResponse(
+        message="무엇을 도와드릴까요?", intent="GENERAL_CAREER"))
+    assert client.post("/v1/chat", json=chat_request(), headers=HEADERS).json()["collected"] is None
+
+
+def test_confirmed_summary_is_the_resume_source_only_when_none_exists(monkeypatch):
+    """이력서가 아직 없으면 확정 항목 요약이 이력 원천이 된다(추가만 하는 변경)."""
+
+    from jobis_ai.v2bridge.models import ChatRequest
+
+    request = ChatRequest(
+        conversationId=uuid4(), displayName="테스터",
+        messages=[{"role": "USER", "content": "안녕"}],
+        career={"completedNodes": ["Java"], "activeGoals": ["백엔드 취업"]},
+    )
+    assert "Java" in service._career_summary_text(request)
+
+
+def test_outputs_ship_only_what_this_turn_made(monkeypatch):
+    """대화가 만든 산출물은 **이번 턴에 생긴 것만** 실린다 (§2-4~2-7, V23 테이블들).
+
+    매 턴 전량을 보내면 append 형 테이블(`posting_recommendations`·`application_plans`)에
+    같은 행이 계속 쌓인다. 그래서 턴 시작 전 상태와 비교한다.
+    """
+
+    session = {
+        "analysis": {"fitGrade": "중", "overallScore": 0.6},
+        "roadmap": [{"title": "Kafka 학습"}],
+        "recommendations": [{"companyName": "가나테크"}],
+        "pendingRequest": {"agent": "fit_analysis", "missing": ["resume"], "turnsLeft": 2},
+    }
+
+    class _Store:
+        def get(self, _sid): return dict(session)
+
+    monkeypatch.setattr("jobis_ai.orchestrator.session.get_session_store", lambda: _Store())
+
+    # 판정과 로드맵은 이미 있었고 추천만 새로 생긴 턴
+    before = {"analysis": session["analysis"], "roadmap": session["roadmap"],
+              "recommendations": None, "pendingRequest": session["pendingRequest"]}
+    outputs = service._collected_outputs("v2-chat-o", before)
+    assert outputs is not None
+    assert outputs.recommendations == [{"companyName": "가나테크"}]
+    assert outputs.analysis is None and outputs.roadmap is None, "안 바뀐 것은 싣지 않는다"
+    # 진실의 출처 블롭(ⓐ)은 무엇이든 바뀐 턴에 세션 **전체**를 싣는다 — 부분 갱신이 없어야
+    # 백엔드 upsert 와 다음 턴 복원이 갈리지 않는다
+    assert set(outputs.session_state) == set(session)
+
+    # 아무것도 안 바뀐 턴 → None (백엔드가 빈 적재를 돌리지 않는다)
+    assert service._collected_outputs("v2-chat-o", dict(session)) is None
+
+    # 판정이 새로 난 턴 → 판정·로드맵이 함께 간다(같은 행 engine_result 로 모인다)
+    fresh = service._collected_outputs("v2-chat-o", {})
+    assert fresh.analysis["fitGrade"] == "중"
+    assert fresh.roadmap == [{"title": "Kafka 학습"}]
+    # 턴을 넘겨야 하는 약속도 블롭에 실려 돌아온다
+    assert fresh.session_state["pendingRequest"]["turnsLeft"] == 2
+    assert not hasattr(fresh, "pending_request")
+
+
+def test_chat_produces_the_map_material_from_conversation_assets(monkeypatch):
+    """대화가 쌓은 자산으로 **지도 재료**를 만든다 — 사용자 지시("로드맵 생성까지 대화로").
+
+    지금까지 이 재료를 만들 수 있는 곳은 분석 작업 하나였고, 그 경로는 대화로 쌓인 자산을
+    보지 못했다. 재료를 만드는 코드는 분석 경로와 **같은 함수**(`build_competency_proposal`)를
+    쓴다 — 여기서 다시 구현하면 두 경로의 지도가 갈린다.
+    """
+
+    posting = {
+        "companyName": "가나테크", "jobTitle": "백엔드 개발자", "roleCategory": "backend",
+        "requiredRequirements": ["Java 및 Spring Boot 실무 경험"],
+        "preferredRequirements": ["Kafka 운영 경험"],
+        "techStack": ["Java", "Spring Boot"], "minYears": 3,
+    }
+    session = {
+        "analysis": {"status": "completed", "fitGrade": "중",
+                     "gaps": [{"requirementId": "req-2", "missingSkills": ["Kafka"]}]},
+        "posting_summary": posting,
+        "judgment_summary": {"requirementStatus": [
+            {"requirementId": "req-1", "text": "Java 및 Spring Boot 실무 경험",
+             "type": "required", "status": "met"},
+            {"requirementId": "pref-1", "text": "Kafka 운영 경험",
+             "type": "preferred", "status": "not_met"},
+        ]},
+    }
+
+    class _Store:
+        def get(self, _sid): return dict(session)
+
+    monkeypatch.setattr("jobis_ai.orchestrator.session.get_session_store", lambda: _Store())
+    # LLM 분류는 미설정(conftest)이라 결정론 결과만으로 만들어진다 — 그래도 재료가 나와야 한다
+    proposal, job_context = service._competency_proposal_for_chat("v2-chat-map")
+    assert proposal is not None
+    keys = {c.canonical_key for c in proposal.competencies}
+    assert "skill.java" in keys
+    assert proposal.target_project.required_competency_refs, "증명 대상이 있어야 지도가 그려진다"
+    # 공고 맥락도 함께 간다 — 이게 없으면 백엔드가 빈 job 을 캐시에 넣어 재사용 경로가 죽는다
+    assert job_context is not None
+    assert job_context.primary_track == "BACKEND"
+
+    # 판정이 없으면 만들지 않는다 — 없는 재료를 지어내지 않는다
+    session["analysis"] = {"status": "need_more_info"}
+    assert service._competency_proposal_for_chat("v2-chat-map") == (None, None)
+
+
+def test_map_material_ships_only_when_the_judgment_is_new(monkeypatch):
+    """이미 있던 판정에는 재료를 만들지 않는다 — 같은 재료를 매 턴 다시 적재하게 된다."""
+
+    session = {"analysis": {"status": "completed"}, "posting_summary": {"jobTitle": "백엔드"},
+               "judgment_summary": {"requirementStatus": [{"requirementId": "r1"}]}}
+
+    class _Store:
+        def get(self, _sid): return dict(session)
+
+    monkeypatch.setattr("jobis_ai.orchestrator.session.get_session_store", lambda: _Store())
+    called: list = []
+    monkeypatch.setattr(service, "_competency_proposal_for_chat",
+                        lambda sid: (called.append(sid), None))
+
+    # 판정이 이미 있던 턴 → 재료를 만들지 않는다
+    service._collected_outputs("v2-chat-m", {"analysis": session["analysis"]})
+    assert called == []
+
+    # 판정이 새로 난 턴 → 만든다
+    service._collected_outputs("v2-chat-m", {})
+    assert called == ["v2-chat-m"]
+
+
+def test_request_accepts_nullable_backend_columns():
+    """백엔드의 **nullable 컬럼**이 null 로 와도 요청이 거부되지 않아야 한다.
+
+    실측(2026-08-03 22:28, 실 경로): `career_sources.title` 과 `job_postings.parsed_data` 가
+    null 로 왔는데 우리가 non-null 로 선언해서 **요청 전체가 422** 로 거부됐다 — 화면에는
+    "AI 서비스 요청을 처리하지 못했습니다"만 떴고 대화가 통째로 죽었다. 모듈 docstring 이
+    경고한 그 사고다: *"요청 쪽 누락이 곧 장애다."* 받는 쪽은 넉넉하게, 쓰는 쪽에서 기본값을 준다.
+    """
+
+    from jobis_ai.v2bridge.models import ChatRequest
+
+    request = ChatRequest.model_validate({
+        "conversationId": str(uuid4()), "displayName": "테스터",
+        "messages": [{"role": "USER", "content": "안녕"}],
+        "career": {
+            "resumes": [{"id": str(uuid4()), "title": None, "sourceType": "TEXT",
+                         "rawText": "이력서 원문", "createdAt": None}],
+            "postings": [{"id": str(uuid4()), "sourceType": "URL",
+                          "sourceUrl": "https://example.test/1", "rawText": "공고 원문",
+                          "parsedData": None, "createdAt": None}],
+            "preferences": None, "facts": [], "sessionState": None, "interview": None,
+        },
+    })
+    assert request.career.resumes[0].title is None
+    assert request.career.postings[0].parsed_data is None
+
+
+def test_seeded_posting_does_not_suppress_the_first_look(monkeypatch):
+    """**자산 복원이 에이전트의 "방금 받았나" 판단을 덮어쓰지 않는다** (D151).
+
+    무상태 전환에서 공고 파싱 결과를 요청으로 복원해 심었는데(§2-3), `posting_analysis` 는
+    `posting_summary._sourceHash` 가 맞으면 "이미 정리해 본 공고"로 읽어 **전 항목 정리를
+    건너뛴다**. 실측(08-03): 공고를 처음 붙인 턴인데 요건 정리가 안 나왔다 — 파싱을 아끼려던
+    복원이 사용자에게 보여줄 것까지 지웠다.
+
+    파싱 재사용(`fromCache`)과 보여준 적 있나(`alreadyShown`)는 다른 사실이다.
+    """
+
+    import hashlib
+
+    from jobis_ai.agents.posting_analysis import _parse
+
+    body = "가나테크 백엔드 개발자\n자격요건\n- Java 3년 이상"
+    src_hash = hashlib.md5(body.encode("utf-8")).hexdigest()
+    parsed = {"companyName": "가나테크", "jobTitle": "백엔드 개발자",
+              "requiredRequirements": ["Java 3년 이상"], "preferredRequirements": [],
+              "techStack": ["Java"], "domainKeywords": []}
+
+    def run_with(origin: str | None):
+        summary = {**parsed, "_sourceHash": src_hash, "_sourceText": body}
+        if origin:
+            summary["_origin"] = origin
+        session = {"job_posting": {"sourceType": "text", "value": body},
+                   "posting_summary": summary}
+        _posting, data, _updates, _warnings, _text = _parse(session)
+        return data
+
+    # 백엔드에서 복원해 심은 것 → 파싱은 재사용하되 **보여준 적은 없다**
+    seeded = run_with("backend")
+    assert seeded["fromCache"] is True, "파싱은 다시 하지 않는다(수십 초를 아낀다)"
+    assert seeded["alreadyShown"] is False, "심은 것을 '봤다'로 세면 요건 정리가 사라진다"
+
+    # 이 대화에서 직접 정리한 것 → 다시 낭독하지 않는다(D81 유지)
+    ours = run_with(None)
+    assert ours["fromCache"] is True and ours["alreadyShown"] is True

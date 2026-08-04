@@ -34,6 +34,9 @@ ASSET_KEYS = frozenset({
     "job_posting",       # {sourceType, value} — 목표 공고 원천
     "profile",           # NormalizedUserProfile dict (빌드 캐시)
     "analysis",          # AnalyzeResponse dict (fit_analysis 산출)
+    # 위 판정이 무엇으로부터 나왔는지 {posting, resume} 지문 — 같은 입력이면 다시 판정하지
+    # 않는다(판정은 공고 × 이력서의 함수다). 재사용 사실은 `analysis_reused` 경고로 남는다.
+    "analysis_key",
     "recommendations",   # job_recommend 산출
     "roadmap",           # 준비 로드맵 (fit_analysis 산출 → roadmap_manager 조회)
     "coverletter",       # 자소서 초안 (항상 draft_pending_review 상태)
@@ -56,6 +59,10 @@ ASSET_KEYS = frozenset({
     # 다시 들어오면 그것이 곧 사용자의 동의다(사용자 발화가 사이에 있었으므로) — 동의를
     # 어디에도 기록하지 않아 "다음 턴엔 플래너가 알아서 고른다"에 의존했던 것을 코드로 옮긴 것.
     "pendingConsent",
+    # 이력서 확인 게이트(D159)가 **이미 물어본 공고**의 지문. 이 서비스의 이력서는 대화 중에
+    # 들어오므로 저장된 것이 이 공고를 위해 낸 것이라는 보장이 없다 — 판정 전에 한 번 묻고,
+    # 같은 공고로 두 번 묻지 않기 위해 물어본 공고를 여기 적는다.
+    "resumeAskedFor",
     # 청했지만 자산 결측으로 못 한 요청 {agent, missing, turnsLeft} — 자산이 오는 턴에
     # 오케스트레이터가 결정론으로 재큐해 완수한다(D72). turnsLeft 소진 시 잊는다.
     "pendingRequest",

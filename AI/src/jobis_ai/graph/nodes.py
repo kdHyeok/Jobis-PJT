@@ -895,7 +895,7 @@ def assemble_output(state: GraphState) -> dict[str, Any]:
     summary = ""
     render_warnings: list[dict] = []
     if status == "completed":
-        summary, render_warnings = render_summary(gap, roadmap, posting)
+        summary, render_warnings = render_summary(gap, posting)
 
     analysis_result = {
         "analysisId": state.get("analysisId", ""),

@@ -133,3 +133,43 @@ def test_http_adapter_falls_back_with_warning(monkeypatch):
     result = HttpRagAdapter("http://127.0.0.1:1").search("백엔드 개발자")
     assert result.warnings[0]["code"] == "rag_http_failed"
     assert "폴백" in result.warnings[0]["message"]
+
+
+def test_dedupe_postings_collapses_cross_site_duplicates():
+    """같은 공고가 사이트별로 크롤된 중복을 지운다 — 실측 세션 c1470d00(2026-08-03)의 값.
+
+    같은 posting_id 가 두 사이트에 있거나(인트브릿지), id 는 다르고 회사 표기·마감 표기만
+    다른 경우(에버엑스·피트인)를 둘 다 잡아야 한다. 반면 회사가 같고 직무가 다른 공고는 남는다.
+    """
+
+    from jobis_ai.rag import dedupe_postings
+
+    items = [
+        {"companyName": "(주)인트브릿지", "title": "[R&D Center] 백엔드 개발자", "jobPostingId": "54133661"},
+        {"companyName": "(주)인트브릿지", "title": "[R&D Center] 백엔드 개발자(채용시 마감)",
+         "jobPostingId": "54133661"},
+        {"companyName": "에버엑스㈜", "title": "[개발팀] Backend Engineer", "jobPostingId": "49594447"},
+        {"companyName": "에버엑스 주식회사", "title": "[개발팀] Backend Engineer(채용시 마감)",
+         "jobPostingId": "54483510"},
+        {"companyName": "(주)피트인", "title": "백엔드 엔지니어 경력자 모집", "jobPostingId": "54503886"},
+        {"companyName": "피트인", "title": "백엔드 엔지니어 경력자 모집", "jobPostingId": "49608958"},
+        # 같은 회사의 다른 공고 — 지우면 안 된다
+        {"companyName": "(주)인트브릿지", "title": "[기업부설연구소] 백엔드 개발자",
+         "jobPostingId": "54133629"},
+    ]
+    kept = dedupe_postings(items)
+    assert [i["jobPostingId"] for i in kept] == ["54133661", "49594447", "54503886", "54133629"]
+
+
+def test_connected_adapters_do_not_claim_rag_disconnected():
+    """검색이 붙어 있는데 기업 맥락 경고가 'RAG 미연결'이면 없는 장애를 좇게 된다."""
+
+    from jobis_ai.rag import HttpRagAdapter, LocalPostingsRagAdapter, NullRagAdapter
+
+    for adapter in (HttpRagAdapter("http://x"), LocalPostingsRagAdapter()):
+        warning = adapter.fetch_company_context("SK일렉링크", []).warnings[0]
+        assert warning["code"] == "company_context_unsupported"
+        assert "미연결" not in warning["message"]
+    # 진짜 미연결은 그대로 rag_not_connected 다
+    assert NullRagAdapter().fetch_company_context("SK일렉링크", []).warnings[0][
+        "code"] == "rag_not_connected"

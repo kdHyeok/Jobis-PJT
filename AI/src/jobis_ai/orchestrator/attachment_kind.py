@@ -75,6 +75,23 @@ def _heuristic(text: str) -> str | None:
     return None
 
 
+def is_bare_url(text: str) -> bool:
+    """본문이 URL 하나뿐인가 — **주소를 자료 원문으로 파싱하는 사고를 막는 판별기.**
+
+    실측(2026-08-03): 백엔드가 `sourceType=TEXT` 로 보낸 공고의 `raw_text` 가 잡코리아 주소
+    한 줄(124자)이었다. 사용자가 첨부 본문 칸에 URL 을 붙인 것이고, 그것을 믿은 쪽은 주소
+    문자열을 공고 원문으로 파싱해 요건 0건 → 판정불가 → 분석 전체 실패로 갔다.
+    **선언된 타입보다 내용이 사실이다.**
+
+    같은 판별식이 저장소 네 곳에 흩어져 있었다(`v2bridge/service`·`webbridge/http_handlers`
+    ·`webbridge/runner`). 새로 쓰는 자리는 여기를 부른다 — 같은 규칙 두 벌은 언젠가 한 벌이
+    낡는다(이 저장소가 세 번 대가를 치른 실수).
+    """
+
+    body = (text or "").strip()
+    return body.lower().startswith(("http://", "https://")) and len(body.split()) == 1
+
+
 def detect_kind(text: str) -> str | None:
     """붙여넣은 원문의 종류를 **결정론으로만** 판별 — 확신 없으면 None.
 
