@@ -1,5 +1,6 @@
 sentence-transformers
 "psycopg[binary]"
+psycopg-pool
 pgvector
 python-dotenv
 transformers
