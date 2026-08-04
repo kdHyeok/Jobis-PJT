@@ -115,6 +115,10 @@ class Match:
     confidence: float = 0.0
     method: str = "exact"
     reason: str = ""
+    # 판정에 쓴 수치. 지금은 seniority 만 채운다(requiredMonths/actualMonths/gapMonths) —
+    # 하드 룰 G6(연차 격차의 구조성, grade_decision.py)가 reason 문장을 다시 파싱하지 않게
+    # 하려는 것이다.
+    detail: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -306,7 +310,7 @@ class GapMatcher:
     def _match_seniority(
         self, posting_seniority: str, profile: dict, role_category: str = "",
         min_years: int | None = None, years_evidence: str = "",
-    ) -> tuple[str, float, str]:
+    ) -> tuple[str, float, str, dict]:
         """공고 요구 연차 vs 사용자 추정 연차.
 
         공고에 숫자 근거(min_years, 원문 "경력 2년 이상")가 있으면 **연차 대 연차**로
@@ -323,7 +327,7 @@ class GapMatcher:
 
         posting_key = (posting_seniority or "").strip().lower()
         if min_years is None and posting_key not in SENIORITY_LADDER:
-            return "uncertain", 0.0, "공고의 요구 연차를 확인할 수 없습니다."
+            return "uncertain", 0.0, "공고의 요구 연차를 확인할 수 없습니다.", {}
 
         estimate = estimate_experience_months(profile, target_role_category=role_category)
         if estimate.totalMonths is None:
@@ -331,6 +335,7 @@ class GapMatcher:
                 "uncertain",
                 0.0,
                 "이력서 경력 항목의 근무 기간을 확인할 수 없어 연차를 판정하지 못했습니다.",
+                {},
             )
 
         role_label = get_role_taxonomy().label_of(role_category) if role_category else ""
@@ -341,19 +346,24 @@ class GapMatcher:
         if min_years is not None:
             required_label = years_evidence or f"경력 {min_years}년 이상"
             gap_months = min_years * 12 - estimate.totalMonths
+            detail = {
+                "requiredMonths": min_years * 12,
+                "actualMonths": estimate.totalMonths,
+                "gapMonths": gap_months,
+            }
             if gap_months <= 0:
                 return "met", 1.0, (
                     f"요구 연차({required_label}) 대비 사용자 추정 경력({years_desc})이 충족됩니다."
-                )
+                ), detail
             if gap_months <= 12:
                 return "partially_met", 1.0, (
                     f"요구 연차({required_label})에 사용자 추정 경력({years_desc})이 "
                     f"약 {gap_months}개월 못 미칩니다."
-                )
+                ), detail
             return "not_met", 1.0, (
                 f"요구 연차({required_label})에 비해 사용자 추정 경력({years_desc})이 "
                 f"약 {gap_months // 12}년 {gap_months % 12}개월 부족합니다."
-            )
+            ), detail
 
         # ── 사다리 폴백 (공고가 키워드로만 말했을 때: "시니어 환영" 등) ────────
         user_key = get_role_taxonomy().seniority_from_years(estimate.totalMonths // 12)
@@ -373,7 +383,8 @@ class GapMatcher:
         else:
             status = "not_met"
             reason = f"요구 연차({posting_label})에 비해 사용자 추정 경력({years_desc}, {user_label})이 부족합니다."
-        return status, 1.0, reason
+        # 사다리 폴백에는 요구 개월수가 없다(공고가 숫자를 안 줬다) — G6 은 숫자가 있을 때만 본다.
+        return status, 1.0, reason, {"actualMonths": estimate.totalMonths}
 
     # ------------------------------------------------------------------
     # 공개 진입점
@@ -430,7 +441,7 @@ class GapMatcher:
 
             if kind == "seniority":
                 raw_min = req.get("minYears")
-                status, confidence, reason = self._match_seniority(
+                status, confidence, reason, detail = self._match_seniority(
                     str(req.get("seniority", "")), profile, str(req.get("roleCategory", "")),
                     min_years=int(raw_min) if raw_min is not None else None,
                     years_evidence=str(req.get("yearsEvidence") or ""),
@@ -439,6 +450,7 @@ class GapMatcher:
                     requirementId=req_id, type=req_type, text=text, status=status,
                     kind="seniority",
                     confidence=confidence, method="seniority_ladder", reason=reason,
+                    detail=detail,
                 ))
                 continue
 

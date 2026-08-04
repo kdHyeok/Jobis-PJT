@@ -48,9 +48,18 @@ def test_mid_low_grade_gets_roadmap_and_alternatives(monkeypatch):
     """중·하 등급이면 진단과 함께 로드맵·대안 공고까지 제공한다 (2026-07-21).
 
     mock 프로필이 상으로 판정되므로, 등급 산출만 중으로 강제해 라우팅을 검증한다.
+    등급 배선이 overall_fit → decide_grade(하이브리드)로 바뀌어(2026-08-04) 강제
+    지점도 따라 옮겼다 — 실제 판정은 그대로 돌리고 최종 등급만 중으로 바꾼다.
     """
 
-    monkeypatch.setattr(nodes, "overall_fit", lambda _basis: (0.5, "중"))
+    from jobis_ai import grade_decision
+
+    def _force_mid(report, profile, posting=None):
+        decision = grade_decision.decide_grade(report, profile, posting)
+        decision.grade, decision.score = "중", 0.5
+        return decision
+
+    monkeypatch.setattr(nodes, "decide_grade", _force_mid)
     resp = run_analysis(_base_request())
 
     assert resp.fitGrade == "중"
