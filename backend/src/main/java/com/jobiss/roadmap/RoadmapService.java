@@ -1,5 +1,7 @@
 package com.jobiss.roadmap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.jobiss.common.ApiException;
 import com.jobiss.db.RlsTransactionExecutor;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class RoadmapService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(RoadmapService.class);
 
     private static final List<String> STAGE_ORDER = List.of(
             "FOUNDATION",
@@ -192,8 +197,77 @@ public class RoadmapService {
         });
     }
 
+    /** 재료가 없으면 생성 자체를 막는 문구 — 화면과 서버가 같은 문장을 쓴다. */
+    static final String MATERIAL_REQUIRED_MESSAGE =
+            "공고 적합도 분석을 먼저 완료해 주세요. 분석이 끝나면 지도가 자동으로 그려집니다.";
+
+    /**
+     * 적합도 분석의 재료가 적재된 직후 지도를 자동으로 그린다.
+     *
+     * <p>부르는 곳이 둘이다(공고 분석 작업 완료 · 대화가 만든 산출물 적재) — <b>같은 메서드를
+     * 부르게 해서 규칙이 두 벌 되지 않게 한다.</b>
+     *
+     * <p><b>적용(publish)은 적용 버전이 아직 없을 때만 한다.</b> 초안 생성은 무해하지만 적용은
+     * 기존 적용 버전을 덮으므로, 사용자가 쓰고 있는 지도를 분석 한 번으로 말없이 갈아치우면
+     * 그건 파괴다. 이미 적용 버전이 있으면 초안까지만 만들고 적용은 사용자가 누른다
+     * (화면에 "초안 미리보기 / 현재 적용 버전" 구분이 이미 있다).
+     *
+     * <p>실패는 삼키지 않되 부르는 쪽을 죽이지도 않는다 — 판정은 이미 저장됐고, 지도는
+     * 사용자가 페이지에서 다시 만들 수 있다.
+     */
+    public void autoGenerateAfterAnalysis(UUID userId) {
+        autoGenerateAfterAnalysis(userId, null);
+    }
+
+    /**
+     * @param analysisJobId 방금 완료된 분석 작업. 주어지면 <b>그 공고를 목표로 자동 등재</b>한다
+     *                      — 목표({@code roadmap_targets})는 지금까지 화면 버튼
+     *                      ({@code addTarget})으로만 만들어져서, 첫 분석 뒤의 자동 생성이 항상
+     *                      "목표 공고 없음"으로 조용히 빠졌다(실측 08-04: 재료는 적재됐는데
+     *                      {@code roadmap_targets} 0건, 지도 빈 화면). 분석을 청한 공고가 곧
+     *                      지도의 목표라는 것이 D146 의 전제다. 마감·역량 미적재로 등재가
+     *                      거절되면 이유를 남기고 기존 목표로만 다시 그린다.
+     */
+    public void autoGenerateAfterAnalysis(UUID userId, UUID analysisJobId) {
+        try {
+            boolean targetAdded = false;
+            if (analysisJobId != null) {
+                try {
+                    addTarget(userId, analysisJobId);   // 초안 생성까지 포함한다
+                    targetAdded = true;
+                } catch (ApiException exception) {
+                    log.warn("Roadmap target not auto-added for analysis {}: {}",
+                            analysisJobId, exception.getMessage());
+                }
+            }
+            boolean hasMaterial = rls.read(userId, jdbc -> eligibleMaterialCount(jdbc) > 0);
+            if (!hasMaterial) {
+                return;
+            }
+            if (!targetAdded) {
+                regenerate(userId);
+            }
+            boolean alreadyPublished = rls.read(userId,
+                    jdbc -> loadVersion(jdbc, "PUBLISHED", false) != null);
+            if (!alreadyPublished) {
+                applyDraft(userId);
+            }
+        } catch (Exception exception) {
+            // 지도 생성 실패가 판정 저장을 되돌리지 않는다.
+            log.warn("Roadmap auto-generation skipped for {}: {}", userId, exception.getMessage());
+        }
+    }
+
     public DraftResult regenerate(UUID userId) {
         return rls.write(userId, jdbc -> {
+            if (eligibleMaterialCount(jdbc) == 0) {
+                // 프론트의 비활성화에만 맡기지 않는다 — 규칙이 두 곳에 갈리면 한쪽이 낡는다.
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "ROADMAP_MATERIAL_REQUIRED",
+                        MATERIAL_REQUIRED_MESSAGE
+                );
+            }
             DraftVersion draft = generateDraft(jdbc, userId);
             return new DraftResult(
                     null,
@@ -342,7 +416,27 @@ public class RoadmapService {
                         """)
                 .query(Integer.class)
                 .single();
+        // **가능 여부를 응답에 싣지 않는다.** 로드맵은 적합도 분석이 끝나면 생기는 결과이고,
+        // 매 조회마다 "지금 생성 가능한가"를 계산해 알리면 화면이 사용자에게 허락을 따지는
+        // 창구가 된다 — 에이전트 쪽 규율(사용자의 자율성을 깎지 않는다)과 어긋난다.
+        // 재료가 없을 때의 안내는 **실제로 생성을 눌렀을 때** 그 응답으로만 한다(regenerate).
         return new Workspace(currentSnapshot, draftView, targetCount);
+    }
+
+    /**
+     * 지도에 올릴 수 있는 재료(로드맵 대상 역량 요건)의 수.
+     *
+     * <p>이것이 0이면 그릴 것이 없다. 그리기가 실제로 읽는 표를 그대로 세므로, 재료를 어느
+     * 경로가 넣었는지(공고 분석 작업이든 대화든) 여기서 알 필요가 없다.
+     */
+    private int eligibleMaterialCount(JdbcClient jdbc) {
+        return jdbc.sql("""
+                        select count(*)
+                        from posting_competency_requirements
+                        where roadmap_eligible
+                        """)
+                .query(Integer.class)
+                .single();
     }
 
     private DraftVersion generateDraft(JdbcClient jdbc, UUID userId) {
@@ -361,6 +455,18 @@ public class RoadmapService {
                 ? foundationOnlySnapshot(jdbc, userId)
                 : readSnapshot(published.snapshotJson());
         ChangeSummary changes = compare(current, snapshot);
+
+        // 같은 지도를 다시 그렸으면 초안을 새로 만들지 않는다. 부르는 곳이 둘이고(분석 작업
+        // 완료 · 대화 산출물 적재) 대화 턴마다 또 불리므로, 한 번의 분석에 초안이 2~3개씩
+        // 생기고 그중 앞의 것들이 DISCARDED 로 쌓였다(실측 08-04 01:52: v11·v12 버림 → v13,
+        // 노드 수 40 으로 셋이 동일). 호출자끼리 "누가 그릴 차례인가"를 맞추는 대신 결과가
+        // 같으면 그대로 두는 쪽이 규칙이 하나다 — 사용자가 보고 있는 초안의 id 도 안 바뀐다.
+        StoredVersion existingDraft = loadVersion(jdbc, "DRAFT", false);
+        if (existingDraft != null
+                && readSnapshot(existingDraft.snapshotJson())
+                        .equals(snapshotWithVersion(snapshot, existingDraft.versionNumber()))) {
+            return new DraftVersion(existingDraft.id(), existingDraft.versionNumber(), changes);
+        }
 
         jdbc.sql("""
                         update roadmap_versions

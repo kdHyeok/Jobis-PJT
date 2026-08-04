@@ -51,3 +51,57 @@ def test_retry_exhaustion_logs_a_warning(monkeypatch, caplog):
 ])
 def test_extract_json(raw, expected):
     assert extract_json(raw) == expected
+
+
+# --- 형식 위반 재시도는 무엇이 틀렸는지 함께 보낸다 (08-03 사고) --------------
+def test_format_violation_retry_carries_a_repair_hint(monkeypatch):
+    """JSON 아닌 응답으로 실패하면 **다음 시도에 교정문이 실려야 한다.**
+
+    실측 사고(2026-08-03): `posting_analysis` 자기 루프가 `LoopDecision` 을 JSON 대신
+    마크다운(`**action**: read_posting …`)으로 받아 3회 재시도가 전부 같은 자리에서 죽고,
+    결정론 폴백이 사용자에게 "분석 결과"처럼 나갔다. 같은 프롬프트 재전송은 형식 위반을
+    고치지 못한다(stable-wrong). 네트워크 실패에는 붙이지 않는다 — 프롬프트 잘못이 아니다.
+    """
+
+    from pydantic import BaseModel, ValidationError
+
+    from jobis_ai import structured
+
+    class Dummy(BaseModel):
+        value: str
+
+    class MarkdownThenJson:
+        """1회차는 실제 사고와 같은 마크다운, 2회차는 교정문을 받으면 제대로 낸다."""
+
+        def __init__(self) -> None:
+            self.seen: list[list[tuple[str, str]]] = []
+
+        def with_structured_output(self, schema, **kwargs):
+            return self
+
+        def invoke(self, messages):
+            self.seen.append(list(messages))
+            if len(self.seen) == 1:
+                # 실제로 받은 응답 형태를 그대로 재현한다.
+                Dummy.model_validate_json("**value**: read_posting")
+            return Dummy(value="ok")
+
+    llm = MarkdownThenJson()
+    monkeypatch.setattr(structured, "get_llm", lambda tier: llm)
+    monkeypatch.setattr(structured, "_RETRY_BACKOFF_SEC", 0)
+    result, warnings = structured.run_structured(Dummy, "sys", "본문", node="test_node")
+
+    assert result is not None and result.value == "ok"
+    # 1회차엔 교정문이 없고, 2회차엔 붙어 있다.
+    assert len(llm.seen[0]) == 2
+    hint = llm.seen[1][-1][1]
+    assert "JSON 객체 하나만" in hint and "**필드**" in hint
+    assert "validation error" in hint.lower()      # 무엇이 틀렸는지 그대로 돌려준다
+
+    # 힌트는 쌓이지 않는다 — 재시도마다 base 위에 하나만.
+    assert len(llm.seen[1]) == 3
+
+    # 네트워크성 실패에는 붙이지 않는다.
+    assert structured._repair_message(RuntimeError("Connection reset by peer")) is None
+    assert structured._repair_message(ValidationError.from_exception_data(
+        "Dummy", [])) is not None

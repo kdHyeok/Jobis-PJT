@@ -158,8 +158,12 @@ def experience_requirement(posting: dict) -> ExperienceRequirement | None:
     )
 
 
-def build_job_context(posting: dict) -> JobContext:
-    """normalizedJobPosting → JobContext. 파싱 결과만 옮기고 없는 필드는 None."""
+def build_job_context(posting: dict, *, source_text: str | None = None) -> JobContext:
+    """normalizedJobPosting → JobContext. 파싱 결과만 옮기고 없는 필드는 None.
+
+    `source_text` 는 URL 공고에서 수집한 원문(있을 때만). 백엔드가 주소만 저장된
+    `raw_text` 를 이걸로 되메운다.
+    """
 
     return JobContext(
         company_name=posting.get("companyName") or None,
@@ -168,6 +172,7 @@ def build_job_context(posting: dict) -> JobContext:
         experience_text=posting.get("yearsEvidence") or posting.get("seniority") or None,
         primary_track=track_from_posting(posting),
         experience_requirement=experience_requirement(posting),
+        source_text=source_text,
         parsed_data=dict(posting),
     )
 
@@ -357,10 +362,28 @@ def build_competency_proposal(
     if not competencies or not requirements:
         return None
 
-    provable = [c.ref for c in competencies
+    def _provable(relation: str) -> list[str]:
+        return [c.ref for c in competencies
                 if c.roadmap_eligible
-                and any(r.competency_ref == c.ref and r.relation == "REQUIRED"
+                and any(r.competency_ref == c.ref and r.relation == relation
                         for r in requirements)][:30]
+
+    provable = _provable("REQUIRED")
+    if not provable:
+        # **필수 자리에 검증 가능한 역량이 없는 공고가 실제로 있다.** 실측(2026-08-03,
+        # 잡코리아 49692518): 요건 13건을 정상 판정했는데 구성이 `학력: 대졸이상`(필수·산문)
+        # · `요구 연차`(필수·검증 불가) · 나머지 전부 우대였다 — `_tech_stack_requirements`
+        # 가 techStack 을 preferred 로 매기기 때문이다(판정에서 요구 기술은 자격요건이 아니라
+        # '있으면 좋은 신호'라서 맞는 선택이다). 그 둘이 겹치면 provable 이 비고 분석이
+        # **통째로** 실패했다 — 로드맵이 없는 것이 아니라 적합도 판정까지 버려졌다.
+        # 우대 퀘스트만 있는 지도가 지도 없음보다 낫다. 계약도 relation 을 보지 않는다
+        # (`CompetencyProposal.validate_references` — 검증하는 것은 eligible 뿐).
+        provable = _provable("PREFERRED")
+        if provable:
+            # AnalysisResponse 에는 warnings 칸이 없다 — 사유가 남을 곳이 로그뿐이므로
+            # WARNING 으로 남긴다(지도가 우대 퀘스트만으로 그려진다는 뜻이다).
+            log.warning("[v2bridge] 필수 요건에 검증 가능한 역량이 없어 우대 %d건으로 과제를 세운다"
+                        " — 지도의 본선 경로가 비고 선택 퀘스트만 그려진다", len(provable))
     if not provable:
         return None
 
@@ -683,6 +706,11 @@ _PROGRESS_LABEL = {
 }
 
 
+# 오케스트레이터 자신을 가리키는 화자 키. 에이전트 키와 같은 이름공간을 쓰지만
+# _AGENT_LABEL 에는 없다(에이전트가 아니라 에이전트를 고르는 쪽이다).
+ORCHESTRATOR = "orchestrator"
+
+
 class ProgressMapper:
     """trace 이벤트 하나 → 진행 단계 하나(또는 None). **번역이지 재판정이 아니다.**
 
@@ -700,8 +728,15 @@ class ProgressMapper:
         detail = ev.get("detail") or {}
         ms = int(ev.get("elapsedMs") or 0)
 
-        def _step(step: str, label: str, text: str) -> dict:
-            return {"step": step, "label": label, "detail": text[:300], "elapsedMs": ms}
+        # agent 는 **화자 키**다 — 웹이 이걸로 색·로고를 고른다(라벨 문자열로 고르면
+        # 문구를 다듬는 순간 색이 바뀐다). 오케스트레이터 자신의 단계는 ORCHESTRATOR.
+        def _step(step: str, label: str, text: str,
+                  agent: str = ORCHESTRATOR, message: str = "") -> dict:
+            # message 는 발화 **본문**(D153) — 담당이 말을 마치는 즉시 화면이 말풍선으로
+            # 그린다. 과정 라벨(detail)과 달리 내용이므로 300자로 자르지 않는다.
+            return {"agent": agent, "step": step, "label": label,
+                    "detail": text[:300], "elapsedMs": ms,
+                    "message": (message or "")[:4000]}
 
         if kind == "planner":
             sel = ", ".join(agent_label(a) for a in (detail.get("selectedAgents") or []))
@@ -731,7 +766,7 @@ class ProgressMapper:
             assets = [str(a) for a in (detail.get("sessionAssets") or [])
                       if not str(a).startswith("_")]
             seen = f" · 입력: {', '.join(assets[:6])}" if assets else ""
-            return _step(f"start:{name}", agent_label(name), f"실행 중…{seen}")
+            return _step(f"start:{name}", agent_label(name), f"실행 중…{seen}", name)
         if kind == "agent_end":
             name = str(detail.get("agent") or "")
             t0 = self._started.pop(name, None)
@@ -740,14 +775,19 @@ class ProgressMapper:
             # 오케스트레이터에 무엇을 넘겼는지(sessionUpdates 키 = 상태 전이 요청, D93).
             handed = [str(k) for k in (detail.get("sessionUpdates") or [])]
             hand_note = f" · 넘김: {', '.join(handed[:5])}" if handed else ""
+            # 발화 본문을 함께 싣는다(D153) — 이벤트에는 이미 있었는데 여기서 버려져,
+            # 순차로 만들어진 발화가 턴 끝에 한 덩어리로만 보였다(실측 08-03 사용자 관측).
+            reply = str(detail.get("reply") or "")
             # 캐시 재사용 턴 — 새로 분석한 게 아니라 저장된 분석을 본 것이므로 라벨을
             # "분석 자료 검토"로 구분한다(D83, 사용자 지시: 로그가 실제 일과 일치해야 한다).
             if (detail.get("data") or {}).get("fromCache"):
                 return _step(name, "분석 자료 검토",
                              "저장된 공고 정리에서 조회"
-                             + (f" · 경고 {warn}건" if warn else "") + dur)
+                             + (f" · 경고 {warn}건" if warn else "") + dur, name,
+                             message=reply)
             return _step(name, agent_label(name),
-                         "완료" + (f" · 경고 {warn}건" if warn else "") + dur + hand_note)
+                         "완료" + (f" · 경고 {warn}건" if warn else "") + dur + hand_note,
+                         name, message=reply)
         if kind == "agent_step":
             # 자기 루프의 스텝 단위(D93) — 어떤 도구를 왜 불렀고 무엇을 관찰했는지.
             name = str(detail.get("agent") or "")
@@ -763,7 +803,7 @@ class ProgressMapper:
                 text = "도구 사용 상한 도달 — 지금까지 관찰로 답변 작성"
             else:
                 text = "중단(판단 불가)"
-            return _step(f"loop:{name}", f"{agent_label(name)} 루프", text)
+            return _step(f"loop:{name}", f"{agent_label(name)} 루프", text, name)
         if kind == "recall":
             return _step("recall", _PROGRESS_LABEL[kind], str(ev.get("label") or ""))
         if kind == "delegate":
@@ -774,8 +814,10 @@ class ProgressMapper:
             got = (f" · 받은 데이터: {', '.join(keys[:5])}" if keys
                    else (f" · 결과 {detail.get('results')}건"
                          if detail.get("results") is not None else ""))
+            # 화자는 **묻는 쪽**이다 — 위임은 그 에이전트가 하는 행동이다.
             return _step("delegate", _PROGRESS_LABEL[kind],
-                         (f"{src} → {target}" if src else target) + got)
+                         (f"{src} → {target}" if src else target) + got,
+                         src or ORCHESTRATOR)
         if kind == "delegate_refused":
             return _step("delegate_refused", _PROGRESS_LABEL[kind],
                          f"{detail.get('target')} — {detail.get('reason')}")
@@ -793,6 +835,30 @@ class ProgressMapper:
         return None
 
 
+def degraded_reason(warnings: list[dict]) -> str:
+    """엔진 경고 → 이 답변이 결정론 폴백인 이유(사용자향 한 문장). 정상이면 빈 문자열.
+
+    **판정하지 않는다** — `llm_call_failed` 경고가 달렸다는 사실만 옮긴다. 그 경고는
+    `structured.py` 가 재시도를 소진했을 때만 붙으므로(재시도로 흡수된 실패엔 안 붙는다)
+    "LLM 이 죽은 채 답변이 나갔다"와 같은 조건이다(orchestrator/chat.py 의 ERROR 로그).
+
+    왜 사용자에게까지 보이나: 폴백 문장이 그럴듯해서 실패가 안 보인 사고가 두 번 있었다.
+    로그에만 남기면 로그를 보는 사람만 알고, 답변을 읽는 사람은 요약본을 분석 결과로 읽는다.
+    """
+
+    from jobis_ai.orchestrator.router import agent_label
+
+    # 경고 메시지 형식: "<노드>: LLM 호출 3회 재시도 후 실패 — …" (structured.py)
+    nodes = [str(w.get("message") or "").split(":", 1)[0].strip()
+             for w in warnings or [] if w.get("code") == "llm_call_failed"]
+    names = [agent_label(n) for n in dict.fromkeys(n for n in nodes if n)]
+    if not names:
+        return ""
+    return (f"{', '.join(names[:3])}이(가) LLM 응답 실패로 끝나지 못했어요. "
+            "이 답변은 그때까지 확인한 정보만으로 만든 요약이라, 분석 결과가 아닙니다. "
+            "다시 시도하면 정상 분석이 될 수 있어요.")[:300]
+
+
 def progress_steps(events: list[dict]) -> list[dict]:
     """trace 이벤트 → 채팅 UI 의 "진행 과정" 단계 목록 (턴 종료 후 타임라인).
 
@@ -805,9 +871,12 @@ def progress_steps(events: list[dict]) -> list[dict]:
     return [s for s in steps if not str(s["step"]).startswith("start:")][:60]
 
 
-# 이 담당들이 돌면 커리어 지도에 보여줄 것이 생긴다. 로드맵을 **만드는** 쪽(roadmap_manager)과
+# 이 담당들이 돌면 커리어 지도에 보여줄 것이 생긴다. 로드맵을 조회하는 쪽(roadmap_manager)과
 # 지원 경로를 **세우는** 쪽(application_plan) 둘 다 지도 화면의 내용이다.
-_MAP_PRODUCERS = ("roadmap_manager", "application_plan")
+# `fit_analysis` 를 넣는 이유(D142): 적합도 판정이 로드맵의 재료를 만드는 그 단계이고,
+# 사용자가 지도로 갈 지점이 바로 그 뒤다. 지도를 **채우는** 것은 분석 작업이므로 이 액션은
+# "지도에 갔다"는 이동 수단이지 "다 그려졌다"는 주장이 아니다(문구도 그렇게 적었다).
+_MAP_PRODUCERS = ("roadmap_manager", "application_plan", "fit_analysis")
 
 
 def chat_actions(
@@ -872,6 +941,20 @@ def _suggest(kind: str, title: str, description: str = "",
     )
 
 
+def _narrative(summary: Any, achievements: Any = None) -> str:
+    """서술 본문 — 요약 문장 + 성과 문장을 줄로 잇는다. 빈 것은 버린다."""
+
+    lines = [str(summary or "").strip()]
+    lines += [f"· {str(a).strip()}" for a in (achievements or []) if str(a).strip()]
+    return "\n".join(line for line in lines if line)
+
+
+def _detail(**fields: Any) -> dict[str, Any]:
+    """정형 칸만 남긴 detail — 빈 값은 넣지 않는다(빈 칸이 '없음'으로 굳지 않게)."""
+
+    return {k: v for k, v in fields.items() if v not in (None, "", [], {})}
+
+
 def fragments_from_profile(profile: dict) -> list[CareerFragmentSuggestion]:
     """NormalizedUserProfile → v2 조각 제안. webbridge/_profile_to_fragments 와 같은 옮기기 —
     v2 는 조각 종류가 더 풍부해(EXPERIENCE/EDUCATION/ACHIEVEMENT) 그대로 대응시킨다."""
@@ -881,15 +964,25 @@ def fragments_from_profile(profile: dict) -> list[CareerFragmentSuggestion]:
     for s in profile.get("skills") or []:
         out.append(_suggest("SKILL", s.get("name") or "", s.get("level") or ""))
 
+    # 프로젝트·경력은 **서술이 본문**이다 — summary 를 projectType·period 와 " · " 로 뭉치면
+    # 성과 문장이 메타에 묻히고 achievements·role·teamSize·techStack 은 통째로 버려졌다.
+    # description 은 사람이 읽는 서술, detail 은 정형 칸으로 갈라 담는다(둘 다 저장소로 간다).
     for p in profile.get("projects") or []:
-        bits = [p.get("projectType"), p.get("period"), p.get("summary")]
-        out.append(_suggest("PROJECT", p.get("title") or "",
-                            " · ".join(b for b in bits if b)))
+        out.append(_suggest(
+            "PROJECT", p.get("title") or "",
+            _narrative(p.get("summary"), p.get("achievements")),
+            _detail(projectType=p.get("projectType"), period=p.get("period"),
+                    teamSize=p.get("teamSize"), role=p.get("role"),
+                    techStack=p.get("techStack"), achievements=p.get("achievements")),
+        ))
 
     for e in profile.get("experiences") or []:
         label = " · ".join(b for b in (e.get("company"), e.get("role")) if b)
-        bits = [e.get("employmentType"), e.get("period"), e.get("summary")]
-        out.append(_suggest("EXPERIENCE", label, " · ".join(b for b in bits if b)))
+        out.append(_suggest(
+            # company·role 은 title 이 이미 "회사 · 역할"이라 detail 에 넣지 않는다(칩이 제목을 반복한다).
+            "EXPERIENCE", label, _narrative(e.get("summary")),
+            _detail(employmentType=e.get("employmentType"), period=e.get("period")),
+        ))
 
     for ed in profile.get("education") or []:
         label = " ".join(b for b in (ed.get("school"), ed.get("major")) if b)

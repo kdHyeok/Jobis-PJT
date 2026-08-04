@@ -185,3 +185,47 @@ def test_source_text_is_the_posting_sentence_not_our_paraphrase():
     proposal = build_competency_proposal(_POSTING, [req("r1", sentence)], [], "BACKEND")
     assert proposal is not None
     assert proposal.requirements[0].source_text == sentence
+
+
+def test_preferred_only_posting_still_yields_a_roadmap():
+    """**필수 자리에 검증 가능한 역량이 없는 공고가 실제로 있다** (2026-08-03 실측).
+
+    잡코리아 49692518 의 요건 13건 구성: 필수는 `학력: 대졸이상`(산문·사전 밖)과 `요구 연차`
+    (검증 불가)뿐이고 기술은 전부 우대였다 — `_tech_stack_requirements` 가 techStack 을
+    preferred 로 매기기 때문이다(판정에서 요구 기술은 자격요건이 아니라 '있으면 좋은 신호'라
+    맞는 선택이다). 그 둘이 겹치면 provable 이 비어 proposal 이 None 이 되고, 분석이 **통째로**
+    실패했다 — 로드맵만 없는 게 아니라 적합도 판정까지 버려지고 커리어지도가 비었다.
+
+    우대 퀘스트만 있는 지도가 지도 없음보다 낫다. 계약도 relation 을 보지 않는다.
+    """
+
+    requirements = [
+        req("req-1", "학력 : 대졸이상 (졸업예정자 가능)"),
+        req("seniority-1", "요구 연차: 경력 : 신입", kind="seniority"),
+        req("pref-1", "외국어 : TOEIC(Speaking)", type_="preferred"),
+        *[req(f"tech-{i}", name, type_="preferred")
+          for i, name in enumerate(("JavaScript", "Oracle", "C#"), start=1)],
+        *[req(f"domain-{i}", kw, type_="preferred", kind="domain_keyword")
+          for i, kw in enumerate(("스마트 팩토리", "머신비전"), start=1)],
+    ]
+    proposal = build_competency_proposal(_POSTING, requirements, [], "BACKEND")
+    assert proposal is not None, "필수에 기술이 없다고 로드맵을 통째로 버리지 않는다"
+
+    # 증명 대상은 검증 가능한 역량이어야 한다(계약: 정성 역량으로는 과제를 증명할 수 없다).
+    eligible = {c.ref for c in proposal.competencies if c.roadmap_eligible}
+    proven = set(proposal.target_project.required_competency_refs)
+    assert proven and proven <= eligible
+    # 사전이 아는 기술에서 골랐다 — 산문 요건(학력·어학)이나 연차가 아니다.
+    titles = {c.ref: c.title for c in proposal.competencies}
+    assert all(titles[r] in ("JavaScript", "Oracle", "C#") for r in proven), \
+        [titles[r] for r in proven]
+
+
+def test_qualitative_only_posting_still_yields_none():
+    """완화는 '우대까지' 까지다 — 검증 방법이 없는 역량만 있으면 여전히 만들지 않는다."""
+
+    assert build_competency_proposal(
+        _POSTING,
+        [req("r1", "성실하고 책임감 있는 자세"),
+         req("r2", "원활한 커뮤니케이션 능력", type_="preferred")],
+        [], "BACKEND") is None

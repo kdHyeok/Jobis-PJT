@@ -22,7 +22,6 @@ from jobis_ai.structured import run_streaming_text, run_structured
 from jobis_ai.verify_rules import FORBIDDEN_EXPRESSIONS
 from pydantic import BaseModel, Field
 
-_MAX_ROADMAP_ITEMS_IN_REPLY = 5
 _MAX_ALTERNATIVES_SHOWN = 3
 
 _ALT_TYPE_LABEL = {
@@ -103,24 +102,27 @@ def render_job_recommend(data: dict[str, Any], session: dict[str, Any]) -> tuple
 
 
 def render_roadmap_manager(data: dict[str, Any], session: dict[str, Any]) -> tuple[str, list[dict]]:
-    """저장된 준비 로드맵 → 문장."""
+    """저장된 준비 로드맵 → 문장. **항목을 나열하지 않는다**(D142).
+
+    로드맵이 그려지는 곳은 커리어지도다. 지도에 생긴 것을 채팅이 다시 읊으면 사용자는 같은
+    내용을 두 번 보고 지도를 열 이유가 없어진다 — `mapping.chat_actions` 가 `OPEN_MAP` 을
+    "로드맵을 채팅으로 읊지 않기 위한 유일한 레버"라고 적어 둔 그 정책인데, 이 렌더러가
+    어기고 있었다(항목 나열 + "수정·진척 체크는 준비 중"). 실측(08-03 16:59): 사용자는 그것을
+    **"로드맵 생성이 안 됨"** 으로 읽었다.
+
+    그래서 채팅은 **몇 개가 생겼고 어디서 보는지**까지만 말한다.
+    """
 
     roadmap = list(data.get("roadmap") or [])
     if not roadmap:
         return "저장된 로드맵이 없습니다. 공고 적합도 분석을 실행하면 준비 로드맵이 함께 만들어져요.", []
 
-    lines = []
-    for item in roadmap[:_MAX_ROADMAP_ITEMS_IN_REPLY]:
-        period = f"{item.get('startDate', '')}~{item.get('endDate', '')}".strip("~")
-        lines.append(
-            f"[{item.get('priority', 'medium')}] {item.get('title', '')}"
-            + (f" ({period})" if period else "")
-        )
+    # **"이미 그려져 있다"고 단정하지 않는다.** 지도를 채우는 것은 분석 작업(`/v1/analyses`)
+    # 이고 그건 이 턴과 별개로 돌아간다 — 채팅은 지도의 상태를 알 방법이 없다(요청의
+    # `career` 에 로드맵 항목 수가 없다). 없는 것을 있다고 말하는 대신 어디서 보는지를 말한다.
     return (
-        f"현재 로드맵에 {len(roadmap)}개 항목이 있습니다. "
-        + " / ".join(lines)
-        + (" …" if len(roadmap) > _MAX_ROADMAP_ITEMS_IN_REPLY else "")
-        + " — 항목 수정이나 진척 체크 기능은 준비 중이에요."
+        f"준비 로드맵 {len(roadmap)}개 항목을 정리했어요. "
+        "로드맵은 커리어지도에 그려져요 — 분석이 끝나면 지도에서 단계별 순서와 상세 관계까지 확인하실 수 있어요."
     ), []
 
 
@@ -238,7 +240,11 @@ def render_fit_analysis(data: dict[str, Any], session: dict[str, Any]) -> tuple[
 
     assumed = data.get("assumedPeriod") or {}
     if assumed:
-        reply += f" (준비 기간은 {assumed.get('weeks')}주·주 {assumed.get('hours')}시간을 가정했습니다.)"
+        # 가정을 통보("가정했습니다")로 끝내지 않고 **바로잡을 길을 연다** — 준비 예산은
+        # 사용자만 아는 값이라, 묻지 않으면 기본값이 사실처럼 굳는다(실측 08-04 사용자 지적).
+        reply += (f"\n학습 일정은 준비 기간을 아직 몰라서 {assumed.get('weeks')}주·주 "
+                  f"{assumed.get('hours')}시간을 기준으로 잡았어요. 실제 가능한 기간과 주당 "
+                  "시간을 알려주시면 일정에 반영할게요.")
 
     # 중·하 등급이면 판정 엔진이 대안 공고까지 찾아 둔다(route_after_roadmap). 그 결과가
     # 답변에 실리지 않아 사용자는 존재를 몰랐다 — 계산만 하고 버리던 것을 보여준다.
@@ -416,6 +422,12 @@ def posting_facts(posting: dict) -> dict:
                                  (posting.get("requiredRequirements") or [])],
         "preferredRequirements": [str(r.get("text") or "") for r in
                                   (posting.get("preferredRequirements") or [])],
+        # 담당업무·조건·전형·조직(D157) — 파서가 원문에서 읽어 둔다. 이게 없으면 공고 담당이
+        # `read_posting` 으로 줄 단위 grep 을 해야 하고, 여러 줄 블록을 못 잡는다.
+        "responsibilities": posting.get("responsibilities") or [],
+        "conditions": posting.get("conditions") or [],
+        "hiringProcess": posting.get("hiringProcess") or [],
+        "teamContext": posting.get("teamContext") or "",
         "techStack": posting.get("techStack") or [],
         "domainKeywords": posting.get("domainKeywords") or [],
     }

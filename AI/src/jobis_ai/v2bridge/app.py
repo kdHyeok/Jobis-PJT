@@ -37,6 +37,8 @@ from jobis_ai.v2bridge.models import (
     CareerExtractionResponse,
     ChatRequest,
     ChatResponse,
+    CompetencyAssessmentRequest,
+    CompetencyAssessmentResponse,
     EvidenceVerificationRequest,
     EvidenceVerificationResponse,
 )
@@ -102,7 +104,9 @@ async def _run(handler: Callable[[], _T]) -> _T:
     except service.EngineFailed as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "AI_PROVIDER_UNAVAILABLE", "message": str(exc)},
+            # 사유별 코드 — 입력 부족은 재시도로 안 풀리고 사용자가 할 일이 있다(EngineFailed).
+            detail={"code": getattr(exc, "code", "AI_PROVIDER_UNAVAILABLE"),
+                    "message": str(exc)},
         ) from exc
     except HTTPException:
         raise
@@ -148,7 +152,9 @@ async def analyze_stream(request: AnalysisRequest) -> StreamingResponse:
                 "type": "ERROR", "runId": str(request.analysis_job_id), "sequence": 9999,
                 "occurredAt": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "stages": [], "stage": None, "result": None,
-                "errorCode": "AI_PROVIDER_UNAVAILABLE", "errorMessage": str(exc)[:2000],
+                # 스트림 경로가 실제 경로다 — 여기서도 사유별 코드를 낸다(app._run 과 동일).
+                "errorCode": getattr(exc, "code", "AI_PROVIDER_UNAVAILABLE"),
+                "errorMessage": str(exc)[:2000],
             }, ensure_ascii=False) + "\n"
 
     return StreamingResponse(_lines(), media_type="application/x-ndjson")
@@ -183,11 +189,16 @@ async def chat_stream(request: ChatRequest) -> "StreamingResponse":
         try:
             for item in service.chat_events(request):
                 if item.get("type") == "result":
-                    payload = {"type": "result",
-                               "response": item["response"].model_dump(by_alias=True)}
-                else:
-                    payload = item
-                yield json_mod.dumps(payload, ensure_ascii=False) + "\n"
+                    # **직렬화는 pydantic 에 맡긴다.** `model_dump()` 는 파이썬 객체를 그대로
+                    # 남기므로(Decimal·UUID·datetime) `json.dumps` 가 거기서 죽는다 —
+                    # 실측(08-03 22:56): 지도 재료(confidence: Decimal)를 실은 순간
+                    # "Object of type Decimal is not JSON serializable" 로 스트림이 끊겨,
+                    # 판정까지 다 끝낸 턴의 답변과 로드맵이 통째로 유실됐다.
+                    # `model_dump_json` 은 계약이 정한 형식(camelCase·JSON 타입)으로 낸다.
+                    yield ('{"type":"result","response":'
+                           + item["response"].model_dump_json(by_alias=True) + "}\n")
+                    continue
+                yield json_mod.dumps(item, ensure_ascii=False) + "\n"
         except service.EngineNotConfigured as exc:
             yield json_mod.dumps({"type": "error", "code": "AI_PROVIDER_NOT_CONFIGURED",
                                   "message": str(exc)}, ensure_ascii=False) + "\n"
@@ -232,3 +243,21 @@ async def verify_evidence(
 )
 async def extract_career(request: CareerExtractionRequest) -> CareerExtractionResponse:
     return await _run(lambda: service.extract_career(request))
+
+
+@app.post(
+    "/v1/competency-assessments",
+    response_model=CompetencyAssessmentResponse,
+    response_model_by_alias=True,
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def assess_competency(
+    request: CompetencyAssessmentRequest,
+) -> CompetencyAssessmentResponse:
+    """역량 검증 한 턴 — 마지막 답변 채점 + 다음 문제.
+
+    무엇을 물을지·언제 끝낼지는 규칙이 정하고(`v2bridge/assessment.py`) LLM 은 문제를
+    만들고 답을 읽는다. 이 경로가 없어서 역량 검증 화면이 통째로 죽어 있었다.
+    """
+
+    return await _run(lambda: service.assess_competency(request))

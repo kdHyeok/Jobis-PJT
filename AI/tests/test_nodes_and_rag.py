@@ -37,6 +37,23 @@ def test_normalize_dedups_tech_stack_case_insensitive():
     assert posting.techStack == ["Java", "Spring"]
 
 
+def test_normalize_drops_placeholder_conditions():
+    """조건 줄의 값이 자리표시자면 버린다 — '근무지: 미기재'가 나가면 사용자는 원문에 있는
+    조건을 없다고 읽는다(§2-1 모른다 ≠ 아니다)."""
+
+    posting = NormalizedJobPosting(
+        conditions=["고용형태: 정규직", "근무지: 미기재", "급여: 회사 내규에 따름",
+                    "근무시간: -", "고용형태: 정규직"],
+        responsibilities=["앱 백엔드 API", "앱 백엔드 API", "크레딧 원장"],
+        teamContext="미상",
+    )
+    _normalize_job_schema(posting)
+
+    assert posting.conditions == ["고용형태: 정규직", "급여: 회사 내규에 따름"]
+    assert posting.responsibilities == ["앱 백엔드 API", "크레딧 원장"]
+    assert posting.teamContext == ""
+
+
 def test_validate_flags_missing_fields():
     posting = NormalizedJobPosting()  # 전부 비어 있음
     codes = {w["code"] for w in _validate_job_posting(posting)}

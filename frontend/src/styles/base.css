@@ -2692,6 +2692,12 @@ select:focus-visible {
   background: #f0f3f0;
 }
 
+.composer-notice {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #4a6b52;
+}
+
 .composer-send {
   color: #fff;
   background: var(--green);
@@ -3657,6 +3663,167 @@ select:focus-visible {
 
 .inline-ai-status .text-action {
   margin-left: auto;
+}
+
+/* 폴백 답변 표식 — 분석 결과가 아니라는 사실을 답변 옆에 둔다 */
+.chat-bubble > .reply-degraded {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding: 9px 12px;
+  border: 1px solid #f0cfc4;
+  border-radius: 12px;
+  color: #a34f36;
+  background: #fff8f5;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.chat-bubble > .reply-degraded svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+/* 에이전트 발화 — 담당별 색·로고로 구분한다. 색은 --agent-color 로만 들어온다
+   (등록부: src/agents.ts). 클래스마다 색을 박으면 담당이 늘 때마다 CSS를 고쳐야 한다. */
+.agent-stream {
+  display: flex;
+  max-width: 560px;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.agent-stream > summary {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid #dfe7e2;
+  border-radius: 999px;
+  color: #6b797d;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+  list-style: none;
+}
+
+.agent-stream > summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-stream[open] > summary {
+  margin-bottom: 4px;
+}
+
+.agent-turn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.agent-turn__avatar {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid var(--agent-color);
+  border-radius: 10px;
+  color: var(--agent-color);
+  background: color-mix(in srgb, var(--agent-color) 14%, #fff);
+}
+
+.agent-turn__bubble {
+  flex: 1 1 auto;
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--agent-color) 32%, #fff);
+  border-left: 3px solid var(--agent-color);
+  border-radius: 4px 12px 12px 12px;
+  background: #fff;
+}
+
+.agent-turn__bubble > strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--agent-color);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.agent-turn__bubble > p {
+  margin: 3px 0 0;
+  color: #5c6a6e;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.agent-turn--running .agent-turn__bubble {
+  background: color-mix(in srgb, var(--agent-color) 6%, #fff);
+}
+
+/* 담당이 말을 마치는 즉시 보여주는 발화 본문(D153) — 과정 라벨(회색 로그체)과 달리
+   대화 내용이므로 본문 색·크기로 그린다. */
+.agent-turn__bubble > .agent-turn__speech {
+  margin-top: 6px;
+  color: #22333b;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 최종 답변을 담당별로 나눈 말풍선 */
+.agent-reply {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.agent-reply + .agent-reply {
+  margin-top: 9px;
+}
+
+.agent-reply__avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid var(--agent-color);
+  border-radius: 11px;
+  color: var(--agent-color);
+  background: color-mix(in srgb, var(--agent-color) 14%, #fff);
+}
+
+.agent-reply > div {
+  flex: 1 1 auto;
+  padding: 11px 15px;
+  border: 1px solid color-mix(in srgb, var(--agent-color) 30%, #fff);
+  border-left: 3px solid var(--agent-color);
+  border-radius: 5px 18px 18px 18px;
+  background: #fff;
+  box-shadow: 0 4px 0 #dfe6e1;
+}
+
+.agent-reply > div > strong {
+  display: block;
+  color: var(--agent-color);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.agent-reply > div > p {
+  margin: 5px 0 0;
+  color: #46575d;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
 }
 
 /* Home */

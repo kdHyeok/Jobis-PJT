@@ -142,10 +142,12 @@ public class AiAnalysisClient {
                             }
                             // progress — 지금 어느 담당이 무슨 도구로 무엇을 하는지.
                             progressConsumer.accept(new AiContracts.ProgressStep(
+                                    event.path("agent").asString(""),
                                     event.path("step").asString(""),
                                     event.path("label").asString(""),
                                     event.path("detail").asString(""),
-                                    event.path("elapsedMs").asLong(0L)
+                                    event.path("elapsedMs").asLong(0L),
+                                    event.path("message").asString("")
                             ));
                         }
                     }

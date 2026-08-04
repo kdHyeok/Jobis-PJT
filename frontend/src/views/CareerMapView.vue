@@ -450,6 +450,9 @@ async function load() {
 }
 
 async function regenerate() {
+  // **가능 여부를 미리 따지지 않는다.** 로드맵은 적합도 분석이 끝나면 생기는 결과이고,
+  // 화면이 매 순간 "지금은 안 됩니다"를 계산해 알리는 것은 사용자의 자율성을 깎는다.
+  // 눌렀을 때 재료가 없으면 서버가 그 이유를 답하고, 아래 catch 가 그 문장을 그대로 보여준다.
   actionLoading.value = true;
   error.value = "";
   try {

@@ -705,6 +705,90 @@ class PostgresRlsIntegrationTest {
         }
     }
 
+    /**
+     * 버려진 RUNNING 작업을 회수한다(V25).
+     *
+     * <p>워커가 실행 도중 죽으면 작업은 RUNNING 으로 남는다. V16 의 회수 조건은 QUEUED
+     * 뿐이라 그 작업은 락이 만료돼도 영영 집히지 않았다 — 화면에는 "분석 중"으로 남고,
+     * 같은 공고의 새 요청이 거기 붙었다(실측 08-04, 좀비 5건).
+     */
+    @Test
+    void abandonedRunningJobIsReclaimedAndGivesUpAtTheAttemptCap() throws Exception {
+        UUID owner = UUID.randomUUID();
+        UUID postingId = UUID.randomUUID();
+        UUID retryable = UUID.randomUUID();
+        UUID exhausted = UUID.randomUUID();
+
+        // 큐 테이블(analysis_job_queue)은 jobiss_app 에 권한이 없다 — 워커도 SECURITY DEFINER
+        // 함수를 통해서만 만진다. 그래서 이 테스트는 소유자로 붙는다(FORCE RLS 라 소유자도
+        // app.current_user_id 를 세운다).
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                postgres.getUsername(),
+                postgres.getPassword()
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, owner);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', 'zombie@example.com', 'Zombie owner')
+                    """.formatted(owner));
+            statement.executeUpdate("""
+                    insert into job_postings (
+                        id, user_id, source_type, raw_text, content_fingerprint
+                    )
+                    values ('%s', '%s', 'TEXT', 'abandoned job posting', 'fp-zombie')
+                    """.formatted(postingId, owner));
+            for (UUID jobId : List.of(retryable, exhausted)) {
+                // 락이 15분 전에 만료된 RUNNING — 워커가 죽고 남은 모습 그대로.
+                statement.executeUpdate("""
+                        insert into analysis_jobs (
+                            id, user_id, posting_id, status, locked_until, started_at
+                        )
+                        values (
+                            '%s', '%s', '%s', 'RUNNING',
+                            now() - interval '15 minutes',
+                            now() - interval '30 minutes'
+                        )
+                        """.formatted(jobId, owner, postingId));
+            }
+            // 큐 행은 analysis_jobs INSERT 트리거(enqueue_analysis_job)가 이미 만들어 뒀다.
+            // 여기서는 시도 횟수만 원하는 모양으로 돌려놓는다 — 하나는 재시도 여유가 있고,
+            // 하나는 상한(3)을 다 썼다.
+            statement.executeUpdate("""
+                    update analysis_job_queue
+                    set attempt_count = case analysis_job_id
+                        when '%s'::uuid then 1
+                        else 3
+                    end
+                    where analysis_job_id in ('%s', '%s')
+                    """.formatted(retryable, retryable, exhausted));
+            connection.commit();
+
+            try (ResultSet result = statement.executeQuery(
+                    "select id from claim_analysis_job('test-worker')"
+            )) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getObject(1, UUID.class)).isEqualTo(retryable);
+                assertThat(result.next()).isFalse();
+            }
+            connection.commit();
+
+            setUser(statement, owner);
+            // 재시도 상한까지 쓴 좀비는 회수 대신 FAILED 로 닫힌다 — 실패를 실패라고 말한다.
+            try (ResultSet result = statement.executeQuery("""
+                    select status::text, error_code
+                    from analysis_jobs
+                    where id = '%s'
+                    """.formatted(exhausted))) {
+                result.next();
+                assertThat(result.getString(1)).isEqualTo("FAILED");
+                assertThat(result.getString(2)).isEqualTo("ABANDONED");
+            }
+            connection.rollback();
+        }
+    }
+
     private static void insertPostingAnalysis(
             Statement statement,
             UUID userId,
@@ -713,6 +797,10 @@ class PostgresRlsIntegrationTest {
             UUID competencyId,
             String companyName
     ) throws Exception {
+        // content_fingerprint 는 NOT NULL 이다(V17). 값은 **프로덕션과 같은 식**으로 만든다 —
+        // sha256(정규화된 raw_text). 상수를 박으면 두 회사의 공고가 같은 지문을 갖게 되고,
+        // 지문으로 재사용을 판단하는 로직(V19)이 검증하려는 상황 자체가 사라진다.
+        // (이 테스트는 도커가 없으면 건너뛰어져서, 그동안 이 누락이 드러나지 않았다.)
         statement.executeUpdate("""
                 insert into job_postings (
                     id,
@@ -721,18 +809,26 @@ class PostgresRlsIntegrationTest {
                     raw_text,
                     company_name,
                     role_title,
-                    parsed_data
+                    parsed_data,
+                    content_fingerprint
                 )
-                values (
+                select
                     '%s',
                     '%s',
                     'TEXT',
-                    'Java backend posting',
+                    src.body,
                     '%s',
                     'Backend developer',
-                    '{"domain":"BACKEND"}'
-                )
-                """.formatted(postingId, userId, companyName));
+                    '{"domain":"BACKEND"}',
+                    encode(
+                        digest(
+                            lower(regexp_replace(btrim(src.body), '\s+', ' ', 'g')),
+                            'sha256'
+                        ),
+                        'hex'
+                    )
+                from (select 'Java backend posting for %s'::text as body) src
+                """.formatted(postingId, userId, companyName, companyName));
         statement.executeUpdate("""
                 insert into analysis_jobs (
                     id,

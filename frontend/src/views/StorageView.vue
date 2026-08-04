@@ -26,6 +26,13 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import { api } from "@/api";
+import CareerFragmentBody from "@/components/CareerFragmentBody.vue";
+import {
+  RESUME_ACCEPT,
+  RESUME_MIN_CHARS,
+  readResumeFile,
+  titleFromFileName,
+} from "@/resumeFile";
 import type {
   CareerFragment,
   CareerFragmentKind,
@@ -51,6 +58,8 @@ const sourceTitle = ref("");
 const sourceUrl = ref("");
 const sourceText = ref("");
 const fileName = ref("");
+// docx 원문은 서버가 푼다 — 그동안 sourceText 는 빈 채로 남는다(등록 가드가 이걸 함께 본다).
+const fileBase64 = ref("");
 const editing = ref<CareerFragment | null>(null);
 const merging = ref(false);
 const editKind = ref<CareerFragmentKind>("SKILL");
@@ -140,23 +149,29 @@ async function readFile(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
-  if (file.size > 2_000_000) {
-    error.value = "텍스트 파일은 2MB 이하만 등록할 수 있습니다.";
+  error.value = "";
+  try {
+    const payload = await readResumeFile(file);
+    sourceType.value = "FILE";
+    fileName.value = payload.fileName;
+    sourceTitle.value ||= titleFromFileName(payload.fileName);
+    sourceText.value = payload.rawText;
+    fileBase64.value = payload.fileBase64 ?? "";
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "파일을 읽지 못했습니다.";
     input.value = "";
-    return;
   }
-  sourceType.value = "FILE";
-  fileName.value = file.name;
-  sourceTitle.value ||= file.name.replace(/\.[^.]+$/, "");
-  sourceText.value = await file.text();
 }
 
+// docx 는 원문이 서버에서 나오므로 길이로 막을 수 없다 — 파일이 있으면 통과시킨다.
+const canCreateSource = computed(
+  () =>
+    !!sourceTitle.value.trim() &&
+    (sourceText.value.trim().length >= RESUME_MIN_CHARS || !!fileBase64.value),
+);
+
 async function createSource() {
-  if (
-    actionLoading.value ||
-    !sourceTitle.value.trim() ||
-    sourceText.value.trim().length < 20
-  ) return;
+  if (actionLoading.value || !canCreateSource.value) return;
   actionLoading.value = true;
   error.value = "";
   try {
@@ -165,12 +180,16 @@ async function createSource() {
       title: sourceTitle.value.trim(),
       sourceUrl: sourceType.value === "URL" ? sourceUrl.value.trim() : null,
       rawText: sourceText.value.trim(),
+      ...(fileBase64.value
+        ? { fileBase64: fileBase64.value, fileName: fileName.value }
+        : {}),
     });
     showSourceModal.value = false;
     sourceTitle.value = "";
     sourceUrl.value = "";
     sourceText.value = "";
     fileName.value = "";
+    fileBase64.value = "";
     await load();
     sources.value = [
       created.source,
@@ -425,7 +444,7 @@ onBeforeUnmount(() => {
           {{ kindMeta[fragment.kind].label }}
         </span>
         <h2>{{ fragment.title }}</h2>
-        <p>{{ fragment.description || "추가 설명이 없습니다." }}</p>
+        <CareerFragmentBody :description="fragment.description" :detail="fragment.detail" />
         <small>{{ fragment.sourceTitle }} · {{ formatDate(fragment.updatedAt) }}</small>
         <footer>
           <button class="text-action" type="button" @click="beginEdit(fragment)">
@@ -514,13 +533,9 @@ onBeforeUnmount(() => {
       </label>
       <label v-if="sourceType === 'FILE'" class="file-drop">
         <Upload :size="22" />
-        <strong>{{ fileName || "텍스트 파일 선택" }}</strong>
-        <span>TXT, MD, CSV, JSON · 최대 2MB</span>
-        <input
-          type="file"
-          accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json"
-          @change="readFile"
-        />
+        <strong>{{ fileName || "이력서 파일 선택" }}</strong>
+        <span>DOCX, TXT, MD · 최대 2MB</span>
+        <input type="file" :accept="RESUME_ACCEPT" @change="readFile" />
       </label>
       <label>
         분석할 원문
@@ -528,7 +543,11 @@ onBeforeUnmount(() => {
           v-model="sourceText"
           minlength="20"
           maxlength="100000"
-          placeholder="이력서, 경력기술서, 프로젝트에서 맡은 역할과 결과를 붙여넣어 주세요."
+          :placeholder="
+            fileBase64
+              ? 'docx 원문은 등록할 때 서버가 읽습니다 — 비워 두어도 됩니다.'
+              : '이력서, 경력기술서, 프로젝트에서 맡은 역할과 결과를 붙여넣어 주세요.'
+          "
         />
         <small>{{ sourceText.length.toLocaleString() }} / 100,000자</small>
       </label>
@@ -540,8 +559,7 @@ onBeforeUnmount(() => {
         type="button"
         :disabled="
           actionLoading ||
-          !sourceTitle.trim() ||
-          sourceText.trim().length < 20 ||
+          !canCreateSource ||
           (sourceType === 'URL' && !sourceUrl.trim())
         "
         @click="createSource"
