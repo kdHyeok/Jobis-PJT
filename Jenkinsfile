@@ -167,9 +167,16 @@ SQL
           git diff --check HEAD^ HEAD
 
           # Multibranch workspaces survive branch changes. Git removes deleted tracked
-          # files, but ignored test caches under retired services can remain and make
-          # the release-layout check report a false legacy-source violation.
-          git clean -fdX -- ai-server fake-ai
+          # files, but ignored and ordinary untracked artifacts under retired services
+          # can remain. Fail closed if source was reintroduced, then clean only the two
+          # retired paths in this disposable Jenkins workspace.
+          legacy_tracked="$(git ls-files -- ai-server fake-ai)"
+          if [ -n "$legacy_tracked" ]; then
+            echo 'Retired service paths still contain tracked files:' >&2
+            printf '%s\n' "$legacy_tracked" >&2
+            exit 1
+          fi
+          git clean -fdx -- ai-server fake-ai
 
           # Jenkins is itself a container. Raw bind mounts resolve on the host Docker
           # daemon, where the container-only $WORKSPACE path does not exist. Reuse the
