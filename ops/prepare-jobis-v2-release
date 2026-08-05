@@ -38,10 +38,16 @@ if [[ "${JOBIS_REQUIRE_LEGACY_IMPORT:-}" != "true" ]]; then
   echo "JOBIS_REQUIRE_LEGACY_IMPORT must be true for this cutover." >&2
   exit 1
 fi
-if [[ "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" != "true" ]]; then
-  echo "A separate backup filesystem is required before data import." >&2
-  exit 1
-fi
+case "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" in
+  true) ;;
+  false)
+    echo "warning: same-disk degraded backup mode is enabled; host disk failure is not covered." >&2
+    ;;
+  *)
+    echo "JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM must be true or false." >&2
+    exit 1
+    ;;
+esac
 
 latest_legacy=""
 shopt -s nullglob

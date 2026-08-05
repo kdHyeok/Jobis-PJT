@@ -28,7 +28,8 @@ fi
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_one() {
-  local database="$1" user="$2" password="$3" destination="$4" temporary="${destination}.tmp"
+  local database="$1" user="$2" password="$3" destination="$4" temporary
+  temporary="${destination}.tmp"
   rm -f -- "$temporary"
   docker run --rm --network host -e "PGPASSWORD=$password" postgres:17-alpine \
     pg_dump --host 127.0.0.1 --username "$user" --dbname "$database" \
