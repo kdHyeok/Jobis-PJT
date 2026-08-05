@@ -130,9 +130,11 @@ SQL
       }
       steps {
         sh '''
-          python -m pip install --disable-pip-version-check --no-cache-dir rank_bm25==0.2.2
-          python -m compileall -q RAG
-          python -m unittest discover -s RAG/tests -v
+          python -m venv /tmp/jobis-rag-venv
+          /tmp/jobis-rag-venv/bin/python -m pip install \
+            --disable-pip-version-check --no-cache-dir rank_bm25==0.2.2
+          /tmp/jobis-rag-venv/bin/python -m compileall -q RAG
+          /tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v
         '''
       }
     }

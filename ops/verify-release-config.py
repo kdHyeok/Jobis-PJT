@@ -118,8 +118,9 @@ def main() -> None:
             "develop/master image gates are missing")
     require("when { branch 'master' }" in pipeline,
             "production deploy is not master-only")
-    require("rank_bm25==0.2.2" in pipeline and
-            "python -m unittest discover -s RAG/tests -v" in pipeline,
+    require("python -m venv /tmp/jobis-rag-venv" in pipeline and
+            "rank_bm25==0.2.2" in pipeline and
+            "/tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v" in pipeline,
             "RAG CI dependency or strict test gate is missing")
     require("docker { image 'node:22-alpine' }" in pipeline,
             "frontend CI Node image does not match the Docker build")
