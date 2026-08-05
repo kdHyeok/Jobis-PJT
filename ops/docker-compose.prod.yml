@@ -1,11 +1,150 @@
-# JOBISS production application stack.
-#
-# PostgreSQL, host Nginx/TLS, Jenkins, and the optional Airflow/RAG stack stay
-# on the host during this cutover. The three application processes are
-# immutable images tagged with the Git commit SHA. Host networking preserves
-# the existing loopback-only DB/RAG/Nginx contracts without widening pg_hba.
+# JOBISS production stack. Every project-owned runtime image is tagged with the
+# Git commit SHA. PostgreSQL and TLS-terminating Nginx remain host-managed.
+
+x-rag-model-env: &rag-model-env
+  RAG_EMBED_PROVIDER: ${RAG_EMBED_PROVIDER:-local}
+  RAG_EMBED_MODEL: ${RAG_EMBED_MODEL:-}
+  RAG_LOCAL_EMBED_MODEL: ${RAG_LOCAL_EMBED_MODEL:-BAAI/bge-m3}
+  RAG_GMS_EMBED_MODEL: ${RAG_GMS_EMBED_MODEL:-text-embedding-3-large}
+  RAG_VECTOR_DIMENSIONS: ${RAG_VECTOR_DIMENSIONS:-1024}
+  RAG_RERANK_PROVIDER: ${RAG_RERANK_PROVIDER:-local}
+  RAG_RERANK_MODEL: ${RAG_RERANK_MODEL:-}
+  RAG_LOCAL_RERANK_MODEL: ${RAG_LOCAL_RERANK_MODEL:-BAAI/bge-reranker-v2-m3}
+  RAG_GMS_RERANK_MODEL: ${RAG_GMS_RERANK_MODEL:-gpt-4.1-mini}
+  RAG_LOCAL_CPU_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+  RAG_INGEST_CPUS: ${RAG_INGEST_CPUS:-2.0}
+  RAG_EMBED_BATCH_SIZE: ${RAG_EMBED_BATCH_SIZE:-8}
+  RAG_INGEST_WINDOW_SIZE: ${RAG_INGEST_WINDOW_SIZE:-64}
+  RAG_LOCAL_RERANK_BATCH_SIZE: ${RAG_LOCAL_RERANK_BATCH_SIZE:-4}
+  RAG_GMS_OPENAI_BASE_URL: ${RAG_GMS_OPENAI_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+  RAG_GMS_TIMEOUT_SECONDS: ${RAG_GMS_TIMEOUT_SECONDS:-60}
+  RAG_GMS_MAX_RETRIES: ${RAG_GMS_MAX_RETRIES:-2}
+  RAG_GMS_RERANK_BATCH_SIZE: ${RAG_GMS_RERANK_BATCH_SIZE:-30}
+  RAG_GMS_RERANK_MAX_CHARS: ${RAG_GMS_RERANK_MAX_CHARS:-1800}
+  GMS_KEY: ${GMS_KEY:-}
+
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?AIRFLOW_FERNET_KEY is required}
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW_DB_DSN:?AIRFLOW_DB_DSN is required}
+  AIRFLOW__WEBSERVER__WEB_SERVER_PORT: "8081"
+  JOBRAG_PG_DSN: ${JOBRAG_PG_DSN:?JOBRAG_PG_DSN is required}
+
+x-airflow-common: &airflow-common
+  image: ${JOBIS_IMAGE_PREFIX:-}jobis-airflow:${JOBIS_SHA:?JOBIS_SHA is required}
+  network_mode: host
+  env_file:
+    - /etc/jobis/jobis-v2.env
+  environment: *airflow-env
+  volumes:
+    - airflow-logs:/opt/airflow/logs
+    - crawl-state:/opt/jobis/DATA/data
+    - crawl-exports:/opt/jobis/DATA/exports
+  restart: unless-stopped
 
 services:
+  jobrag-migrate:
+    image: flyway/flyway:13.0.0-alpine
+    network_mode: host
+    command: -connectRetries=60 migrate
+    env_file:
+      - /etc/jobis/jobis-v2.env
+    environment:
+      FLYWAY_URL: ${JOBRAG_FLYWAY_URL:?JOBRAG_FLYWAY_URL is required}
+      FLYWAY_USER: ${JOBRAG_DB_USER:-jobrag}
+      FLYWAY_PASSWORD: ${JOBRAG_DB_PASSWORD:?JOBRAG_DB_PASSWORD is required}
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "0"
+      FLYWAY_BASELINE_DESCRIPTION: pre-flyway-jobrag-schema
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - /opt/jobis/jobrag-migrations:/flyway/sql:ro
+    restart: "no"
+
+  rag-search:
+    image: ${JOBIS_IMAGE_PREFIX:-}jobis-rag-search:${JOBIS_SHA:?JOBIS_SHA is required}
+    container_name: jobis-rag-search
+    network_mode: host
+    env_file:
+      - /etc/jobis/jobis-v2.env
+    environment:
+      <<: *rag-model-env
+      PG_DSN: ${JOBRAG_PG_DSN:?JOBRAG_PG_DSN is required}
+      HF_HOME: /hf
+      OMP_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      MKL_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      OPENBLAS_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      NUMEXPR_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      RAYON_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      TOKENIZERS_PARALLELISM: "false"
+    cpus: ${RAG_SEARCH_CPUS:-2.0}
+    volumes:
+      - hf-cache:/hf
+    depends_on:
+      jobrag-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8765/health',timeout=3)); assert d['status']=='ok' and d['warm']"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10m
+      retries: 40
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    restart: "no"
+    command:
+      - bash
+      - -ec
+      - |
+        airflow db migrate
+        airflow pools set ocr_pool 1 'PaddleOCR tasks run one at a time'
+        if ! airflow users list --output json | python -c 'import json,sys; sys.exit(0 if any(u.get("username") == "admin" for u in json.load(sys.stdin)) else 1)'; then
+          airflow users create --username admin --password "$${AIRFLOW_ADMIN_PASSWORD:?}" --firstname Admin --lastname Admin --role Admin --email admin@example.com
+        fi
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: jobis-airflow-scheduler
+    command: scheduler
+    environment:
+      <<: [*airflow-env, *rag-model-env]
+      RAG_INGEST_IMAGE: ${JOBIS_IMAGE_PREFIX:-}jobis-rag-ingest:${JOBIS_SHA:?JOBIS_SHA is required}
+      RAG_DOCKER_NETWORK_MODE: host
+    group_add:
+      - ${DOCKER_GID:-999}
+    volumes:
+      - airflow-logs:/opt/airflow/logs
+      - crawl-state:/opt/jobis/DATA/data
+      - crawl-exports:/opt/jobis/DATA/exports
+      - ocr-paddlex-cache:/home/airflow/.paddlex
+      - ocr-paddle-cache:/home/airflow/.paddleocr
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      jobrag-migrate:
+        condition: service_completed_successfully
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: jobis-airflow-webserver
+    command: webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      jobrag-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 20
+
   ai:
     image: ${JOBIS_IMAGE_PREFIX:-}jobis-ai:${JOBIS_SHA:?JOBIS_SHA is required}
     container_name: jobis-ai
@@ -19,12 +158,11 @@ services:
       CODEX_OAUTH_STATE_DIR: /var/lib/jobis-ai/codex
     volumes:
       - /var/lib/jobis-ai:/var/lib/jobis-ai
+    depends_on:
+      rag-search:
+        condition: service_healthy
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d['status']=='ok' and d['service']=='jobis-ai-v2bridge'"
+      test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d['status']=='ok' and d['service']=='jobis-ai-v2bridge'"]
       interval: 15s
       timeout: 5s
       start_period: 10s
@@ -41,9 +179,7 @@ services:
       ai:
         condition: service_healthy
     healthcheck:
-      test:
-        - CMD-SHELL
-        - "wget -q --spider http://127.0.0.1:8080/api/health"
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/api/health"]
       interval: 15s
       timeout: 5s
       start_period: 30s
@@ -61,11 +197,23 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test:
-        - CMD-SHELL
-        - "wget -q --spider http://127.0.0.1:8088/"
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8088/"]
       interval: 15s
       timeout: 5s
       start_period: 10s
       retries: 10
     restart: unless-stopped
+
+volumes:
+  airflow-logs:
+    name: jobis-airflow-logs
+  crawl-state:
+    name: jobis-crawl-state
+  crawl-exports:
+    name: jobis-crawl-exports
+  hf-cache:
+    name: jobis-hf-cache
+  ocr-paddlex-cache:
+    name: jobis-ocr-paddlex-cache
+  ocr-paddle-cache:
+    name: jobis-ocr-paddle-cache

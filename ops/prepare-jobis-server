@@ -16,21 +16,25 @@ readonly SOURCE_ROOT="$(cd -- "$SOURCE_ROOT" && pwd -P)"
 readonly DEPLOY_USER="jobis-deploy"
 readonly ENV_FILE="/etc/jobis/jobis-v2.env"
 readonly DEFAULT_BACKUP_DIR="/mnt/jobis-backups/service-db"
+readonly DEFAULT_PIPELINE_BACKUP_DIR="/mnt/jobis-backups/pipeline-db"
 
 required_sources=(
   ops/docker-compose.prod.yml
   ops/deploy-jobis-container
   ops/backup-jobis-db
+  ops/backup-jobis-pipeline-db
   ops/restore-jobis-db-test
   ops/restore-latest-jobis-db-test
   ops/audit-jobis-server
   ops/switch-jobis-nginx
   ops/install-jobis-nginx-control
   ops/bootstrap-jobis-v2-database
+  ops/bootstrap-jobis-pipeline-databases
   ops/configure-jobis-v2-environment
   ops/migrate-jobis-legacy-to-v2
   ops/migrate-jobis-legacy-to-v2.sql
   ops/prepare-jobis-v2-release
+  ops/sync-jobis-release-assets
   ops/jobis-deploy.sudoers
   ops/nginx-jobis-app.location.conf
   ops/nginx-jobis-upstream-legacy.conf
@@ -40,6 +44,9 @@ required_sources=(
   ops/jobis-db-restore-drill.service
   ops/jobis-db-restore-drill.timer
   .env.production.example
+  infra/airflow/migrations/jobrag/V1__create_jobrag_schema.sql
+  infra/airflow/migrations/jobrag/V2__add_job_postings_ocr_queue.sql
+  infra/airflow/migrations/jobrag/V3__track_rag_embedding_profile.sql
 )
 for relative in "${required_sources[@]}"; do
   candidate="${SOURCE_ROOT}/${relative}"
@@ -48,7 +55,7 @@ for relative in "${required_sources[@]}"; do
     exit 1
   fi
 done
-for command in getent install stat useradd visudo; do
+for command in getent install sha256sum stat useradd visudo; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Required server command is missing: $command" >&2
     exit 1
@@ -66,9 +73,11 @@ fi
 deploy_home="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
 install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 0700 "${deploy_home}/.ssh"
 install -d -o root -g root -m 0755 /opt/jobis /etc/jobis
+install -d -o root -g root -m 0755 /opt/jobis/jobrag-migrations
 install -d -o 1000 -g 1000 -m 0750 /var/lib/jobis-ai
 
 backup_dir="$DEFAULT_BACKUP_DIR"
+pipeline_backup_dir="$DEFAULT_PIPELINE_BACKUP_DIR"
 if [[ -f "$ENV_FILE" ]]; then
   chown root:root "$ENV_FILE"
   chmod 0600 "$ENV_FILE"
@@ -76,6 +85,7 @@ if [[ -f "$ENV_FILE" ]]; then
   source "$ENV_FILE"
   set +a
   backup_dir="${JOBIS_BACKUP_DIR:-$DEFAULT_BACKUP_DIR}"
+  pipeline_backup_dir="${JOBIS_PIPELINE_BACKUP_DIR:-$DEFAULT_PIPELINE_BACKUP_DIR}"
 fi
 if [[ "$backup_dir" != /* ]]; then
   echo "JOBIS_BACKUP_DIR must be absolute." >&2
@@ -87,7 +97,18 @@ case "$backup_dir" in
     exit 2
     ;;
 esac
+if [[ "$pipeline_backup_dir" != /* ]]; then
+  echo "JOBIS_PIPELINE_BACKUP_DIR must be absolute." >&2
+  exit 2
+fi
+case "$pipeline_backup_dir" in
+  /|/etc|/home|/mnt|/opt|/root|/srv|/usr|/var)
+    echo "Refusing unsafe pipeline backup directory: $pipeline_backup_dir" >&2
+    exit 2
+    ;;
+esac
 install -d -o root -g root -m 0700 "$backup_dir"
+install -d -o root -g root -m 0700 "$pipeline_backup_dir"
 
 install -o root -g root -m 0644 \
   "${SOURCE_ROOT}/ops/docker-compose.prod.yml" /opt/jobis/docker-compose.prod.yml
@@ -99,6 +120,8 @@ install -o root -g root -m 0644 \
   "${SOURCE_ROOT}/ops/nginx-jobis-upstream-container.conf" /opt/jobis/nginx-jobis-upstream-container.conf
 install -o root -g root -m 0644 \
   "${SOURCE_ROOT}/ops/migrate-jobis-legacy-to-v2.sql" /opt/jobis/migrate-jobis-legacy-to-v2.sql
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}"/infra/airflow/migrations/jobrag/*.sql /opt/jobis/jobrag-migrations/
 if [[ ! -e /etc/jobis/nginx-active-upstream.conf ]]; then
   install -o root -g root -m 0644 \
     "${SOURCE_ROOT}/ops/nginx-jobis-upstream-legacy.conf" /etc/jobis/nginx-active-upstream.conf
@@ -110,6 +133,8 @@ install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/deploy-jobis-container" /usr/local/sbin/deploy-jobis
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/backup-jobis-db" /usr/local/sbin/backup-jobis-db
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/backup-jobis-pipeline-db" /usr/local/sbin/backup-jobis-pipeline-db
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/restore-jobis-db-test" /usr/local/sbin/restore-jobis-db-test
 install -o root -g root -m 0755 \
@@ -123,11 +148,15 @@ install -o root -g root -m 0755 \
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/bootstrap-jobis-v2-database" /usr/local/sbin/bootstrap-jobis-v2-database
 install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/bootstrap-jobis-pipeline-databases" /usr/local/sbin/bootstrap-jobis-pipeline-databases
+install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/configure-jobis-v2-environment" /usr/local/sbin/configure-jobis-v2-environment
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/migrate-jobis-legacy-to-v2" /usr/local/sbin/migrate-jobis-legacy-to-v2
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/prepare-jobis-v2-release" /usr/local/sbin/prepare-jobis-v2-release
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/sync-jobis-release-assets" /usr/local/sbin/sync-jobis-release-assets
 
 visudo -cf "${SOURCE_ROOT}/ops/jobis-deploy.sudoers" >/dev/null
 install -o root -g root -m 0440 \
@@ -154,6 +183,40 @@ fi
 if [[ ! -s "${deploy_home}/.ssh/authorized_keys" ]]; then
   echo "SSH key is not installed for $DEPLOY_USER. Add the Jenkins public key before CD."
 fi
+
+asset_paths=(
+  /opt/jobis/docker-compose.prod.yml
+  /opt/jobis/nginx-jobis-app.location.conf
+  /opt/jobis/nginx-jobis-upstream-legacy.conf
+  /opt/jobis/nginx-jobis-upstream-container.conf
+  /opt/jobis/migrate-jobis-legacy-to-v2.sql
+  /opt/jobis/jobrag-migrations/V1__create_jobrag_schema.sql
+  /opt/jobis/jobrag-migrations/V2__add_job_postings_ocr_queue.sql
+  /opt/jobis/jobrag-migrations/V3__track_rag_embedding_profile.sql
+  /etc/jobis/jobis-v2.env.example
+  /usr/local/sbin/deploy-jobis
+  /usr/local/sbin/audit-jobis-server
+  /usr/local/sbin/backup-jobis-db
+  /usr/local/sbin/backup-jobis-pipeline-db
+  /usr/local/sbin/restore-jobis-db-test
+  /usr/local/sbin/restore-latest-jobis-db-test
+  /usr/local/sbin/switch-jobis-nginx
+  /usr/local/sbin/install-jobis-nginx-control
+  /usr/local/sbin/bootstrap-jobis-v2-database
+  /usr/local/sbin/bootstrap-jobis-pipeline-databases
+  /usr/local/sbin/configure-jobis-v2-environment
+  /usr/local/sbin/migrate-jobis-legacy-to-v2
+  /usr/local/sbin/prepare-jobis-v2-release
+  /usr/local/sbin/sync-jobis-release-assets
+  /etc/sudoers.d/jobis-deploy
+  /etc/systemd/system/jobis-db-backup.service
+  /etc/systemd/system/jobis-db-backup.timer
+  /etc/systemd/system/jobis-db-restore-drill.service
+  /etc/systemd/system/jobis-db-restore-drill.timer
+)
+sha256sum "${asset_paths[@]}" >/opt/jobis/release-assets.sha256
+chown root:root /opt/jobis/release-assets.sha256
+chmod 0644 /opt/jobis/release-assets.sha256
 
 echo "Server assets installed. Live Nginx and timers were not enabled automatically."
 echo "Next: configure secrets, registry login, Nginx include, timers, then run audit-jobis-server."

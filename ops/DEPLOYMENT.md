@@ -5,22 +5,25 @@
 
 ## 1. 정본과 배포 게이트
 
-운영 애플리케이션은 커밋 SHA로 태그한 세 이미지다.
+운영 애플리케이션과 데이터 파이프라인은 커밋 SHA로 태그한 여섯 이미지다.
 
 | 이미지 | 프로세스 | 호스트 포트 |
 |---|---|---:|
 | `jobis-ai:<SHA>` | `AI/src/jobis_ai/v2bridge/app.py` | 8000 |
 | `jobis-backend:<SHA>` | Spring Boot API | 8080 |
 | `jobis-frontend:<SHA>` | Vue 정적 파일 + API 프록시 | 8088 |
+| `jobis-rag-search:<SHA>` | pgvector 하이브리드 검색 | 8765 |
+| `jobis-rag-ingest:<SHA>` | Airflow가 실행하는 증분 임베딩 작업 | 없음 |
+| `jobis-airflow:<SHA>` | scheduler + webserver | 8081 |
 
-PostgreSQL, TLS를 종료하는 호스트 Nginx, Jenkins, Airflow/RAG는 첫 컨테이너 전환에서
-호스트의 기존 구성을 유지한다. 운영 Compose가 `network_mode: host`를 쓰는 이유는
-PostgreSQL과 RAG의 loopback 계약을 넓히지 않기 위해서다.
+PostgreSQL, TLS를 종료하는 호스트 Nginx와 Jenkins는 호스트 구성을 유지한다. Airflow,
+RAG 검색과 Flyway V1~V3는 같은 운영 Compose에 포함된다. `network_mode: host`는
+PostgreSQL의 loopback 계약을 넓히지 않기 위해 사용한다.
 
 브랜치 게이트는 다음과 같다.
 
 1. 기능 브랜치: 전체 소스 CI
-2. `develop`: 전체 CI + 세 Docker 이미지 빌드 검증, 배포 없음
+2. `develop`: 전체 CI + 여섯 Docker 이미지 빌드/push 검증, 배포 없음
 3. `master`: 같은 CI와 이미지 빌드가 성공한 뒤 운영 CD
 
 `master` 직접 push는 금지하고 protected branch와 MR 승인으로만 이동한다. 운영 배포는
@@ -35,6 +38,7 @@ DB 컨테이너 이미지나 Docker volume 자체는 데이터 백업이 아니�
 SHA 태그로 되돌리고, 데이터는 PostgreSQL custom-format 논리 덤프로 복구한다.
 
 - 모든 CD 직전에 `/usr/local/sbin/backup-jobis-db <SHA>`가 성공해야 한다.
+- 같은 CD에서 `/usr/local/sbin/backup-jobis-pipeline-db`로 Airflow와 jobrag도 Flyway 전에 백업한다.
 - 덤프와 checksum은 저장소/운영 디스크와 다른 마운트에 둔다.
 - 매일 백업하고 월 1회 `restore-jobis-db-test`로 실제 복구한다.
 - 복구는 운영 DB를 덮지 않고 새 DB 또는 격리 컨테이너에서 먼저 검증한다.
@@ -71,8 +75,18 @@ sudo bash ops/prepare-jobis-server "$(pwd)"
 Nginx 후보 조각을 설치한다. 기존 레거시 `/etc/jobis/jobis.env`와 활성 Nginx 설정은 덮어쓰지 않고,
 timer도 자동 활성화하지 않는다.
 
-새 스택 전용 `/etc/jobis/jobis-v2.env`는 `.env.production.example`을 기준으로 서버에서 직접
-작성한다. 레거시 env는 원본 컨테이너 복구용으로 그대로 보존한다.
+최초 전환에서는 예제 파일을 직접 복사하지 않는다. 아래 순서로 격리 DB와 root 전용
+credential 파일을 만들고, 마지막 스크립트가 `/etc/jobis/jobis-v2.env`를 생성하게 한다.
+레거시 env는 원본 컨테이너 복구용으로 그대로 보존한다.
+
+```bash
+sudo /usr/local/sbin/bootstrap-jobis-v2-database
+sudo /usr/local/sbin/bootstrap-jobis-pipeline-databases
+sudo /usr/local/sbin/configure-jobis-v2-environment https://실제-운영-도메인
+```
+
+이 순서의 앱 DB는 `jobiss_v2`, Airflow DB는 `airflow`, RAG DB는 `jobrag`다. 마지막으로
+`JOBIS_IMAGE_PREFIX`, LLM/RAG provider와 필요한 인증값을 서버에서만 보완한다. 비밀값을
 저장소에 복사하거나 출력하지 않는다.
 
 ```bash
@@ -92,7 +106,8 @@ sudo docker login registry.example.com
 Docker credential store로 관리한다.
 
 Jenkins SSH 공개키는 `jobis-deploy`의 `authorized_keys`에 설치하되 개인키는 Jenkins credential
-store 밖으로 복사하거나 출력하지 않는다.
+store 밖으로 복사하거나 출력하지 않는다. 서버 공개키는 별도 Secret file credential
+`jobis-deploy-known-hosts`에 고정한다. CD는 `StrictHostKeyChecking=yes`만 사용한다.
 
 필수 값은 DB 연결/두 DB 사용자, JWT/AI 공유 비밀, HTTPS origin, LLM provider,
 RAG 주소, 별도 백업 경로다.
@@ -136,7 +151,7 @@ sudo env \
 위 `false`는 별도 디스크가 붙기 전 사전 백업만 허용한다. release 감사에서는 별도 파일시스템이
 아니면 반드시 실패한다. develop에서 만든 세 SHA 이미지가 서버 Docker daemon에 생기고 별도
 백업 파일시스템이 연결된 뒤, 다음 명령이 레거시 프로세스를 멈추지 않은 채 Flyway V27 적용,
-빈 v2 백업, 트랜잭션 이관, 이관 후 백업·복원, timer 활성화를 한 번에 수행한다.
+   빈 v2 백업, 트랜잭션 이관, 이관 후 백업·복원, timer 활성화를 한 번에 수행한다.
 
 ```bash
 sudo /usr/local/sbin/prepare-jobis-v2-release <develop에서 검증한-40자리-SHA>
@@ -181,7 +196,7 @@ sudo /usr/local/sbin/audit-jobis-server
 ```
 
 모든 `[FAIL]`을 해소한 뒤 최초 백업·복원 훈련과 CD로 진행한다. 이미지가 registry에 push된
-뒤에는 40자리 SHA를 넘겨 세 이미지의 실제 가용성까지 다시 확인한다.
+뒤에는 40자리 SHA를 넘겨 여섯 이미지의 실제 가용성까지 다시 확인한다.
 
 ```bash
 sudo /usr/local/sbin/audit-jobis-server <40자리-SHA> predeploy
@@ -190,16 +205,19 @@ sudo /usr/local/sbin/audit-jobis-server <40자리-SHA> predeploy
 ## 5. develop → master → CD
 
 1. 기능 브랜치 CI와 로컬 검증 결과를 MR에 기록한다.
-2. `develop` MR 병합 후 Jenkins에서 모든 단계와 세 이미지 build/push 성공을 확인한다.
+2. `develop` MR 병합 후 Jenkins에서 모든 단계와 여섯 이미지 build/push 성공을 확인한다.
    최초 전환이면 해당 SHA로 `prepare-jobis-v2-release`를 실행해 데이터 준비를 완료한다.
 3. `develop`을 `master`로 보내는 release MR에서 변경 파일, Flyway, env 추가값, 백업과
    롤백 방법을 재검토한다.
-4. `master` 병합 후 Jenkins가 registry의 세 `<GIT_COMMIT>` 이미지를 빌드하고 push한다.
-5. Jenkins는 SSH로 `audit-jobis-server <GIT_COMMIT> predeploy`를 통과시킨 뒤
+4. `master` 병합 후 Jenkins가 registry의 여섯 `<GIT_COMMIT>` 이미지를 빌드하고 push한다.
+5. Jenkins는 검증된 known_hosts로 릴리스 자산을 전송하고
+   `sync-jobis-release-assets`로 Compose·스크립트·Flyway 파일을 먼저 동기화한다.
+   이어 `audit-jobis-server <GIT_COMMIT> predeploy`를 통과시킨 뒤
    `sudo /usr/local/sbin/deploy-jobis <GIT_COMMIT>`를 호출한다.
-6. 서버 스크립트가 이미지 pull/존재 확인 → DB 백업 → 기존 서비스 중지 → Compose 전환 → 세 계층
-   smoke test → `postdeploy` 서버 감사 → `.deployed-sha` 기록 순으로 수행한다.
-7. 어느 단계든 실패하면 직전 세 이미지 SHA로 재기동한다. 최초 전환에만 기존 systemd
+6. 서버 스크립트가 이미지 pull/존재 확인 → DB 백업 → 기존 서비스 중지 → Flyway V1~V3 →
+   Airflow/RAG/앱 기동 → 실제 RAG 검색과 LLM 요청 → `postdeploy` 감사 → `.deployed-sha` 기록
+   순으로 수행한다.
+7. 어느 단계든 실패하면 직전 여섯 이미지 SHA로 재기동한다. 최초 전환에만 기존 systemd
    서비스가 최후 폴백이다.
 
 ## 6. 배포 후 검증
@@ -212,6 +230,9 @@ curl -fsS http://127.0.0.1:8000/health
 curl -fsS http://127.0.0.1:8080/api/health
 curl -fsS http://127.0.0.1:8088/
 curl -fsS http://127.0.0.1:8088/api/auth/csrf
+curl -fsS http://127.0.0.1:8765/health
+curl -fsS http://127.0.0.1:8081/health
+sudo docker exec jobis-ai python -m jobis_ai.readiness --live
 
 sudo docker logs --tail 100 jobis-ai
 sudo docker logs --tail 100 jobis-backend
@@ -237,8 +258,8 @@ DB 장애는 이미지 롤백과 분리한다. 현재 DB를 먼저 추가 백업
 진단 순서:
 
 1. `docker compose -f /opt/jobis/docker-compose.prod.yml ps`
-2. `docker logs jobis-ai/jobis-backend/jobis-frontend`
-3. `ss -lntp`로 8000/8080/8088 확인
+2. `docker logs jobis-ai/jobis-backend/jobis-frontend/jobis-rag-search/jobis-airflow-*`
+3. `ss -lntp`로 8000/8080/8081/8088/8765 확인
 4. AI health → backend health → frontend proxy → 외부 HTTPS 순서로 확인
 5. 백엔드 500이면 요청 ID, 최초 애플리케이션 예외, PostgreSQL 로그와 DB 상태를 확인
 

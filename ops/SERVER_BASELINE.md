@@ -4,6 +4,8 @@
 대상: `ssh ssafy_ec2` (`ip-172-26-14-250`)
 
 이 파일에는 비밀값을 기록하지 않는다. 값이 아니라 구조와 검증 상태만 남긴다.
+아래 상태는 컨테이너 전환 전 읽기 전용 점검 스냅샷이다. 현재 저장소의 목표 계약은
+Airflow/RAG를 운영 Compose에 포함하므로, 릴리스 전에 자산 동기화와 재감사가 필요하다.
 
 ## 현재 운영 상태
 
@@ -46,6 +48,9 @@
 4. `jobiss` → `jobiss_v2` 트랜잭션 이관 미실행
 5. DB 백업/월간 복원 timer 미활성화
 6. develop/master MR 미병합
+7. Airflow/jobrag DB bootstrap 및 Flyway V1~V3 미적용
+8. `jobis-deploy-known-hosts`와 서버 릴리스 자산 SHA 동기화 미검증
+9. RAG 검색·실제 LLM runtime probe 미검증
 
 `sudo /usr/local/sbin/audit-jobis-server`는 위 항목을 사전 준비 단계에서는 경고한다.
 `audit-jobis-server <SHA> predeploy`는 이를 실패로 바꾸므로 빈 DB나 미검증 이미지로 cutover할

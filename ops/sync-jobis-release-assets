@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Install the exact deployment assets packaged by the trusted Jenkins job.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "sync-jobis-release-assets must run as root." >&2
+  exit 1
+fi
+for command in find grep mktemp stat tar; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+readonly ARCHIVE="${1:-}"
+readonly RELEASE_SHA="${2:-}"
+if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Release SHA must be a 40-character lowercase Git commit SHA." >&2
+  exit 2
+fi
+expected_archive="/home/jobis-deploy/jobis-release-${RELEASE_SHA}.tar.gz"
+if [[ "$ARCHIVE" != "$expected_archive" || ! -f "$ARCHIVE" || -L "$ARCHIVE" ]]; then
+  echo "Release archive path or type is invalid." >&2
+  exit 1
+fi
+if [[ "$(stat -c '%U:%G' "$ARCHIVE")" != "jobis-deploy:jobis-deploy" ||
+      "$(stat -c '%a' "$ARCHIVE")" != "600" ]]; then
+  echo "Release archive must be jobis-deploy:jobis-deploy mode 0600." >&2
+  exit 1
+fi
+
+while IFS= read -r entry; do
+  case "$entry" in
+    .env.production.example|ops|ops/*|infra|infra/|infra/airflow|infra/airflow/|infra/airflow/migrations|infra/airflow/migrations/|infra/airflow/migrations/jobrag|infra/airflow/migrations/jobrag/*) ;;
+    *) echo "Unexpected release archive entry: $entry" >&2; exit 1 ;;
+  esac
+  [[ "$entry" != /* && "$entry" != *../* && "$entry" != ../* ]] || {
+    echo "Unsafe release archive entry: $entry" >&2
+    exit 1
+  }
+done < <(tar -tzf "$ARCHIVE")
+
+work_dir="$(mktemp -d /tmp/jobis-release-assets.XXXXXX)"
+cleanup() { rm -rf -- "$work_dir"; }
+trap cleanup EXIT
+tar -xzf "$ARCHIVE" --no-same-owner --no-same-permissions -C "$work_dir"
+if find "$work_dir" -type l -print -quit | grep -q .; then
+  echo "Release archive must not contain symbolic links." >&2
+  exit 1
+fi
+
+bash "$work_dir/ops/prepare-jobis-server" "$work_dir"
+printf '%s\n' "$RELEASE_SHA" >/opt/jobis/.release-assets-sha
+chown root:root /opt/jobis/.release-assets-sha
+chmod 0644 /opt/jobis/.release-assets-sha
+rm -f -- "$ARCHIVE"
+echo "Release assets synchronized for $RELEASE_SHA"

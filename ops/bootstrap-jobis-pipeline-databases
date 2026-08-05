@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Create isolated Airflow/jobrag databases and root-only generated credentials.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "bootstrap-jobis-pipeline-databases must run as root." >&2
+  exit 1
+fi
+for command in openssl psql runuser stat tr; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+
+readonly CREDENTIAL_FILE="${JOBIS_PIPELINE_DB_CREDENTIAL_FILE:-/etc/jobis/jobis-pipeline-db.env}"
+install -d -o root -g root -m 0755 /etc/jobis
+
+if [[ ! -e "$CREDENTIAL_FILE" ]]; then
+  umask 077
+  airflow_password="$(openssl rand -hex 32)"
+  jobrag_password="$(openssl rand -hex 32)"
+  admin_password="$(openssl rand -hex 24)"
+  fernet_key="$(openssl rand -base64 32 | tr '+/' '-_')"
+  {
+    printf 'AIRFLOW_DB_USER=airflow\n'
+    printf 'AIRFLOW_DB_PASSWORD=%s\n' "$airflow_password"
+    printf 'AIRFLOW_DB_DSN=postgresql+psycopg2://airflow:%s@127.0.0.1:5432/airflow\n' "$airflow_password"
+    printf 'AIRFLOW_ADMIN_PASSWORD=%s\n' "$admin_password"
+    printf 'AIRFLOW_FERNET_KEY=%s\n' "$fernet_key"
+    printf 'JOBRAG_DB_USER=jobrag\n'
+    printf 'JOBRAG_DB_PASSWORD=%s\n' "$jobrag_password"
+    printf 'JOBRAG_PG_DSN=postgresql://jobrag:%s@127.0.0.1:5432/jobrag\n' "$jobrag_password"
+    printf 'JOBRAG_FLYWAY_URL=jdbc:postgresql://127.0.0.1:5432/jobrag\n'
+  } >"$CREDENTIAL_FILE"
+  chown root:root "$CREDENTIAL_FILE"
+  chmod 0600 "$CREDENTIAL_FILE"
+fi
+
+if [[ ! -f "$CREDENTIAL_FILE" || -L "$CREDENTIAL_FILE" ||
+      "$(stat -c '%U:%G' "$CREDENTIAL_FILE")" != "root:root" ||
+      "$(stat -c '%a' "$CREDENTIAL_FILE")" != "600" ]]; then
+  echo "Pipeline DB credential file must be a root:root 0600 regular file." >&2
+  exit 1
+fi
+
+set -a
+source "$CREDENTIAL_FILE"
+set +a
+for variable in AIRFLOW_DB_PASSWORD JOBRAG_DB_PASSWORD AIRFLOW_ADMIN_PASSWORD AIRFLOW_FERNET_KEY; do
+  [[ -n "${!variable:-}" ]] || { echo "Generated credential is missing: $variable" >&2; exit 1; }
+done
+
+export PGOPTIONS="-c jobis.airflow_password=${AIRFLOW_DB_PASSWORD} -c jobis.jobrag_password=${JOBRAG_DB_PASSWORD}"
+runuser -u postgres -- env "PGOPTIONS=$PGOPTIONS" \
+  psql --no-psqlrc --set ON_ERROR_STOP=1 postgres <<'SQL' >/dev/null
+SELECT format('CREATE ROLE airflow LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', current_setting('jobis.airflow_password'))
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'airflow')
+\gexec
+SELECT format('ALTER ROLE airflow PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', current_setting('jobis.airflow_password'))
+\gexec
+SELECT format('CREATE ROLE jobrag LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', current_setting('jobis.jobrag_password'))
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jobrag')
+\gexec
+SELECT format('ALTER ROLE jobrag PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', current_setting('jobis.jobrag_password'))
+\gexec
+SELECT 'CREATE DATABASE airflow OWNER airflow' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'airflow')
+\gexec
+SELECT 'CREATE DATABASE jobrag OWNER jobrag' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'jobrag')
+\gexec
+ALTER DATABASE airflow OWNER TO airflow;
+ALTER DATABASE jobrag OWNER TO jobrag;
+SQL
+unset PGOPTIONS
+
+runuser -u postgres -- psql --no-psqlrc --set ON_ERROR_STOP=1 --dbname jobrag \
+  --command 'CREATE EXTENSION IF NOT EXISTS vector' >/dev/null
+
+echo "Airflow/jobrag databases bootstrapped; credentials were not printed."
+echo "The PostgreSQL vector extension is available in jobrag."

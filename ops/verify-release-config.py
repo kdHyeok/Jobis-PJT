@@ -32,6 +32,7 @@ def main() -> None:
         "ops/docker-compose.prod.yml",
         "ops/deploy-jobis-container",
         "ops/backup-jobis-db",
+        "ops/backup-jobis-pipeline-db",
         "ops/restore-jobis-db-test",
         "ops/restore-latest-jobis-db-test",
         "ops/test-db-backup-restore",
@@ -41,10 +42,12 @@ def main() -> None:
         "ops/switch-jobis-nginx",
         "ops/install-jobis-nginx-control",
         "ops/bootstrap-jobis-v2-database",
+        "ops/bootstrap-jobis-pipeline-databases",
         "ops/configure-jobis-v2-environment",
         "ops/migrate-jobis-legacy-to-v2",
         "ops/migrate-jobis-legacy-to-v2.sql",
         "ops/prepare-jobis-v2-release",
+        "ops/sync-jobis-release-assets",
         "ops/test-legacy-data-migration",
         "ops/jobis-deploy.sudoers",
         "ops/nginx-jobis-app.location.conf",
@@ -79,8 +82,20 @@ def main() -> None:
             "AI health does not verify the v2bridge identity")
     require("http://127.0.0.1:8080/api/health" in production,
             "backend DB health endpoint is not configured")
-    require(production.count("/etc/jobis/jobis-v2.env") == 2,
-            "production services do not use the isolated v2 environment")
+    for service in ("jobrag-migrate", "rag-search", "airflow-init",
+                    "airflow-scheduler", "airflow-webserver"):
+        require(re.search(rf"(?m)^  {service}:$", production) is not None,
+                f"production pipeline service missing: {service}")
+    for image in ("jobis-rag-search", "jobis-airflow"):
+        require(f"{image}:${{JOBIS_SHA:" in production,
+                f"production SHA image missing: {image}")
+    require("jobis-rag-ingest:${JOBIS_SHA:" in production,
+            "Airflow does not launch the release SHA rag-ingest image")
+    require("V3__track_rag_embedding_profile.sql" not in production and
+            "/opt/jobis/jobrag-migrations:/flyway/sql:ro" in production,
+            "jobrag Flyway migrations are not mounted into production")
+    require(production.count("/etc/jobis/jobis-v2.env") >= 5,
+            "production services do not share the isolated v2 environment")
 
     production_env = text(".env.production.example")
     for variable in (
@@ -91,8 +106,15 @@ def main() -> None:
         "DB_APP_PASSWORD=",
         "JOBIS_IMAGE_PREFIX=",
         "JOBIS_BACKUP_DOCKER_NETWORK=host",
+        "JOBIS_PIPELINE_BACKUP_DIR=",
         "JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM=true",
-        "JOBIS_REQUIRE_LEGACY_IMPORT=false",
+        "JOBIS_REQUIRE_LEGACY_IMPORT=true",
+        "AIRFLOW_DB_DSN=",
+        "AIRFLOW_FERNET_KEY=",
+        "JOBRAG_PG_DSN=",
+        "JOBRAG_FLYWAY_URL=",
+        "RAG_EMBED_PROVIDER=local",
+        "RAG_RERANK_PROVIDER=local",
     ):
         require(variable in production_env,
                 f"production environment contract is missing: {variable}")
@@ -109,7 +131,8 @@ def main() -> None:
         "Deploy production",
     ]
     require(stages == expected, f"unexpected Jenkins stage order: {stages}")
-    for image in ("jobis-ai", "jobis-backend", "jobis-frontend"):
+    for image in ("jobis-ai", "jobis-backend", "jobis-frontend",
+                  "jobis-rag-search", "jobis-rag-ingest", "jobis-airflow"):
         require(f'docker build -t "${{prefix}}{image}:$GIT_COMMIT"' in pipeline,
                 f"Jenkins does not build {image}")
         require(f'docker push "${{JOBIS_IMAGE_PREFIX}}{image}:$GIT_COMMIT"' in pipeline,
@@ -120,6 +143,8 @@ def main() -> None:
             "production deploy is not master-only")
     require("python -m venv /tmp/jobis-rag-venv" in pipeline and
             "rank_bm25==0.2.2" in pipeline and
+            "psycopg[binary]==3.2.9" in pipeline and
+            "numpy==2.2.6" in pipeline and
             "/tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v" in pipeline,
             "RAG CI dependency or strict test gate is missing")
     require("docker { image 'node:22-alpine' }" in pipeline,
@@ -131,6 +156,8 @@ def main() -> None:
             "Jenkins container workspace is incorrectly used as a host bind mount")
     require("bash ops/test-db-backup-restore" in pipeline,
             "DB backup/restore CI smoke test is missing")
+    require("bash -n ops/backup-jobis-pipeline-db" in pipeline,
+            "pipeline DB backup syntax gate is missing")
     require("bash ops/test-v2-database-bootstrap" in pipeline,
             "isolated v2 database bootstrap CI smoke test is missing")
     require("bash ops/test-legacy-data-migration" in pipeline,
@@ -144,9 +171,11 @@ def main() -> None:
         "switch-jobis-nginx",
         "install-jobis-nginx-control",
         "bootstrap-jobis-v2-database",
+        "bootstrap-jobis-pipeline-databases",
         "configure-jobis-v2-environment",
         "migrate-jobis-legacy-to-v2",
         "prepare-jobis-v2-release",
+        "sync-jobis-release-assets",
     ):
         require(f"bash -n ops/{script}" in pipeline,
                 f"server script syntax gate is missing: {script}")
@@ -155,9 +184,11 @@ def main() -> None:
 
     deploy = text("ops/deploy-jobis-container")
     backup_call = deploy.find('"$BACKUP_COMMAND" "$RELEASE_SHA"')
-    release_call = deploy.find('compose_up "$RELEASE_SHA"', backup_call + 1)
-    require(backup_call >= 0 and release_call > backup_call,
-            "deployment does not back up before the release transition")
+    pipeline_backup_call = deploy.find('"$PIPELINE_BACKUP_COMMAND"', backup_call + 1)
+    release_call = deploy.find('compose_up "$RELEASE_SHA"', pipeline_backup_call + 1)
+    require(backup_call >= 0 and pipeline_backup_call > backup_call and
+            release_call > pipeline_backup_call,
+            "deployment does not back up app and pipeline DBs before transition")
     require('compose "$RELEASE_SHA" pull --quiet' in deploy,
             "deployment does not pull registry images")
     require('compose "$PREVIOUS_SHA" pull --quiet' in deploy,
@@ -193,12 +224,15 @@ def main() -> None:
     for installed in (
         "/usr/local/sbin/deploy-jobis",
         "/usr/local/sbin/audit-jobis-server",
+        "/usr/local/sbin/backup-jobis-pipeline-db",
         "/usr/local/sbin/switch-jobis-nginx",
         "/usr/local/sbin/install-jobis-nginx-control",
         "/usr/local/sbin/bootstrap-jobis-v2-database",
+        "/usr/local/sbin/bootstrap-jobis-pipeline-databases",
         "/usr/local/sbin/configure-jobis-v2-environment",
         "/usr/local/sbin/migrate-jobis-legacy-to-v2",
         "/usr/local/sbin/prepare-jobis-v2-release",
+        "/usr/local/sbin/sync-jobis-release-assets",
         "/etc/sudoers.d/jobis-deploy",
         "jobis-db-backup.timer",
         "jobis-db-restore-drill.timer",
@@ -209,6 +243,12 @@ def main() -> None:
 
     require("audit-jobis-server '$GIT_COMMIT' predeploy" in pipeline,
             "master deployment does not run the pre-deploy server audit")
+    require("StrictHostKeyChecking=yes" in pipeline and
+            "jobis-deploy-known-hosts" in pipeline and
+            "StrictHostKeyChecking=accept-new" not in pipeline,
+            "deployment SSH host key is not pinned")
+    require("sync-jobis-release-assets '$remote_archive' '$GIT_COMMIT'" in pipeline,
+            "master deployment does not synchronize release assets")
 
     audit = text("ops/audit-jobis-server")
     for gate in (
@@ -217,6 +257,8 @@ def main() -> None:
         "Nginx routes the application",
         "registry image available",
         "systemd timer enabled",
+        "deployed release asset checksums",
+        "AI-to-RAG route",
     ):
         require(gate in audit, f"server audit gate missing: {gate}")
 
@@ -232,8 +274,12 @@ def main() -> None:
         "http://127.0.0.1:8000/health",
         "http://127.0.0.1:8080/api/health",
         "http://127.0.0.1:8088/api/auth/csrf",
+        "http://127.0.0.1:8765/health",
+        "http://127.0.0.1:8081/health",
     ):
         require(endpoint in deploy, f"deploy smoke endpoint missing: {endpoint}")
+    require("python -m jobis_ai.readiness --live" in deploy,
+            "deploy does not prove live LLM and RAG requests")
 
     active = "\n".join((local_compose, production))
     for legacy in ("jobis-fake-ai:", "ai-server:", "AGENT_WS_URL", "AGENT_HTTP_URL"):

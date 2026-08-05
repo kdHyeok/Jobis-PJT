@@ -132,7 +132,9 @@ SQL
         sh '''
           python -m venv /tmp/jobis-rag-venv
           /tmp/jobis-rag-venv/bin/python -m pip install \
-            --disable-pip-version-check --no-cache-dir rank_bm25==0.2.2
+            --disable-pip-version-check --no-cache-dir \
+            numpy==2.2.6 rank_bm25==0.2.2 \
+            'psycopg[binary]==3.2.9' python-dotenv==1.1.1
           /tmp/jobis-rag-venv/bin/python -m compileall -q RAG
           /tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v
         '''
@@ -146,6 +148,7 @@ SQL
           test -x ops/deploy-jobis-container
           bash -n ops/deploy-jobis-container
           bash -n ops/backup-jobis-db
+          bash -n ops/backup-jobis-pipeline-db
           bash -n ops/restore-jobis-db-test
           bash -n ops/restore-latest-jobis-db-test
           bash -n ops/test-db-backup-restore
@@ -155,9 +158,11 @@ SQL
           bash -n ops/switch-jobis-nginx
           bash -n ops/install-jobis-nginx-control
           bash -n ops/bootstrap-jobis-v2-database
+          bash -n ops/bootstrap-jobis-pipeline-databases
           bash -n ops/configure-jobis-v2-environment
           bash -n ops/migrate-jobis-legacy-to-v2
           bash -n ops/prepare-jobis-v2-release
+          bash -n ops/sync-jobis-release-assets
           bash -n ops/test-legacy-data-migration
           git diff --check HEAD^ HEAD
 
@@ -182,16 +187,18 @@ SQL
           # 절대 경로와 env_file 내용은 해석하지 않고 Compose 모델만 검증한다.
           # Jenkins 컨테이너의 Docker CLI에는 Compose 플러그인이 없을 수 있다.
           # Compose가 포함된 공식 CLI 이미지에 파일을 표준입력으로 전달해 모델만 검증한다.
-          docker run --rm -i \
+          docker run --rm \
+            --volumes-from "${jenkins_container}:ro" \
+            -w "$WORKSPACE" \
             -e JOBIS_SHA=0000000000000000000000000000000000000000 \
             docker:28-cli \
             sh -ec '
               mkdir -p /etc/jobis
               : > /etc/jobis/jobis-v2.env
-              exec docker compose --project-name jobis-validation -f - \
+              exec docker compose --project-name jobis-validation \
+                --env-file .env.production.example -f ops/docker-compose.prod.yml \
                 config --quiet --no-path-resolution --no-env-resolution
-            ' \
-            < ops/docker-compose.prod.yml
+            '
 
           docker run --rm \
             --volumes-from "${jenkins_container}:ro" \
@@ -236,6 +243,12 @@ SQL
             docker build -t "${prefix}jobis-backend:$GIT_COMMIT" backend
             docker build -t "${prefix}jobis-ai:$GIT_COMMIT" AI
             docker build -t "${prefix}jobis-frontend:$GIT_COMMIT" frontend
+            docker build -t "${prefix}jobis-rag-search:$GIT_COMMIT" \
+              -f infra/airflow/Dockerfile.rag-search .
+            docker build -t "${prefix}jobis-rag-ingest:$GIT_COMMIT" \
+              -f infra/airflow/Dockerfile.rag-ingest .
+            docker build -t "${prefix}jobis-airflow:$GIT_COMMIT" \
+              -f infra/airflow/Dockerfile.airflow .
           '''
 
           if (env.JOBIS_IMAGE_PREFIX?.trim()) {
@@ -252,6 +265,9 @@ SQL
                 docker push "${JOBIS_IMAGE_PREFIX}jobis-backend:$GIT_COMMIT"
                 docker push "${JOBIS_IMAGE_PREFIX}jobis-ai:$GIT_COMMIT"
                 docker push "${JOBIS_IMAGE_PREFIX}jobis-frontend:$GIT_COMMIT"
+                docker push "${JOBIS_IMAGE_PREFIX}jobis-rag-search:$GIT_COMMIT"
+                docker push "${JOBIS_IMAGE_PREFIX}jobis-rag-ingest:$GIT_COMMIT"
+                docker push "${JOBIS_IMAGE_PREFIX}jobis-airflow:$GIT_COMMIT"
               '''
             }
           } else {
@@ -264,16 +280,33 @@ SQL
     stage('Deploy production') {
       when { branch 'master' }
       agent any
-      // 위 단계가 만든 세 이미지를 서버 배포 명령이 백업 후 원자적으로 교체한다.
+      // 위 단계가 만든 앱/RAG/Airflow 여섯 이미지를 백업 후 원자적으로 교체한다.
       steps {
         sshagent(credentials: ['jobis-deploy-ssh']) {
-          sh '''
-            test -n "$DEPLOY_HOST" || { echo "DEPLOY_HOST 전역 환경변수가 없습니다."; exit 1; }
-            ssh -o StrictHostKeyChecking=accept-new \
-              "jobis-deploy@$DEPLOY_HOST" \
-              "sudo -n /usr/local/sbin/audit-jobis-server '$GIT_COMMIT' predeploy && \
-               sudo -n /usr/local/sbin/deploy-jobis '$GIT_COMMIT'"
-          '''
+          withCredentials([file(
+            credentialsId: 'jobis-deploy-known-hosts',
+            variable: 'DEPLOY_KNOWN_HOSTS'
+          )]) {
+            sh '''
+              set -euo pipefail
+              test -n "$DEPLOY_HOST" || { echo "DEPLOY_HOST 전역 환경변수가 없습니다."; exit 1; }
+              local_archive="/tmp/jobis-release-${GIT_COMMIT}.tar.gz"
+              remote_archive="/home/jobis-deploy/jobis-release-${GIT_COMMIT}.tar.gz"
+              trap 'rm -f "$local_archive"' EXIT
+              tar -czf "$local_archive" \
+                .env.production.example ops infra/airflow/migrations/jobrag
+              scp -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS" \
+                -o StrictHostKeyChecking=yes \
+                "$local_archive" "jobis-deploy@$DEPLOY_HOST:$remote_archive"
+              ssh -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS" \
+                -o StrictHostKeyChecking=yes \
+                "jobis-deploy@$DEPLOY_HOST" \
+                "chmod 600 '$remote_archive' && \
+                 sudo -n /usr/local/sbin/sync-jobis-release-assets '$remote_archive' '$GIT_COMMIT' && \
+                 sudo -n /usr/local/sbin/audit-jobis-server '$GIT_COMMIT' predeploy && \
+                 sudo -n /usr/local/sbin/deploy-jobis '$GIT_COMMIT'"
+            '''
+          }
         }
       }
     }

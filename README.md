@@ -210,14 +210,15 @@ flowchart LR
 
 ```text
 기능 브랜치/MR → 전체 CI
-develop         → 전체 CI + 세 애플리케이션 이미지 빌드 검증, 배포 없음
-master          → 전체 CI → SHA 이미지 → 서버 사전 감사 → DB 백업 → 자동 배포
+develop         → 전체 CI + 앱/RAG/Airflow 여섯 이미지 빌드 검증, 배포 없음
+master          → 전체 CI → SHA 이미지/배포 자산 동기화 → 서버 감사 → 백업 → 자동 배포
                                       └ 실패 시 직전 SHA 이미지로 롤백
 ```
 
 - CI는 Backend/PostgreSQL 테스트, AI 테스트, Frontend typecheck/build, RAG 테스트, 운영 스크립트와 Compose 검증을 수행합니다.
-- 배포 산출물은 `jobis-ai:<SHA>`, `jobis-backend:<SHA>`, `jobis-frontend:<SHA>` 세 불변 이미지입니다.
-- 운영 배포 전에 DB 논리 백업과 복구 가능성을 확인하고, 배포 뒤 AI → Backend → Frontend 순서로 health/smoke test를 수행합니다.
+- 배포 산출물은 앱 3개와 `jobis-rag-search`, `jobis-rag-ingest`, `jobis-airflow`를 합친 여섯 불변 SHA 이미지입니다.
+- 운영 배포 전에 서버의 Compose·스크립트·Flyway V1~V3를 같은 SHA 기준으로 동기화하고 DB 논리 백업을 확인합니다.
+- 배포 뒤 RAG/Airflow → AI → Backend → Frontend와 실제 RAG 검색·LLM 요청까지 smoke gate로 검증합니다.
 - Airflow/RAG DB는 애플리케이션 DB와 별도의 백업·복구 절차를 따릅니다.
 - 레거시 프로세스와 이미지는 신규 컨테이너 릴리스 및 롤백 훈련이 검증된 뒤에만 정리합니다.
 

@@ -28,7 +28,7 @@ if [[ "$AUDIT_PHASE" != "predeploy" && "$AUDIT_PHASE" != "postdeploy" ]]; then
   exit 2
 fi
 
-for command in curl df docker flock nginx stat systemctl visudo; do
+for command in curl df docker flock nginx sha256sum stat systemctl visudo; do
   if command -v "$command" >/dev/null 2>&1; then
     pass "command available: $command"
   else
@@ -56,10 +56,27 @@ check_regular_file "$ENV_FILE" 600
 check_regular_file "$COMPOSE_FILE" 644
 check_regular_file /usr/local/sbin/deploy-jobis 755
 check_regular_file /usr/local/sbin/backup-jobis-db 755
+check_regular_file /usr/local/sbin/backup-jobis-pipeline-db 755
 check_regular_file /usr/local/sbin/restore-jobis-db-test 755
 check_regular_file /usr/local/sbin/restore-latest-jobis-db-test 755
+check_regular_file /usr/local/sbin/bootstrap-jobis-pipeline-databases 755
+check_regular_file /usr/local/sbin/sync-jobis-release-assets 755
 check_regular_file /usr/local/sbin/switch-jobis-nginx 755
 check_regular_file /etc/sudoers.d/jobis-deploy 440
+check_regular_file /opt/jobis/release-assets.sha256 644
+
+if [[ -f /opt/jobis/release-assets.sha256 ]] &&
+   sha256sum --check --quiet /opt/jobis/release-assets.sha256; then
+  pass "deployed release asset checksums"
+else
+  fail "deployed release asset checksums"
+fi
+if [[ -n "$RELEASE_SHA" ]]; then
+  installed_assets_sha="$(cat /opt/jobis/.release-assets-sha 2>/dev/null || true)"
+  [[ "$installed_assets_sha" == "$RELEASE_SHA" ]] \
+    && pass "server assets match release SHA" \
+    || fail "server assets do not match release SHA"
+fi
 
 if visudo -cf /etc/sudoers.d/jobis-deploy >/dev/null 2>&1; then
   pass "deployment sudoers syntax"
@@ -99,8 +116,12 @@ if [[ "$env_loaded" == true ]]; then
     DB_URL DB_MIGRATOR_USER DB_MIGRATOR_PASSWORD DB_APP_USER DB_APP_PASSWORD
     JWT_SECRET AI_SHARED_SECRET AI_SERVER_URL ALLOWED_ORIGINS COOKIE_SECURE
     SPRING_PROFILES_ACTIVE LLM_PROVIDER JOBIS_BACKUP_DIR
+    JOBIS_PIPELINE_BACKUP_DIR
     JOBIS_BACKUP_DOCKER_NETWORK JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM
-    JOBIS_REQUIRE_LEGACY_IMPORT
+    JOBIS_REQUIRE_LEGACY_IMPORT RAG_PROVIDER RAG_SEARCH_URL
+    AIRFLOW_DB_USER AIRFLOW_DB_PASSWORD AIRFLOW_DB_DSN AIRFLOW_ADMIN_PASSWORD
+    AIRFLOW_FERNET_KEY JOBRAG_DB_USER JOBRAG_DB_PASSWORD JOBRAG_PG_DSN
+    JOBRAG_FLYWAY_URL RAG_EMBED_PROVIDER RAG_RERANK_PROVIDER
   )
   for variable in "${required_values[@]}"; do
     if [[ -n "${!variable:-}" ]]; then
@@ -151,6 +172,32 @@ if [[ "$env_loaded" == true ]]; then
   [[ "$spring_profile" == "prod" ]] \
     && pass "production Spring profile" \
     || fail "SPRING_PROFILES_ACTIVE must be prod"
+  [[ "${RAG_PROVIDER:-}" == "http" && "${RAG_SEARCH_URL:-}" == "http://127.0.0.1:8765" ]] \
+    && pass "AI-to-RAG route" \
+    || fail "production RAG_PROVIDER/RAG_SEARCH_URL contract"
+  [[ "${RAG_EMBED_PROVIDER:-}" == "local" || "${RAG_EMBED_PROVIDER:-}" == "gms" ]] \
+    && pass "RAG embedding provider" \
+    || fail "RAG_EMBED_PROVIDER must be local or gms"
+  [[ "${RAG_RERANK_PROVIDER:-}" == "local" || "${RAG_RERANK_PROVIDER:-}" == "gms" ||
+     "${RAG_RERANK_PROVIDER:-}" == "none" ]] \
+    && pass "RAG reranking provider" \
+    || fail "RAG_RERANK_PROVIDER must be local, gms, or none"
+  if [[ "${RAG_EMBED_PROVIDER:-}" == "gms" || "${RAG_RERANK_PROVIDER:-}" == "gms" ]]; then
+    [[ -n "${GMS_KEY:-}" ]] && pass "GMS key configured for RAG" || fail "GMS_KEY is required by RAG provider"
+  fi
+  case "${LLM_PROVIDER:-}" in
+    codex|gpt)
+      [[ -s /var/lib/jobis-ai/codex/auth.json && ! -L /var/lib/jobis-ai/codex/auth.json ]] \
+        && pass "Codex OAuth state file" || fail "Codex OAuth state file is missing"
+      ;;
+    openai)
+      [[ -n "${GMS_KEY:-}" ]] && pass "GMS key configured for LLM" || fail "GMS_KEY is required by LLM provider"
+      ;;
+    anthropic)
+      [[ -n "${ANTHROPIC_API_KEY:-}" ]] && pass "Anthropic key configured" || fail "ANTHROPIC_API_KEY is required"
+      ;;
+    *) fail "unsupported production LLM_PROVIDER" ;;
+  esac
 
   image_prefix="${JOBIS_IMAGE_PREFIX:-}"
   if [[ -z "$image_prefix" ||
@@ -166,6 +213,7 @@ if [[ "$env_loaded" == true ]]; then
   fi
 
   backup_dir="${JOBIS_BACKUP_DIR:-}"
+  pipeline_backup_dir="${JOBIS_PIPELINE_BACKUP_DIR:-}"
   if [[ -d "$backup_dir" && ! -L "$backup_dir" &&
         "$(stat -c '%U:%G' "$backup_dir" 2>/dev/null)" == "root:root" &&
         "$(stat -c '%a' "$backup_dir" 2>/dev/null)" == "700" ]]; then
@@ -186,6 +234,17 @@ if [[ "$env_loaded" == true ]]; then
     fail "separate backup filesystem enforcement is not enabled"
   else
     warn "backup uses the application filesystem; release remains blocked until separate storage is attached"
+  fi
+  if [[ -d "$pipeline_backup_dir" && ! -L "$pipeline_backup_dir" &&
+        "$(stat -c '%U:%G' "$pipeline_backup_dir" 2>/dev/null)" == "root:root" &&
+        "$(stat -c '%a' "$pipeline_backup_dir" 2>/dev/null)" == "700" ]]; then
+    pipeline_backup_device="$(df -P "$pipeline_backup_dir" | awk 'NR == 2 {print $1}')"
+    app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
+    [[ -n "$pipeline_backup_device" && "$pipeline_backup_device" != "$app_device" ]] \
+      && pass "pipeline backup uses a separate filesystem" \
+      || fail "pipeline backup filesystem is not separate from /opt/jobis"
+  else
+    fail "pipeline backup directory is missing, symlinked, or not root:root 700"
   fi
 fi
 
@@ -267,6 +326,25 @@ if [[ "$env_loaded" == true && "${DB_URL:-}" == jdbc:postgresql://* ]]; then
   check_db_role app "${DB_APP_USER:-}" "${DB_APP_PASSWORD:-}"
   check_db_role migrator "${DB_MIGRATOR_USER:-}" "${DB_MIGRATOR_PASSWORD:-}"
 
+  check_pipeline_db() {
+    local label="$1" dsn="$2" user="$3" password="$4"
+    local parsed="${dsn#*://}" pipeline_authority="${parsed%%/*}" pipeline_database="${parsed#*/}"
+    pipeline_database="${pipeline_database%%\?*}"
+    local pipeline_host="${pipeline_authority##*@}" pipeline_port="5432"
+    pipeline_host="${pipeline_host%%:*}"
+    [[ "${pipeline_authority##*@}" == *:* ]] && pipeline_port="${pipeline_authority##*:}"
+    if docker run --rm --network "$network" -e "PGPASSWORD=$password" -e PGCONNECT_TIMEOUT=5 \
+      postgres:17-alpine psql --host "$pipeline_host" --port "$pipeline_port" \
+      --username "$user" --dbname "$pipeline_database" --tuples-only --no-align \
+      --command 'select 1' 2>/dev/null | grep -qx '1'; then
+      pass "PostgreSQL connectivity: $label"
+    else
+      fail "PostgreSQL connectivity failed: $label"
+    fi
+  }
+  check_pipeline_db airflow "${AIRFLOW_DB_DSN:-}" "${AIRFLOW_DB_USER:-}" "${AIRFLOW_DB_PASSWORD:-}"
+  check_pipeline_db jobrag "${JOBRAG_PG_DSN:-}" "${JOBRAG_DB_USER:-}" "${JOBRAG_DB_PASSWORD:-}"
+
   migration_version="$(docker run --rm --network "$network" \
     -e "PGPASSWORD=${DB_MIGRATOR_PASSWORD:-}" -e PGCONNECT_TIMEOUT=5 \
     postgres:17-alpine psql \
@@ -301,7 +379,7 @@ if [[ "$env_loaded" == true && "${DB_URL:-}" == jdbc:postgresql://* ]]; then
 fi
 
 if [[ -n "$RELEASE_SHA" && "$env_loaded" == true ]]; then
-  for image in jobis-ai jobis-backend jobis-frontend; do
+  for image in jobis-ai jobis-backend jobis-frontend jobis-rag-search jobis-rag-ingest jobis-airflow; do
     reference="${JOBIS_IMAGE_PREFIX:-}${image}:${RELEASE_SHA}"
     if [[ -n "${JOBIS_IMAGE_PREFIX:-}" ]]; then
       docker manifest inspect "$reference" >/dev/null 2>&1 \
@@ -315,6 +393,14 @@ if [[ -n "$RELEASE_SHA" && "$env_loaded" == true ]]; then
   done
 else
   warn "release SHA was not supplied; image availability was not checked"
+fi
+
+if [[ -n "$RELEASE_SHA" && "$AUDIT_PHASE" == "postdeploy" ]]; then
+  for endpoint in http://127.0.0.1:8765/health http://127.0.0.1:8081/health; do
+    curl -fsS "$endpoint" >/dev/null 2>&1 \
+      && pass "runtime endpoint: $endpoint" \
+      || fail "runtime endpoint unavailable: $endpoint"
+  done
 fi
 
 printf 'server-audit: failures=%d warnings=%d\n' "$failures" "$warnings"

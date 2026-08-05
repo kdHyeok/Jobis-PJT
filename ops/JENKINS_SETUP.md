@@ -8,6 +8,7 @@ Jenkins는 Multibranch Pipeline으로 저장소의 `Jenkinsfile`을 실행한다
 - Jenkins plugin: Docker Pipeline, SSH Agent, JUnit, GitLab
 - GitLab connection: `ssafy-gitlab`
 - SSH credential: `jobis-deploy-ssh`
+- Secret file credential: `jobis-deploy-known-hosts` (배포 서버의 검증된 SSH host key)
 - 전역 환경 변수: `DEPLOY_HOST`
 
 Docker socket 접근은 호스트 root와 동등한 권한이다. 전용 agent를 사용하고 socket을
@@ -47,5 +48,9 @@ Jenkins는 CD에서 서버에 SSH로 접속해 다음 명령만 실행한다.
 ```bash
 sudo -n /usr/local/sbin/deploy-jobis '<40자리 GIT_COMMIT>'
 ```
+
+`known_hosts`는 배포 서버 콘솔에서 확인한 fingerprint와 대조한 뒤 Jenkins Secret file로
+등록한다. 네트워크에서 처음 보이는 키를 그대로 수락하지 않는다. master CD는 릴리스마다
+Compose, 운영 스크립트와 jobrag Flyway 파일을 먼저 동기화한 다음 감사를 실행한다.
 
 서버 설치, 백업, 복원 훈련, smoke test는 [DEPLOYMENT.md](DEPLOYMENT.md)를 따른다.

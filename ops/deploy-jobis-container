@@ -8,10 +8,14 @@ readonly COMPOSE_PROJECT="jobis-v2"
 readonly STATE_FILE="${APP_ROOT}/.deployed-sha"
 readonly LEGACY_BACKEND_STATE="${APP_ROOT}/.legacy-backend-container"
 readonly BACKUP_COMMAND="/usr/local/sbin/backup-jobis-db"
+readonly PIPELINE_BACKUP_COMMAND="/usr/local/sbin/backup-jobis-pipeline-db"
 readonly NGINX_SWITCH_COMMAND="/usr/local/sbin/switch-jobis-nginx"
 readonly AUDIT_COMMAND="/usr/local/sbin/audit-jobis-server"
 readonly ENV_FILE="/etc/jobis/jobis-v2.env"
-readonly IMAGE_NAMES=(jobis-ai jobis-backend jobis-frontend)
+readonly IMAGE_NAMES=(
+  jobis-ai jobis-backend jobis-frontend
+  jobis-rag-search jobis-rag-ingest jobis-airflow
+)
 # These units and the original containers are stopped, never deleted here.
 readonly LEGACY_UNITS=(jobis-fake-ai.service jobis.service)
 
@@ -32,13 +36,13 @@ if [[ -z "$DEPLOY_ACTOR" || "$DEPLOY_ACTOR" == "root" ]]; then
   exit 1
 fi
 
-for required_file in "$COMPOSE_FILE" "$BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND" "$ENV_FILE"; do
+for required_file in "$COMPOSE_FILE" "$BACKUP_COMMAND" "$PIPELINE_BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND" "$ENV_FILE"; do
   if [[ ! -f "$required_file" ]]; then
     echo "Required deployment file is missing: $required_file" >&2
     exit 1
   fi
 done
-for command in "$BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND"; do
+for command in "$BACKUP_COMMAND" "$PIPELINE_BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND"; do
   if [[ ! -x "$command" ]]; then
     echo "Required deployment command is not executable: $command" >&2
     exit 1
@@ -67,6 +71,9 @@ compose() {
 
 if [[ -n "$IMAGE_PREFIX" ]]; then
   compose "$RELEASE_SHA" pull --quiet
+  for image in "${IMAGE_NAMES[@]}"; do
+    docker pull --quiet "${IMAGE_PREFIX}${image}:${RELEASE_SHA}" >/dev/null
+  done
 fi
 
 for image in "${IMAGE_NAMES[@]}"; do
@@ -118,8 +125,32 @@ wait_for_frontend() {
   return 1
 }
 
+wait_for_rag() {
+  local response _
+  for _ in {1..300}; do
+    response="$(curl -fsS http://127.0.0.1:8765/health 2>/dev/null || true)"
+    if grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' <<<"$response" &&
+       grep -Eq '"warm"[[:space:]]*:[[:space:]]*true' <<<"$response"; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+wait_for_airflow() {
+  local _
+  for _ in {1..90}; do
+    if curl -fsS http://127.0.0.1:8081/health >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 wait_for_stack() {
-  wait_for_ai && wait_for_backend && wait_for_frontend
+  wait_for_rag && wait_for_airflow && wait_for_ai && wait_for_backend && wait_for_frontend
 }
 
 wait_for_legacy_ai() {
@@ -223,6 +254,9 @@ rollback() {
   else
     if [[ -n "$IMAGE_PREFIX" ]]; then
       compose "$PREVIOUS_SHA" pull --quiet || rollback_ready=false
+      for image in "${IMAGE_NAMES[@]}"; do
+        docker pull --quiet "${IMAGE_PREFIX}${image}:${PREVIOUS_SHA}" >/dev/null || rollback_ready=false
+      done
     fi
     for image in "${IMAGE_NAMES[@]}"; do
       docker image inspect "${IMAGE_PREFIX}${image}:${PREVIOUS_SHA}" >/dev/null 2>&1 || rollback_ready=false
@@ -248,6 +282,7 @@ rollback() {
 }
 # A deploy is not allowed to be the first time a backup path is tested.
 JOBIS_ENV_FILE="$ENV_FILE" "$BACKUP_COMMAND" "$RELEASE_SHA"
+JOBIS_ENV_FILE="$ENV_FILE" "$PIPELINE_BACKUP_COMMAND"
 
 trap rollback ERR HUP INT TERM
 
@@ -256,6 +291,7 @@ preserve_initial_containers
 
 compose_up "$RELEASE_SHA"
 wait_for_stack
+docker exec jobis-ai python -m jobis_ai.readiness --live
 "$NGINX_SWITCH_COMMAND" container
 "$AUDIT_COMMAND" "$RELEASE_SHA" postdeploy
 

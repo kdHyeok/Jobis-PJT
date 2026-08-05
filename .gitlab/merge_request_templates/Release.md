@@ -13,7 +13,8 @@
 - [ ] Source Branch가 `develop`, Target Branch가 `master`이다.
 - [ ] `develop`의 최신 Jenkins 파이프라인이 모두 성공했다.
 - [ ] `Backend`, `AI v2bridge`, `Frontend`, `RAG`, `Infra` 검증 결과를 확인했다.
-- [ ] `jobis-ai`, `jobis-backend`, `jobis-frontend` 세 이미지 빌드가 성공했다.
+- [ ] 앱 3개와 `jobis-rag-search`, `jobis-rag-ingest`, `jobis-airflow` 여섯 이미지 빌드가 성공했다.
+- [ ] `jobis-deploy-known-hosts`와 릴리스 자산 동기화 gate가 설정됐다.
 - [ ] 운영 환경 변수 이름을 확인했으며 비밀값은 MR·로그에 기록하지 않았다.
 - [ ] DB/Flyway 변경의 이전·이후 호환성과 롤백 제약을 검토했다.
 - [ ] 배포 서버의 디스크, Docker daemon, Compose, Nginx 상태를 확인했다.

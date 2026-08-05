@@ -152,7 +152,7 @@ def rag_ingest_task() -> CpuLimitedDockerOperator:
         raise ValueError("RAG_INGEST_CPUS must be greater than zero")
     return CpuLimitedDockerOperator(
         task_id="rag_ingest",
-        image="jobis/rag-ingest:latest",
+        image=os.environ.get("RAG_INGEST_IMAGE", "jobis/rag-ingest:latest"),
         command=[
             "bash",
             "-c",
@@ -170,7 +170,7 @@ def rag_ingest_task() -> CpuLimitedDockerOperator:
             ),
             Mount(source="jobis-hf-cache", target="/hf", type="volume"),
         ],
-        network_mode="jobis-net",
+        network_mode=os.environ.get("RAG_DOCKER_NETWORK_MODE", "jobis-net"),
         docker_url="unix://var/run/docker.sock",
         auto_remove="success",
         mount_tmp_dir=False,

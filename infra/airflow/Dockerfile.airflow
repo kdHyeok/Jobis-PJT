@@ -26,6 +26,7 @@ USER airflow
 RUN pip install --no-cache-dir apache-airflow-providers-docker
 
 COPY --chown=airflow:root DATA/ /opt/jobis/DATA/
+COPY --chown=airflow:root infra/airflow/dags/ /opt/airflow/dags/
 # 볼륨 마운트 지점을 airflow 소유로 미리 생성 — 빈 네임드 볼륨은 이미지 쪽
 # 소유권을 물려받으므로, 이게 없으면 마운트 디렉토리가 root 소유가 돼 크롤러가 못 쓴다
 RUN mkdir -p /opt/jobis/DATA/data /opt/jobis/DATA/exports \

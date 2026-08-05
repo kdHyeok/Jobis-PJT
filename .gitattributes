@@ -1,6 +1,9 @@
 * text=auto
 ops/deploy-jobis text eol=lf
 ops/deploy-jobis-container text eol=lf
+ops/* text eol=lf
+Jenkinsfile text eol=lf
+.env*.example text eol=lf
 Dockerfile text eol=lf
 Dockerfile.* text eol=lf
 gradlew text eol=lf
