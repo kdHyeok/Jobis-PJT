@@ -138,7 +138,13 @@ def _load_bm25_index(conn) -> dict:
         rows = cur.fetchall()
     chunks = [(uid, chunk_id) for uid, chunk_id, _ in rows]
     corpus = [_tokenize(text) for _, _, text in rows]
-    _bm25_cache = {"bm25": BM25Okapi(corpus or [[]]), "chunks": chunks}
+    # rank_bm25 divides by the vocabulary size while constructing the index.
+    # An empty jobrag database (or rows containing no searchable tokens) has no
+    # vocabulary, so creating BM25Okapi would crash the whole RAG API at startup.
+    # Keep the cache shape stable and let the lexical axis return no candidates
+    # until Airflow has ingested searchable chunks.
+    bm25 = BM25Okapi(corpus) if corpus and any(corpus) else None
+    _bm25_cache = {"bm25": bm25, "chunks": chunks}
     return _bm25_cache
 
 
@@ -153,6 +159,8 @@ def _bm25_axis(conn, spec, relaxed) -> list[tuple[str, str, float]]:
     if not query_tokens:
         return []
     index = _load_bm25_index(conn)
+    if index["bm25"] is None:
+        return []
     scores = index["bm25"].get_scores(query_tokens)
 
     where, fp = _filters(spec, relaxed)

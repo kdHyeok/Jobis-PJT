@@ -38,10 +38,15 @@ Jenkins와 배포 서버가 실제로 같은 Docker daemon을 사용할 때만
 ## 브랜치 게이트
 
 - 기능 브랜치와 MR: Backend, AI v2bridge, Frontend, RAG, Infra CI
-- `develop`: 전체 CI + 세 SHA 이미지 build/push, 운영 배포 없음
-- `master`: 전체 CI + 세 SHA 이미지 build/push + 자동 CD
+- `develop`: 전체 CI + 여섯 SHA 이미지 build/push, 운영 배포 없음
+- `master`: develop 부모·동일 트리 검증 + 검증된 여섯 이미지의 master SHA 승격 + 자동 CD
 - `master` 직접 push 금지, protected branch와 `develop -> master` release MR만 허용
 - 운영 배포 credential과 환경 변수는 protected branch에서만 사용 가능
+
+`master`에서는 동일 소스에 대한 전체 테스트와 Docker build를 반복하지 않는다. 대신 merge commit의
+두 번째 부모가 `origin/develop` 이력에 포함되고 master 결과 트리가 그 부모와 완전히 같은지 검사한다.
+동일 Docker daemon 구성은 develop SHA 이미지를 master SHA로 retag하고, registry 구성은 develop SHA를
+pull한 뒤 master SHA로 push한다. 검증된 develop 이미지가 없거나 트리가 달라지면 배포 전에 실패한다.
 
 Jenkins는 CD에서 서버에 SSH로 접속해 다음 명령만 실행한다.
 
