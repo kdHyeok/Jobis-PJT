@@ -1,3 +1,5 @@
+name: jobis-app
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -110,7 +112,9 @@ services:
 
 volumes:
   jobiss_postgres_data:
+    name: data-airflow_jobiss_postgres_data
   jobiss_ai_state:
+    name: data-airflow_jobiss_ai_state
 
 networks:
   jobiss-internal:

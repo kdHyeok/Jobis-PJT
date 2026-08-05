@@ -1,3 +1,5 @@
+name: jobis-data-pipeline
+
 # Airflow + PostgreSQL(pgvector) 일일 수집 파이프라인.
 # 사용법은 README.md 참고. 비밀값은 같은 디렉토리의 .env에서 읽는다 (.env.example 복사).
 
@@ -174,7 +176,9 @@ services:
 
 volumes:
   pgdata:
+    name: airflow_pgdata
   airflow-logs:
+    name: airflow_airflow-logs
   crawl-state:
     name: jobis-crawl-state
   crawl-exports:
