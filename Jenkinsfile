@@ -166,6 +166,11 @@ SQL
           bash -n ops/test-legacy-data-migration
           git diff --check HEAD^ HEAD
 
+          # Multibranch workspaces survive branch changes. Git removes deleted tracked
+          # files, but ignored test caches under retired services can remain and make
+          # the release-layout check report a false legacy-source violation.
+          git clean -fdX -- ai-server fake-ai
+
           # Jenkins is itself a container. Raw bind mounts resolve on the host Docker
           # daemon, where the container-only $WORKSPACE path does not exist. Reuse the
           # Jenkins data volume so sibling validation containers see the same checkout.

@@ -154,6 +154,8 @@ def main() -> None:
             "sibling validation containers do not share the Jenkins workspace volume")
     require('-v "$WORKSPACE:/workspace:ro"' not in pipeline,
             "Jenkins container workspace is incorrectly used as a host bind mount")
+    require("git clean -fdX -- ai-server fake-ai" in pipeline,
+            "Jenkins does not remove ignored caches from retired service paths")
     require("bash ops/test-db-backup-restore" in pipeline,
             "DB backup/restore CI smoke test is missing")
     require("bash -n ops/backup-jobis-pipeline-db" in pipeline,
