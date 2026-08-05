@@ -36,6 +36,10 @@ x-airflow-env: &airflow-env
   AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW_BASE_URL:-http://127.0.0.1:8081/airflow}
   # X-Forwarded-* 를 신뢰해 리다이렉트를 https 로 만든다.
   AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: "true"
+  # 세션 서명 키. 지정하지 않으면 워커마다 다른 키가 생겨 로그인이 임의로 풀린다.
+  # 값을 바꾸면 기존 세션 쿠키가 전부 무효가 되므로, 삭제된 계정의 낡은 쿠키로
+  # 500(NoneType has no attribute 'is_active')이 나는 상황도 함께 정리된다.
+  AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY:?AIRFLOW_WEBSERVER_SECRET_KEY is required}
   JOBRAG_PG_DSN: ${JOBRAG_PG_DSN:?JOBRAG_PG_DSN is required}
 
 x-airflow-common: &airflow-common
