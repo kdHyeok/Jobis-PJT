@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Back up host-managed Airflow and jobrag databases before Flyway/container changes.
+set -Eeuo pipefail
+
+[[ "$EUID" -eq 0 ]] || { echo "backup-jobis-pipeline-db must run as root." >&2; exit 1; }
+for command in date df docker find install sha256sum; do
+  command -v "$command" >/dev/null 2>&1 || { echo "Required command is missing: $command" >&2; exit 1; }
+done
+readonly ENV_FILE="${JOBIS_ENV_FILE:-/etc/jobis/jobis-v2.env}"
+[[ -f "$ENV_FILE" && ! -L "$ENV_FILE" ]] || { echo "Production env is missing." >&2; exit 1; }
+set -a
+source "$ENV_FILE"
+set +a
+
+readonly BACKUP_DIR="${JOBIS_PIPELINE_BACKUP_DIR:-/mnt/jobis-backups/pipeline-db}"
+readonly RETENTION_DAYS="${JOBIS_BACKUP_RETENTION_DAYS:-14}"
+[[ "$BACKUP_DIR" == /* && "$BACKUP_DIR" != "/" ]] || { echo "Unsafe pipeline backup directory." >&2; exit 2; }
+[[ "$RETENTION_DAYS" =~ ^[0-9]+$ ]] || { echo "Invalid backup retention." >&2; exit 2; }
+install -d -o root -g root -m 0700 "$BACKUP_DIR"
+if [[ "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-true}" == "true" ]]; then
+  app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
+  backup_device="$(df -P "$BACKUP_DIR" | awk 'NR == 2 {print $1}')"
+  [[ -n "$app_device" && -n "$backup_device" && "$app_device" != "$backup_device" ]] || {
+    echo "Pipeline backup storage must use a different filesystem from /opt/jobis." >&2
+    exit 1
+  }
+fi
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+backup_one() {
+  local database="$1" user="$2" password="$3" destination="$4" temporary="${destination}.tmp"
+  rm -f -- "$temporary"
+  docker run --rm --network host -e "PGPASSWORD=$password" postgres:17-alpine \
+    pg_dump --host 127.0.0.1 --username "$user" --dbname "$database" \
+    --format=custom --no-owner --no-privileges >"$temporary"
+  docker run --rm -i postgres:17-alpine pg_restore --list <"$temporary" >/dev/null
+  mv -- "$temporary" "$destination"
+  sha256sum "$destination" >"${destination}.sha256"
+}
+
+backup_one airflow "${AIRFLOW_DB_USER:?}" "${AIRFLOW_DB_PASSWORD:?}" \
+  "$BACKUP_DIR/airflow-${timestamp}.dump"
+backup_one jobrag "${JOBRAG_DB_USER:?}" "${JOBRAG_DB_PASSWORD:?}" \
+  "$BACKUP_DIR/jobrag-${timestamp}.dump"
+find "$BACKUP_DIR" -maxdepth 1 -type f -mtime "+$RETENTION_DAYS" \
+  \( -name 'airflow-*.dump' -o -name 'airflow-*.dump.sha256' \
+     -o -name 'jobrag-*.dump' -o -name 'jobrag-*.dump.sha256' \) -delete
+echo "Pipeline database backup completed: $timestamp"

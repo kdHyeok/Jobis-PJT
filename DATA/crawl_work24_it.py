@@ -272,6 +272,12 @@ def main() -> int:
         default=None,
         help="이번 실행에서 새로 추가할 공고 수 상한(일일 증분 수집용, 기본: 제한 없음)",
     )
+    parser.add_argument(
+        "--max-candidates",
+        type=int,
+        default=0,
+        help="이번 실행에서 검사할 후보 수 상한(0: 제한 없음)",
+    )
     args = parser.parse_args()
     if (
         args.max_results < 1
@@ -280,10 +286,11 @@ def main() -> int:
         or args.pages_per_keyword < 1
         or args.checkpoint_every < 1
         or (args.max_new is not None and args.max_new < 1)
+        or args.max_candidates < 0
     ):
         raise SystemExit(
             "--max-results는 1 이상, --delay는 0.5 이상, "
-            "--pages-per-keyword는 1 이상이어야 합니다."
+            "--pages-per-keyword는 1 이상, --max-candidates는 0 이상이어야 합니다."
         )
 
     rows = [] if args.fresh else load_existing_rows(OUT)
@@ -303,6 +310,12 @@ def main() -> int:
 
     new_added = 0
     for index, (url, _keyword) in enumerate(candidates(SEARCH_KEYWORDS, args.pages_per_keyword, args.delay), 1):
+        if args.max_candidates and index > args.max_candidates:
+            print(
+                f"[work24] status=max_candidates_reached scanned={args.max_candidates}",
+                flush=True,
+            )
+            break
         text_done = text_count >= args.max_results
         ocr_done = ocr_count >= args.max_ocr_pending_results
         if text_done and ocr_done:

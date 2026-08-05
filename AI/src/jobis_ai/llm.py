@@ -72,6 +72,17 @@ def get_llm(tier: str = "default") -> Any:
 
         return ClaudeCodeChat(model=settings.active_model(tier), cli=settings.claude_cli)
 
+    if settings.llm_provider in {"codex", "gpt"}:
+        # Codex OAuth/Responses 로직을 AI 패키지 안에 격리한다.
+        # 노드의 system/human 메시지는 CodexChat이 instructions/input으로 그대로 보존한다.
+        from jobis_ai.codex_llm import CodexChat
+
+        return CodexChat(
+            model=settings.active_model(tier),
+            reasoning_effort=settings.codex_reasoning_effort,
+            timeout_sec=settings.codex_timeout_sec,
+        )
+
     if settings.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 

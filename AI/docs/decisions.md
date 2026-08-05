@@ -3498,3 +3498,90 @@ D59 로 이미 재고 있었으므로 남은 것은 단가를 곱하는 일뿐�
 
 **측정**: `pytest -q` 769건 통과(`test_audit_and_cost.py` 2건 신설 — 단가 미상은 None,
 합계는 아는 콜만 더하고 나머지는 `uncostedCalls` 로 따로 센다).
+
+### D167 (08-05) Claude CLI 오류는 wrapper 가 아니라 result 를 남기고 영구 한도는 재시도하지 않는다
+
+**결정**: Claude CLI 의 비정상 종료는 stdout JSON wrapper 의 `result`·`api_error_status`·
+`terminal_reason` 을 파싱해 예외로 올린다. `HTTP 429` 중 `weekly limit`·리셋 시각이 명시된
+구독 주간 한도는 `retryable=False` 로 표시해 구조화·표현 경로 모두 한 번만 시도한다.
+일반 429나 5xx·형식 오류는 기존 재시도 정책을 유지한다.
+
+**왜**: 실측(08-05)에서 모든 노드가 종료 코드 1로 실패했지만 로그는 JSON 앞 300자만 잘라
+실제 원인인 `You've hit your weekly limit · resets 5pm (Asia/Seoul)` 을 숨겼다. 인증과 설치는
+정상이었고 최소 CLI 호출도 `duration_api_ms=0`, 토큰 0, `api_error_status=429` 로 같은 원인을
+반환했다. 리셋 전에는 같은 호출을 세 번 보내도 성공 가능성이 없고 실패 지연만 늘어난다.
+
+**보안 경계**: 타임아웃 예외는 전체 command 를 포함하므로 프롬프트 원문을 로그에 남기지 않고
+제한시간만 기록한다. CLI 오류 원문도 wrapper 전체 대신 `result` 중심으로 1000자까지만 남긴다.
+
+**측정**: quota result 보존·일시적 503 재시도 가능·타임아웃 프롬프트 비노출·구조화/표현
+영구 실패 1회 호출을 단위 테스트로 고정한다. 실제 한도 상태의 최소 CLI 호출로 HTTP 429와
+리셋 안내가 파싱 대상과 일치함을 확인했다.
+
+### D168 (08-05) Codex는 새 분기로만 붙이고 노드 지침과 판단 로직은 공유한다
+
+**결정**: `LLM_PROVIDER=codex`(`gpt` alias)를 추가한다. 인증·토큰 갱신·Codex Responses
+SSE 조립은 `fake-ai/codex_oauth_adapter/provider.py`에서 검증한 로직을
+`jobis_ai.codex_oauth_adapter` 네임스페이스 안에 독립 사본으로 둔다. 기존 `openai`(GMS),
+`anthropic`, `claude_code` 분기와 노드 코드는 바꾸지 않는다.
+
+**지침 경계**: `structured.py`와 표현 노드가 이미 만드는 `(system, human)` 메시지를 Codex
+어댑터가 각각 Responses API의 `instructions`, `input`으로 옮긴다. 프롬프트를 provider별로
+복사하지 않는다. 그래야 GMS에서 쓰던 모델 지침·스키마·금지표현 검증이 Codex 선택 시에도
+같은 단일 출처를 사용하고, 한쪽만 수정돼 행동이 갈리는 일을 막는다.
+
+**모델 경계**: GMS의 default/light 티어와 Claude의 router 티어 계약을 그대로 적용해
+`CODEX_MODEL`, `CODEX_MODEL_LIGHT`, `CODEX_MODEL_ROUTER`를 둔다. Codex 고유 설정은
+`CODEX_REASONING_EFFORT`, `CODEX_TIMEOUT_SEC`뿐이다. 샘플링 temperature는 Codex reasoning
+모델 계약에 없는 값이라 전송하지 않는다. 공통 `LLM_MAX_TOKENS`도 실제 호출에서
+`HTTP 400: Unsupported parameter: max_output_tokens`가 확인돼 Codex 경로에는 보내지 않는다.
+
+**인증 경계**: 기본 상태 파일 위치와 형식은 fake-ai와 같아 이미 한 OAuth 로그인이 있으면
+재사용한다. `CODEX_OAUTH_STATE_DIR`로 분리할 수 있다. 토큰은 환경 예시·로그·예외에 넣지
+않고, 최초 로그인은 `uv run jobis-codex-oauth --login` 명령으로만 수행한다.
+
+**측정**: payload에서 system/user 경계와 JSON Schema 보존, 구조화 파싱,
+analysis 비노출 스트리밍, 토큰 usage, default/light/router 모델 선택을 네트워크 없는 회귀
+테스트로 고정한다. 전체 AI 회귀 798건이 통과했고, 기존 fake-ai OAuth 상태로 모델 목록을
+조회한 뒤 `LLM_PROVIDER=codex` + `structured.run_structured`의 실제 `gpt-5.4` 호출이
+`{"result":"OK"}`, `warnings=[]`를 반환했다.
+
+### D169 (08-05) 운영 AI는 v2bridge 하나로 고정하고 상태와 이미지를 분리한다
+
+**결정**: 운영 HTTP 서버는 `jobis_ai.v2bridge.app` 하나다. 별도 계약 어댑터와 옛
+WebSocket 서버 실행 경로를 제거하고, Jenkins가 `jobis-ai:<Git SHA>` 이미지를
+`backend`·`frontend`와 함께 검증·배포한다. 컨테이너에는 서비스 DB 자격증명을 주지 않는다.
+
+**상태 경계**: 세션 SQLite, Codex OAuth, 감사 로그는 이미지 안이 아니라
+`/var/lib/jobis-ai` 영속 경로에 둔다. 이미지는 Git SHA로 롤백하고 DB는 `pg_dump`와 실제
+복구 훈련으로 보호한다. DB volume이나 컨테이너 이미지는 백업으로 세지 않는다.
+
+**왜**: CI가 v2bridge를 테스트하면서 배포에서는 별도 adapter/fake AI를 빌드해 검증 대상과
+운영 대상이 갈려 있었다. 또한 이미지 안의 세션/OAuth 파일은 재배포 때 사라지고, DB 이미지를
+보관해도 사용자 데이터 시점 복구를 증명하지 못한다. 실행물·AI 상태·서비스 DB를 서로 다른
+복구 단위로 만들어야 각 실패 경계와 롤백 증거가 명확하다.
+
+**검증 게이트**: AI health는 HTTP 200만 보지 않고 `service=jobis-ai-v2bridge`를 확인한다.
+백엔드 health는 PostgreSQL `select 1`, 프론트 smoke는 `/`와 프록시된 `/api/auth/csrf`를
+확인한다. master CD는 세 이미지 존재와 배포 직전 DB 덤프 검증이 모두 성공해야 전환한다.
+
+### D170 (08-05) 최초 전환은 레거시 런타임과 DB를 보존한 별도 v2 경계에서 준비한다
+
+**결정**: 기존 `jobis` Compose 프로젝트와 `jobiss` DB를 제자리 변경하지 않는다. 신규 스택은
+`jobis-v2` 프로젝트, `/etc/jobis/jobis-v2.env`, `jobiss_v2` DB와
+`jobiss_migrator`/`jobiss_app` 역할을 사용한다. 최초 cutover에서만 기존 backend를
+stop 후 rename하고 fake AI를 stop한다. 컨테이너와 이미지는 자동 삭제하지 않는다.
+
+**데이터 경계**: Flyway V27이 이관 감사 테이블을 만들고, 운영자가 양쪽 DB 백업을 검증한 뒤
+레거시 핵심 데이터를 한 트랜잭션으로 가져온다. 기존 DB는 계속 보존하며 이관 감사 레코드가
+없으면 predeploy를 실패시킨다. DB dump가 애플리케이션과 같은 filesystem에 있으면 사전
+검증은 경고하지만 실제 release는 차단한다.
+
+**라우팅과 복구**: Nginx는 활성 upstream 파일 하나만 바꿔 기존 backend 8080과 신규 frontend
+8088 사이를 전환한다. 첫 배포 실패 시 보존한 backend 이름을 원복하고 fake AI를 다시 시작한다.
+RAG listener가 실제로 준비되기 전에는 `RAG_PROVIDER=null`로 두어 존재하지 않는 8765를 운영
+의존성으로 가장하지 않는다.
+
+**검증**: 격리 PostgreSQL에서 v2 DB bootstrap 멱등성, 레거시 DB 불변, 레거시/v2 dump 복원,
+V1~V27 스키마 위 데이터 이관, 재실행 차단을 확인한다. 서버 사전 감사와 SHA predeploy,
+배포 후 postdeploy 감사를 서로 다른 게이트로 둔다.

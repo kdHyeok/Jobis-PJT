@@ -1,0 +1,12 @@
+[Unit]
+Description=JOBISS isolated service database restore drill
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=JOBIS_ENV_FILE=/etc/jobis/jobis-v2.env
+ExecStart=/usr/local/sbin/restore-latest-jobis-db-test
+UMask=0077
+Nice=10
+IOSchedulingClass=idle

@@ -113,6 +113,64 @@ def test_run_structured_records_failure_with_attempts(monkeypatch):
     assert s["retries"] == structured._MAX_ATTEMPTS - 1
 
 
+def test_run_structured_does_not_retry_permanent_provider_failure(monkeypatch):
+    """구독 주간 한도처럼 재실행해도 같은 실패는 한 번만 호출한다."""
+
+    from jobis_ai import structured
+
+    class Dummy(BaseModel):
+        value: str
+
+    class PermanentError(RuntimeError):
+        retryable = False
+
+    class DeadLLM:
+        calls = 0
+
+        def with_structured_output(self, schema, **kwargs):
+            return self
+
+        def invoke(self, messages):
+            self.calls += 1
+            raise PermanentError("주간 사용 한도 초과")
+
+    llm = DeadLLM()
+    monkeypatch.setattr(structured, "get_llm", lambda tier: llm)
+    monkeypatch.setattr(structured, "_RETRY_BACKOFF_SEC", 0)
+    with llm_usage.collecting() as usage:
+        result, warnings = structured.run_structured(Dummy, "sys", "본문", node="test_node")
+
+    assert result is None and llm.calls == 1
+    assert "1회 시도 후 실패" in warnings[-1]["message"]
+    assert usage.summary()["retries"] == 0
+
+
+def test_run_streaming_text_does_not_retry_permanent_provider_failure(monkeypatch):
+    """비스트리밍 Claude CLI 표현 경로도 영구 실패를 반복하지 않는다."""
+
+    from jobis_ai import structured
+
+    class PermanentError(RuntimeError):
+        retryable = False
+
+    class DeadLLM:
+        calls = 0
+
+        def invoke(self, messages):
+            self.calls += 1
+            raise PermanentError("주간 사용 한도 초과")
+
+    llm = DeadLLM()
+    monkeypatch.setattr(structured, "get_llm", lambda tier: llm)
+    monkeypatch.setattr(structured, "_RETRY_BACKOFF_SEC", 0)
+    with llm_usage.collecting() as usage:
+        result, warnings = structured.run_streaming_text("sys", "본문", node="test_node")
+
+    assert result == "" and llm.calls == 1
+    assert "1회 시도 후 실패" in warnings[-1]["message"]
+    assert usage.summary()["retries"] == 0
+
+
 def test_handle_chat_emits_turn_usage_trace(monkeypatch):
     """턴에 실제 콜이 있었으면 turn 요약이 trace 로 남는다 (관찰 UI 용 사본)."""
 

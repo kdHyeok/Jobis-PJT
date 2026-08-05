@@ -1,4 +1,4 @@
-"""서비스 v2 백엔드용 AI 서버 — 팀의 `ai-server/`(계약 검증 어댑터) 자리에 그대로 들어간다.
+"""서비스 v2 백엔드용 AI 서버 — JOBISS의 정본 AI HTTP 경계다.
 
 실행 (Windows, uv):
     cmd.exe /c "cd /d C:\\Users\\SSAFY\\Desktop\\S15P11C202-ai\\AI&& set PYTHONUTF8=1&& ^
@@ -6,11 +6,11 @@
         uvicorn jobis_ai.v2bridge.app:app --host 127.0.0.1 --port 8000 --reload --reload-dir src"
     (push 자동 반영까지 포함한 실행은 scripts/run_v2bridge.sh 참고)
 
-교체 지점: v2 백엔드는 `AI_SERVER_URL` 하나로 AI 서버를 고른다(팀 README §해당 절).
-이 앱이 같은 계약(/health, /v1/analyses, /v1/chat, /v1/evidence-verifications,
-/v1/career-extractions)을 구현하므로 백엔드 환경변수만 바꾸면 진짜 에이전트로 바뀐다.
+연결 지점: v2 백엔드는 `AI_SERVER_URL` 하나로 이 서버를 찾는다.
+이 앱은 /health, /v1/analyses, /v1/chat, /v1/evidence-verifications,
+/v1/career-extractions 계약을 구현한다.
 
-오류 코드는 팀 ai-server 와 동일하게 유지한다 — 백엔드 워커가 이 코드로 재시도를 판단한다:
+오류 코드는 백엔드 워커가 재시도를 판단하는 안정 계약이다:
   · 503 AI_PROVIDER_NOT_CONFIGURED — LLM 미설정 (가짜 성공을 만들지 않는다)
   · 503 AI_PROVIDER_UNAVAILABLE  — 엔진이 결과에 이르지 못함 (재시도 가능)
   · 502 INVALID_AI_RESPONSE      — 엔진 산출물이 계약 검증을 통과하지 못함
@@ -57,8 +57,13 @@ app = FastAPI(
 
 
 def _shared_secret() -> str:
-    # 팀 ai-server 와 같은 환경변수 이름 — 배포 문서(operations.md)가 그대로 성립하게.
-    return os.getenv("JOBISS_AI_SHARED_SECRET", "local-ai-secret")
+    # 운영 env 파일은 백엔드와 함께 쓰므로 AI_SHARED_SECRET 하나를 단일 출처로 허용한다.
+    # JOBISS_AI_SHARED_SECRET은 기존 로컬 실행과의 호환을 위해 우선한다.
+    return (
+        os.getenv("JOBISS_AI_SHARED_SECRET")
+        or os.getenv("AI_SHARED_SECRET")
+        or "local-ai-secret"
+    )
 
 
 def verify_internal_secret(
@@ -180,7 +185,7 @@ async def chat_stream(request: ChatRequest) -> "StreamingResponse":
     줄 형식: {"type":"progress",...} × N → {"type":"result","response":ChatResponse} 1건.
     실패는 {"type":"error","code","message"} 한 줄로 끝난다 — 스트림 도중의 오류는 HTTP
     상태로 표현할 수 없으므로(이미 200 이 나갔다) 본문 이벤트로 알린다. 기존 /v1/chat
-    (단건)은 그대로다 — 팀 ai-server 호환 자리를 깨지 않는 **추가** 엔드포인트다.
+    (단건)은 그대로 유지하고 진행 이벤트용 스트림을 추가한다.
     """
 
     import json as json_mod

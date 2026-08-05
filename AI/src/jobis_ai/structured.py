@@ -71,6 +71,12 @@ _MAX_ATTEMPTS = 3
 _RETRY_BACKOFF_SEC = 1.5
 
 
+def _retryable(exc: Exception) -> bool:
+    """공급자가 영구 실패로 표시한 오류는 같은 입력으로 다시 보내지 않는다."""
+
+    return bool(getattr(exc, "retryable", True))
+
+
 def llm_unconfigured(warnings: list[dict]) -> bool:
     """경고가 '키 없음'(개발 모드)인지 판별. True 면 노드가 mock 샘플 폴백을 써도 된다.
 
@@ -167,9 +173,11 @@ def run_structured(
 
     # 일시적 오류(네트워크·레이트리밋·파싱)를 흡수하기 위해 여러 번 재시도한다.
     last_exc: Exception | None = None
+    attempts_made = 0
     started = time.perf_counter()
     base_messages = messages
     for attempt in range(1, _MAX_ATTEMPTS + 1):
+        attempts_made = attempt
         try:
             result = structured_llm.invoke(messages, **invoke_kwargs)
             duration_ms = round((time.perf_counter() - started) * 1000)
@@ -189,32 +197,34 @@ def run_structured(
             return result, warnings
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
-            if attempt < _MAX_ATTEMPTS:
+            if attempt < _MAX_ATTEMPTS and _retryable(exc):
                 # 형식 위반은 **같은 프롬프트를 다시 보내면 같은 실패가 반복된다.**
                 # 힌트는 매번 base 위에 하나만 붙인다(쌓으면 입력이 불어난다).
                 repair = _repair_message(exc)
                 messages = base_messages if repair is None else [
                     *base_messages, ("human", repair)]
                 time.sleep(_RETRY_BACKOFF_SEC * attempt)
+                continue
+            break
 
     warnings.append({
         "code": "llm_call_failed",
-        "message": f"{node}: LLM 호출 {_MAX_ATTEMPTS}회 재시도 후 실패 — {last_exc}",
+        "message": f"{node}: LLM 호출 {attempts_made}회 시도 후 실패 — {last_exc}",
     })
     duration_ms = round((time.perf_counter() - started) * 1000)
     # 실패한 시도도 응답까지 왔다가 파싱에서 죽었으면 토큰은 태웠다 — 실패 콜의 토큰도 합계에 든다.
     input_tokens, output_tokens = usage_cb.tokens()
-    trace.emit("llm_call", f"{node}: LLM 호출 실패({_MAX_ATTEMPTS}회 재시도)", {
+    trace.emit("llm_call", f"{node}: LLM 호출 실패({attempts_made}회 시도)", {
         "node": node, "schema": schema.__name__, "outcome": "failed",
         "durationMs": duration_ms,
         "error": str(last_exc), "input": content,
     })
-    llm_usage.record(node=node, tier=tier, outcome="failed", attempts=_MAX_ATTEMPTS,
+    llm_usage.record(node=node, tier=tier, outcome="failed", attempts=attempts_made,
                      duration_ms=duration_ms,
                      input_tokens=input_tokens, output_tokens=output_tokens)
     # 폴백이 그럴듯해도 로그에는 남는다 — 성공은 INFO 도 안 남기지만 실패는 WARNING 이다.
-    log.warning("LLM 호출 실패: node=%s schema=%s tier=%s %d회 재시도 후 포기 — %r",
-                node, schema.__name__, tier, _MAX_ATTEMPTS, last_exc)
+    log.warning("LLM 호출 실패: node=%s schema=%s tier=%s %d회 시도 후 포기 — %r",
+                node, schema.__name__, tier, attempts_made, last_exc)
     return None, warnings
 
 
@@ -263,8 +273,10 @@ def run_streaming_text(
     # 완성본을 token 이벤트 하나로 흘려 호출부·프론트 경로는 동일하게 유지된다.
     streamable = hasattr(llm, "stream")
     last_exc: Exception | None = None
+    attempts_made = 0
     started = time.perf_counter()
     for attempt in range(1, _MAX_ATTEMPTS + 1):
+        attempts_made = attempt
         parts: list[str] = []
         buffer = ""
         usage: dict | None = None      # 스트리밍은 마지막 청크에 usage 합계가 실린다(stream_usage)
@@ -305,21 +317,23 @@ def run_streaming_text(
             return text, warnings
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
-            if attempt < _MAX_ATTEMPTS:
+            if attempt < _MAX_ATTEMPTS and _retryable(exc):
                 time.sleep(_RETRY_BACKOFF_SEC * attempt)
+                continue
+            break
 
     warnings.append({
         "code": "llm_call_failed",
-        "message": f"{node}: LLM 스트리밍 {_MAX_ATTEMPTS}회 재시도 후 실패 — {last_exc}",
+        "message": f"{node}: LLM 스트리밍 {attempts_made}회 시도 후 실패 — {last_exc}",
     })
     duration_ms = round((time.perf_counter() - started) * 1000)
-    trace.emit("llm_call", f"{node}: LLM 스트리밍 실패({_MAX_ATTEMPTS}회 재시도)", {
+    trace.emit("llm_call", f"{node}: LLM 스트리밍 실패({attempts_made}회 시도)", {
         "node": node, "schema": "(streaming text)", "outcome": "failed",
         "durationMs": duration_ms,
         "error": str(last_exc),
     })
-    llm_usage.record(node=node, tier=tier, outcome="failed", attempts=_MAX_ATTEMPTS,
+    llm_usage.record(node=node, tier=tier, outcome="failed", attempts=attempts_made,
                      duration_ms=duration_ms)
-    log.warning("LLM 스트리밍 실패: node=%s tier=%s %d회 재시도 후 포기 — %r",
-                node, tier, _MAX_ATTEMPTS, last_exc)
+    log.warning("LLM 스트리밍 실패: node=%s tier=%s %d회 시도 후 포기 — %r",
+                node, tier, attempts_made, last_exc)
     return "", warnings

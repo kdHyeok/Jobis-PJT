@@ -1,0 +1,195 @@
+name: jobis-data-pipeline
+
+# Airflow + PostgreSQL(pgvector) 일일 수집 파이프라인.
+# 사용법은 README.md 참고. 비밀값은 같은 디렉토리의 .env에서 읽는다 (.env.example 복사).
+
+x-rag-model-env: &rag-model-env
+  RAG_EMBED_PROVIDER: ${RAG_EMBED_PROVIDER:-local}
+  RAG_EMBED_MODEL: ${RAG_EMBED_MODEL:-}
+  RAG_LOCAL_EMBED_MODEL: ${RAG_LOCAL_EMBED_MODEL:-BAAI/bge-m3}
+  RAG_GMS_EMBED_MODEL: ${RAG_GMS_EMBED_MODEL:-text-embedding-3-large}
+  RAG_VECTOR_DIMENSIONS: ${RAG_VECTOR_DIMENSIONS:-1024}
+  RAG_RERANK_PROVIDER: ${RAG_RERANK_PROVIDER:-local}
+  RAG_RERANK_MODEL: ${RAG_RERANK_MODEL:-}
+  RAG_LOCAL_RERANK_MODEL: ${RAG_LOCAL_RERANK_MODEL:-BAAI/bge-reranker-v2-m3}
+  RAG_GMS_RERANK_MODEL: ${RAG_GMS_RERANK_MODEL:-gpt-4.1-mini}
+  RAG_LOCAL_CPU_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+  RAG_INGEST_CPUS: ${RAG_INGEST_CPUS:-2.0}
+  RAG_EMBED_BATCH_SIZE: ${RAG_EMBED_BATCH_SIZE:-8}
+  RAG_INGEST_WINDOW_SIZE: ${RAG_INGEST_WINDOW_SIZE:-64}
+  RAG_LOCAL_RERANK_BATCH_SIZE: ${RAG_LOCAL_RERANK_BATCH_SIZE:-4}
+  RAG_GMS_OPENAI_BASE_URL: ${RAG_GMS_OPENAI_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+  RAG_GMS_TIMEOUT_SECONDS: ${RAG_GMS_TIMEOUT_SECONDS:-60}
+  RAG_GMS_MAX_RETRIES: ${RAG_GMS_MAX_RETRIES:-2}
+  RAG_GMS_RERANK_BATCH_SIZE: ${RAG_GMS_RERANK_BATCH_SIZE:-30}
+  RAG_GMS_RERANK_MAX_CHARS: ${RAG_GMS_RERANK_MAX_CHARS:-1800}
+  GMS_KEY: ${GMS_KEY:-}
+
+x-airflow-common: &airflow-common
+  build:
+    context: ../..
+    dockerfile: infra/airflow/Dockerfile.airflow
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@postgres/airflow
+    JOBRAG_PG_DSN: postgresql://jobrag:${JOBRAG_DB_PASSWORD}@postgres:5432/${JOBRAG_DB_NAME:-jobrag}
+  volumes:
+    - ./dags:/opt/airflow/dags:ro
+    - airflow-logs:/opt/airflow/logs
+    - crawl-state:/opt/jobis/DATA/data
+    - crawl-exports:/opt/jobis/DATA/exports
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:?}
+      JOBRAG_DB_PASSWORD: ${JOBRAG_DB_PASSWORD:?}
+      JOBRAG_DB_NAME: ${JOBRAG_DB_NAME:-jobrag}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 12
+
+  jobrag-migrate:
+    image: flyway/flyway:13.0.0-alpine
+    command: -connectRetries=60 migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${JOBRAG_DB_NAME:-jobrag}
+      FLYWAY_USER: jobrag
+      FLYWAY_PASSWORD: ${JOBRAG_DB_PASSWORD:?}
+      # Adopt the existing schema as version 0, then execute V1's idempotent
+      # reconciliation. A fresh empty database executes V1 directly.
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "0"
+      FLYWAY_BASELINE_DESCRIPTION: pre-flyway-jobrag-schema
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ./migrations/jobrag:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  rag-search:
+    build:
+      context: ../..
+      dockerfile: infra/airflow/Dockerfile.rag-search
+    image: jobis/rag-search:latest
+    cpus: ${RAG_SEARCH_CPUS:-2.0}
+    environment:
+      <<: *rag-model-env
+      PG_DSN: postgresql://jobrag:${JOBRAG_DB_PASSWORD}@postgres:5432/${JOBRAG_DB_NAME:-jobrag}
+      HF_HOME: /hf
+      OMP_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      MKL_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      OPENBLAS_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      NUMEXPR_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      RAYON_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      TOKENIZERS_PARALLELISM: "false"
+    volumes:
+      - hf-cache:/hf
+    ports:
+      - "8765:8765"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; data=json.load(urllib.request.urlopen('http://localhost:8765/health', timeout=3)); assert data['status']=='ok' and data['warm']"
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 5m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jobrag-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        airflow db migrate
+        airflow pools set ocr_pool 1 'PaddleOCR tasks run one at a time'
+        if ! airflow users list --output json | python -c \
+          'import json, sys; sys.exit(0 if any(user.get("username") == "admin" for user in json.load(sys.stdin)) else 1)'; then
+          airflow users create \
+            --username admin --password '${AIRFLOW_ADMIN_PASSWORD:?}' \
+            --firstname Admin --lastname Admin --role Admin --email admin@example.com
+        fi
+    restart: "no"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+    environment:
+      <<: [*airflow-env, *rag-model-env]
+    # DockerOperator가 rag-ingest 컨테이너를 띄울 수 있도록 도커 소켓 공유.
+    # DOCKER_GID는 호스트의 docker 그룹 GID (getent group docker | cut -d: -f3)
+    group_add:
+      - ${DOCKER_GID:-999}
+    volumes:
+      - ./dags:/opt/airflow/dags:ro
+      - airflow-logs:/opt/airflow/logs
+      - crawl-state:/opt/jobis/DATA/data
+      - crawl-exports:/opt/jobis/DATA/exports
+      - ocr-paddlex-cache:/home/airflow/.paddlex
+      - ocr-paddle-cache:/home/airflow/.paddleocr
+      # 일회성 jobis_legacy_import DAG 입력. 컨테이너에서는 고정 영문 경로로 읽는다.
+      - "${JOBIS_LEGACY_SQLITE_PATH:-../../RAG/Jobis_통합본_20260728/Jobis_통합본_20260728/all_job_postings.db}:/opt/jobis/imports/all_job_postings.db:ro"
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      jobrag-migrate:
+        condition: service_completed_successfully
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      jobrag-migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+    name: airflow_pgdata
+  airflow-logs:
+    name: airflow_airflow-logs
+  crawl-state:
+    name: jobis-crawl-state
+  crawl-exports:
+    name: jobis-crawl-exports
+  hf-cache:
+    name: jobis-hf-cache
+  ocr-paddlex-cache:
+    name: jobis-ocr-paddlex-cache
+  ocr-paddle-cache:
+    name: jobis-ocr-paddle-cache
+
+networks:
+  default:
+    name: jobis-net

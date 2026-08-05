@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Import the preserved legacy jobiss data into a fully migrated, empty jobiss_v2.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "migrate-jobis-legacy-to-v2 must run as root." >&2
+  exit 1
+fi
+for command in flock psql runuser; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+
+readonly SQL_FILE="${JOBIS_LEGACY_MIGRATION_SQL:-/opt/jobis/migrate-jobis-legacy-to-v2.sql}"
+readonly LEGACY_BACKUP_DIR="${JOBIS_LEGACY_BACKUP_DIR:-/mnt/jobis-backups/legacy-db}"
+readonly TARGET_BACKUP_DIR="${JOBIS_TARGET_BACKUP_DIR:-/mnt/jobis-backups/service-db}"
+
+if [[ ! -f "$SQL_FILE" || -L "$SQL_FILE" ]]; then
+  echo "Legacy migration SQL must be a regular file: $SQL_FILE" >&2
+  exit 1
+fi
+if ! compgen -G "${LEGACY_BACKUP_DIR}/jobiss-*.dump" >/dev/null; then
+  echo "A verified legacy jobiss dump is required before migration." >&2
+  exit 1
+fi
+if ! compgen -G "${TARGET_BACKUP_DIR}/jobiss_v2-*.dump" >/dev/null; then
+  echo "A pre-import jobiss_v2 dump is required before migration." >&2
+  exit 1
+fi
+
+exec 9>/run/lock/jobis-legacy-migration.lock
+if ! flock -n 9; then
+  echo "Another legacy migration is already running." >&2
+  exit 1
+fi
+
+flyway_version="$(runuser -u postgres -- psql --no-psqlrc -At -v ON_ERROR_STOP=1 \
+  --dbname jobiss_v2 --command \
+  "select max(version::integer) from flyway_schema_history where success")"
+if [[ "$flyway_version" != "27" ]]; then
+  echo "jobiss_v2 must be migrated through Flyway V27; found: ${flyway_version:-none}" >&2
+  exit 1
+fi
+
+runuser -u postgres -- psql --no-psqlrc -v ON_ERROR_STOP=1 \
+  --dbname jobiss_v2 --file "$SQL_FILE"
+
+echo "Legacy import completed transactionally; the jobiss database remains preserved."

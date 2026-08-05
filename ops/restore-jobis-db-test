@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Restore a service DB dump into an isolated, disposable PostgreSQL container.
+set -Eeuo pipefail
+
+readonly DUMP_FILE="${1:-}"
+readonly RESTORE_PROFILE="${JOBIS_RESTORE_PROFILE:-v2}"
+
+if [[ -z "$DUMP_FILE" || ! -f "$DUMP_FILE" ]]; then
+  echo "usage: $0 /absolute/path/to/jobiss.dump" >&2
+  exit 2
+fi
+if [[ -L "$DUMP_FILE" ]]; then
+  echo "Refusing a symbolic-link dump file: $DUMP_FILE" >&2
+  exit 2
+fi
+if [[ "$RESTORE_PROFILE" != "v2" && "$RESTORE_PROFILE" != "legacy" ]]; then
+  echo "JOBIS_RESTORE_PROFILE must be 'v2' or 'legacy'." >&2
+  exit 2
+fi
+
+checksum_file="${DUMP_FILE}.sha256"
+if [[ -f "$checksum_file" ]]; then
+  (cd -- "$(dirname -- "$DUMP_FILE")" && sha256sum --check "$(basename -- "$checksum_file")")
+else
+  echo "Checksum file is missing: $checksum_file" >&2
+  exit 2
+fi
+
+container="jobis-db-restore-test-$$"
+cleanup() {
+  docker rm -f "$container" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker run -d \
+  --name "$container" \
+  --network none \
+  -e POSTGRES_PASSWORD=restore-drill-only \
+  postgres:17-alpine >/dev/null
+
+ready=false
+for _ in {1..30}; do
+  if docker exec "$container" \
+    pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" != true ]]; then
+  echo "Disposable PostgreSQL did not become ready." >&2
+  exit 1
+fi
+
+docker exec -i "$container" pg_restore \
+  --username postgres \
+  --dbname postgres \
+  --no-owner \
+  --no-privileges \
+  --exit-on-error <"$DUMP_FILE"
+
+table_count="$(docker exec "$container" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c \
+  "select count(*) from information_schema.tables where table_schema='public'")"
+if [[ "$RESTORE_PROFILE" == "legacy" ]]; then
+  required_relations="(values (to_regclass('public.users')), (to_regclass('public.job_postings')))"
+else
+  required_relations="(values (to_regclass('public.flyway_schema_history')), (to_regclass('public.job_postings')))"
+fi
+required_count="$(docker exec "$container" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c \
+  "select count(*) from ${required_relations} required(relation) where relation is not null")"
+
+if [[ ! "$table_count" =~ ^[0-9]+$ || "$table_count" -lt 2 || "$required_count" != "2" ]]; then
+  echo "Restore validation failed: tables=$table_count required=$required_count" >&2
+  exit 1
+fi
+
+echo "[service-db-restore-test] status=completed profile=$RESTORE_PROFILE tables=$table_count required=$required_count"

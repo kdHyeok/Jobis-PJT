@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# CI smoke test for isolated, idempotent v2 database bootstrapping.
+set -Eeuo pipefail
+
+readonly CONTAINER="jobis-v2-db-bootstrap-ci-$$"
+
+cleanup() {
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker run -d \
+  --name "$CONTAINER" \
+  -e POSTGRES_PASSWORD=ci-postgres-password \
+  postgres:17 >/dev/null
+
+ready=false
+for _ in {1..30}; do
+  if docker exec "$CONTAINER" \
+    pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" != true ]]; then
+  echo "Temporary PostgreSQL did not become ready." >&2
+  exit 1
+fi
+
+docker exec "$CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
+  "create database jobiss" >/dev/null
+docker exec "$CONTAINER" psql -U postgres -d jobiss -v ON_ERROR_STOP=1 -c \
+  "create table legacy_sentinel(id integer primary key); insert into legacy_sentinel values (1)" >/dev/null
+
+docker cp ops/bootstrap-jobis-v2-database \
+  "$CONTAINER:/usr/local/sbin/bootstrap-jobis-v2-database" >/dev/null
+docker exec -u 0 "$CONTAINER" chmod 0755 /usr/local/sbin/bootstrap-jobis-v2-database
+docker exec -u 0 "$CONTAINER" /usr/local/sbin/bootstrap-jobis-v2-database
+docker exec -u 0 "$CONTAINER" /usr/local/sbin/bootstrap-jobis-v2-database
+
+roles="$(docker exec "$CONTAINER" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c \
+  "select string_agg(rolname, ',' order by rolname) from pg_roles where rolname in ('jobiss_app','jobiss_migrator')")"
+database_owner="$(docker exec "$CONTAINER" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c \
+  "select pg_get_userbyid(datdba) from pg_database where datname='jobiss_v2'")"
+legacy_sentinel="$(docker exec "$CONTAINER" psql -U postgres -d jobiss -At -v ON_ERROR_STOP=1 -c \
+  "select count(*) from legacy_sentinel")"
+credential_contract="$(docker exec -u 0 "$CONTAINER" sh -ec \
+  "test \"\$(stat -c '%U:%G %a' /etc/jobis/jobis-v2-db.env)\" = 'root:root 600'; grep -Ec '^(DB_URL|DB_MIGRATOR_USER|DB_MIGRATOR_PASSWORD|DB_APP_USER|DB_APP_PASSWORD)=' /etc/jobis/jobis-v2-db.env")"
+
+if [[ "$roles" != "jobiss_app,jobiss_migrator" ||
+      "$database_owner" != "jobiss_migrator" ||
+      "$legacy_sentinel" != "1" || "$credential_contract" != "5" ]]; then
+  echo "V2 bootstrap validation failed without printing credentials." >&2
+  exit 1
+fi
+
+echo "v2-database-bootstrap-ci: ok"

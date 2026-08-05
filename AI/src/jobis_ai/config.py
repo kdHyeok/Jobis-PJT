@@ -31,7 +31,7 @@ def _load_env_once() -> None:
 class Settings:
     """실행에 필요한 설정 묶음. 값의 출처는 오직 환경변수/.env."""
 
-    llm_provider: str          # "openai"(GMS 경유) | "anthropic"(API 키) | "claude_code"(로컬 Claude 구독)
+    llm_provider: str          # openai(GMS) | anthropic | claude_code | codex(OAuth)
     anthropic_api_key: str
     anthropic_model: str
     claude_cli: str            # Claude Code CLI 명령 (기본 "claude", 예: "wsl claude")
@@ -41,6 +41,11 @@ class Settings:
     # 비어 있으면 고급 티어로 폴백 — 라우팅 오판은 턴 전체를 엉뚱한 일에 쓰게 하므로
     # 가장 강한 모델을 쓸 가치가 있는 유일한 자리다.
     claude_code_model_router: str
+    codex_model: str              # codex 고급 티어 모델
+    codex_model_light: str        # codex 경량 티어 모델
+    codex_model_router: str       # codex 라우터 티어 모델(빈 값이면 고급 티어)
+    codex_reasoning_effort: str   # minimal~ultra
+    codex_timeout_sec: float      # Codex Responses 요청 제한시간
     llm_base_url: str          # GMS 경유 챗 엔드포인트 base URL (llm_provider="openai" 일 때)
     llm_model: str             # GMS 로 호출할 모델명 — 고급 티어(추출·생성)
     llm_model_light: str       # 경량 티어 모델명 — 분류·이진판정·요약
@@ -76,6 +81,10 @@ class Settings:
             if tier == "router" and self.claude_code_model_router:
                 return self.claude_code_model_router
             return self.claude_code_model_light if tier == "light" else self.claude_code_model
+        if self.llm_provider in {"codex", "gpt"}:
+            if tier == "router" and self.codex_model_router:
+                return self.codex_model_router
+            return self.codex_model_light if tier == "light" else self.codex_model
         return self.anthropic_model      # anthropic 경로는 아직 티어 미분리
 
     @property
@@ -85,6 +94,9 @@ class Settings:
         if self.llm_provider == "claude_code":
             # 키가 아니라 이 머신의 Claude Code CLI 로그인 세션을 쓴다 — 여기서 검사할 키가 없다.
             # 로그인이 없으면 첫 호출이 실패하고 run_structured 가 경고로 남긴다.
+            return True
+        if self.llm_provider in {"codex", "gpt"}:
+            # 명시한 OAuth 상태를 쓴다. 토큰 유효성은 provider가 갱신/검증한다.
             return True
         return bool(self.anthropic_api_key)
 
@@ -108,6 +120,13 @@ def get_settings() -> Settings:
         claude_code_model=os.getenv("CLAUDE_CODE_MODEL", "sonnet"),
         claude_code_model_light=os.getenv("CLAUDE_CODE_MODEL_LIGHT", "haiku"),
         claude_code_model_router=os.getenv("CLAUDE_CODE_MODEL_ROUTER", ""),
+        codex_model=os.getenv("CODEX_MODEL", "gpt-5.4"),
+        codex_model_light=os.getenv(
+            "CODEX_MODEL_LIGHT", os.getenv("CODEX_MODEL", "gpt-5.4")
+        ),
+        codex_model_router=os.getenv("CODEX_MODEL_ROUTER", ""),
+        codex_reasoning_effort=os.getenv("CODEX_REASONING_EFFORT", "medium"),
+        codex_timeout_sec=float(os.getenv("CODEX_TIMEOUT_SEC", "200")),
         llm_base_url=os.getenv(
             "LLM_BASE_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
         ),

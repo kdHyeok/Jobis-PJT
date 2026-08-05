@@ -20,7 +20,7 @@ class ProductionConfigurationValidatorTest {
                         false
                 ),
                 new JobissProperties.Ai(
-                        "http://ai-server:8000",
+                        "http://127.0.0.1:8000",
                         "local-ai-secret",
                         true,
                         3000,
@@ -48,7 +48,7 @@ class ProductionConfigurationValidatorTest {
                         true
                 ),
                 new JobissProperties.Ai(
-                        "http://ai-server:8000",
+                        "http://127.0.0.1:8000",
                         "a-production-ai-secret-that-is-long-and-random",
                         true,
                         3000,

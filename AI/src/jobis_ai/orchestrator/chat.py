@@ -139,7 +139,7 @@ def detect_posting_url(message: str, session: dict) -> str:
     urls = detect_posting_urls(message, session)
     return urls[0] if urls else ""
 
-# 이보다 짧은 글은 이력서 본문이라 보기 어렵다 (webbridge._POSTING_MIN_CHARS 와 같은 기준).
+# 이보다 짧은 글은 이력서 본문이라 보기 어렵다.
 _RESUME_MIN_CHARS = 180
 
 
@@ -188,7 +188,7 @@ def _apply_attachments(request: ChatRequest, session: dict,
     그래서 여기서 되돌린다 — 첨부가 아니라 **발화로** 취급해 호출부가 메시지에 되돌려 놓는다
     (버리면 사용자가 방금 한 말이 사라져 플래너가 동의를 못 읽는다).
 
-    가드를 입구가 아니라 **여기**에 두는 이유: 모든 입구(v2bridge 승격·webbridge 첨부·
+    가드를 입구가 아니라 **여기**에 두는 이유: 모든 입구(v2bridge 승격·첨부 저장·
     store_attachments)가 이 함수로 합류한다. 입구마다 길이 검사를 두면 다음 입구를 만드는
     사람이 그것을 다시 지켜야 하고, 실제로 그렇게 흩어져 있던 동안 틈이 열려 있었다.
 

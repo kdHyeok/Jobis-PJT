@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Atomically switch the reviewed JOBISS Nginx location between legacy and v2.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "switch-jobis-nginx must run as root." >&2
+  exit 1
+fi
+
+readonly TARGET="${1:-}"
+readonly ACTIVE_FILE="/etc/jobis/nginx-active-upstream.conf"
+readonly LEGACY_TEMPLATE="/opt/jobis/nginx-jobis-upstream-legacy.conf"
+readonly CONTAINER_TEMPLATE="/opt/jobis/nginx-jobis-upstream-container.conf"
+
+case "$TARGET" in
+  legacy) template="$LEGACY_TEMPLATE" ;;
+  container) template="$CONTAINER_TEMPLATE" ;;
+  *) echo "usage: $0 legacy|container" >&2; exit 2 ;;
+esac
+
+for required in "$ACTIVE_FILE" "$template"; do
+  if [[ ! -f "$required" || -L "$required" ]]; then
+    echo "Required regular Nginx file is missing: $required" >&2
+    exit 1
+  fi
+done
+
+rollback_file="${ACTIVE_FILE}.rollback.$$"
+cleanup() { rm -f -- "$rollback_file"; }
+trap cleanup EXIT
+
+cp --preserve=mode,ownership,timestamps -- "$ACTIVE_FILE" "$rollback_file"
+install -o root -g root -m 0644 "$template" "$ACTIVE_FILE"
+
+if nginx -t >/dev/null 2>&1 && systemctl reload nginx; then
+  echo "Nginx JOBISS upstream switched: $TARGET"
+  exit 0
+fi
+
+install -o root -g root -m 0644 "$rollback_file" "$ACTIVE_FILE"
+nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+echo "Nginx switch failed; the previous upstream file was restored." >&2
+exit 1

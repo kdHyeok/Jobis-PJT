@@ -1,104 +1,56 @@
-# JOBIS Jenkins CI/CD 초기 설정
+# JOBISS Jenkins 설정
 
-`Jenkinsfile`을 처음 동작시키기 전에 한 번만 수행할 설정입니다.
-서버 쪽 사전 작업(배포 사용자, deploy-jobis 설치, systemd 전환)은 [CICD_SETUP.md](CICD_SETUP.md) A절과 동일합니다.
+Jenkins는 Multibranch Pipeline으로 저장소의 `Jenkinsfile`을 실행한다.
 
-## 파이프라인 구조
+## 필수 조건
 
-| 트리거 | 실행 |
-|---|---|
-| 모든 브랜치 push (feat/develop/master) | CI: backend 테스트 + fake-ai 스모크 테스트 |
-| `master` push(=MR 병합) | CI 통과 후 운영 서버 자동 배포 |
+- Linux agent, Java 17, Docker Engine, Docker CLI와 Compose plugin, `flock`
+- Jenkins plugin: Docker Pipeline, SSH Agent, JUnit, GitLab
+- GitLab connection: `ssafy-gitlab`
+- SSH credential: `jobis-deploy-ssh`
+- Secret file credential: `jobis-deploy-known-hosts` (배포 서버의 검증된 SSH host key)
+- 전역 환경 변수: `DEPLOY_HOST`
 
-MR 단계의 CI는 소스 브랜치 push 시점에 이미 실행되므로, MR을 만들기 전에 push만 하면 결과를 확인할 수 있습니다.
+Docker socket 접근은 호스트 root와 동등한 권한이다. 전용 agent를 사용하고 socket을
+`chmod 666`으로 열지 말며, Docker 그룹과 Jenkins agent 그룹을 명시적으로 맞춘다.
 
----
+## 이미지 전달 방식
 
-## 1. Jenkins 컨테이너 요구사항
+Jenkins와 배포 서버가 다른 Docker daemon이면 registry를 사용해야 한다.
 
-파이프라인이 도커 이미지(temurin, node, mysql)로 빌드하므로 Jenkins 컨테이너가 호스트 도커를 쓸 수 있어야 합니다.
-
-```bash
-docker run -d --name jenkins \
-  -p 8081:8080 \
-  -v jenkins_home:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  jenkins/jenkins:lts-jdk17
-```
-
-컨테이너 안에 docker CLI가 없으면 설치합니다.
+1. 전역 환경 변수 `JOBIS_IMAGE_PREFIX`에 trailing slash를 포함한 경로를 설정한다.
+   예: `registry.example.com/group/project/`
+2. username/password credential `jobis-container-registry`를 만든다. 최소 push/pull 권한의
+   deploy token이나 robot account를 사용한다.
+3. 배포 서버에서 root Docker 사용자로 같은 registry에 한 번 로그인한다.
 
 ```bash
-docker exec -u root jenkins bash -c "apt-get update && apt-get install -y docker.io"
-# docker.sock 권한 (컨테이너 재시작 시에도 유지되도록 그룹 매핑 권장)
-docker exec -u root jenkins chmod 666 /var/run/docker.sock
+sudo docker login registry.example.com
 ```
 
-> 이미 nginx + https 뒤에 Jenkins가 떠 있다면 `-v /var/run/docker.sock:...` 마운트와
-> docker CLI 설치 여부만 확인하면 됩니다.
+비밀번호나 token은 Jenkinsfile, 저장소, 셸 명령 기록에 넣지 않는다. 배포 서버가 registry
+인증 정보를 잃으면 새 배포의 `docker compose pull`이 서비스 중지 전에 실패하므로 기존
+서비스는 계속 유지된다.
 
-## 2. 플러그인 설치
+Jenkins와 배포 서버가 실제로 같은 Docker daemon을 사용할 때만
+`JOBIS_IMAGE_PREFIX`를 비워 둘 수 있다. 이 경우 credential과 push/pull은 생략된다.
 
-`Manage Jenkins → Plugins → Available`에서:
+## 브랜치 게이트
 
-- **Docker Pipeline** (docker.image().inside 지원)
-- **SSH Agent** (배포 SSH 키 사용)
-- **JUnit** (테스트 리포트, 보통 기본 설치됨)
-- **GitLab** (선택 — MR 화면에 빌드 상태 표시용)
+- 기능 브랜치와 MR: Backend, AI v2bridge, Frontend, RAG, Infra CI
+- `develop`: 전체 CI + 세 SHA 이미지 build/push, 운영 배포 없음
+- `master`: 전체 CI + 세 SHA 이미지 build/push + 자동 CD
+- `master` 직접 push 금지, protected branch와 `develop -> master` release MR만 허용
+- 운영 배포 credential과 환경 변수는 protected branch에서만 사용 가능
 
-## 3. 자격증명 등록
+Jenkins는 CD에서 서버에 SSH로 접속해 다음 명령만 실행한다.
 
-`Manage Jenkins → Credentials → System → Global credentials → Add Credentials`
+```bash
+sudo -n /usr/local/sbin/deploy-jobis '<40자리 GIT_COMMIT>'
+```
 
-| 항목 | 값 |
-|---|---|
-| Kind | SSH Username with private key |
-| ID | `jobis-deploy-ssh` (Jenkinsfile과 일치해야 함) |
-| Username | `jobis-deploy` |
-| Private Key | 배포 전용 개인키 붙여넣기 |
+`known_hosts`는 배포 서버 콘솔에서 확인한 fingerprint와 대조한 뒤 Jenkins Secret file로
+등록한다. 네트워크에서 처음 보이는 키를 그대로 수락하지 않는다. master CD는 릴리스마다
+Compose, 운영 스크립트와 jobrag Flyway 파일을 먼저 동기화한 다음 감사를 실행한다.
 
-GitLab 저장소 접근용 자격증명도 하나 등록합니다 (Username/Password — GitLab 계정 또는 Access Token).
-
-## 4. 전역 환경변수
-
-`Manage Jenkins → System → Global properties → Environment variables`
-
-| Name | Value |
-|---|---|
-| `DEPLOY_HOST` | 배포 서버 주소. Jenkins가 배포 서버 자신이라면 도커 브리지 게이트웨이 `172.17.0.1` |
-
-## 5. Multibranch Pipeline 잡 생성
-
-1. `New Item → Multibranch Pipeline`, 이름: `jobis`
-2. **Branch Sources → Add source → Git**
-   - Repository URL: `https://lab.ssafy.com/s15-webmobile1-sub1/S15P11C202.git`
-   - Credentials: 3번에서 만든 GitLab 자격증명
-3. **Build Configuration**: by Jenkinsfile (기본값, 경로 `Jenkinsfile`)
-4. 저장 → 자동으로 브랜치 스캔 후 브랜치별 잡 생성
-
-## 6. GitLab 웹훅 연결 (push 즉시 빌드)
-
-GitLab에서: `Settings → Webhooks → Add new webhook`
-
-- URL: `https://젠킨스주소/multibranch-webhook-trigger/invoke?token=jobis`
-  (간단하게는 `https://젠킨스주소/git/notifyCommit?url=https://lab.ssafy.com/s15-webmobile1-sub1/S15P11C202.git`)
-- Trigger: **Push events**, **Merge request events**
-
-웹훅 없이도 Multibranch 잡의 `Scan Multibranch Pipeline Triggers → Periodically`(예: 5분)로 폴링할 수 있습니다.
-웹훅 방식이 안 잡히면 우선 폴링으로 시작하는 것이 간단합니다.
-
-## 7. 확인
-
-1. feat 브랜치 push → Jenkins `jobis` 잡에 브랜치가 나타나고 CI 2개 스테이지 실행
-2. develop 병합 → develop 브랜치 잡에서 CI 실행 (배포 스테이지는 skip)
-3. master 병합 → CI + `Deploy production` 스테이지 실행 → 서비스 반영
-
-## 문제 해결
-
-| 증상 | 원인 |
-|---|---|
-| `docker: not found` | Jenkins 컨테이너에 docker CLI 미설치 또는 docker.sock 미마운트 |
-| `Permission denied` (docker.sock) | sock 권한 — 1번 참고 |
-| `Host key verification failed` | 첫 접속 — Jenkinsfile은 `accept-new`라 재실행하면 해결 |
-| `sudo: a password is required` | 서버 sudoers 설정 누락 (CICD_SETUP.md A-4절) |
-| 배포 실패 후 이전 버전으로 복귀됨 | 정상 (자동 롤백). 서버 로그: `journalctl -u jobis -u jobis-fake-ai -n 100` |
+서버 설치, 백업, 복원 훈련, smoke test는 [DEPLOYMENT.md](DEPLOYMENT.md)를 따른다.

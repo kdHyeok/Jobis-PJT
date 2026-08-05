@@ -41,7 +41,7 @@ from jobis_ai.v2bridge.models import (
 
 log = logging.getLogger(__name__)
 
-# 오케스트레이터 왕복 상한 (webbridge/runner.MAX_TURNS 와 같은 취지).
+# 오케스트레이터 왕복 상한.
 MAX_TURNS = 4
 # 입력(공고 원문)이 부족해 판정·로드맵에 이르지 못했다 — **재시도해도 같다.**
 # 사용자가 할 일(원문 붙여넣기)이 있는 실패라서 문구가 사용자에게 닿아야 한다.
@@ -109,7 +109,7 @@ def provider_name() -> str:
 # ---------------------------------------------------------------------------
 # 분석 (/v1/analyses)
 # ---------------------------------------------------------------------------
-# 판정 그래프가 갱신하는 상태 중 v2 응답 조립에 필요한 키 (webbridge/runner._STATE_KEYS 참조).
+# 판정 그래프가 갱신하는 상태 중 v2 응답 조립에 필요한 키.
 _STATE_KEYS = ("normalizedJobPosting", "gapAnalysisResult", "analysisResult")
 
 
@@ -429,7 +429,7 @@ def _trailing_request(text: str) -> str:
     남는 것보다 나쁘다 — 파서는 필드를 뽑을 뿐이라 꼬리 한 줄에 해를 입지 않는다.
     """
 
-    from jobis_ai.webbridge.http_handlers import _POSTING_MARKERS
+    from jobis_ai.posting_detection import POSTING_MARKERS
 
     tail: list[str] = []
     for line in reversed([ln.strip() for ln in (text or "").splitlines()]):
@@ -439,7 +439,7 @@ def _trailing_request(text: str) -> str:
             continue
         if (len(line) > _REQUEST_TAIL_MAX_CHARS
                 or not _REQUEST_TAIL.search(line)
-                or _POSTING_MARKERS.search(line)):   # 자료 본문 줄이다
+                or POSTING_MARKERS.search(line)):   # 자료 본문 줄이다
             break
         tail.insert(0, line)
         if len(tail) >= _REQUEST_TAIL_MAX_LINES:
@@ -450,9 +450,8 @@ def _trailing_request(text: str) -> str:
 def promote_pasted_posting(utterance: str):
     """대화창에 공고·이력서 원문을 그대로 붙여넣은 턴 → (발화, 첨부) 로 승격.
 
-    구 브릿지(webbridge)와 같은 처리 — 이게 없으면 붙여넣은 공고가 "긴 대화"로 처리돼
-    공고 정리(항목화) 대신 일반 대화 답변이 나간다(2026-07-30 실측). 감지는 webbridge 의
-    결정론 판별(_posting_in_message)을 그대로 쓴다 — 두 브릿지의 기준이 갈리면 안 된다.
+    이 처리가 없으면 붙여넣은 공고가 "긴 대화"로 처리돼 공고 정리(항목화) 대신 일반
+    대화 답변이 나간다(2026-07-30 실측). 감지는 공용 결정론 판별을 사용한다.
 
     kind 는 엔진의 내용 분류(resolve_kind)로 정한다. 공고 표지어만 보고 job_posting 으로
     박으면 이력서에도 "주요 업무" 같은 어휘가 있어 오배정되고, 엔진이 저장 전에 바로잡긴
@@ -467,9 +466,9 @@ def promote_pasted_posting(utterance: str):
 
     from jobis_ai.contracts.api import ChatAttachment, SourceType
     from jobis_ai.orchestrator.attachment_kind import detect_kind, resolve_kind
-    from jobis_ai.webbridge.http_handlers import _POSTING_MIN_CHARS, _posting_in_message
+    from jobis_ai.posting_detection import POSTING_MIN_CHARS, posting_in_message
 
-    pasted = _posting_in_message(utterance)
+    pasted = posting_in_message(utterance)
     if not pasted:
         text = (utterance or "").strip()
         # URL 이 섞인 혼합 메시지(URL + 이력서 + 요청 문장)는 여기서 승격하지 않는다 —
@@ -478,7 +477,7 @@ def promote_pasted_posting(utterance: str):
         # 결정론으로 승격하고 요청 문장은 플래너 입력으로 남긴다.
         if "http://" in text or "https://" in text:
             return utterance, []
-        kind = detect_kind(text) if len(text) >= _POSTING_MIN_CHARS else None
+        kind = detect_kind(text) if len(text) >= POSTING_MIN_CHARS else None
         if kind in ("resume", "job_posting"):
             # 꼬리 요청 문장은 발화로 남긴다 — 비우면 사용자가 무엇을 물었는지 사라진다.
             return (_trailing_request(text),
@@ -493,8 +492,8 @@ def promote_pasted_posting(utterance: str):
         source = SourceType.text
     attachment = ChatAttachment(kind=kind, sourceType=source, value=pasted)
     # 자료 뒤에 붙은 **요청 문장만** 발화로 남긴다. 요청이 없으면 비운다 — 중립 발화는
-    # handle_chat 이 합성하고 플래너가 정한다(webbridge 와 동일. 여기서 "분석해 줘"를
-    # 지어 넣으면 흐름 하드코딩이다).
+    # handle_chat 이 합성하고 플래너가 정한다. 여기서 "분석해 줘"를 지어 넣으면 흐름
+    # 하드코딩이다.
     return _trailing_request(pasted), [attachment]
 
 

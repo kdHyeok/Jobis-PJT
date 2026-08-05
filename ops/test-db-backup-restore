@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# CI smoke test for backup-jobis-db and restore-jobis-db-test.
+set -Eeuo pipefail
+
+readonly CONTAINER="jobis-db-backup-ci-$$"
+readonly NETWORK="jobis-db-backup-ci-$$"
+readonly TEMP_ROOT="$(mktemp -d /tmp/jobis-db-backup-ci.XXXXXX)"
+readonly TEST_PASSWORD="ci-backup-password"
+
+case "$TEMP_ROOT" in
+  /tmp/jobis-db-backup-ci.*) ;;
+  *) echo "Unsafe temporary directory: $TEMP_ROOT" >&2; exit 2 ;;
+esac
+
+cleanup() {
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  docker network rm "$NETWORK" >/dev/null 2>&1 || true
+  rm -rf -- "$TEMP_ROOT"
+}
+trap cleanup EXIT
+
+docker network create "$NETWORK" >/dev/null
+docker run -d \
+  --name "$CONTAINER" \
+  --network "$NETWORK" \
+  -e POSTGRES_DB=jobiss \
+  -e POSTGRES_USER=jobiss_migrator \
+  -e "POSTGRES_PASSWORD=$TEST_PASSWORD" \
+  postgres:17-alpine >/dev/null
+
+ready=false
+for _ in {1..30}; do
+  if docker exec "$CONTAINER" \
+    pg_isready -h 127.0.0.1 -U jobiss_migrator -d jobiss >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" != true ]]; then
+  echo "Temporary PostgreSQL did not become ready." >&2
+  exit 1
+fi
+
+docker exec "$CONTAINER" psql -v ON_ERROR_STOP=1 \
+  -U jobiss_migrator -d jobiss -c \
+  "create table flyway_schema_history(installed_rank integer primary key); create table users(id bigint primary key, email text not null); create table job_postings(id bigint primary key, title text not null); insert into users values (1, 'backup@example.test'); insert into job_postings values (1, 'backup-smoke');" \
+  >/dev/null
+
+env_file="${TEMP_ROOT}/jobis.env"
+backup_dir="${TEMP_ROOT}/backups"
+cat >"$env_file" <<EOF
+DB_URL=jdbc:postgresql://${CONTAINER}:5432/jobiss
+DB_MIGRATOR_USER=jobiss_migrator
+DB_MIGRATOR_PASSWORD=${TEST_PASSWORD}
+JOBIS_BACKUP_DIR=${backup_dir}
+JOBIS_BACKUP_RETENTION_DAYS=14
+JOBIS_BACKUP_DOCKER_NETWORK=${NETWORK}
+EOF
+chmod 0600 "$env_file"
+
+JOBIS_ENV_FILE="$env_file" bash ops/backup-jobis-db manual
+
+dump_file="$(find "$backup_dir" -maxdepth 1 -type f -name '*.dump' -print -quit)"
+if [[ -z "$dump_file" || ! -s "$dump_file" ]]; then
+  echo "Backup smoke test did not create a non-empty dump." >&2
+  exit 1
+fi
+for artifact in \
+  "$dump_file.sha256" \
+  "${dump_file%.dump}.manifest" \
+  "${dump_file%.dump}.manifest.sha256"; do
+  if [[ ! -s "$artifact" ]]; then
+    echo "Backup smoke artifact is missing: $artifact" >&2
+    exit 1
+  fi
+done
+
+bash ops/restore-jobis-db-test "$dump_file"
+JOBIS_RESTORE_PROFILE=legacy bash ops/restore-jobis-db-test "$dump_file"
+echo "db-backup-restore-ci: ok"

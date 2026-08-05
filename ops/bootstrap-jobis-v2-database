@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Add an isolated v2 database and least-privilege roles without touching jobiss.
+set -Eeuo pipefail
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "bootstrap-jobis-v2-database must run as root." >&2
+  exit 1
+fi
+for command in openssl psql runuser; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+
+readonly CREDENTIAL_FILE="${JOBIS_V2_DB_CREDENTIAL_FILE:-/etc/jobis/jobis-v2-db.env}"
+readonly TARGET_DB="jobiss_v2"
+readonly MIGRATOR_ROLE="jobiss_migrator"
+readonly APP_ROLE="jobiss_app"
+
+install -d -o root -g root -m 0755 /etc/jobis
+if [[ ! -e "$CREDENTIAL_FILE" ]]; then
+  umask 077
+  migrator_password="$(openssl rand -hex 32)"
+  app_password="$(openssl rand -hex 32)"
+  printf '%s\n' \
+    "DB_URL=jdbc:postgresql://127.0.0.1:5432/${TARGET_DB}" \
+    "DB_MIGRATOR_USER=${MIGRATOR_ROLE}" \
+    "DB_MIGRATOR_PASSWORD=${migrator_password}" \
+    "DB_APP_USER=${APP_ROLE}" \
+    "DB_APP_PASSWORD=${app_password}" \
+    >"$CREDENTIAL_FILE"
+  chown root:root "$CREDENTIAL_FILE"
+  chmod 0600 "$CREDENTIAL_FILE"
+fi
+if [[ ! -f "$CREDENTIAL_FILE" || -L "$CREDENTIAL_FILE" ||
+      "$(stat -c '%U:%G' "$CREDENTIAL_FILE")" != "root:root" ||
+      "$(stat -c '%a' "$CREDENTIAL_FILE")" != "600" ]]; then
+  echo "V2 DB credential file must be a root:root 0600 regular file." >&2
+  exit 1
+fi
+
+set -a
+source "$CREDENTIAL_FILE"
+set +a
+if [[ "${DB_URL:-}" != "jdbc:postgresql://127.0.0.1:5432/${TARGET_DB}" ||
+      "${DB_MIGRATOR_USER:-}" != "$MIGRATOR_ROLE" ||
+      "${DB_APP_USER:-}" != "$APP_ROLE" ||
+      ! "${DB_MIGRATOR_PASSWORD:-}" =~ ^[0-9a-f]{64}$ ||
+      ! "${DB_APP_PASSWORD:-}" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "V2 DB credential contract is invalid." >&2
+  exit 2
+fi
+
+export PGOPTIONS="-c jobis.migrator_password=${DB_MIGRATOR_PASSWORD} -c jobis.app_password=${DB_APP_PASSWORD}"
+runuser -u postgres -- env "PGOPTIONS=$PGOPTIONS" \
+  psql --no-psqlrc --set ON_ERROR_STOP=1 postgres <<'SQL' >/dev/null
+SELECT format(
+    'CREATE ROLE jobiss_migrator LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
+    current_setting('jobis.migrator_password')
+)
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jobiss_migrator')
+\gexec
+SELECT format(
+    'ALTER ROLE jobiss_migrator PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
+    current_setting('jobis.migrator_password')
+)
+\gexec
+
+SELECT format(
+    'CREATE ROLE jobiss_app LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
+    current_setting('jobis.app_password')
+)
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jobiss_app')
+\gexec
+SELECT format(
+    'ALTER ROLE jobiss_app PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS',
+    current_setting('jobis.app_password')
+)
+\gexec
+
+SELECT 'CREATE DATABASE jobiss_v2 OWNER jobiss_migrator'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'jobiss_v2')
+\gexec
+ALTER DATABASE jobiss_v2 OWNER TO jobiss_migrator;
+REVOKE ALL ON DATABASE jobiss_v2 FROM PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE jobiss_v2 TO jobiss_app;
+SQL
+unset PGOPTIONS
+
+echo "V2 database bootstrap completed; credentials were not printed."
+echo "Legacy database jobiss was not modified."

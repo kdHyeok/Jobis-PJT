@@ -1,0 +1,24 @@
+# RAG 적재 이미지: run_ingest_additive.py + BGE-M3 (CPU).
+#
+# 최신 develop에 포함된 RAG/를 저장소 루트 컨텍스트로 빌드한다:
+#   docker build -t jobis/rag-ingest:latest \
+#     -f infra/airflow/Dockerfile.rag-ingest .
+FROM python:3.11-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY RAG/requirements.txt .
+# CPU 전용 torch 휠로 이미지 크기 절감 (GPU 없음 전제)
+# sed: requirements.txt의 PowerShell용 따옴표("psycopg[binary]")를 제거 — 리눅스 pip은 못 읽는다
+RUN sed 's/"//g' requirements.txt > /tmp/requirements.txt \
+    && pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r /tmp/requirements.txt
+
+COPY RAG/ .
+
+# BGE-M3 모델(~2.3GB)은 hf-cache 볼륨에 최초 1회만 다운로드된다
+ENV HF_HOME=/hf
