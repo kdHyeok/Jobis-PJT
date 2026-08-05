@@ -122,12 +122,14 @@ def main() -> None:
     pipeline = text("Jenkinsfile")
     stages = re.findall(r"stage\('([^']+)'\)", pipeline)
     expected = [
+        "Master release: verify",
         "Backend: test & package",
         "AI v2bridge: test",
         "Frontend: typecheck & build",
         "RAG: static validation",
         "Infra: static validation",
         "Docker images: build",
+        "Docker images: promote",
         "Deploy production",
     ]
     require(stages == expected, f"unexpected Jenkins stage order: {stages}")
@@ -137,10 +139,24 @@ def main() -> None:
                 f"Jenkins does not build {image}")
         require(f'docker push "${{JOBIS_IMAGE_PREFIX}}{image}:$GIT_COMMIT"' in pipeline,
                 f"Jenkins does not publish {image}")
-    require("branch 'develop'" in pipeline and "branch 'master'" in pipeline,
-            "develop/master image gates are missing")
-    require("when { branch 'master' }" in pipeline,
-            "production deploy is not master-only")
+    require("stage('Docker images: build')" in pipeline and
+            "when { branch 'develop' }" in pipeline,
+            "develop image build gate is missing")
+    require(pipeline.count("when { not { branch 'master' } }") == 5,
+            "master must skip the five CI stages already passed by develop")
+    require("stage('Master release: verify')" in pipeline and
+            "git diff --quiet \"$GIT_COMMIT\" \"$tested_develop_sha\"" in pipeline and
+            "git merge-base --is-ancestor \"$tested_develop_sha\" origin/develop" in pipeline,
+            "master does not prove that its tree matches tested develop")
+    require("stage('Docker images: promote')" in pipeline and
+            pipeline.count('tested_develop_sha="$(git rev-parse "$GIT_COMMIT^2")"') == 2 and
+            pipeline.count('docker tag "$source" "$target"') == 2 and
+            'docker pull "$source"' in pipeline and
+            'docker push "$target"' in pipeline and
+            'docker image inspect "$source"' in pipeline,
+            "master does not promote tested develop images for both registry modes")
+    require(pipeline.count("when { branch 'master' }") >= 3,
+            "master release, promotion, or deploy gate is missing")
     require("python -m venv /tmp/jobis-rag-venv" in pipeline and
             "rank_bm25==0.2.2" in pipeline and
             "psycopg[binary]==3.2.9" in pipeline and

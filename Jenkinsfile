@@ -1,7 +1,8 @@
 // JOBIS Jenkins CI/CD
 //
-//   모든 브랜치 push/MR : CI (backend + AI/v2bridge + frontend + RAG + infra)
-//   master push(병합)   : CI 통과 후 운영 서버 자동 배포
+//   기능 브랜치/develop : CI (backend + AI/v2bridge + frontend + RAG + infra)
+//   develop             : CI 통과 후 여섯 SHA 이미지 build/push
+//   master 병합         : develop에서 검증한 동일 트리와 이미지를 승격한 뒤 자동 배포
 //
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
 // 필요 플러그인: Docker Pipeline, SSH Agent, JUnit, GitLab
@@ -19,7 +20,35 @@ pipeline {
 
   stages {
 
+    stage('Master release: verify') {
+      when { branch 'master' }
+      agent any
+      steps {
+        updateGitlabCommitStatus name: 'jenkins', state: 'running'
+        sh '''
+          set -euo pipefail
+          set -- $(git rev-list --parents -n 1 "$GIT_COMMIT")
+          if [ "$#" -ne 3 ]; then
+            echo 'master releases must be two-parent merges from tested develop.' >&2
+            exit 1
+          fi
+          tested_develop_sha="$3"
+          if ! git merge-base --is-ancestor "$tested_develop_sha" origin/develop; then
+            echo "The release parent is not part of origin/develop: $tested_develop_sha" >&2
+            exit 1
+          fi
+          if ! git diff --quiet "$GIT_COMMIT" "$tested_develop_sha"; then
+            echo 'The master merge tree differs from its tested develop parent.' >&2
+            echo 'Resolve the difference in develop and run the full CI again.' >&2
+            exit 1
+          fi
+          echo "Promoting tested develop release: $tested_develop_sha"
+        '''
+      }
+    }
+
     stage('Backend: test & package') {
+      when { not { branch 'master' } }
       agent any
       steps {
         updateGitlabCommitStatus name: 'jenkins', state: 'running'
@@ -88,6 +117,7 @@ SQL
     }
 
     stage('AI v2bridge: test') {
+      when { not { branch 'master' } }
       agent {
         docker { image 'python:3.11-slim' }
       }
@@ -112,6 +142,7 @@ SQL
     }
 
     stage('Frontend: typecheck & build') {
+      when { not { branch 'master' } }
       agent {
         docker { image 'node:22-alpine' }
       }
@@ -125,6 +156,7 @@ SQL
     }
 
     stage('RAG: static validation') {
+      when { not { branch 'master' } }
       agent {
         docker { image 'python:3.12-slim' }
       }
@@ -142,6 +174,7 @@ SQL
     }
 
     stage('Infra: static validation') {
+      when { not { branch 'master' } }
       agent any
       steps {
         sh '''
@@ -231,15 +264,10 @@ SQL
       }
     }
 
-    // develop에서도 컨테이너 빌드를 검증한다. JOBIS_IMAGE_PREFIX가 설정된 표준 구성은
+    // develop에서 컨테이너 빌드를 검증한다. JOBIS_IMAGE_PREFIX가 설정된 표준 구성은
     // registry에 불변 SHA 태그를 push해 별도 배포 서버에서도 같은 이미지를 pull한다.
     stage('Docker images: build') {
-      when {
-        anyOf {
-          branch 'develop'
-          branch 'master'
-        }
-      }
+      when { branch 'develop' }
       agent any
       steps {
         script {
@@ -289,10 +317,59 @@ SQL
       }
     }
 
+    stage('Docker images: promote') {
+      when { branch 'master' }
+      agent any
+      steps {
+        script {
+          if (env.JOBIS_IMAGE_PREFIX?.trim()) {
+            withCredentials([usernamePassword(
+              credentialsId: 'jobis-container-registry',
+              usernameVariable: 'REGISTRY_USER',
+              passwordVariable: 'REGISTRY_PASSWORD'
+            )]) {
+              sh '''
+                set -euo pipefail
+                tested_develop_sha="$(git rev-parse "$GIT_COMMIT^2")"
+                registry="${JOBIS_IMAGE_PREFIX%%/*}"
+                printf '%s' "$REGISTRY_PASSWORD" | docker login "$registry" \
+                  --username "$REGISTRY_USER" --password-stdin
+                trap 'docker logout "$registry" >/dev/null 2>&1 || true' EXIT
+                for image in jobis-backend jobis-ai jobis-frontend \
+                             jobis-rag-search jobis-rag-ingest jobis-airflow; do
+                  source="${JOBIS_IMAGE_PREFIX}${image}:${tested_develop_sha}"
+                  target="${JOBIS_IMAGE_PREFIX}${image}:${GIT_COMMIT}"
+                  docker pull "$source"
+                  docker tag "$source" "$target"
+                  docker push "$target"
+                done
+              '''
+            }
+          } else {
+            sh '''
+              set -euo pipefail
+              tested_develop_sha="$(git rev-parse "$GIT_COMMIT^2")"
+              for image in jobis-backend jobis-ai jobis-frontend \
+                           jobis-rag-search jobis-rag-ingest jobis-airflow; do
+                source="${image}:${tested_develop_sha}"
+                target="${image}:${GIT_COMMIT}"
+                if ! docker image inspect "$source" >/dev/null 2>&1; then
+                  echo "Tested develop image is missing: $source" >&2
+                  echo 'Re-run the develop pipeline before merging to master.' >&2
+                  exit 1
+                fi
+                docker tag "$source" "$target"
+              done
+            '''
+          }
+        }
+      }
+    }
+
     stage('Deploy production') {
       when { branch 'master' }
       agent any
-      // 위 단계가 만든 앱/RAG/Airflow 여섯 이미지를 백업 후 원자적으로 교체한다.
+      // develop에서 검증하고 위 단계가 승격한 여섯 이미지를 백업 후 원자적으로 교체한다.
       steps {
         sshagent(credentials: ['jobis-deploy-ssh']) {
           withCredentials([file(

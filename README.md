@@ -211,11 +211,12 @@ flowchart LR
 ```text
 기능 브랜치/MR → 전체 CI
 develop         → 전체 CI + 앱/RAG/Airflow 여섯 이미지 빌드 검증, 배포 없음
-master          → 전체 CI → SHA 이미지/배포 자산 동기화 → 서버 감사 → 백업 → 자동 배포
+master          → develop 트리·이미지 승격 검증 → 배포 자산 동기화 → 서버 감사 → 백업 → 자동 배포
                                       └ 실패 시 직전 SHA 이미지로 롤백
 ```
 
 - CI는 Backend/PostgreSQL 테스트, AI 테스트, Frontend typecheck/build, RAG 테스트, 운영 스크립트와 Compose 검증을 수행합니다.
+- `master`는 같은 소스를 다시 테스트·빌드하지 않습니다. 두 번째 부모가 `develop` 이력에 있고 master 트리가 그 부모와 완전히 같을 때만 develop에서 검증한 여섯 이미지를 master SHA로 승격합니다.
 - 배포 산출물은 앱 3개와 `jobis-rag-search`, `jobis-rag-ingest`, `jobis-airflow`를 합친 여섯 불변 SHA 이미지입니다.
 - 운영 배포 전에 서버의 Compose·스크립트·Flyway V1~V3를 같은 SHA 기준으로 동기화하고 DB 논리 백업을 확인합니다.
 - 배포 뒤 RAG/Airflow → AI → Backend → Frontend와 실제 RAG 검색·LLM 요청까지 smoke gate로 검증합니다.

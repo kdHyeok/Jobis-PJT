@@ -24,10 +24,13 @@ PostgreSQL의 loopback 계약을 넓히지 않기 위해 사용한다.
 
 1. 기능 브랜치: 전체 소스 CI
 2. `develop`: 전체 CI + 여섯 Docker 이미지 빌드/push 검증, 배포 없음
-3. `master`: 같은 CI와 이미지 빌드가 성공한 뒤 운영 CD
+3. `master`: develop 부모·동일 트리 검증 + 검증된 이미지 승격 + 운영 CD
 
 `master` 직접 push는 금지하고 protected branch와 MR 승인으로만 이동한다. 운영 배포는
 동시에 하나만 실행되어야 하며 Jenkins의 `disableConcurrentBuilds()`가 이를 보장한다.
+`master`는 동일한 소스의 테스트와 이미지 build를 반복하지 않는다. merge commit의 두 번째 부모가
+`origin/develop` 이력에 있고 결과 트리가 그 부모와 같아야 하며, develop CI가 만든 여섯 SHA 이미지가
+모두 존재해야 한다. 이 조건 중 하나라도 다르면 운영 서버에 접속하기 전에 실패한다.
 
 Jenkins와 배포 서버가 다른 Docker daemon이면 `JOBIS_IMAGE_PREFIX` registry가 필수다.
 동일 daemon 구성에서만 이 값을 비워 로컬 SHA 태그를 직접 사용할 수 있다.
@@ -211,7 +214,9 @@ sudo /usr/local/sbin/audit-jobis-server <40자리-SHA> predeploy
    최초 전환이면 해당 SHA로 `prepare-jobis-v2-release`를 실행해 데이터 준비를 완료한다.
 3. `develop`을 `master`로 보내는 release MR에서 변경 파일, Flyway, env 추가값, 백업과
    롤백 방법을 재검토한다.
-4. `master` 병합 후 Jenkins가 registry의 여섯 `<GIT_COMMIT>` 이미지를 빌드하고 push한다.
+4. `master` 병합 후 Jenkins가 master 트리와 검증된 develop 부모가 같은지 확인하고, develop SHA의
+   여섯 이미지를 master `<GIT_COMMIT>` 태그로 승격한다. 동일 daemon은 retag하고 registry 구성은
+   pull·retag·push한다.
 5. Jenkins는 검증된 known_hosts로 릴리스 자산을 전송하고
    `sync-jobis-release-assets`로 Compose·스크립트·Flyway 파일을 먼저 동기화한다.
    이어 `audit-jobis-server <GIT_COMMIT> predeploy`를 통과시킨 뒤
