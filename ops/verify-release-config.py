@@ -22,7 +22,7 @@ def main() -> None:
     for removed in ("ai-server", "fake-ai", "docker-compose.yml", "ops/deploy-jobis"):
         candidate = ROOT / removed
         remains = any(path.is_file() for path in candidate.rglob("*")) if candidate.is_dir() else candidate.exists()
-        require(not remains, f"legacy path still contains tracked content: {removed}")
+        require(not remains, f"legacy path still contains file content: {removed}")
 
     for required in (
         "AI/Dockerfile",
@@ -154,8 +154,10 @@ def main() -> None:
             "sibling validation containers do not share the Jenkins workspace volume")
     require('-v "$WORKSPACE:/workspace:ro"' not in pipeline,
             "Jenkins container workspace is incorrectly used as a host bind mount")
-    require("git clean -fdX -- ai-server fake-ai" in pipeline,
-            "Jenkins does not remove ignored caches from retired service paths")
+    require('legacy_tracked="$(git ls-files -- ai-server fake-ai)"' in pipeline and
+            '[ -n "$legacy_tracked" ]' in pipeline and
+            "git clean -fdx -- ai-server fake-ai" in pipeline,
+            "Jenkins does not safely remove stale files from retired service paths")
     require("bash ops/test-db-backup-restore" in pipeline,
             "DB backup/restore CI smoke test is missing")
     require("bash -n ops/backup-jobis-pipeline-db" in pipeline,
