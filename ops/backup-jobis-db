@@ -119,17 +119,35 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker run --rm --network "$DOCKER_NETWORK" \
-  -e "PGPASSWORD=${DB_MIGRATOR_PASSWORD}" \
-  postgres:17-alpine \
-  pg_dump \
-    --host "$host" \
-    --port "$port" \
-    --username "$DB_MIGRATOR_USER" \
+if [[ "$host" == "127.0.0.1" || "$host" == "localhost" ]]; then
+  if [[ "$EUID" -ne 0 ]] || ! command -v runuser >/dev/null 2>&1 ||
+     ! command -v pg_dump >/dev/null 2>&1; then
+    echo "Loopback PostgreSQL backups require root, runuser, and the host pg_dump client." >&2
+    exit 1
+  fi
+  # The migrator deliberately has NOBYPASSRLS. Host-managed production backups
+  # therefore use the local postgres OS identity so FORCE ROW LEVEL SECURITY
+  # tables are included without weakening the application or migrator roles.
+  runuser -u postgres -- pg_dump \
     --dbname "$database" \
     --format custom \
     --no-owner \
     --no-privileges >"$temporary_dump"
+  backup_identity="local-postgres"
+else
+  docker run --rm --network "$DOCKER_NETWORK" \
+    -e "PGPASSWORD=${DB_MIGRATOR_PASSWORD}" \
+    postgres:17-alpine \
+    pg_dump \
+      --host "$host" \
+      --port "$port" \
+      --username "$DB_MIGRATOR_USER" \
+      --dbname "$database" \
+      --format custom \
+      --no-owner \
+      --no-privileges >"$temporary_dump"
+  backup_identity="docker-migrator"
+fi
 
 if [[ ! -s "$temporary_dump" ]]; then
   echo "PostgreSQL dump is empty." >&2
@@ -147,6 +165,7 @@ release_sha=$RELEASE_SHA
 database=$database
 postgres_image=postgres:17-alpine
 docker_network=$DOCKER_NETWORK
+backup_identity=$backup_identity
 dump=$(basename -- "$dump_file")
 EOF
 sha256sum "$manifest" >"${manifest}.sha256"

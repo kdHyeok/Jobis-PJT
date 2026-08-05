@@ -217,6 +217,14 @@ def main() -> None:
     require("JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM" in backup and
             "Backup storage must use a different filesystem" in backup,
             "backup script does not enforce separate production storage")
+    require("runuser -u postgres -- pg_dump" in backup and
+            "backup_identity=$backup_identity" in backup,
+            "loopback backup does not cover FORCE RLS tables with a root-only local identity")
+
+    pipeline_backup = text("ops/backup-jobis-pipeline-db")
+    require('local database="$1" user="$2" password="$3" destination="$4" temporary' in pipeline_backup and
+            'temporary="${destination}.tmp"' in pipeline_backup,
+            "pipeline backup has an unsafe set -u local initializer")
 
     restore = text("ops/restore-jobis-db-test")
     require('JOBIS_RESTORE_PROFILE:-v2' in restore and
@@ -265,6 +273,13 @@ def main() -> None:
         "AI-to-RAG route",
     ):
         require(gate in audit, f"server audit gate missing: {gate}")
+    require("same-disk degraded backup mode" in audit and
+            'local parsed pipeline_authority pipeline_database pipeline_host pipeline_port' in audit,
+            "server audit does not support the explicit degraded mode or safe DSN parsing")
+
+    release_prepare = text("ops/prepare-jobis-v2-release")
+    require("same-disk degraded backup mode is enabled" in release_prepare,
+            "initial release preparation cannot run in the explicit degraded mode")
 
     unit_expectations = {
         "ops/jobis-db-backup.service": "/usr/local/sbin/backup-jobis-db manual",

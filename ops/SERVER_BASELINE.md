@@ -27,9 +27,10 @@ Airflow/RAG를 운영 Compose에 포함하므로, 릴리스 전에 자산 동기
 - 레거시 dump: `/mnt/jobis-backups/legacy-db`, checksum과 격리 복원(16개 테이블) 검증 완료
 - `/mnt`와 `/opt/jobis`는 현재 같은 root filesystem
 
-현재 dump는 논리 오류·실수 복구에는 쓸 수 있지만 호스트 디스크 장애를 막지 못한다. 별도 EBS
-마운트 또는 외부 object storage가 연결되고
-`JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM=true`가 되기 전에는 release 감사를 통과할 수 없다.
+현재 dump는 논리 오류·실수 복구에는 쓸 수 있지만 호스트 디스크 장애를 막지 못한다. 이 제한된
+서버는 별도 EBS/API 권한을 제공하지 않으므로
+`JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM=false` 저하 모드를 명시적으로 사용한다. release 감사는
+이를 경고로 기록하며, 별도 마운트나 외부 object storage가 제공되면 즉시 `true`로 되돌린다.
 
 ## 완료된 사전 세팅
 
@@ -42,7 +43,7 @@ Airflow/RAG를 운영 Compose에 포함하므로, 릴리스 전에 자산 동기
 
 ## 의도적으로 남겨 둔 release 차단 항목
 
-1. 별도 백업 파일시스템 미연결
+1. 별도 백업 파일시스템 미연결(동일 디스크 저하 모드로 운영, 호스트 장애 미보호)
 2. develop SHA 이미지 미생성
 3. Flyway V27 미적용
 4. `jobiss` → `jobiss_v2` 트랜잭션 이관 미실행

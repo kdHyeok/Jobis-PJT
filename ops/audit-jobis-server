@@ -221,28 +221,37 @@ if [[ "$env_loaded" == true ]]; then
   else
     fail "backup directory is missing, symlinked, or not root:root 700"
   fi
-  if [[ "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" == "true" &&
-        -d "$backup_dir" && -d /opt/jobis ]]; then
-    app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
-    backup_device="$(df -P "$backup_dir" | awk 'NR == 2 {print $1}')"
-    if [[ -n "$app_device" && -n "$backup_device" && "$app_device" != "$backup_device" ]]; then
-      pass "backup uses a separate filesystem"
-    else
-      fail "backup filesystem is not separate from /opt/jobis"
-    fi
-  elif [[ -n "$RELEASE_SHA" ]]; then
-    fail "separate backup filesystem enforcement is not enabled"
-  else
-    warn "backup uses the application filesystem; release remains blocked until separate storage is attached"
-  fi
+  case "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" in
+    true)
+      if [[ -d "$backup_dir" && -d /opt/jobis ]]; then
+        app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
+        backup_device="$(df -P "$backup_dir" | awk 'NR == 2 {print $1}')"
+        if [[ -n "$app_device" && -n "$backup_device" && "$app_device" != "$backup_device" ]]; then
+          pass "backup uses a separate filesystem"
+        else
+          fail "backup filesystem is not separate from /opt/jobis"
+        fi
+      else
+        fail "backup directory or application storage reference is missing"
+      fi
+      ;;
+    false)
+      warn "same-disk degraded backup mode; host disk failure is not covered"
+      ;;
+    *) fail "JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM must be true or false" ;;
+  esac
   if [[ -d "$pipeline_backup_dir" && ! -L "$pipeline_backup_dir" &&
         "$(stat -c '%U:%G' "$pipeline_backup_dir" 2>/dev/null)" == "root:root" &&
         "$(stat -c '%a' "$pipeline_backup_dir" 2>/dev/null)" == "700" ]]; then
-    pipeline_backup_device="$(df -P "$pipeline_backup_dir" | awk 'NR == 2 {print $1}')"
-    app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
-    [[ -n "$pipeline_backup_device" && "$pipeline_backup_device" != "$app_device" ]] \
-      && pass "pipeline backup uses a separate filesystem" \
-      || fail "pipeline backup filesystem is not separate from /opt/jobis"
+    if [[ "${JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM:-}" == "true" ]]; then
+      pipeline_backup_device="$(df -P "$pipeline_backup_dir" | awk 'NR == 2 {print $1}')"
+      app_device="$(df -P /opt/jobis | awk 'NR == 2 {print $1}')"
+      [[ -n "$pipeline_backup_device" && "$pipeline_backup_device" != "$app_device" ]] \
+        && pass "pipeline backup uses a separate filesystem" \
+        || fail "pipeline backup filesystem is not separate from /opt/jobis"
+    else
+      warn "pipeline backups share the application disk"
+    fi
   else
     fail "pipeline backup directory is missing, symlinked, or not root:root 700"
   fi
@@ -328,9 +337,13 @@ if [[ "$env_loaded" == true && "${DB_URL:-}" == jdbc:postgresql://* ]]; then
 
   check_pipeline_db() {
     local label="$1" dsn="$2" user="$3" password="$4"
-    local parsed="${dsn#*://}" pipeline_authority="${parsed%%/*}" pipeline_database="${parsed#*/}"
+    local parsed pipeline_authority pipeline_database pipeline_host pipeline_port
+    parsed="${dsn#*://}"
+    pipeline_authority="${parsed%%/*}"
+    pipeline_database="${parsed#*/}"
     pipeline_database="${pipeline_database%%\?*}"
-    local pipeline_host="${pipeline_authority##*@}" pipeline_port="5432"
+    pipeline_host="${pipeline_authority##*@}"
+    pipeline_port="5432"
     pipeline_host="${pipeline_host%%:*}"
     [[ "${pipeline_authority##*@}" == *:* ]] && pipeline_port="${pipeline_authority##*:}"
     if docker run --rm --network "$network" -e "PGPASSWORD=$password" -e PGCONNECT_TIMEOUT=5 \
