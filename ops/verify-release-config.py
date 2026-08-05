@@ -124,6 +124,11 @@ def main() -> None:
             "RAG CI dependency or strict test gate is missing")
     require("docker { image 'node:22-alpine' }" in pipeline,
             "frontend CI Node image does not match the Docker build")
+    require('jenkins_container="$(cat /etc/hostname)"' in pipeline and
+            pipeline.count('--volumes-from "${jenkins_container}:ro"') >= 2,
+            "sibling validation containers do not share the Jenkins workspace volume")
+    require('-v "$WORKSPACE:/workspace:ro"' not in pipeline,
+            "Jenkins container workspace is incorrectly used as a host bind mount")
     require("bash ops/test-db-backup-restore" in pipeline,
             "DB backup/restore CI smoke test is missing")
     require("bash ops/test-v2-database-bootstrap" in pipeline,

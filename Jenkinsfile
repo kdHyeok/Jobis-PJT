@@ -161,9 +161,13 @@ SQL
           bash -n ops/test-legacy-data-migration
           git diff --check HEAD^ HEAD
 
+          # Jenkins is itself a container. Raw bind mounts resolve on the host Docker
+          # daemon, where the container-only $WORKSPACE path does not exist. Reuse the
+          # Jenkins data volume so sibling validation containers see the same checkout.
+          jenkins_container="$(cat /etc/hostname)"
           docker run --rm \
-            -v "$WORKSPACE:/workspace:ro" \
-            -w /workspace \
+            --volumes-from "${jenkins_container}:ro" \
+            -w "$WORKSPACE" \
             python:3.12-slim \
             python ops/verify-release-config.py
 
@@ -190,10 +194,16 @@ SQL
             < ops/docker-compose.prod.yml
 
           docker run --rm \
-            -v "$WORKSPACE:/workspace:ro" \
-            -v "$WORKSPACE/ops/nginx-jobis-upstream-container.conf:/etc/jobis/nginx-active-upstream.conf:ro" \
+            --volumes-from "${jenkins_container}:ro" \
+            -e JOBIS_WORKSPACE="$WORKSPACE" \
             nginx:1.27-alpine \
-            nginx -t -c /workspace/ops/nginx-jobis-app.test.conf
+            sh -ec '
+              ln -s "$JOBIS_WORKSPACE" /workspace
+              mkdir -p /etc/jobis
+              cp /workspace/ops/nginx-jobis-upstream-container.conf \
+                /etc/jobis/nginx-active-upstream.conf
+              exec nginx -t -c /workspace/ops/nginx-jobis-app.test.conf
+            '
 
           bash ops/test-db-backup-restore
           bash ops/test-v2-database-bootstrap
