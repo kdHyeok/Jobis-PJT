@@ -23,6 +23,68 @@ POSTINGS_READY_FOR_RAG = Dataset("jobis://postings-ready-for-rag")
 RAG_INDEX_READY = Dataset("jobis://rag-index-ready")
 
 
+class _CpuQuotaApiClient:
+    """Delegate Docker API calls while adding a hard CPU quota to HostConfig."""
+
+    def __init__(self, client, cpus: float):
+        self._client = client
+        self._cpus = cpus
+
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
+    def create_host_config(self, *args, **kwargs):
+        # CFS uses a 100 ms period; quota 200000 therefore means at most 2 CPUs.
+        kwargs["cpu_period"] = 100_000
+        kwargs["cpu_quota"] = round(self._cpus * 100_000)
+        return self._client.create_host_config(*args, **kwargs)
+
+
+class CpuLimitedDockerOperator(DockerOperator):
+    """DockerOperator with both CPU shares and an enforceable CFS quota."""
+
+    def __init__(self, *, hard_cpus: float, **kwargs):
+        if hard_cpus <= 0:
+            raise ValueError("hard_cpus must be greater than zero")
+        self.hard_cpus = hard_cpus
+        super().__init__(cpus=hard_cpus, **kwargs)
+
+    @property
+    def cli(self):
+        return _CpuQuotaApiClient(self.hook.api_client, self.hard_cpus)
+
+
+def _rag_model_environment() -> dict[str, str]:
+    """Pass the scheduler's non-secret RAG model selection to DockerOperator."""
+
+    defaults = {
+        "RAG_EMBED_PROVIDER": "local",
+        "RAG_LOCAL_EMBED_MODEL": "BAAI/bge-m3",
+        "RAG_GMS_EMBED_MODEL": "text-embedding-3-large",
+        "RAG_VECTOR_DIMENSIONS": "1024",
+        "RAG_RERANK_PROVIDER": "local",
+        "RAG_LOCAL_RERANK_MODEL": "BAAI/bge-reranker-v2-m3",
+        "RAG_GMS_RERANK_MODEL": "gpt-4.1-mini",
+        "RAG_LOCAL_CPU_THREADS": "2",
+        "RAG_INGEST_CPUS": "2.0",
+        "RAG_EMBED_BATCH_SIZE": "8",
+        "RAG_INGEST_WINDOW_SIZE": "64",
+        "RAG_LOCAL_RERANK_BATCH_SIZE": "4",
+        "RAG_GMS_OPENAI_BASE_URL": (
+            "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+        ),
+        "RAG_GMS_TIMEOUT_SECONDS": "60",
+        "RAG_GMS_MAX_RETRIES": "2",
+        "RAG_GMS_RERANK_BATCH_SIZE": "30",
+        "RAG_GMS_RERANK_MAX_CHARS": "1800",
+    }
+    environment = {key: os.environ.get(key, value) for key, value in defaults.items()}
+    for override in ("RAG_EMBED_MODEL", "RAG_RERANK_MODEL"):
+        if os.environ.get(override):
+            environment[override] = os.environ[override]
+    return environment
+
+
 def crawl_task(site: str) -> BashOperator:
     return BashOperator(
         task_id=f"crawl_{site}",
@@ -70,8 +132,25 @@ def export_rag_postings_task() -> BashOperator:
     )
 
 
-def rag_ingest_task() -> DockerOperator:
-    return DockerOperator(
+def rag_ingest_task() -> CpuLimitedDockerOperator:
+    environment = _rag_model_environment()
+    threads = environment["RAG_LOCAL_CPU_THREADS"]
+    environment.update(
+        {
+            "PG_DSN": os.environ.get("JOBRAG_PG_DSN", ""),
+            "HF_HOME": "/hf",
+            "OMP_NUM_THREADS": threads,
+            "MKL_NUM_THREADS": threads,
+            "OPENBLAS_NUM_THREADS": threads,
+            "NUMEXPR_NUM_THREADS": threads,
+            "RAYON_NUM_THREADS": threads,
+            "TOKENIZERS_PARALLELISM": "false",
+        }
+    )
+    ingest_cpus = float(environment["RAG_INGEST_CPUS"])
+    if ingest_cpus <= 0:
+        raise ValueError("RAG_INGEST_CPUS must be greater than zero")
+    return CpuLimitedDockerOperator(
         task_id="rag_ingest",
         image="jobis/rag-ingest:latest",
         command=[
@@ -79,10 +158,9 @@ def rag_ingest_task() -> DockerOperator:
             "-c",
             "python run_ingest_additive.py /exports/all_job_postings_rag.json",
         ],
-        environment={
-            "PG_DSN": os.environ.get("JOBRAG_PG_DSN", ""),
-            "HF_HOME": "/hf",
-        },
+        environment=environment,
+        private_environment={"GMS_KEY": os.environ.get("GMS_KEY", "")},
+        hard_cpus=ingest_cpus,
         mounts=[
             Mount(
                 source="jobis-crawl-exports",

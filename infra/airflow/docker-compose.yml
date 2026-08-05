@@ -1,6 +1,28 @@
 # Airflow + PostgreSQL(pgvector) 일일 수집 파이프라인.
 # 사용법은 README.md 참고. 비밀값은 같은 디렉토리의 .env에서 읽는다 (.env.example 복사).
 
+x-rag-model-env: &rag-model-env
+  RAG_EMBED_PROVIDER: ${RAG_EMBED_PROVIDER:-local}
+  RAG_EMBED_MODEL: ${RAG_EMBED_MODEL:-}
+  RAG_LOCAL_EMBED_MODEL: ${RAG_LOCAL_EMBED_MODEL:-BAAI/bge-m3}
+  RAG_GMS_EMBED_MODEL: ${RAG_GMS_EMBED_MODEL:-text-embedding-3-large}
+  RAG_VECTOR_DIMENSIONS: ${RAG_VECTOR_DIMENSIONS:-1024}
+  RAG_RERANK_PROVIDER: ${RAG_RERANK_PROVIDER:-local}
+  RAG_RERANK_MODEL: ${RAG_RERANK_MODEL:-}
+  RAG_LOCAL_RERANK_MODEL: ${RAG_LOCAL_RERANK_MODEL:-BAAI/bge-reranker-v2-m3}
+  RAG_GMS_RERANK_MODEL: ${RAG_GMS_RERANK_MODEL:-gpt-4.1-mini}
+  RAG_LOCAL_CPU_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+  RAG_INGEST_CPUS: ${RAG_INGEST_CPUS:-2.0}
+  RAG_EMBED_BATCH_SIZE: ${RAG_EMBED_BATCH_SIZE:-8}
+  RAG_INGEST_WINDOW_SIZE: ${RAG_INGEST_WINDOW_SIZE:-64}
+  RAG_LOCAL_RERANK_BATCH_SIZE: ${RAG_LOCAL_RERANK_BATCH_SIZE:-4}
+  RAG_GMS_OPENAI_BASE_URL: ${RAG_GMS_OPENAI_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+  RAG_GMS_TIMEOUT_SECONDS: ${RAG_GMS_TIMEOUT_SECONDS:-60}
+  RAG_GMS_MAX_RETRIES: ${RAG_GMS_MAX_RETRIES:-2}
+  RAG_GMS_RERANK_BATCH_SIZE: ${RAG_GMS_RERANK_BATCH_SIZE:-30}
+  RAG_GMS_RERANK_MAX_CHARS: ${RAG_GMS_RERANK_MAX_CHARS:-1800}
+  GMS_KEY: ${GMS_KEY:-}
+
 x-airflow-common: &airflow-common
   build:
     context: ../..
@@ -63,9 +85,17 @@ services:
       context: ../..
       dockerfile: infra/airflow/Dockerfile.rag-search
     image: jobis/rag-search:latest
+    cpus: ${RAG_SEARCH_CPUS:-2.0}
     environment:
+      <<: *rag-model-env
       PG_DSN: postgresql://jobrag:${JOBRAG_DB_PASSWORD}@postgres:5432/${JOBRAG_DB_NAME:-jobrag}
       HF_HOME: /hf
+      OMP_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      MKL_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      OPENBLAS_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      NUMEXPR_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      RAYON_NUM_THREADS: ${RAG_LOCAL_CPU_THREADS:-2}
+      TOKENIZERS_PARALLELISM: "false"
     volumes:
       - hf-cache:/hf
     ports:
@@ -108,6 +138,8 @@ services:
     <<: *airflow-common
     command: scheduler
     restart: unless-stopped
+    environment:
+      <<: [*airflow-env, *rag-model-env]
     # DockerOperator가 rag-ingest 컨테이너를 띄울 수 있도록 도커 소켓 공유.
     # DOCKER_GID는 호스트의 docker 그룹 GID (getent group docker | cut -d: -f3)
     group_add:

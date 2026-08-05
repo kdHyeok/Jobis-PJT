@@ -11,7 +11,7 @@ from jobis_common import (
 
 with DAG(
     dag_id="jobis_rag",
-    description="신규·변경 공고 청크를 BGE-M3로 임베딩해 pgvector에 적재",
+    description="신규·변경 공고 청크를 선택한 임베딩 provider로 pgvector에 적재",
     schedule=[POSTINGS_READY_FOR_RAG],
     start_date=START_DATE,
     catchup=False,

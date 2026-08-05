@@ -7,3 +7,4 @@ transformers
 rank_bm25
 fastapi
 uvicorn
+openai>=1.0,<2

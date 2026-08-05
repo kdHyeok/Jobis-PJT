@@ -13,6 +13,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from .embedding import content_hash
+from .model_config import LOCAL_EMBED_MODEL, VECTOR_DIMENSIONS, get_model_settings
 from .schema import Chunk, Posting
 
 
@@ -27,6 +28,84 @@ def get_dsn() -> str:
 
 def connect():
     return psycopg.connect(get_dsn())
+
+
+def get_index_profile(conn) -> tuple[str, str, int] | None:
+    """Return the embedding profile recorded for the currently stored index."""
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT embed_provider, embed_model, embed_dimensions
+            FROM rag_index_metadata
+            WHERE singleton
+            """
+        )
+        row = cur.fetchone()
+    return (str(row[0]), str(row[1]), int(row[2])) if row else None
+
+
+def _target_index_profile() -> tuple[str, str, int]:
+    settings = get_model_settings()
+    return (
+        settings.embed_provider,
+        settings.embed_model,
+        settings.vector_dimensions,
+    )
+
+
+def ensure_index_compatible(conn) -> None:
+    """Refuse searches that would mix incompatible embedding vector spaces."""
+
+    settings = get_model_settings()
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL")
+        embedded = int(cur.fetchone()[0])
+    if embedded == 0:
+        return
+
+    try:
+        current = get_index_profile(conn)
+    except Exception:
+        # Pre-Flyway local databases used BGE-M3 and can still be searched safely
+        # with the unchanged default. GMS must wait for the metadata migration.
+        if settings.uses_legacy_local_embedding:
+            return
+        raise
+
+    expected = _target_index_profile()
+    if current is None and settings.uses_legacy_local_embedding:
+        return
+    if current != expected:
+        actual = "missing" if current is None else "/".join(map(str, current))
+        wanted = "/".join(map(str, expected))
+        raise RuntimeError(
+            "RAG index embedding profile mismatch: "
+            f"database={actual}, runtime={wanted}. "
+            "Run the jobis_rag ingestion successfully before serving searches."
+        )
+
+
+def _record_index_profile(cur) -> None:
+    settings = get_model_settings()
+    cur.execute(
+        """
+        INSERT INTO rag_index_metadata (
+            singleton, embed_provider, embed_model, embed_dimensions, updated_at
+        )
+        VALUES (true, %s, %s, %s, now())
+        ON CONFLICT (singleton) DO UPDATE SET
+            embed_provider=EXCLUDED.embed_provider,
+            embed_model=EXCLUDED.embed_model,
+            embed_dimensions=EXCLUDED.embed_dimensions,
+            updated_at=now()
+        """,
+        (
+            settings.embed_provider,
+            settings.embed_model,
+            settings.vector_dimensions,
+        ),
+    )
 
 
 def existing_hashes(conn, chunk_ids: list[str]) -> dict[str, str]:
@@ -95,7 +174,13 @@ def upsert_postings(conn, postings: list[Posting], raw_by_uid: dict[str, dict],
     return {"upserted": len(postings), "sources": sources, "deactivated": deactivated}
 
 
-def delete_orphan_chunks(conn, posting_uids: list[str], live_chunk_ids: list[str]) -> int:
+def delete_orphan_chunks(
+    conn,
+    posting_uids: list[str],
+    live_chunk_ids: list[str],
+    *,
+    commit: bool = True,
+) -> int:
     """이번 배치 공고에 속하지만 현재 청크 집합에 없는 청크 제거.
 
     공고 본문이 짧아지면 청크 수가 줄어드는데, UPSERT만으로는 예전 청크가
@@ -109,14 +194,76 @@ def delete_orphan_chunks(conn, posting_uids: list[str], live_chunk_ids: list[str
             (posting_uids, live_chunk_ids),
         )
         deleted = cur.rowcount
-    conn.commit()
+    if commit:
+        conn.commit()
     return deleted
 
 
 def upsert_chunks(conn, chunks: list[Chunk], embeddings: list[list[float] | None]) -> dict:
+    if len(chunks) != len(embeddings):
+        raise ValueError(
+            f"chunks/embeddings length mismatch: {len(chunks)} != {len(embeddings)}"
+        )
     written, skipped_no_embed = 0, 0
     hashes = {c.chunk_id: content_hash(c.text) for c in chunks}
+
+    # Serialize ingestion transactions so two schedulers cannot publish
+    # different embedding profiles concurrently.
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("jobrag-index",))
+
     prior = existing_hashes(conn, list(hashes))
+    target_profile = _target_index_profile()
+    current_profile = get_index_profile(conn)
+
+    # Databases created before the metadata row existed can only contain
+    # vectors from the original local BGE-M3 implementation. Infer that
+    # profile so a first switch to GMS receives the same full-reindex guard.
+    if current_profile is None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM chunks c
+                    JOIN postings p ON p.uid = c.posting_uid
+                    WHERE p.is_active AND c.embedding IS NOT NULL
+                )
+                """
+            )
+            has_active_embeddings = bool(cur.fetchone()[0])
+        if has_active_embeddings:
+            current_profile = ("local", LOCAL_EMBED_MODEL, VECTOR_DIMENSIONS)
+
+    switching_profile = current_profile not in (None, target_profile)
+    posting_uids = sorted({c.posting_uid for c in chunks})
+    live_chunk_ids = [c.chunk_id for c in chunks]
+
+    if switching_profile:
+        # Updating only part of the active corpus would mix two vector spaces.
+        # Old chunks belonging to incoming postings are safe because they are
+        # removed in the same transaction below.
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT count(DISTINCT c.posting_uid)
+                FROM chunks c
+                JOIN postings p ON p.uid = c.posting_uid
+                WHERE p.is_active
+                  AND c.embedding IS NOT NULL
+                  AND NOT (c.posting_uid = ANY(%s))
+                """,
+                (posting_uids,),
+            )
+            uncovered_postings = int(cur.fetchone()[0])
+        if uncovered_postings:
+            conn.rollback()
+            raise RuntimeError(
+                "Embedding provider/model changed, but the ingestion input does "
+                f"not cover {uncovered_postings} active postings. Run a full RAG "
+                "export and ingestion before changing the index profile."
+            )
+
     with conn.cursor() as cur:
         for c, emb in zip(chunks, embeddings):
             h = hashes[c.chunk_id]
@@ -141,13 +288,28 @@ def upsert_chunks(conn, chunks: list[Chunk], embeddings: list[list[float] | None
                  h, c.forced_split, c.needs_review, emb),
             )
             written += 1
-    conn.commit()
 
+        # A provider switch changes every content hash. Do not publish a mixed
+        # vector space when even one replacement embedding failed.
+        if switching_profile and skipped_no_embed:
+            conn.rollback()
+            raise RuntimeError(
+                "Embedding provider/model changed but some replacement vectors "
+                "failed; the index update was rolled back"
+            )
+
+    # Orphan cleanup and profile publication must be atomic with vector writes.
+    # Otherwise a search could briefly observe old and new vector spaces.
     orphans = delete_orphan_chunks(
         conn,
-        sorted({c.posting_uid for c in chunks}),
-        [c.chunk_id for c in chunks],
+        posting_uids,
+        live_chunk_ids,
+        commit=False,
     )
+    with conn.cursor() as cur:
+        _record_index_profile(cur)
+    conn.commit()
+
     unchanged = len(chunks) - written - skipped_no_embed
     return {"written": written, "skipped_unchanged": unchanged,
             "skipped_no_embedding": skipped_no_embed,

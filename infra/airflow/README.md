@@ -10,7 +10,7 @@
 jobis_collect (매일 KST 03:00, crawl x5 병렬)
   → jobis_load_postgres (완료/X + OCR 대기/O 선적재)
   → jobis_ocr (PostgreSQL 큐 OCR x5, pool로 1개씩)
-  → jobis_rag (DB 완료행만 export → BGE-M3 증분 임베딩)
+  → jobis_rag (DB 완료행만 export → 선택한 provider로 증분 임베딩)
 ```
 
 - 수집 정기 스케줄은 `jobis_collect`에만 있다. 다음 DAG들은 Dataset 이벤트로 연결되며,
@@ -57,6 +57,66 @@ docker compose up -d
   `psql $JOBRAG_PG_DSN -f all_job_postings_postgres.sql` (job_postings)
   — RAG 쪽 postings/chunks는 첫 DAG 런이 전량 임베딩한다 (CPU 수 시간, 1회성).
   이후는 content_hash 덕에 신규분만 임베딩된다.
+
+### RAG 모델 provider 선택
+
+기본값은 기존 동작을 그대로 유지하는 로컬 모델이다.
+
+```dotenv
+RAG_EMBED_PROVIDER=local
+RAG_RERANK_PROVIDER=local
+RAG_LOCAL_EMBED_MODEL=BAAI/bge-m3
+RAG_LOCAL_RERANK_MODEL=BAAI/bge-reranker-v2-m3
+```
+
+4 vCPU 서버에서 로컬 모델이 다른 서비스를 밀어내지 않도록 다음 제한을 기본으로 사용한다.
+
+```dotenv
+RAG_LOCAL_CPU_THREADS=2
+RAG_INGEST_CPUS=2.0
+RAG_SEARCH_CPUS=2.0
+RAG_EMBED_BATCH_SIZE=8
+RAG_INGEST_WINDOW_SIZE=64
+RAG_LOCAL_RERANK_BATCH_SIZE=4
+```
+
+- PyTorch, OpenMP, MKL/OpenBLAS, Hugging Face tokenizer를 최대 2개 CPU 스레드로 제한한다.
+- `RAG_EMBED_BATCH_SIZE`는 한 번의 로컬 모델 호출에 넣는 청크 수다. 낮출수록 메모리와
+  순간 부하는 줄지만 전체 적재 시간은 늘어난다.
+- `RAG_INGEST_WINDOW_SIZE`는 적재 진행 단위이며 임베딩 batch보다 크거나 같게 둔다.
+- `RAG_LOCAL_RERANK_BATCH_SIZE`는 검색 시 CrossEncoder가 한 번에 평가하는 후보 수다.
+- 검색 컨테이너에는 Compose의 2 CPU 제한이 적용된다. 적재 컨테이너에는 Airflow
+  DockerOperator 확장에서 CFS quota(`cpu_period/cpu_quota`)를 주입해 동일한 2 CPU 하드
+  제한을 적용한다. 라이브러리 스레드 제한도 함께 적용해 불필요한 스레드 경쟁을 막는다.
+
+운영 서버에서 임베딩과 리랭킹을 GMS로 보내려면 `.env`에서 다음 값만 바꾼다.
+
+```dotenv
+RAG_EMBED_PROVIDER=gms
+RAG_RERANK_PROVIDER=gms
+GMS_KEY=<발급받은 값>
+```
+
+- GMS 임베딩은 `RAG_GMS_EMBED_MODEL`(기본 `text-embedding-3-large`)을 OpenAI 호환
+  embeddings API로 호출하고 `dimensions=1024`를 전달한다.
+- GMS 리랭킹은 `RAG_GMS_RERANK_MODEL`(기본 `gpt-4.1-mini`)이 상위 후보를 한 번에
+  점수화한다. 리랭킹을 끄려면 `RAG_RERANK_PROVIDER=none`을 사용한다.
+- 적재와 검색은 반드시 같은 임베딩 provider/model을 써야 한다. DB에는 현재 인덱스의
+  provider/model/dimension을 기록하며, 불일치하면 검색 서버가 기동을 거부한다.
+- provider나 모델을 바꾸면 content hash도 달라져 다음 `jobis_rag` 실행이 전량을 다시
+  임베딩한다. 성공 전에는 서로 다른 벡터 공간을 섞어 서비스하지 않는다.
+- 로컬 provider에서는 `GMS_KEY`가 필요 없다. 실제 키는 `.env`에만 두고 커밋하지 않는다.
+- GMS가 400/401/403/404를 반환하면 나머지 수천 배치를 계속 호출하지 않고 적재를 즉시
+  실패시킨다. 기존 벡터 인덱스는 그대로 보존된다.
+
+설정 변경 후에는 검색 이미지를 다시 만들고 서비스를 재생성한 다음 RAG 적재를 실행한다.
+
+```bash
+docker compose build rag-search
+docker build -t jobis/rag-ingest:latest -f Dockerfile.rag-ingest ../..
+docker compose up -d
+# Airflow UI에서 jobis_rag 수동 Trigger
+```
 
 ## 수동 실행과 단계별 재실행
 

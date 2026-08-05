@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from jobrag import search as search_engine
 from jobrag import spec_adapter
-from jobrag.store import get_dsn
+from jobrag.store import ensure_index_compatible, get_dsn
 
 app = FastAPI(title="jobrag tool server")
 
@@ -63,6 +63,7 @@ def _refresh_bm25_if_changed(conn) -> tuple[int, object]:
     global _corpus_signature
     signature = _read_corpus_signature(conn)
     if signature != _corpus_signature:
+        ensure_index_compatible(conn)
         search_engine._bm25_cache = None
         search_engine._load_bm25_index(conn)
         _corpus_signature = signature
@@ -101,10 +102,14 @@ def shutdown() -> None:
 
 @app.get("/health")
 def health() -> dict:
+    from jobrag import embedding, reranker
+
     return {
         "status": "ok",
         "warm": _warm,
         "corpus_chunks": _corpus_signature[0] if _corpus_signature else 0,
+        "embedding_backend": embedding.backend(),
+        "reranker_backend": reranker.backend(),
     }
 
 
