@@ -176,6 +176,16 @@ else
   warn "scheduler 에 /opt/jobis/imports 마운트가 없다 (레거시 임포트 DAG 실행 불가)"
 fi
 
+# 설정이 서버에만 있고 CD 에는 없는 상태를 배포 시점에 잡는다.
+echo "== 환경 계약 =="
+for variable in AIRFLOW_BASE_URL AIRFLOW_ADMIN_USERNAME AIRFLOW_WEBSERVER_SECRET_KEY; do
+  if grep -q "^${variable}=." "$ENV_FILE" 2>/dev/null; then
+    pass "env 설정됨: $variable"
+  else
+    fail "env 에 값이 없다: $variable (configure-jobis-v2-environment 확인)"
+  fi
+done
+
 echo "== 데이터베이스 =="
 for db in jobiss_v2 jobrag airflow; do
   [[ "$(query "$db" 'SELECT 1;')" == "1" ]] && pass "postgres 접속: $db" \

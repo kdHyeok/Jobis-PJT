@@ -39,6 +39,7 @@ required_sources=(
   ops/jobis-deploy.sudoers
   ops/nginx-jobis-app.location.conf
   ops/nginx-jobis-airflow.location.conf
+  ops/install-jobis-airflow-basic-auth
   ops/nginx-jobis-upstream-legacy.conf
   ops/nginx-jobis-upstream-container.conf
   ops/jobis-db-backup.service
@@ -76,6 +77,8 @@ deploy_home="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
 install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 0700 "${deploy_home}/.ssh"
 install -d -o root -g root -m 0755 /opt/jobis /etc/jobis
 install -d -o root -g root -m 0755 /opt/jobis/jobrag-migrations
+# jobis_legacy_import 가 읽는 레거시 SQLite 위치(compose 가 읽기 전용으로 마운트).
+install -d -o root -g root -m 0755 /opt/jobis/imports
 install -d -o 1000 -g 1000 -m 0750 /var/lib/jobis-ai
 
 backup_dir="$DEFAULT_BACKUP_DIR"
@@ -153,6 +156,8 @@ install -o root -g root -m 0755 \
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/install-jobis-nginx-control" /usr/local/sbin/install-jobis-nginx-control
 install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/install-jobis-airflow-basic-auth" /usr/local/sbin/install-jobis-airflow-basic-auth
+install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/bootstrap-jobis-v2-database" /usr/local/sbin/bootstrap-jobis-v2-database
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/bootstrap-jobis-pipeline-databases" /usr/local/sbin/bootstrap-jobis-pipeline-databases
@@ -211,6 +216,7 @@ asset_paths=(
   /usr/local/sbin/restore-latest-jobis-db-test
   /usr/local/sbin/switch-jobis-nginx
   /usr/local/sbin/install-jobis-nginx-control
+  /usr/local/sbin/install-jobis-airflow-basic-auth
   /usr/local/sbin/bootstrap-jobis-v2-database
   /usr/local/sbin/bootstrap-jobis-pipeline-databases
   /usr/local/sbin/configure-jobis-v2-environment

@@ -69,6 +69,12 @@ for variable in AIRFLOW_DB_USER AIRFLOW_DB_PASSWORD AIRFLOW_DB_DSN AIRFLOW_ADMIN
 done
 
 ai_shared_secret="$(openssl rand -hex 32)"
+# Airflow 세션 서명 키. 비우면 워커마다 키가 달라져 로그인이 임의로 풀린다.
+airflow_secret_key="$(openssl rand -hex 48)"
+# 관리자 계정명은 추측하기 쉬운 admin 을 쓰지 않는다. airflow-init 이 이 이름으로
+# 계정 존재를 확인하므로 나중에 바꿀 때 env 도 함께 고쳐야 한다.
+airflow_admin_user="${AIRFLOW_ADMIN_USERNAME_OVERRIDE:-jobis-operator}"
+airflow_admin_email="${AIRFLOW_ADMIN_EMAIL_OVERRIDE:-airflow-admin@localhost}"
 docker_gid="$(getent group docker | cut -d: -f3)"
 [[ "$docker_gid" =~ ^[0-9]+$ ]] || { echo "Host docker group GID is unavailable." >&2; exit 1; }
 umask 077
@@ -100,6 +106,11 @@ umask 077
   printf 'AIRFLOW_DB_DSN=%s\n' "$AIRFLOW_DB_DSN"
   printf 'AIRFLOW_ADMIN_PASSWORD=%s\n' "$AIRFLOW_ADMIN_PASSWORD"
   printf 'AIRFLOW_FERNET_KEY=%s\n' "$AIRFLOW_FERNET_KEY"
+  # Nginx 가 /airflow 로 프록시한다. 접두사를 빼면 UI 링크와 정적 자원이 깨진다.
+  printf 'AIRFLOW_BASE_URL=%s/airflow\n' "${ORIGIN%/}"
+  printf 'AIRFLOW_ADMIN_USERNAME=%s\n' "$airflow_admin_user"
+  printf 'AIRFLOW_ADMIN_EMAIL=%s\n' "$airflow_admin_email"
+  printf 'AIRFLOW_WEBSERVER_SECRET_KEY=%s\n' "$airflow_secret_key"
   printf 'JOBRAG_DB_USER=%s\n' "$JOBRAG_DB_USER"
   printf 'JOBRAG_DB_PASSWORD=%s\n' "$JOBRAG_DB_PASSWORD"
   printf 'JOBRAG_PG_DSN=%s\n' "$JOBRAG_PG_DSN"

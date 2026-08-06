@@ -15,6 +15,7 @@ done
 
 readonly SITE_ENTRY="${1:-/etc/nginx/sites-enabled/jobis}"
 readonly INCLUDE_LINE="include /etc/jobis/nginx-active-upstream.conf;"
+readonly AIRFLOW_INCLUDE_LINE="include /etc/jobis/nginx-airflow.location.conf;"
 if [[ ! -e "$SITE_ENTRY" ]]; then
   echo "Nginx site entry is missing: $SITE_ENTRY" >&2
   exit 1
@@ -30,8 +31,51 @@ if [[ ! -f /etc/jobis/nginx-active-upstream.conf ||
   exit 1
 fi
 
+# Airflow(/airflow) include 를 사이트에 넣는다. 업스트림 include 와 독립이므로
+# 이미 설치된 서버에서도 이 부분만 추가될 수 있다.
+install_airflow_include() {
+  local file="$1" timestamp backup
+  if grep -Fq "$AIRFLOW_INCLUDE_LINE" "$file"; then
+    return 0
+  fi
+  if [[ ! -f /etc/jobis/nginx-airflow.location.conf ]]; then
+    echo "Airflow location snippet is missing: /etc/jobis/nginx-airflow.location.conf" >&2
+    return 1
+  fi
+  # 앱 location 블록 바로 앞에 넣어야 /airflow 가 / 보다 먼저 매칭된다.
+  if [[ "$(grep -Fc "$INCLUDE_LINE" "$file")" != "1" ]]; then
+    echo "Expected exactly one application upstream include before adding Airflow." >&2
+    return 1
+  fi
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  backup="${file}.pre-airflow-${timestamp}"
+  cp -a -- "$file" "$backup"
+  # location / { ... include upstream; 형태이므로 그 location 블록 시작 줄 앞에 삽입한다.
+  awk -v inc="    ${AIRFLOW_INCLUDE_LINE}" -v target="$INCLUDE_LINE" '
+    { lines[NR] = $0 }
+    index($0, target) { upstream = NR }
+    END {
+      for (i = 1; i <= NR; i++) {
+        if (upstream && i == upstream - 1 && lines[i] ~ /location \/ \{/) {
+          print inc
+          print ""
+        }
+        print lines[i]
+      }
+    }' "$file" >"${file}.new"
+  mv -- "${file}.new" "$file"
+  if ! grep -Fq "$AIRFLOW_INCLUDE_LINE" "$file"; then
+    cp -a -- "$backup" "$file"
+    echo "Failed to insert the Airflow include; site file restored." >&2
+    return 1
+  fi
+  echo "Airflow include added: $file (backup: $backup)"
+}
+
 if grep -Fq "$INCLUDE_LINE" "$site_file"; then
+  install_airflow_include "$site_file"
   nginx -t
+  systemctl reload nginx
   echo "Nginx controlled upstream include is already installed: $site_file"
   exit 0
 fi
@@ -46,6 +90,7 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_file="${site_file}.pre-jobis-v2-${timestamp}"
 cp -a -- "$site_file" "$backup_file"
 sed -i 's|proxy_pass http://127.0.0.1:8080;|include /etc/jobis/nginx-active-upstream.conf;|' "$site_file"
+install_airflow_include "$site_file"
 
 rollback() {
   cp -a -- "$backup_file" "$site_file"
