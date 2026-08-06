@@ -111,6 +111,10 @@ def main() -> None:
         "JOBIS_REQUIRE_LEGACY_IMPORT=true",
         "AIRFLOW_DB_DSN=",
         "AIRFLOW_FERNET_KEY=",
+        "AIRFLOW_BASE_URL=",
+        "AIRFLOW_ADMIN_USERNAME=",
+        "AIRFLOW_ADMIN_EMAIL=",
+        "AIRFLOW_WEBSERVER_SECRET_KEY=",
         "JOBRAG_PG_DSN=",
         "JOBRAG_FLYWAY_URL=",
         "RAG_EMBED_PROVIDER=local",
@@ -131,6 +135,7 @@ def main() -> None:
         "Docker images: build",
         "Docker images: promote",
         "Deploy production",
+        "Verify production",
     ]
     require(stages == expected, f"unexpected Jenkins stage order: {stages}")
     for image in ("jobis-ai", "jobis-backend", "jobis-frontend",
@@ -310,7 +315,7 @@ def main() -> None:
         "http://127.0.0.1:8080/api/health",
         "http://127.0.0.1:8088/api/auth/csrf",
         "http://127.0.0.1:8765/health",
-        "http://127.0.0.1:8081/health",
+        "http://127.0.0.1:8081/airflow/health",
     ):
         require(endpoint in deploy, f"deploy smoke endpoint missing: {endpoint}")
     require("python -m jobis_ai.readiness --live" in deploy,

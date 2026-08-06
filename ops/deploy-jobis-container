@@ -11,6 +11,7 @@ readonly BACKUP_COMMAND="/usr/local/sbin/backup-jobis-db"
 readonly PIPELINE_BACKUP_COMMAND="/usr/local/sbin/backup-jobis-pipeline-db"
 readonly NGINX_SWITCH_COMMAND="/usr/local/sbin/switch-jobis-nginx"
 readonly AUDIT_COMMAND="/usr/local/sbin/audit-jobis-server"
+readonly VERIFY_COMMAND="/usr/local/sbin/verify-jobis-release"
 readonly ENV_FILE="/etc/jobis/jobis-v2.env"
 readonly IMAGE_NAMES=(
   jobis-ai jobis-backend jobis-frontend
@@ -36,13 +37,13 @@ if [[ -z "$DEPLOY_ACTOR" || "$DEPLOY_ACTOR" == "root" ]]; then
   exit 1
 fi
 
-for required_file in "$COMPOSE_FILE" "$BACKUP_COMMAND" "$PIPELINE_BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND" "$ENV_FILE"; do
+for required_file in "$COMPOSE_FILE" "$BACKUP_COMMAND" "$PIPELINE_BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND" "$VERIFY_COMMAND" "$ENV_FILE"; do
   if [[ ! -f "$required_file" ]]; then
     echo "Required deployment file is missing: $required_file" >&2
     exit 1
   fi
 done
-for command in "$BACKUP_COMMAND" "$PIPELINE_BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND"; do
+for command in "$BACKUP_COMMAND" "$PIPELINE_BACKUP_COMMAND" "$NGINX_SWITCH_COMMAND" "$AUDIT_COMMAND" "$VERIFY_COMMAND"; do
   if [[ ! -x "$command" ]]; then
     echo "Required deployment command is not executable: $command" >&2
     exit 1
@@ -141,7 +142,7 @@ wait_for_rag() {
 wait_for_airflow() {
   local _
   for _ in {1..90}; do
-    if curl -fsS http://127.0.0.1:8081/health >/dev/null 2>&1; then
+    if curl -fsS http://127.0.0.1:8081/airflow/health >/dev/null 2>&1; then
       return 0
     fi
     sleep 2
@@ -294,6 +295,8 @@ wait_for_stack
 docker exec jobis-ai python -m jobis_ai.readiness --live
 "$NGINX_SWITCH_COMMAND" container
 "$AUDIT_COMMAND" "$RELEASE_SHA" postdeploy
+# 정적 감사 다음에 기능 검증까지 통과해야 릴리스를 확정한다.
+"$VERIFY_COMMAND" "$RELEASE_SHA"
 
 printf '%s\n' "$RELEASE_SHA" >"$STATE_FILE"
 trap - ERR HUP INT TERM

@@ -409,7 +409,8 @@ else
 fi
 
 if [[ -n "$RELEASE_SHA" && "$AUDIT_PHASE" == "postdeploy" ]]; then
-  for endpoint in http://127.0.0.1:8765/health http://127.0.0.1:8081/health; do
+  # Airflow 는 base_url 의 /airflow 접두사로 서비스되므로 헬스 경로도 접두사를 포함한다.
+  for endpoint in http://127.0.0.1:8765/health http://127.0.0.1:8081/airflow/health; do
     curl -fsS "$endpoint" >/dev/null 2>&1 \
       && pass "runtime endpoint: $endpoint" \
       || fail "runtime endpoint unavailable: $endpoint"
