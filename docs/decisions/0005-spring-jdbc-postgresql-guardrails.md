@@ -68,3 +68,4 @@ and (:sourcePlatform is null or source_platform = :sourcePlatform)
 - null 입력과 캐시 재사용 경로를 별도 검증 대상으로 취급한다.
 - 새로운 대화나 다른 AI 에이전트도 저장소 루트의 `AGENTS.md`를 통해 동일한 규칙을
   먼저 확인할 수 있다.
+

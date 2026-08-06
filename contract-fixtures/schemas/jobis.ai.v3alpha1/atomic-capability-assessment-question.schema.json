@@ -1,0 +1,147 @@
+{
+  "$defs": {
+    "AssessmentGenerationAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "generatorVersion": {
+          "minLength": 1,
+          "title": "Generatorversion",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "attempts": {
+          "minimum": 1,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "durationMs": {
+          "minimum": 0,
+          "title": "Durationms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "generatorVersion",
+        "provider",
+        "model",
+        "attempts",
+        "durationMs"
+      ],
+      "title": "AssessmentGenerationAudit",
+      "type": "object"
+    },
+    "VerificationMethod": {
+      "enum": [
+        "EXPLAIN",
+        "IMPLEMENT",
+        "TEST",
+        "DEBUG",
+        "MEASURE",
+        "DOCUMENT"
+      ],
+      "title": "VerificationMethod",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "default": "jobis.ai.v3alpha1",
+      "title": "Contractversion",
+      "type": "string"
+    },
+    "questionId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Questionid",
+      "type": "string"
+    },
+    "sessionId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Sessionid",
+      "type": "string"
+    },
+    "capabilityKey": {
+      "minLength": 3,
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+      "title": "Capabilitykey",
+      "type": "string"
+    },
+    "ordinal": {
+      "maximum": 8,
+      "minimum": 1,
+      "title": "Ordinal",
+      "type": "integer"
+    },
+    "method": {
+      "$ref": "#/$defs/VerificationMethod"
+    },
+    "prompt": {
+      "minLength": 1,
+      "title": "Prompt",
+      "type": "string"
+    },
+    "starterCode": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Startercode"
+    },
+    "answerInstructions": {
+      "minLength": 1,
+      "title": "Answerinstructions",
+      "type": "string"
+    },
+    "coreCriteria": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 5,
+      "minItems": 2,
+      "title": "Corecriteria",
+      "type": "array"
+    },
+    "futureExtensions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Futureextensions",
+      "type": "array"
+    },
+    "audit": {
+      "$ref": "#/$defs/AssessmentGenerationAudit"
+    }
+  },
+  "required": [
+    "questionId",
+    "sessionId",
+    "capabilityKey",
+    "ordinal",
+    "method",
+    "prompt",
+    "answerInstructions",
+    "coreCriteria",
+    "audit"
+  ],
+  "title": "CapabilityAssessmentQuestion",
+  "type": "object"
+}

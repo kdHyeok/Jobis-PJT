@@ -16,7 +16,8 @@ public class AiUsageLimitService {
         ANALYSIS(20),
         EVIDENCE(30),
         CAREER(20),
-        ASSESSMENT(40);
+        ASSESSMENT(40),
+        LEARNING(20);
 
         private final int hourlyLimit;
 

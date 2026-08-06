@@ -1,29 +1,28 @@
-# build
-build/
-.gradle/
-dist/
-.vite/
-.local/
-*.log
-# 로컬 서버 기동 로그 — Start-Process 가 stderr 를 따로 뺀다
-*.log.err
-
-# node
-node_modules/
-
-# Python / uv
-**/.venv/
-**/.pytest_cache/
-**/.ruff_cache/
-**/__pycache__/
-*.py[cod]
-**/*.egg-info/
-
-# IDE
+.env
 .idea/
 .vscode/
-*.iml
+.DS_Store
 
-# local secrets (개인 로컬 개발값 — 절대 커밋 금지)
-**/.env
-!**/.env.example
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+backend/.gradle/
+backend/build/
+backend/out/
+
+ai-server/.venv/
+ai-server/.pytest_cache/
+ai-server/.ruff_cache/
+ai-server/__pycache__/
+ai-server/**/*.pyc
+ai-server/*.egg-info/
+AI/.venv/
+AI-v3/.venv/
+AI-v3/.pytest_cache/
+AI-v3/**/*.pyc
+
+infra/data/
+.local/
+.local-copied-do-not-use/
+*.log

@@ -1,0 +1,1125 @@
+{
+  "$defs": {
+    "CareerGateType": {
+      "enum": [
+        "EXPERIENCE",
+        "CREDENTIAL",
+        "PORTFOLIO",
+        "OTHER"
+      ],
+      "title": "CareerGateType",
+      "type": "string"
+    },
+    "CompletionPolicy": {
+      "enum": [
+        "SELF_CONFIRM",
+        "ASSESSMENT"
+      ],
+      "title": "CompletionPolicy",
+      "type": "string"
+    },
+    "ExcludedRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "requirementId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Requirementid",
+          "type": "string"
+        },
+        "reasonCode": {
+          "minLength": 1,
+          "title": "Reasoncode",
+          "type": "string"
+        },
+        "explanation": {
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requirementId",
+        "reasonCode",
+        "explanation"
+      ],
+      "title": "ExcludedRequirement",
+      "type": "object"
+    },
+    "ExperienceKind": {
+      "enum": [
+        "NEW_GRADUATE",
+        "EXPERIENCE_REQUIRED",
+        "RANGE",
+        "NO_RESTRICTION",
+        "NEW_GRADUATE_OR_EXPERIENCED",
+        "UNKNOWN"
+      ],
+      "title": "ExperienceKind",
+      "type": "string"
+    },
+    "ExperienceTrack": {
+      "enum": [
+        "NEW_GRADUATE",
+        "EXPERIENCED"
+      ],
+      "title": "ExperienceTrack",
+      "type": "string"
+    },
+    "GateSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "gateType": {
+          "$ref": "#/$defs/CareerGateType"
+        },
+        "requiredMonths": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requiredmonths"
+        },
+        "maximumMonths": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximummonths"
+        },
+        "requirementId": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requirementid"
+        },
+        "evidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evidenceids",
+          "type": "array"
+        },
+        "assessmentStatus": {
+          "$ref": "#/$defs/RequirementStatus"
+        }
+      },
+      "required": [
+        "gateType",
+        "assessmentStatus"
+      ],
+      "title": "GateSpec",
+      "type": "object"
+    },
+    "GraphCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/GraphConditionKind"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "acceptedValues": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Acceptedvalues",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "key",
+        "acceptedValues"
+      ],
+      "title": "GraphCondition",
+      "type": "object"
+    },
+    "GraphConditionKind": {
+      "enum": [
+        "LANGUAGE_CHOICE",
+        "ROLE_CONTEXT",
+        "TARGET_SCOPE",
+        "PROJECT_CONTEXT",
+        "OTHER"
+      ],
+      "title": "GraphConditionKind",
+      "type": "string"
+    },
+    "OpportunityGoalMode": {
+      "enum": [
+        "ACTIVE_APPLICATION",
+        "REOPENING_PREPARATION",
+        "REFERENCE_TARGET"
+      ],
+      "title": "OpportunityGoalMode",
+      "type": "string"
+    },
+    "OpportunitySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "opportunityId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Opportunityid",
+          "type": "string"
+        },
+        "companyName": {
+          "minLength": 1,
+          "title": "Companyname",
+          "type": "string"
+        },
+        "positionTitle": {
+          "minLength": 1,
+          "title": "Positiontitle",
+          "type": "string"
+        },
+        "postingTitle": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Postingtitle"
+        },
+        "roleFamily": {
+          "minLength": 1,
+          "title": "Rolefamily",
+          "type": "string"
+        },
+        "roleSpecialization": {
+          "minLength": 1,
+          "title": "Rolespecialization",
+          "type": "string"
+        },
+        "canonicalRoleId": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonicalroleid"
+        },
+        "sourceExperienceKind": {
+          "$ref": "#/$defs/ExperienceKind"
+        },
+        "selectedExperienceTrack": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperienceTrack"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "minimumExperienceMonths": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimumexperiencemonths"
+        },
+        "maximumExperienceMonths": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximumexperiencemonths"
+        },
+        "postingStatus": {
+          "$ref": "#/$defs/PostingStatus",
+          "default": "UNKNOWN"
+        },
+        "applicationDeadline": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applicationdeadline"
+        },
+        "goalMode": {
+          "$ref": "#/$defs/OpportunityGoalMode",
+          "default": "REFERENCE_TARGET"
+        }
+      },
+      "required": [
+        "opportunityId",
+        "companyName",
+        "positionTitle",
+        "roleFamily",
+        "roleSpecialization",
+        "sourceExperienceKind"
+      ],
+      "title": "OpportunitySpec",
+      "type": "object"
+    },
+    "PlannedProjectTask": {
+      "additionalProperties": false,
+      "properties": {
+        "taskKey": {
+          "minLength": 3,
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+          "title": "Taskkey",
+          "type": "string"
+        },
+        "necessity": {
+          "$ref": "#/$defs/ProjectNecessity"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "objective": {
+          "minLength": 1,
+          "title": "Objective",
+          "type": "string"
+        },
+        "acceptanceCriteria": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Acceptancecriteria",
+          "type": "array"
+        },
+        "capabilityKeys": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Capabilitykeys",
+          "type": "array"
+        },
+        "requirementIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Requirementids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "taskKey",
+        "necessity",
+        "title",
+        "objective",
+        "acceptanceCriteria",
+        "requirementIds"
+      ],
+      "title": "PlannedProjectTask",
+      "type": "object"
+    },
+    "PostingStatus": {
+      "enum": [
+        "ACTIVE",
+        "CLOSED",
+        "UNKNOWN"
+      ],
+      "title": "PostingStatus",
+      "type": "string"
+    },
+    "ProjectNecessity": {
+      "enum": [
+        "REQUIRED",
+        "RECOMMENDED",
+        "EXTENSION"
+      ],
+      "title": "ProjectNecessity",
+      "type": "string"
+    },
+    "ProjectSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "objective": {
+          "minLength": 1,
+          "title": "Objective",
+          "type": "string"
+        },
+        "deliverables": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Deliverables",
+          "type": "array"
+        },
+        "verificationCriteria": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 2,
+          "title": "Verificationcriteria",
+          "type": "array"
+        },
+        "requiredCapabilityKeys": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Requiredcapabilitykeys",
+          "type": "array"
+        },
+        "preferredCapabilityKeys": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Preferredcapabilitykeys",
+          "type": "array"
+        },
+        "requiredProvisionalCandidateIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Requiredprovisionalcandidateids",
+          "type": "array"
+        },
+        "preferredProvisionalCandidateIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Preferredprovisionalcandidateids",
+          "type": "array"
+        },
+        "domainContext": {
+          "minLength": 1,
+          "title": "Domaincontext",
+          "type": "string"
+        },
+        "tasks": {
+          "items": {
+            "$ref": "#/$defs/PlannedProjectTask"
+          },
+          "title": "Tasks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "objective",
+        "deliverables",
+        "verificationCriteria",
+        "domainContext"
+      ],
+      "title": "ProjectSpec",
+      "type": "object"
+    },
+    "ProposalStatus": {
+      "enum": [
+        "DRAFT",
+        "APPLIED",
+        "CANCELLED",
+        "SUPERSEDED"
+      ],
+      "title": "ProposalStatus",
+      "type": "string"
+    },
+    "RequirementStatus": {
+      "enum": [
+        "VERIFIED_MET",
+        "EVIDENCED",
+        "CLAIMED_ONLY",
+        "PARTIAL",
+        "NOT_MET",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ],
+      "title": "RequirementStatus",
+      "type": "string"
+    },
+    "RoadmapAction": {
+      "enum": [
+        "REUSE_NODE",
+        "CREATE_NODE",
+        "CREATE_GATE",
+        "CREATE_TARGET_PROJECT",
+        "ADD_OPPORTUNITY"
+      ],
+      "title": "RoadmapAction",
+      "type": "string"
+    },
+    "RoadmapAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "composerVersion": {
+          "minLength": 1,
+          "title": "Composerversion",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "generationAttempts": {
+          "minimum": 1,
+          "title": "Generationattempts",
+          "type": "integer"
+        },
+        "generationDurationMs": {
+          "minimum": 0,
+          "title": "Generationdurationms",
+          "type": "integer"
+        },
+        "graphContentHash": {
+          "minLength": 1,
+          "title": "Graphcontenthash",
+          "type": "string"
+        },
+        "preservedExistingNodeIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Preservedexistingnodeids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "composerVersion",
+        "provider",
+        "model",
+        "generationAttempts",
+        "generationDurationMs",
+        "graphContentHash"
+      ],
+      "title": "RoadmapAudit",
+      "type": "object"
+    },
+    "RoadmapNodeKind": {
+      "enum": [
+        "CAPABILITY",
+        "TARGET_PROJECT",
+        "CAREER_GATE",
+        "OPPORTUNITY",
+        "EMPLOYMENT_EVENT",
+        "EXPERIENCE_INTERVAL"
+      ],
+      "title": "RoadmapNodeKind",
+      "type": "string"
+    },
+    "RoadmapOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Operationid",
+          "type": "string"
+        },
+        "action": {
+          "$ref": "#/$defs/RoadmapAction"
+        },
+        "nodeKind": {
+          "$ref": "#/$defs/RoadmapNodeKind",
+          "default": "CAPABILITY"
+        },
+        "canonicalKey": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonicalkey"
+        },
+        "technologyKey": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Technologykey"
+        },
+        "graphNodeVersion": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graphnodeversion"
+        },
+        "verificationMethods": {
+          "items": {
+            "$ref": "#/$defs/VerificationMethod"
+          },
+          "title": "Verificationmethods",
+          "type": "array"
+        },
+        "objective": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Objective"
+        },
+        "excludedScope": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Excludedscope",
+          "type": "array"
+        },
+        "completionPolicy": {
+          "$ref": "#/$defs/CompletionPolicy",
+          "default": "ASSESSMENT"
+        },
+        "provisionalCandidateId": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provisionalcandidateid"
+        },
+        "existingNodeId": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Existingnodeid"
+        },
+        "targetRef": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Targetref"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "scopeDefinition": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scopedefinition"
+        },
+        "sectionKey": {
+          "minLength": 3,
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+          "title": "Sectionkey",
+          "type": "string"
+        },
+        "initialProgressState": {
+          "$ref": "#/$defs/RoadmapProgressState",
+          "default": "NOT_STARTED"
+        },
+        "progressEvidenceSetId": {
+          "anyOf": [
+            {
+              "minLength": 3,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Progressevidencesetid"
+        },
+        "preserveExistingProgress": {
+          "default": true,
+          "title": "Preserveexistingprogress",
+          "type": "boolean"
+        },
+        "requirementIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Requirementids",
+          "type": "array"
+        },
+        "requiredFor": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Requiredfor",
+          "type": "array"
+        },
+        "preferredFor": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Preferredfor",
+          "type": "array"
+        },
+        "sectionMemberships": {
+          "items": {
+            "$ref": "#/$defs/SectionMembership"
+          },
+          "title": "Sectionmemberships",
+          "type": "array"
+        },
+        "projectSpec": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProjectSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gateSpec": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GateSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "opportunitySpec": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpportunitySpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operationId",
+        "action",
+        "sectionKey",
+        "reason"
+      ],
+      "title": "RoadmapOperation",
+      "type": "object"
+    },
+    "RoadmapProgressState": {
+      "enum": [
+        "NOT_STARTED",
+        "CLAIMED",
+        "EVIDENCED",
+        "VERIFIED"
+      ],
+      "title": "RoadmapProgressState",
+      "type": "string"
+    },
+    "RoadmapRelation": {
+      "additionalProperties": false,
+      "properties": {
+        "relationId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Relationid",
+          "type": "string"
+        },
+        "fromOperationId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Fromoperationid",
+          "type": "string"
+        },
+        "toOperationId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Tooperationid",
+          "type": "string"
+        },
+        "relationType": {
+          "$ref": "#/$defs/RoadmapRelationType"
+        },
+        "conditions": {
+          "items": {
+            "$ref": "#/$defs/GraphCondition"
+          },
+          "title": "Conditions",
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relationId",
+        "fromOperationId",
+        "toOperationId",
+        "relationType",
+        "reason"
+      ],
+      "title": "RoadmapRelation",
+      "type": "object"
+    },
+    "RoadmapRelationType": {
+      "enum": [
+        "HARD_PREREQUISITE",
+        "RECOMMENDED_FOUNDATION",
+        "CONDITIONAL_PREREQUISITE",
+        "ALTERNATIVE_TO",
+        "PART_OF",
+        "UNLOCKS_PROJECT",
+        "BONUS_SUPPORTS_PROJECT",
+        "REQUIRES_GATE",
+        "UNLOCKS_OPPORTUNITY",
+        "CAREER_STAGE_ORDER",
+        "POTENTIAL_CAREER_ENTRY",
+        "STARTS_EXPERIENCE",
+        "SATISFIES_EXPERIENCE_GATE"
+      ],
+      "title": "RoadmapRelationType",
+      "type": "string"
+    },
+    "SectionMembership": {
+      "additionalProperties": false,
+      "properties": {
+        "sectionKey": {
+          "minLength": 3,
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+          "title": "Sectionkey",
+          "type": "string"
+        },
+        "chapterKey": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Chapterkey",
+          "type": "string"
+        },
+        "chapterTitle": {
+          "minLength": 1,
+          "title": "Chaptertitle",
+          "type": "string"
+        },
+        "targetRef": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Targetref",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sectionKey",
+        "chapterKey",
+        "chapterTitle",
+        "targetRef",
+        "reason"
+      ],
+      "title": "SectionMembership",
+      "type": "object"
+    },
+    "VerificationMethod": {
+      "enum": [
+        "EXPLAIN",
+        "IMPLEMENT",
+        "TEST",
+        "DEBUG",
+        "MEASURE",
+        "DOCUMENT"
+      ],
+      "title": "VerificationMethod",
+      "type": "string"
+    },
+    "WarningItem": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/WarningSeverity",
+          "default": "WARNING"
+        },
+        "evidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evidenceids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WarningItem",
+      "type": "object"
+    },
+    "WarningSeverity": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
+      "title": "WarningSeverity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "default": "jobis.ai.v3alpha1",
+      "title": "Contractversion",
+      "type": "string"
+    },
+    "proposalId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Proposalid",
+      "type": "string"
+    },
+    "basedOnAnalysisId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Basedonanalysisid",
+      "type": "string"
+    },
+    "basedOnFitAssessmentId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Basedonfitassessmentid",
+      "type": "string"
+    },
+    "basedOnNormalizationId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Basedonnormalizationid",
+      "type": "string"
+    },
+    "basedOnRoadmapVersion": {
+      "minimum": 0,
+      "title": "Basedonroadmapversion",
+      "type": "integer"
+    },
+    "selectedPositionId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Selectedpositionid",
+      "type": "string"
+    },
+    "capabilityGraphVersion": {
+      "minLength": 1,
+      "title": "Capabilitygraphversion",
+      "type": "string"
+    },
+    "operations": {
+      "items": {
+        "$ref": "#/$defs/RoadmapOperation"
+      },
+      "title": "Operations",
+      "type": "array"
+    },
+    "relations": {
+      "items": {
+        "$ref": "#/$defs/RoadmapRelation"
+      },
+      "title": "Relations",
+      "type": "array"
+    },
+    "removeTargetRefs": {
+      "items": {
+        "minLength": 3,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Removetargetrefs",
+      "type": "array"
+    },
+    "excludedRequirements": {
+      "items": {
+        "$ref": "#/$defs/ExcludedRequirement"
+      },
+      "title": "Excludedrequirements",
+      "type": "array"
+    },
+    "audit": {
+      "$ref": "#/$defs/RoadmapAudit"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WarningItem"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/ProposalStatus",
+      "default": "DRAFT"
+    }
+  },
+  "required": [
+    "proposalId",
+    "basedOnAnalysisId",
+    "basedOnFitAssessmentId",
+    "basedOnNormalizationId",
+    "basedOnRoadmapVersion",
+    "selectedPositionId",
+    "capabilityGraphVersion",
+    "operations",
+    "audit"
+  ],
+  "title": "RoadmapProposal",
+  "type": "object"
+}

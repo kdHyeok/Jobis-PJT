@@ -357,6 +357,7 @@ prototype = [
     { name = "fastapi" },
     { name = "python-multipart" },
     { name = "uvicorn" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -376,6 +377,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "python-multipart", marker = "extra == 'prototype'", specifier = ">=0.0.9" },
     { name = "uvicorn", marker = "extra == 'prototype'", specifier = ">=0.29" },
+    { name = "websockets", marker = "extra == 'prototype'", specifier = ">=12" },
 ]
 provides-extras = ["dev", "prototype"]
 

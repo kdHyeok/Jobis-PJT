@@ -18,9 +18,6 @@ dependencies = [
     "python-dotenv>=1.0",
     "python-docx>=1.1",   # 이력서/공고 .docx 텍스트 추출 (extract.py)
     "pypdf>=4.0",         # 이력서/공고 .pdf 텍스트 추출 (extract.py)
-    # 이미지 공고를 VLM 이 받을 크기로 줄이고 세로로 쪼갠다 (feat_url/). 실측 2026-08-04:
-    # 잡코리아 이미지 공고가 5.2MB·세로로 매우 긴 PNG 여서 Clova 가 40063 Invalid image size
-    # 로 거부했다 — 필수요건·우대사항이 통째로 그 이미지 안에 있었다.
     "pillow>=10.0",
 ]
 
@@ -32,6 +29,7 @@ prototype = [
     "fastapi>=0.110",          # 프로토타입 관찰 UI (개발 전용, prototype/)
     "uvicorn>=0.29",
     "python-multipart>=0.0.9", # 파일 업로드(multipart form) 파싱 (/api/upload)
+    "websockets>=12",          # 웹 브릿지의 WebSocket 서버 (webbridge/, 웹백엔드가 접속)
 ]
 
 [project.scripts]

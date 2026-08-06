@@ -76,12 +76,14 @@ export type Posting = {
 export type AnalysisJob = {
   id: string;
   postingId: string;
+  analysisProvider: "LEGACY" | "UNIFIED";
   status:
     | "QUEUED"
     | "RUNNING"
     | "WAITING_FOR_INPUT"
     | "SUCCEEDED"
-    | "FAILED";
+    | "FAILED"
+    | "CANCELLED";
   stage: string;
   stageMessage: string;
   queuePosition: number | null;
@@ -91,7 +93,11 @@ export type AnalysisJob = {
   errorMessage: string | null;
   result: {
     evaluation?: {
-      verdict: "APPLY_NOW" | "STRENGTHEN_THEN_APPLY" | "ALTERNATIVE_FIRST";
+      verdict:
+        | "APPLY_NOW"
+        | "STRENGTHEN_THEN_APPLY"
+        | "ALTERNATIVE_FIRST"
+        | "REVIEW_REQUIRED";
       summary: string;
       reasons: string[];
     };
@@ -110,6 +116,14 @@ export type AnalysisJob = {
         sourceText: string;
       };
     };
+    status?: string;
+    structuredPosting?: Record<string, unknown>;
+    resolution?: Record<string, unknown>;
+    postingReview?: V3PostingReview;
+    fit?: Record<string, unknown>;
+    normalization?: Record<string, unknown>;
+    capabilityGraph?: Record<string, unknown>;
+    roadmapProposal?: Record<string, unknown>;
   } | null;
   changeSetId: string | null;
   changeSetStatus: string | null;
@@ -128,9 +142,52 @@ export type AnalysisJob = {
     key: string;
     text: string;
     answerValue: string;
+    answerStatus?: "PROVIDED" | "CONFIRMED_ABSENT" | "SKIPPED";
     answeredAt: string;
     ordinal: number;
   }>;
+};
+
+export type V3PostingReviewRequirement = {
+  requirementId: string;
+  sourceText: string;
+  atomicText: string;
+  obligation: "REQUIRED" | "PREFERRED" | "INFORMATIONAL";
+  category: string;
+  confidence: number;
+};
+
+export type V3PostingReview = {
+  reviewId: string;
+  verifiedSnapshotId: string;
+  companyName: string | null;
+  postingTitle: string | null;
+  selectedPositionId: string;
+  positionTitle: string;
+  selectedExperienceTrack: "NEW_GRADUATE" | "EXPERIENCED" | null;
+  experience: {
+    kind:
+      | "NEW_GRADUATE"
+      | "EXPERIENCE_REQUIRED"
+      | "RANGE"
+      | "NO_RESTRICTION"
+      | "NEW_GRADUATE_OR_EXPERIENCED"
+      | "UNKNOWN";
+    minMonths: number | null;
+    maxMonths: number | null;
+    experiencedMinMonths: number | null;
+  };
+  responsibilities: Array<{
+    responsibilityId: string;
+    sourceText: string;
+    atomicText: string;
+    confidence: number;
+  }>;
+  responsibilityRequirements: V3PostingReviewRequirement[];
+  requiredRequirements: V3PostingReviewRequirement[];
+  preferredRequirements: V3PostingReviewRequirement[];
+  informationalRequirements: V3PostingReviewRequirement[];
+  originalText: string;
 };
 
 export type AnalysisStageDefinition = {
@@ -148,15 +205,283 @@ export type AnalysisStageUpdate = {
 };
 
 export type AnalysisProgressEvent = {
-  type: "RUN_STARTED" | "STAGE_UPDATED" | "RESULT" | "ERROR";
-  runId: string;
+  type: "RUN_STARTED" | "STAGE_UPDATED" | "PROGRESS" | "RESULT" | "ERROR";
+  runId?: string;
   sequence: number;
-  occurredAt: string;
-  stages: AnalysisStageDefinition[];
-  stage: AnalysisStageUpdate | null;
+  occurredAt?: string;
+  stages?: AnalysisStageDefinition[];
+  stage?: AnalysisStageUpdate | null;
+  progress?: {
+    contractVersion: string;
+    eventId: string;
+    jobId: string;
+    sequence: number;
+    stage: string;
+    status:
+      | "PENDING"
+      | "RUNNING"
+      | "WAITING"
+      | "COMPLETED"
+      | "SKIPPED"
+      | "FAILED"
+      | "CANCELLED";
+    label: string;
+    detail: string | null;
+    occurredAt: string;
+    elapsedMs: number;
+    stageDurationMs?: number | null;
+    partialResult?: {
+      kind: string;
+      title: string;
+      summary?: string;
+      company?: string | null;
+      positions?: Array<{
+        positionId: string;
+        title: string;
+        experienceKind?: string;
+        minMonths?: number | null;
+        experiencedMinMonths?: number | null;
+      }>;
+      requiredPreview?: string[];
+      preferredPreview?: string[];
+      taskPreview?: string[];
+      [key: string]: unknown;
+    } | null;
+    warnings: Array<{ code: string; message: string; severity?: string }>;
+  };
   result?: unknown;
-  errorCode: string | null;
-  errorMessage: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+};
+
+export type V3SourceDocument = {
+  contractVersion: string;
+  sourceDocumentId: string;
+  inputType: "TEXT" | "URL" | "IMAGE";
+  originalInput: string;
+  canonicalUrl: string | null;
+  extractionRevision: number;
+  rawText: string;
+  status: string;
+  warnings: Array<{ code: string; message: string; severity?: string }>;
+  segments: Array<{
+    segmentId: string;
+    text: string;
+    method: string;
+    confidence: number | null;
+    warnings: Array<{ code: string; message: string; severity?: string }>;
+  }>;
+};
+
+export type V3SourceView = {
+  id: string;
+  postingId: string | null;
+  sourceDocument: V3SourceDocument;
+  verifiedSnapshotId: string | null;
+  verifiedSnapshot: {
+    verifiedSnapshotId: string;
+    verifiedText: string;
+    snapshotHash: string;
+  } | null;
+};
+
+export type V3ProjectTask = {
+  taskKey: string;
+  necessity: "REQUIRED" | "RECOMMENDED" | "EXTENSION";
+  title: string;
+  objective: string;
+  acceptanceCriteria: string[];
+  capabilityKeys: string[];
+  requirementIds: string[];
+};
+
+export type V3ProjectSpec = {
+  objective: string;
+  deliverables: string[];
+  verificationCriteria: string[];
+  requiredCapabilityKeys: string[];
+  preferredCapabilityKeys: string[];
+  requiredProvisionalCandidateIds: string[];
+  preferredProvisionalCandidateIds: string[];
+  domainContext: string;
+  tasks?: V3ProjectTask[];
+};
+
+export type V3RoadmapNode = {
+  nodeId: string;
+  nodeKind:
+    | "CAPABILITY"
+    | "TARGET_PROJECT"
+    | "CAREER_GATE"
+    | "OPPORTUNITY"
+    | "EMPLOYMENT_EVENT"
+    | "EXPERIENCE_INTERVAL";
+  title: string;
+  canonicalKey?: string;
+  technologyKey?: string;
+  graphNodeVersion?: number;
+  verificationMethods?: Array<"EXPLAIN" | "IMPLEMENT" | "TEST" | "DEBUG" | "MEASURE" | "DOCUMENT">;
+  objective?: string;
+  excludedScope?: string[];
+  completionPolicy?: "SELF_CONFIRM" | "ASSESSMENT";
+  provisionalCandidateId?: string;
+  targetRef?: string;
+  sectionKey: string;
+  progressState: "NOT_STARTED" | "CLAIMED" | "EVIDENCED" | "VERIFIED";
+  careerNodeId?: string | null;
+  scopeDefinition?: string;
+  level?: number;
+  displayRank: number;
+  sectionMemberships?: Array<{
+    sectionKey: string;
+    chapterKey: string;
+    chapterTitle: string;
+    targetRef: string;
+    reason: string;
+  }>;
+  projectSpec?: V3ProjectSpec;
+  gateSpec?: Record<string, unknown>;
+  opportunitySpec?: Record<string, unknown>;
+  employmentSpec?: Record<string, unknown>;
+  experienceIntervalSpec?: Record<string, unknown>;
+};
+
+export type V3RoadmapSnapshot = {
+  roadmapVersion: number;
+  nodes: V3RoadmapNode[];
+  relations: Array<{
+    relationId: string;
+    fromNodeId: string;
+    toNodeId: string;
+    relationType: string;
+    reason: string;
+  }>;
+};
+
+export type V3RoadmapProposalView = {
+  id: string;
+  analysisJobId: string | null;
+  contractProposalId: string;
+  basedOnRoadmapVersion: number;
+  proposedRoadmapVersion: number;
+  status: "DRAFT" | "APPLIED" | "CANCELLED" | "SUPERSEDED";
+  proposal: Record<string, unknown>;
+  preview: {
+    proposedRoadmapVersion: number;
+    snapshot: V3RoadmapSnapshot;
+    createdNodeIds: string[];
+    reusedNodeIds: string[];
+    createdRelationIds: string[];
+    removedNodeIds?: string[];
+    removedRelationIds?: string[];
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type V3RoadmapVersion = {
+  id: string;
+  versionNumber: number;
+  status: "PUBLISHED" | "SUPERSEDED";
+  targetCount: number;
+  createdAt: string;
+  publishedAt: string | null;
+};
+
+export type V3EmploymentRecord = {
+  id: string;
+  canonicalRoleId: string | null;
+  roleFamily: string;
+  roleSpecialization: string;
+  employer: string;
+  roleTitle: string;
+  startedOn: string;
+  endedOn: string | null;
+  evidenceUrl: string;
+  description: string;
+  evidenceState: "CLAIMED" | "EVIDENCED" | "VERIFIED" | "REJECTED";
+  operatorReason: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
+
+export type V3RoadmapWorkspace = {
+  currentRoadmap: V3RoadmapSnapshot;
+  draftProposal: V3RoadmapProposalView | null;
+};
+
+export type V3AtomicAssessmentTurn = {
+  id: string;
+  ordinal: number;
+  method: "EXPLAIN" | "IMPLEMENT" | "TEST" | "DEBUG" | "MEASURE" | "DOCUMENT";
+  question: {
+    questionId: string;
+    prompt: string;
+    starterCode?: string | null;
+    answerInstructions: string;
+    coreCriteria: string[];
+    futureExtensions: string[];
+  };
+  answerText: string | null;
+  grade: {
+    score?: number;
+    passed?: boolean;
+    strengths?: string[];
+    gaps?: string[];
+    feedback?: string;
+    scopeViolationDetected?: boolean;
+  } | null;
+  score: number | null;
+  passed: boolean | null;
+  createdAt: string;
+  answeredAt: string | null;
+};
+
+export type V3AtomicAssessment = {
+  id: string;
+  capabilityKey: string;
+  title: string;
+  scopeDefinition: string;
+  verificationMethods: string[];
+  status: "IN_PROGRESS" | "PASSED" | "NEEDS_STUDY" | "ABANDONED" | "REVIEW_REQUESTED";
+  requiredQuestionCount: number;
+  answeredQuestionCount: number;
+  averageScore: number | null;
+  targetContext: Record<string, string | null>;
+  turns: V3AtomicAssessmentTurn[];
+  reviewPending: boolean;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type V3AtomicAssessmentReviewItem = {
+  id: string;
+  sessionId: string;
+  userId: string;
+  userLabel: string;
+  capabilityKey: string;
+  title: string;
+  averageScore: number | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  reason: string;
+  requestedAt: string;
+};
+
+export type V3AtomicMigrationCandidate = {
+  id: string;
+  atomicCapabilityId: string;
+  canonicalKey: string;
+  title: string;
+  scopeDefinition: string;
+  legacyCompetencyId: string;
+  legacyTitle: string;
+  legacyProgressStatus: string;
+  legacyVerifiedLevel: number;
+  confidence: number;
+  reason: string;
+  status: "PENDING_REVIEW" | "CONFIRMED" | "REJECTED" | "SUPERSEDED";
+  createdAt: string;
+  decidedAt: string | null;
 };
 
 export type AnalysisQuestionOption = {
@@ -170,7 +495,10 @@ export type AnalysisQuestion = {
   key: string;
   text: string;
   reason: string;
+  inputType: "CHOICE" | "TEXT";
   options: AnalysisQuestionOption[];
+  relatedRequirementIds: string[];
+  absenceScope: "NONE" | "GENERAL_EXPERIENCE" | "REQUIREMENTS";
   ordinal: number;
 };
 
@@ -215,6 +543,13 @@ export type RoadmapCompetency = {
   progressStatus: string;
   verifiedLevel: number;
   careerNodeId: string | null;
+  source?: "LEGACY" | "UNIFIED";
+  v3NodeId?: string;
+  completionPolicy?: "SELF_CONFIRM" | "ASSESSMENT";
+  verificationMethods?: string[];
+  excludedScope?: string[];
+  provisionalCandidateId?: string;
+  catalogStatus?: "APPROVED" | "PENDING_REVIEW";
 };
 
 export type RoadmapProject = {
@@ -225,11 +560,12 @@ export type RoadmapProject = {
   optionalCompetencyKeys: string[];
   deliverables: string[];
   acceptanceCriteria: string[];
+  tasks?: V3ProjectTask[];
 };
 
 export type RoadmapNode = {
   id: string;
-  type: "MILESTONE" | "GATE" | "PROJECT" | "OPPORTUNITY";
+  type: "MILESTONE" | "GATE" | "PROJECT" | "OPPORTUNITY" | "EMPLOYMENT" | "EXPERIENCE";
   title: string;
   subtitle: string | null;
   domain: string;
@@ -243,6 +579,11 @@ export type RoadmapNode = {
   status: string;
   careerNodeId: string | null;
   requirementKinds?: Record<string, "REQUIRED" | "PREFERRED">;
+  source?: "LEGACY" | "UNIFIED";
+  v3NodeId?: string;
+  goalMode?: "ACTIVE_APPLICATION" | "REOPENING_PREPARATION" | "REFERENCE_TARGET";
+  postingLifecycleStatus?: "ACTIVE" | "EXPIRED" | "CLOSED" | "UNKNOWN";
+  applicationDeadline?: string | null;
 };
 
 export type RoadmapSnapshot = {
@@ -267,6 +608,9 @@ export type RoadmapSnapshot = {
     required: number;
     completedPreferred: number;
     preferred: number;
+    goalMode?: "ACTIVE_APPLICATION" | "REOPENING_PREPARATION" | "REFERENCE_TARGET";
+    lifecycleStatus?: "ACTIVE" | "EXPIRED" | "CLOSED" | "UNKNOWN";
+    closesAt?: string | null;
   }>;
 };
 
@@ -286,6 +630,31 @@ export type RoadmapWorkspace = {
   targetCount: number;
 };
 
+export type CareerGoals = {
+  currentPostingId: string | null;
+  currentCompanyName: string | null;
+  currentRoleTitle: string | null;
+  finalPostingId: string | null;
+  finalCompanyName: string | null;
+  finalRoleTitle: string | null;
+  finalGoalText: string | null;
+};
+
+export type RoadmapVersion = {
+  id: string;
+  version: number;
+  status: "PUBLISHED" | "SUPERSEDED";
+  baseVersion: number | null;
+  targetCount: number;
+  changes: {
+    added: string[];
+    removed: string[];
+    retained: string[];
+  };
+  createdAt: string;
+  publishedAt: string | null;
+};
+
 export type ConversationMessage = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
@@ -302,8 +671,21 @@ export type Conversation = {
   title: string;
   status: "ACTIVE" | "ARCHIVED";
   messages: ConversationMessage[];
+  hasOlderMessages: boolean;
   lastMessageAt: string;
   createdAt: string;
+};
+
+export type ConversationPage = {
+  items: ConversationSummary[];
+  page: number;
+  size: number;
+  total: number;
+};
+
+export type ConversationMessagePage = {
+  items: ConversationMessage[];
+  hasMore: boolean;
 };
 
 export type ConversationSummary = {
@@ -323,54 +705,175 @@ export type SendMessageResult = {
   aiAvailable: boolean;
 };
 
-/**
- * 대화 한 턴의 진행 단계 하나 — 어느 에이전트가 무슨 도구로 무엇을 했나.
- *
- * `agent` 는 화자 키다(에이전트 이름 또는 `orchestrator`). 색·로고는 이 키로 `agents.ts`
- * 등록부에서 고른다 — `label` 은 다듬을 수 있는 문구라 화면 식별자로 쓰지 않는다.
- */
-export type ChatAgentStep = {
-  agent: string;
-  step: string;
+export type AgentMode =
+  | "AUTO"
+  | "CAREER_CHAT"
+  | "POSTING_QA"
+  | "RESUME_DIAGNOSIS"
+  | "POSTING_COMPARE"
+  | "RESUME_COMPARE"
+  | "INTERVIEW_PREP"
+  | "COVER_LETTER"
+  | "APPLICATION_PLAN"
+  | "JOB_DISCOVERY";
+
+export type AgentContext = {
+  mode: AgentMode;
+  postingIds: string[];
+  careerSourceIds: string[];
+};
+
+export type AgentProgressEvent = {
+  agentId: string;
   label: string;
-  detail: string;
-  elapsedMs: number | null;
-  /** 담당이 완성한 사용자향 발화 본문(D153) — 있으면 과정 라벨과 별개의 말풍선 내용이 된다. */
-  message?: string | null;
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "NEEDS_CONFIRMATION" | "FAILED";
+  message: string;
+  occurredAt?: string;
 };
 
-/**
- * AI 답변 메타데이터 중 화면이 읽는 항목. 전체 응답이 메시지 metadata 에 그대로 저장된다.
- *
- * `degradedReason` 이 있으면 그 답변은 LLM 실패 뒤 만들어진 결정론 요약본이다 —
- * 분석 결과처럼 읽히면 안 되므로 화면에 그대로 알린다.
- */
-export type ChatReplyMetadata = {
-  replySources?: ChatReplySource[];
-  degradedReason?: string;
+export type AgentReplySource = {
+  sourceType: "POSTING" | "CAREER_SOURCE" | "CAREER_FRAGMENT" | "ROADMAP";
+  sourceId: string | null;
+  title: string;
+  excerpt: string | null;
 };
 
-/** 최종 답변의 문장별 화자 — 여러 담당이 만든 답변을 화자별 말풍선으로 나누는 근거. */
-export type ChatReplySource = {
-  agent: string;
-  channel: string;
-  text: string;
+export type AgentPendingConfirmation = {
+  question: string;
+  reason: string;
+  options: string[];
+};
+
+export type AgentProposedAction = {
+  actionId: string;
+  actionType:
+    | "NAVIGATE"
+    | "ANALYZE_POSTING"
+    | "COMPARE"
+    | "SAVE_DRAFT"
+    | "START_INTERVIEW"
+    | "FIND_ALTERNATIVES";
+  label: string;
+  description: string;
+  requiresConsent: boolean;
+  payload: Record<string, unknown>;
+};
+
+export type AgentActionExecution = {
+  actionId: string;
+  status: "SUCCEEDED";
+  actionType: AgentProposedAction["actionType"];
+  resourceType: string;
+  resourceId: string | null;
+  postingId: string | null;
+  analysisJobId: string | null;
+  reusedAnalysis: boolean;
+  message: string;
+  result: Record<string, unknown>;
+};
+
+export type AgentArtifact = {
+  artifactType:
+    | "DIAGNOSIS"
+    | "COMPARISON"
+    | "INTERVIEW_SET"
+    | "COVER_LETTER_DRAFT"
+    | "APPLICATION_PLAN"
+    | "JOB_DISCOVERY_PLAN";
+  title: string;
+  summary: string;
+  sections: Array<Record<string, unknown>>;
+};
+
+export type PlannedAgent = {
+  runId: string;
+  agentId: string;
+  label: string;
+  groupIndex: number;
+  orderIndex: number;
+  reason: string | null;
+  status: AgentProgressEvent["status"];
+};
+
+export type AgentExecutionPlan = {
+  intent: string;
+  confidence: number | null;
+  agents: PlannedAgent[];
+  edges: Array<{ fromRunId: string; toRunId: string }>;
+  selectedPostingIds: string[];
+  selectedCareerSourceIds: string[];
+  pendingConfirmation: AgentPendingConfirmation | null;
+  updatedDuringRun: boolean;
+};
+
+export type AgentWorkProduct = {
+  agentId: string;
+  productType:
+    | "DIAGNOSIS"
+    | "COMPARISON"
+    | "INTERVIEW_SET"
+    | "COVER_LETTER_DRAFT"
+    | "APPLICATION_PLAN"
+    | "JOB_RECOMMENDATIONS"
+    | "PREFERENCES"
+    | "ROADMAP_VIEW"
+    | "POSTING_ANALYSIS";
+  title: string;
+  reply: string | null;
+  summary: string;
+  findings: string[];
+  recommendations: string[];
+  followUpQuestions: string[];
+  replySources: AgentReplySource[];
+  suggestedActions: Array<{ action: string; label: string }>;
+  proposedActions: AgentProposedAction[];
+  pendingConfirmation: AgentPendingConfirmation | null;
+  artifact: AgentArtifact | null;
+  data: Record<string, unknown>;
+};
+
+export type AgentWarning = {
+  code: string;
+  message: string;
+  agentId: string | null;
+  recoverable: boolean;
+};
+
+export type AgentChatResult = {
+  message?: string;
+  intent?: string;
+  shouldRequestPosting?: boolean;
+  suggestedActions?: Array<{ action: string; label: string }>;
+  replySources?: AgentReplySource[];
+  progress?: AgentProgressEvent[];
+  proposedActions?: AgentProposedAction[];
+  actionExecutions?: Record<string, AgentActionExecution>;
+  pendingConfirmation?: AgentPendingConfirmation | null;
+  artifact?: AgentArtifact | null;
+  plan?: AgentExecutionPlan | null;
+  confidence?: number | null;
+  detailedStatus?: string | null;
+  workProducts?: AgentWorkProduct[];
+  warnings?: AgentWarning[];
+  replyAttributions?: Array<{ agentId: string; channel: string; text: string }>;
 };
 
 export type ChatReplyJob = {
   id: string;
   conversationId: string;
   triggerMessageId: string;
-  status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
   stage: string;
   stageMessage: string;
   attemptCount: number;
   errorCode: string | null;
   errorMessage: string | null;
+  requestContext: AgentContext;
+  progressEvents: AgentProgressEvent[];
+  result: AgentChatResult;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
-  progressSteps: ChatAgentStep[] | null;
 };
 
 export type NotificationItem = {
@@ -380,6 +883,17 @@ export type NotificationItem = {
   body: string;
   payload: Record<string, unknown>;
   readAt: string | null;
+  createdAt: string;
+};
+
+export type ActivityJob = {
+  id: string;
+  type: "CHAT" | "VERIFICATION" | "ANALYSIS" | "CAREER";
+  title: string;
+  message: string;
+  status: string;
+  destinationType: "CONVERSATION" | "ROADMAP_NODE" | "POSTING" | "CAREER_SOURCE";
+  destinationId: string;
   createdAt: string;
 };
 
@@ -470,6 +984,34 @@ export type CompetencyAssessment = {
   completedAt: string | null;
 };
 
+export type CompetencyLearning = {
+  title: string;
+  summary: string;
+  scopeReminder: string;
+  targetContext: string | null;
+  modules: Array<{
+    title: string;
+    objective: string;
+    concepts: string[];
+    example: string | null;
+    practice: string;
+    completionCriteria: string[];
+  }>;
+  recommendedResources: string[];
+  assessmentReadiness: string[];
+};
+
+export type RepositoryConnection = {
+  id: string;
+  provider: "GITHUB" | "GITLAB";
+  providerBaseUrl: string;
+  accountName: string | null;
+  status: "ACTIVE" | "REAUTH_REQUIRED" | "REVOKED";
+  scopes: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PostingDuplicateCandidate = {
   id: string;
   matchKind: "PLATFORM_ID" | "URL" | "CONTENT_HASH" | "FUZZY";
@@ -483,6 +1025,15 @@ export type PostingDuplicateCandidate = {
     roleTitle: string;
     sourceUrl: string | null;
     lifecycleStatus: string;
+    sourcePlatform: string | null;
+    experienceText: string | null;
+    primaryTrack: string;
+    minimumExperienceMonths: number;
+    maximumExperienceMonths: number | null;
+    lastSeenAt: string;
+    closesAt: string | null;
+    requirementCount: number;
+    observationCount: number;
   };
   right: {
     id: string;
@@ -490,8 +1041,30 @@ export type PostingDuplicateCandidate = {
     roleTitle: string;
     sourceUrl: string | null;
     lifecycleStatus: string;
+    sourcePlatform: string | null;
+    experienceText: string | null;
+    primaryTrack: string;
+    minimumExperienceMonths: number;
+    maximumExperienceMonths: number | null;
+    lastSeenAt: string;
+    closesAt: string | null;
+    requirementCount: number;
+    observationCount: number;
   };
   createdAt: string;
+};
+
+export type OperatorAuditItem = {
+  id: string;
+  actionKind: "MERGE" | "SEPARATE" | "HOLD" | string;
+  targetType: string;
+  targetId: string;
+  targetLabel: string | null;
+  operatorName: string;
+  reason: string | null;
+  rolledBackAt: string | null;
+  createdAt: string;
+  rollbackable: boolean;
 };
 
 export type AssessmentReviewItem = {
@@ -554,7 +1127,7 @@ export type CareerSourceSummary = {
   sourceType: "TEXT" | "FILE" | "URL";
   title: string;
   sourceUrl: string | null;
-  status: "QUEUED" | "RUNNING" | "REVIEW_READY" | "CONFIRMED" | "FAILED";
+  status: "QUEUED" | "RUNNING" | "REVIEW_READY" | "CONFIRMED" | "FAILED" | "CANCELLED";
   stage: string;
   stageMessage: string;
   summary: string | null;
@@ -578,4 +1151,73 @@ export type CareerFragmentPage = {
   page: number;
   size: number;
   total: number;
+};
+
+export type CareerFragmentMergePreview = {
+  compatible: boolean;
+  reason: string;
+  kind: CareerFragmentKind | null;
+  canonicalKey: string | null;
+  fragmentCount: number;
+};
+
+export type CareerFragmentMergeResult = {
+  fragment: CareerFragment;
+  undoId: string;
+};
+
+export type CapabilityReviewCandidate = {
+  id: string;
+  analysisJobId: string;
+  requirementId: string;
+  candidateId: string;
+  decisionKind: string;
+  displayName: string;
+  proposedKind: string | null;
+  scopeDefinition: string | null;
+  aliases: string;
+  evidenceIds: string;
+  matchCandidates: string;
+  confidence: number | null;
+  reason: string;
+  status: "PENDING" | "ON_HOLD" | "APPROVED_STAGED" | "LINKED" | "NEEDS_SPLIT" | "REJECTED" | "PUBLISHED";
+  selectedCanonicalKey: string | null;
+  operatorReason: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+};
+
+export type CapabilityGraphRelease = {
+  id: string;
+  graphVersion: string;
+  publishedCandidates: number;
+};
+
+export type RoleReviewCandidate = {
+  id: string;
+  analysisJobId: string;
+  positionId: string;
+  sourceTitle: string;
+  proposedFamily: string;
+  proposedSpecialization: string;
+  evidenceIds: string;
+  confidence: number;
+  status: "PENDING" | "ON_HOLD" | "APPROVED_STAGED" | "LINKED" | "REJECTED";
+  selectedCanonicalRoleId: string | null;
+  operatorReason: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+};
+
+export type OperatorEmploymentReview = {
+  id: string;
+  userId: string;
+  roleFamily: string;
+  roleSpecialization: string;
+  employer: string;
+  roleTitle: string;
+  startedOn: string;
+  endedOn: string | null;
+  evidenceUrl: string;
+  description: string;
 };

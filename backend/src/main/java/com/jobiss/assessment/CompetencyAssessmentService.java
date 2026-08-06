@@ -5,6 +5,7 @@ import com.jobiss.analysis.AiContracts;
 import com.jobiss.analysis.AiUsageLimitService;
 import com.jobiss.common.ApiException;
 import com.jobiss.db.RlsTransactionExecutor;
+import com.jobiss.security.SensitiveTextCipher;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -37,17 +38,20 @@ public class CompetencyAssessmentService {
     private final AiUsageLimitService usageLimit;
     private final AiAnalysisClient aiClient;
     private final ObjectMapper objectMapper;
+    private final SensitiveTextCipher sensitiveText;
 
     public CompetencyAssessmentService(
             RlsTransactionExecutor rls,
             AiUsageLimitService usageLimit,
             AiAnalysisClient aiClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            SensitiveTextCipher sensitiveText
     ) {
         this.rls = rls;
         this.usageLimit = usageLimit;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
+        this.sensitiveText = sensitiveText;
     }
 
     public AssessmentView latest(UUID userId, UUID nodeId) {
@@ -61,6 +65,13 @@ public class CompetencyAssessmentService {
                             join competency_assessment_sessions session
                               on session.competency_id = competency.id
                             where node.id = :nodeId
+                              and (
+                                  session.source_node_id = node.id
+                                  or (
+                                      session.source_node_id is null
+                                      and session.required_level = node.level
+                                  )
+                              )
                             order by session.created_at desc
                             limit 1
                             """)
@@ -77,20 +88,32 @@ public class CompetencyAssessmentService {
                 userId,
                 jdbc -> loadContext(jdbc, nodeId, targetPostingId)
         );
-        AssessmentView active = rls.read(userId, jdbc -> jdbc.sql("""
-                        select id
+        ActiveSession active = rls.read(userId, jdbc -> jdbc.sql("""
+                        select id, source_node_id, required_level
                         from competency_assessment_sessions
                         where competency_id = :competencyId
                           and status = 'IN_PROGRESS'
                         limit 1
                         """)
                 .param("competencyId", context.competencyId())
-                .query(UUID.class)
+                .query((rs, rowNum) -> new ActiveSession(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("source_node_id", UUID.class),
+                        rs.getInt("required_level")
+                ))
                 .optional()
-                .map(id -> loadView(jdbc, id))
                 .orElse(null));
         if (active != null) {
-            return active;
+            if (context.nodeId().equals(active.sourceNodeId())
+                    || (active.sourceNodeId() == null
+                    && active.requiredLevel() == context.requiredLevel())) {
+                return rls.read(userId, jdbc -> loadView(jdbc, active.id()));
+            }
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "ASSESSMENT_ALREADY_IN_PROGRESS",
+                    "같은 역량의 다른 단계 검증이 진행 중입니다. 진행 중인 검증을 먼저 마쳐 주세요."
+            );
         }
 
         Map<String, Integer> retainedScores = rls.read(
@@ -122,6 +145,7 @@ public class CompetencyAssessmentService {
                                 id,
                                 user_id,
                                 competency_id,
+                                source_node_id,
                                 target_posting_id,
                                 required_level,
                                 status,
@@ -135,6 +159,7 @@ public class CompetencyAssessmentService {
                                 :id,
                                 :userId,
                                 :competencyId,
+                                :sourceNodeId,
                                 :targetPostingId,
                                 :requiredLevel,
                                 'IN_PROGRESS',
@@ -148,6 +173,7 @@ public class CompetencyAssessmentService {
                     .param("id", sessionId)
                     .param("userId", userId)
                     .param("competencyId", context.competencyId())
+                    .param("sourceNodeId", context.nodeId())
                     .param("targetPostingId", targetPostingId)
                     .param("requiredLevel", context.requiredLevel())
                     .param("retainedScores", writeJson(retainedScores))
@@ -224,7 +250,7 @@ public class CompetencyAssessmentService {
                               and session_id = :sessionId
                               and answer_text is null
                             """)
-                    .param("answer", answer.trim())
+                    .param("answer", sensitiveText.encrypt(answer.trim()))
                     .param("score", evaluation.score())
                     .param("verdict", normalizeVerdict(evaluation.verdict()))
                     .param("feedback", evaluation.feedback())
@@ -337,6 +363,30 @@ public class CompetencyAssessmentService {
         });
     }
 
+    public AssessmentView abandon(UUID userId, UUID sessionId) {
+        return rls.write(userId, jdbc -> {
+            int updated = jdbc.sql("""
+                            update competency_assessment_sessions
+                            set
+                                status = 'ABANDONED',
+                                summary = '사용자가 진행 중인 검증을 중단했습니다.',
+                                completed_at = now()
+                            where id = :sessionId
+                              and status = 'IN_PROGRESS'
+                            """)
+                    .param("sessionId", sessionId)
+                    .update();
+            if (updated == 0) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "ASSESSMENT_NOT_IN_PROGRESS",
+                        "진행 중인 검증만 중단할 수 있습니다."
+                );
+            }
+            return loadView(jdbc, sessionId);
+        });
+    }
+
     public List<AssessmentReviewView> operatorReviews(
             UUID operatorId,
             String status
@@ -384,6 +434,13 @@ public class CompetencyAssessmentService {
                             rs.getObject("created_at", OffsetDateTime.class)
                     ))
                     .list();
+        });
+    }
+
+    public AssessmentView operatorReview(UUID operatorId, UUID sessionId) {
+        return rls.read(operatorId, jdbc -> {
+            ensureOperator(jdbc);
+            return loadView(jdbc, sessionId);
         });
     }
 
@@ -467,8 +524,10 @@ public class CompetencyAssessmentService {
                                  and competency.canonical_key = node.canonical_key
                                 where competency.id = :competencyId
                                   and progress.node_id = node.id
+                                  and node.level <= :requiredLevel
                                 """)
                         .param("competencyId", target.competencyId())
+                        .param("requiredLevel", target.requiredLevel())
                         .update();
             }
             jdbc.sql("""
@@ -652,7 +711,7 @@ public class CompetencyAssessmentService {
         SessionHeader header = jdbc.sql("""
                         select
                             session.status,
-                            node.id as node_id,
+                            coalesce(session.source_node_id, node.id) as node_id,
                             session.target_posting_id,
                             session.retained_scores::text
                         from competency_assessment_sessions session
@@ -661,7 +720,14 @@ public class CompetencyAssessmentService {
                         join career_nodes node
                           on node.user_id = competency.user_id
                          and node.canonical_key = competency.canonical_key
-                         and node.archived_at is null
+                         and (
+                             node.id = session.source_node_id
+                             or (
+                                 session.source_node_id is null
+                                 and node.level = session.required_level
+                                 and node.archived_at is null
+                             )
+                         )
                         where session.id = :sessionId
                         order by node.updated_at desc
                         limit 1
@@ -755,7 +821,7 @@ public class CompetencyAssessmentService {
                         rs.getString("question_kind"),
                         rs.getString("prompt"),
                         rs.getString("code_snippet"),
-                        rs.getString("answer_text"),
+                        sensitiveText.decrypt(rs.getString("answer_text")),
                         (Integer) rs.getObject("score"),
                         rs.getString("verdict"),
                         rs.getString("feedback"),
@@ -884,9 +950,11 @@ public class CompetencyAssessmentService {
                             where progress.node_id = node.id
                               and node.user_id = :userId
                               and node.canonical_key = :canonicalKey
+                              and node.level <= :requiredLevel
                             """)
                     .param("userId", userId)
                     .param("canonicalKey", context.canonicalKey())
+                    .param("requiredLevel", context.requiredLevel())
                     .update();
         }
 
@@ -1346,6 +1414,10 @@ public class CompetencyAssessmentService {
             TargetRow target,
             GoalRow goals
     ) {
+        UUID nodeId() {
+            return competency.nodeId();
+        }
+
         UUID competencyId() {
             return competency.competencyId();
         }
@@ -1410,6 +1482,13 @@ public class CompetencyAssessmentService {
             UUID nodeId,
             UUID targetPostingId,
             Map<String, Integer> retainedScores
+    ) {
+    }
+
+    private record ActiveSession(
+            UUID id,
+            UUID sourceNodeId,
+            int requiredLevel
     ) {
     }
 

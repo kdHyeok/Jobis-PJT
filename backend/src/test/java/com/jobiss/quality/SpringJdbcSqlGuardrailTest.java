@@ -22,6 +22,9 @@ class SpringJdbcSqlGuardrailTest {
     private static final Pattern NULL_PARAMETER_PREDICATE = Pattern.compile(
             "(?i):[a-z][a-z0-9_]*\\s+is\\s+(?:not\\s+)?null"
     );
+    private static final Pattern AMBIGUOUS_JSON_TEXT_CONCATENATION = Pattern.compile(
+            "\\|\\|\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*->>"
+    );
 
     @Test
     void namedParameterSqlDoesNotContainAmbiguousPostgresPatterns()
@@ -43,6 +46,12 @@ class SpringJdbcSqlGuardrailTest {
                         source,
                         NULL_PARAMETER_PREDICATE,
                         "nullable named parameter predicate; branch SQL or pass a boolean"
+                ).forEach(violations::add);
+                collectViolations(
+                        file,
+                        source,
+                        AMBIGUOUS_JSON_TEXT_CONCATENATION,
+                        "ambiguous text concatenation with JSON ->>; parenthesize the JSON extraction"
                 ).forEach(violations::add);
             }
         }

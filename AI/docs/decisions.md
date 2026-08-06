@@ -2450,1138 +2450,215 @@ D125(추천 지목)로 세션이 기억하는 목록이 대화 동작을 가르�
 
 ---
 
-### D129 (08-03) 자율성의 병목은 루프 구조가 아니라 도구 목록이다
+### D129 (08-03) 역량 검증은 공용 범위·결정론 통과 규칙 안에서만 개인화한다
 
-**결정**: 자기 루프에 **바깥 세계로 나가는 도구**를 연다 — `_common.search_postings_tool`
-(RAG 실공고 검색)을 `posting_analysis` 에 붙인다. 오케스트레이터를 ReAct 로 바꾸지 않는다.
-`fetch_posting` 도구는 만들지 않는다.
+**결정**: 서비스 `v2bridge`가 `/v1/competency-assessments`와
+`/v1/competency-learning` 계약을 제공한다. 문제의 상황과 예시는 현재 목표 공고를 반영할 수
+있지만, 정답 조건은 백엔드가 전달한 `scopeDefinition`·`levelDefinition`·
+`assessmentBlueprint` 밖으로 나가지 않는다. 서술 답변의 의미 점수는 LLM이 읽는
+`semantic_judge` 계열 예외로 두되, 점수→PASS/PARTIAL/FAIL 변환과 다음 문제 유형 선택,
+최종 평균 75·유형별 60 문턱은 결정론 코드와 Spring이 확정한다.
 
-**왜**: "에이전트가 자율적으로 툴콜링하게 하자"는 요청에 루프 하네스부터 보았는데,
-`agent_loop` 은 이미 있었다 — 도구 이름 Literal 제한·스텝 상한·위임 가드·궤적 기록까지.
-정작 등록된 도구가 **전부 세션 내부 데이터 읽기·쓰기**였다(`resume_diagnosis` 1개,
-`posting_analysis` 2개). 루프는 도는데 고를 것이 없었다. 구조를 바꿀 문제가 아니라 도구를
-늘릴 문제였다.
+**왜**: 공용 Java 노드에 사용자별 회사 맥락을 반영하면서도 Java 검증에 Spring 트랜잭션이
+섞이던 범위 오염을 막아야 한다. 문제를 전 사용자에게 고정하면 유출·반복이 생기고, 전부 LLM에
+맡기면 난이도와 통과 기준이 흔들린다. 공용 범위와 통과 규칙은 데이터·코드가, 질문의 표현과
+서술 답변 읽기는 LLM이 담당하는 §1의 경계다.
 
-`fetch_posting` 을 안 만든 이유: `chat.py` 가 URL 공고를 결정론으로 큐 맨 앞에 끼우고(D64),
-임의 URL 을 LLM 이 가져오게 하면 동의 게이트(§2-7)를 우회한다.
+**검증**: `test_v2bridge_contract.py`의 최초 문제·답변 평가·범위 전달 계약과 Spring
+`CompetencyAssessmentServiceTest`의 3유형·5문항·75/60 문턱을 함께 통과시킨다.
 
-**측정**: 기준선 실측(`evals/loop_baseline_0803.json`, 4케이스×5회) — 스텝 상한(5) 도달
-**0건**, 관측 최대 3. 계획 단계에서 "도구가 늘면 5가 모자랄 것"이라 적었으나 실측이 뒤집어
-`DEFAULT_MAX_STEPS` 를 **올리지 않았다**. 유닛 6건 신규(`test_search_postings_tool.py`).
-
-부수 관측(미해결): **hand-off 시도 0건** — 20회 실행에서 위임이 한 번도 안 불렸다.
-성공률의 분모가 여전히 0이다.
-
-**출처**: `agents/_common.py::search_postings_tool` · `agents/posting_analysis.py::_TOOLS`
+**출처**: `v2bridge/service.py::assess_competency/competency_learning` ·
+`v2bridge/service_contract.py` · Spring `CompetencyAssessmentService`
 
 ---
 
-### D130 (08-03) 같은 가드를 두 벌 두지 않는다 — 위임의 단일 관문
+### D130 (08-03) 대화 세션의 정본은 PostgreSQL이고 AI SQLite는 턴 캐시다
 
-**결정**: `agent_loop.call_agent_readonly` 신설. `delegate_tool`(자기 루프)과
-`application_plan._related_postings`(단발) 두 호출자가 같은 함수를 지난다. 문장이 필요한
-호출자만 `render_reply=True` 로 표현 계층을 돈다.
+**결정**: `ChatRequest.workspaceState`로 백엔드가 확정한 대화 작업공간을 전달한다. 브리지는
+요청마다 해당 세션 캐시를 비우고 허용 목록 자산만 주입한 뒤, 실행 후 갱신된 허용 목록을
+`ChatResponse.workspaceState`로 돌려준다. 구버전 호출처럼 필드 자체가 없을 때만 기존 로컬
+세션 동작을 유지한다.
 
-**왜**: 가드가 두 벌이었고 **어긋나 있었다** — `_related_postings` 에는 `heavy` 검사도 중첩
-위임 차단도 없었다. `job_recommend` 가 언젠가 heavy 로 바뀌면 그 경로만 조용히 동의
-게이트(§2-7)를 우회한다. 가드를 두 벌 두면 언젠가 한 벌이 낡는다.
+**왜**: 사용자 데이터 격리·백업·재시작 복구의 정본을 RLS가 적용된 PostgreSQL 하나로
+통일해야 한다. 프로세스 로컬 SQLite가 정본이면 AI 서버 교체·수평 확장 시 대화 기억이 갈린다.
 
-당초 계획은 "`application_plan` 을 루프로 승격"이었으나 **뒤집었다** — 그러면 결정론 판정
-경로에 LLM 도구 선택이 들어와 §1 을 위반한다. 중복의 원인은 "루프가 아니라서"가 아니라
-"가드가 루프 전용 함수 안에 있어서"였다.
-
-**측정**: 유닛 2건 신규(`test_agent_delegation.py` — 루프 밖 호출자도 heavy 거부, 거부 사유가
-코드로 남는다). 회귀 1건 발생·수정(render 폴백을 공유 함수에 넣자 `.data` 만 쓰는 호출자가 깨졌다).
-
-**출처**: `agents/agent_loop.py::call_agent_readonly` · `agents/application_plan.py::_related_postings`
+**출처**: `v2bridge/service.py::_WORKSPACE_KEYS/chat_events` ·
+Spring `ChatReplyWorker` · migration V22
 
 ---
 
-### D131 (08-03) 관찰 규칙은 "뺐다"까지, "대신 무엇을"은 LLM 이 고른다
+### D131 (08-03) 실제 실행 trace와 역할별 구조화 산출물을 서비스 계약에 공개한다
 
-**결정**: `Observation.dropped`(구조화 값) 신설. 전제 붕괴로 단계가 빠지면 `chat.py` 가
-`planner.replacement_for` 로 **대체 단계를 턴당 1회** 묻는다. `observe()` 는 순수 함수로 남는다.
+**결정**: 플래너의 예상 고정 단계가 아니라 해당 턴에서 관측된 `dispatch`·`parallel` trace로
+실행 DAG를 만들고 PLAN 이벤트로 중계한다. 실행된 각 에이전트의 `results`는 내용을 고치지
+않고 역할·산출물 유형·원본 data를 가진 `workProducts`로 분리한다. 경고와 답변 attribution도
+숨기지 않는다.
 
-**왜**: 규칙은 "뺐다"까지만 하고 "대신 무엇을 할까"는 아무도 묻지 않았다. 구조적 원인은
-빠진 단계가 note **문장 안에만** 남아 호출부가 코드로 알 수 없던 것이다.
+**왜**: 요청에 따라 역할 수와 병렬 실행이 달라지므로 고정 5조각 시각화는 실제 동작을
+오해하게 한다. 마지막 에이전트 결과 하나만 보여주면 비교·면접·자소서·지원 계획 중간
+산출물이 사라진다.
 
-관찰 층에서 LLM 을 걷어낸 근거(§`observe_rules` docstring — "제어 신호가 전부 열거 가능한
-구조화 값")가 **이 자리에는 성립하지 않는다**: 빠진 단계 × 남은 자산의 조합은 규칙표로
-열거할 수 없다. 그래서 이 한 자리만 연다.
-
-§1 과 충돌하지 않게 **고르기만** 시킨다 — 후보는 코드가 만들고(등록 ∧ `runnable_now` ∧
-heavy 아님 ∧ 미실행), 고른 뒤 후보 밖이면 버리고 센다. 예산 1회는 실패가 실패를 부르는
-연쇄 방어이며 스텝 상한과 별개다(막는 것이 다르다).
-
-**측정**: 유닛 5건 신규(`test_observe_rules.py` — dropped 보고·이미 실행은 제외·후보에서
-heavy/미실행 제외·후보 밖 폐기·LLM 없으면 조용히 폴백).
-
-**출처**: `orchestrator/observe_rules.py::Observation` · `orchestrator/planner.py::replacement_for`
+**출처**: `v2bridge/service.py::_agent_plan/_work_products/_warnings` ·
+`v2bridge/service_contract.py`
 
 ---
 
-### D132 (08-03) `ai-server` 는 계약 정본이 아니다
+### D132 (08-03) 명시한 공고 분석은 자동 제안하되 저장·큐 생성은 Spring이 검증한다
 
-**결정**: `v2bridge/models.py` 의 "계약 정본은 `ai-server/app/models.py`" 표기를 **백엔드
-코드**로 고친다 — `AiContracts.java`(역직렬화 대상) · `RoadmapService`(그 값이 지도에서
-무엇이 되는가) · `db/migration/V10·V12`(DB CHECK) · `frontend/src/types.ts`(화면 기대).
-`ai-server` 는 참고 구현으로만 쓰고 **동기화 의무를 지지 않는다**. 대조 테스트도 두지 않는다.
+**결정**: 사용자가 공고 원문 또는 수집 가능한 URL과 함께 분석 의도를 명시하면
+`ANALYZE_POSTING` 제안에 `requiresConsent=false`, `userInitiated=true`를 표시한다. 그 밖에는
+확인 제안으로 남긴다. 브리지는 DB를 쓰지 않으며 Spring이 본문 길이·URL·행동 ID를 다시
+검증하고 중복 판정·저장·분석 큐 생성을 담당한다.
 
-**왜**: `ai-server` 는 백엔드 팀원이 자기 AI 답변을 시험하려고 세운 서버다. 남의 실험용
-파일에 우리 CI 를 묶으면 그쪽이 실험할 때마다 우리가 깨진다. 세션 초반에 그걸 정본으로 믿고
-`ai-server/app/{models,prompts}.py` 를 고쳤다가 되돌렸다(파트 경계 위반이기도 했다).
+**왜**: 사용자가 이미 “분석해줘”라고 요청했는데 확인 버튼을 한 번 더 누르게 할 필요는 없지만,
+AI가 대화만 보고 임의로 공고를 저장해서도 안 된다. 의도 표식과 실제 실행 권한을 분리한다.
 
-다만 같은 계약을 향해 먼저 작성된 구현이라 **스키마·프롬프트를 가져올 값어치는 있다** —
-가져오되 빚은 지지 않는다. 어긋나면 백엔드 코드를 따른다.
-
-**측정**: 없음(문서·주석 결정). 대신 계약 위반은 `test_v2bridge_competency_contract.py`
-11건이 백엔드에 닿기 전에 잡는다.
-
-**출처**: `v2bridge/models.py` 모듈 docstring
+**출처**: `v2bridge/service.py::_posting_analysis_actions` ·
+Spring `ChatAgentActionValidator/ChatReplyJobService`
 
 ---
 
-### D133 (08-03) LLM 은 분류하고, 이름은 짓지 않는다
+### D133 (08-03) “경험 없음”은 정보 부족이 아니라 확인된 부재다
 
-**결정**: `v2bridge/enrich.py` — 공고를 읽어 `stage`·`domain`·`kind`·`requiredLevel`·
-`roadmapEligible`·`verificationMethod`·`primaryTrack`·과제를 채운다. 스키마에
-**`canonicalKey`·`title`·`sourceText` 칸을 두지 않는다.** 과제도 증명 대상
-(`requiredCompetencyRefs`)을 못 고른다. 트랙은 결정론(`roleCategory`)이 먼저다.
+**결정**: 서비스 분석 질문 계약에 `answerStatus`(`PROVIDED`/`CONFIRMED_ABSENT`/`SKIPPED`),
+`relatedRequirementIds`, `absenceScope`를 싣는다. 사용자가 UI의 `해당 경험 없음`을 선택하거나
+짧은 부재 답변(“없습니다”, “해본 적 없습니다” 등)을 명시하면 해당 요구조건만 `not_met`으로
+확정한다. 포괄적인 프로젝트·업무 경험 부재는 연차 조건을 `not_met`으로 확정한다. 연결되지
+않았거나 확인하지 못한 조건은 계속 `uncertain`이다.
 
-**왜**: `canonicalKey` 는 `user_competencies` 의 유일키다. LLM 이 키를 지으면 같은 기술이
-공고마다 다른 키를 받아 사용자 역량이 쪼개지고 지도에 중복 노드가 생긴다 — **예외도 경고도
-없는 조용한 고장**이다. 금지를 프롬프트가 아니라 **필드를 빼서** 건다(§2-2).
+**왜**: 기존 브리지는 부재 답변을 이력서 문자열에 덧붙인 뒤 충분성 그래프에 다시 넣었다.
+프로필 읽기 계층은 부재를 경력 근거로 만들지 않으므로 매번 `evidenceCount=0`이 되었고,
+질문 상한 뒤에도 같은 질문이 반복된 끝에 503으로 끝났다. “없다”는 적합성에는 미충족이지만
+정보 충분성에는 유효한 답이다. 둘을 구분하지 않으면 역량이 부족한 사용자가 분석 결과 대신
+반복 질문과 오류를 받는다.
 
-증명 대상을 LLM 이 고르면 정성 역량을 끌어와 계약 검증(502)에 걸린다. 그건 "필수 ∧ 검증
-가능"이라는 계산이지 창작이 아니다.
+**경계**: 실험판 격리 규약에 따라 실제 `sufficiency_rules`·`gap_matcher` 코드는 바꾸지 않는다.
+브리지가 실제 파서·프로필·gap matcher의 중간 상태를 회수하고, 사용자 확인 부재만 반영한 뒤
+기존 로드맵·대안·검증·조립 노드를 실행한다. 질문 3회가 끝나거나 포괄 부재가 확인되면 더
+묻지 않고 보유 정보로 정상 완료한다. 호출 성공 후 상태 반복은 공급자 장애와 구분해
+`ANALYSIS_CONVERGENCE_FAILED`로 노출한다.
 
-앵커는 `skill_taxonomy` 다. 처음 `resolve(title)` 로 짰다가 전부 실패했다 — `resolve` 는 기술
-**이름**을 받는데 요건 **문장**을 넘겼다. 문장용은 `find_in_text` 이고, 바꾸니 문서 규칙 10
-("복합 문장은 역량을 분리하되 sourceText 공유")도 공짜로 따라왔다.
+**검증**: 브리지 질문 매핑·HTTP 계약·확정 부재 순수 판정·정상 완료 경로 테스트와 Spring
+정규화·SQL 가드레일 테스트를 추가한다. PostgreSQL V24는 기존 세 답변(“따로 없습니다” 1건,
+“없습니다” 2건)을 모두 `CONFIRMED_ABSENT`로 변환하는 것을 트랜잭션 롤백 실행으로 확인했다.
 
-**측정**: 유닛 11건(`test_v2bridge_enrichment.py` — 스키마에 이름 칸 없음·분류가 자리채움을
-덮음·키/근거는 안 바뀜·사전 밖 요건 승격·후보 밖 ref 무시). 실 모델 1회: 역량 9건, 키 전부
-`skill.<taxonomy-key>`, `requiredLevel` 이 실제로 갈림(4/3), 검증 방법이 정형 문구가 아님.
-
-**출처**: `v2bridge/enrich.py` · `v2bridge/mapping.py::build_competency_proposal`
-
----
-
-### D134 (08-03) 재사용의 조건은 같은 규칙이 아니라 같은 입력 모양이다
-
-**결정**: `mapping.experience_requirement` 는 파서가 이미 낸 `minYears`/`maxYears` 를 읽는다.
-크롤링 행용 `postings_db.posting_floor_years(experience, …)` 를 부르지 않는다.
-
-**왜**: "같은 규칙을 두 곳에 두지 않는다"(D115)를 지키려고 기존 계산기를 재사용했는데,
-정규화된 공고(`normalizedJobPosting`)에는 `experience` 칸이 **없다**(빈 문자열). 항상 None 이
-나왔고 `experienceRequirement` 가 null 이 되어 **경력 관문 노드가 통째로 안 생겼다**
-(문서 §1-2: `REQUIRED` 만 관문을 만든다). 예외도 경고도 없는 조용한 고장이다.
-
-재사용은 옳았지만 **입력 모양을 확인하지 않은 것**이 틀렸다.
-
-**측정**: 실 모델 1회에서 발견(`experienceReq: type= min= src=''`). 유닛 3건 신규
-(하한 36개월·상한 3~5년→36/60·근거나 연차 중 하나라도 없으면 None). 단위 테스트가 못 잡은
-이유는 픽스처를 파서 실물이 아니라 **상상대로** 만든 것 — 픽스처를 실물 모양으로 교체했다.
-AGENTS.md §3-7("실 모델로 한 번 돌린다")이 값을 한 번 증명했다.
-
-**출처**: `v2bridge/mapping.py::experience_requirement` · `graph/nodes.py::parse_job_posting`
+**출처**: `v2bridge/service.py::_finalize_with_known_information` ·
+`v2bridge/mapping.py::build_question` · Spring `AnalysisClarificationNormalizer` · migration V24
 
 ---
 
-### D135 (08-03) 못 읽은 요구사항으로 분석을 멈추지 않는다 — 충분성 게이트 정책 반전
+### D134 (08-03) 공고 요건의 로드맵 분류는 결정론 taxonomy가 담당한다
 
-**결정**: `sufficiency_rules.assess` 에서 `undecidable_requirement` 와 `few_evidence` 를
-**blocking 에서 뺀다**(경고로는 남긴다). 근거 **0건**은 여전히 막는다. 함께
-`gap_matcher._retry_missing_topics` — 배치 의미 판정이 실패한 건만 개별로 다시 묻는다
-(상한 8건, 첫 재시도 실패 시 중단).
+**결정**: 실제 에이전트의 `RequirementStatus`와 `techStack`·`domainKeywords`를 서비스
+`CompetencyProposal`로 옮길 때 `v2bridge/taxonomy.py`의 결정론 분류를 거친다. 공용
+`skill_taxonomy`의 표준 기술·카테고리를 우선 사용하고, 검증 가능한 개념 규칙으로
+`LANGUAGE/WEB/FRAMEWORK/DATA/QUALITY/OPERATIONS/SCALE/DOMAIN/EXPERIENCE/CREDENTIAL`을
+정한다. 공고 원문 요건에 이미 포함된 합성 tech/domain 항목은 다시 노드로 만들지 않는다.
+순수 연차는 `JobContext.experienceRequirement`의 경력 관문이 담당하고, 태도 조건과 분류 근거가
+없는 문장은 분석 조건에는 남기되 `roadmapEligible=false`로 둔다.
 
-**왜**: 같은 입력 2회 중 1회가 `AI_PROVIDER_UNAVAILABLE` 로 끝났다. 스트리밍을 붙인 덕분에
-`fit_analysis` 4회 반복이 눈에 보였다. 옛 주석은 *"사용자에게 직접 묻는 게 유일한 해결책"*
-이라 단정했는데 두 번 틀렸다:
+**왜**: 실제 에이전트 계약에는 서비스의 `stage/kind/roadmapEligible`이 없었고, 브리지가 모든
+`SKILL`을 `TECHNOLOGY + DOMAIN`으로 고정 변환했다. 그 결과 DB 스키마·테스트 자동화·경력·
+커뮤니케이션까지 모두 "도메인 이해"로 표시됐다. 이를 LLM 판정으로 메우면 같은 공고의 구조가
+실행마다 흔들리고 §1의 판단 계층 규약을 어긴다. 알려진 분류는 코드가 결정하고, 모르는 것은
+DOMAIN으로 위장하지 않는 쪽이 안전하다.
 
-1. **유일하지 않다.** `gap_matcher` 가 이미 LLM 으로 읽는다(배치 + 위 재시도). 거기까지 와서
-   남은 uncertain 은 물어보기 전이라 모르는 게 아니라 **읽어도 모르는 것**이다.
-2. **되물어도 못 묻는다.** 이 결핍의 질문에는 **선택지가 없어** v2 `NEEDS_INPUT`
-   (선택지 2~4개 필수)으로 나갈 수 없다 → 서비스가 스스로 "정보 없음"으로 답하며 왕복
-   상한까지 반복 → 분석 전체 실패.
+**검증**: 카카오뱅크 블록체인 백엔드 공고와 같은 20개 비교 항목을 넣어 합성 중복을 제거하고
+`DATA/QUALITY/FRAMEWORK/OPERATIONS/DOMAIN/EXPERIENCE`로 분리되는 회귀 테스트를 추가했다.
+AI 전체 테스트 656건을 통과했다.
 
-남은 uncertain 은 `_STATUS_SCORE` 가 분모에서 빼므로 미충족으로 둔갑하지 않는다(§2-1).
-한 줄을 못 읽었다고 지도를 통째로 안 만드는 것이 더 나쁘다. 0건은 신뢰도가 낮은 게 아니라
-잴 것이 없는 것이라 계속 막는다.
-
-**측정**: 실 모델 — 반전 전 2회 중 1회 503, 반전 후 **10 이벤트·150초·COMPLETED**
-(역량 9건, 경력관문 36개월). 유닛: 옛 정책 테스트 2건을 §3-5 대로 지우지 않고 **뒤집은
-근거를 적어** 반전 테스트로 교체, 여전히 막혀야 하는 경우도 신규. 재시도 유닛 4건.
-
-**뒤집힘**: 이 결정은 `sufficiency_rules` 최초 설계(§2 주석)의 전제를 뒤집는다.
-
-**출처**: `sufficiency_rules.py::assess` · `gap_matcher.py::_retry_missing_topics`
+**출처**: `v2bridge/taxonomy.py` · `v2bridge/mapping.py::build_change_proposal` ·
+`tests/test_v2bridge_mapping.py::test_real_posting_requirements_are_split_across_roadmap_stages`
 
 ---
 
-### D136 (08-03) 외곽 오케스트레이터를 ReAct 로 바꾸지 않는다 (안 하기로 한 결정)
+### D135 (08-04) 커리어 기술과 노드 학습 콘텐츠는 검증 가능한 한 단계 범위를 유지한다
 
-**결정**: 플래너 → dispatch → 관찰 규칙으로 이어지는 **외곽 루프는 결정론으로 유지한다.**
-LLM 이 도구를 골라 스스로 도는 ReAct 는 한 층 아래(`agents/agent_loop.py`)에만 둔다.
-자율성을 늘려야 할 때는 (a) 에이전트의 **도구 목록**을 늘리고(D129), (b) 규칙이 답할 수 없는
-자리만 좁게 연다(D131).
+**결정**: 커리어 원문에서 기술을 추출할 때 언어·프레임워크·DB 제품·개발 도구처럼 독립적으로
+재사용할 수 있는 이름만 `SKILL`로 저장한다. JOIN·GROUP BY·트랜잭션 같은 문법·연산은 프로젝트
+요약과 근거 문장에 남기며, 제품명과 합쳐진 표기는 공용 taxonomy로 기술명만 분리한다. 역량 검증
+문제와 학습 가이드는 `scopeDefinition`과 `levelDefinition`을 필수 범위로 삼고, 언어 기초 노드에서
+후속 프레임워크·웹 서버 아키텍처·트랜잭션이 검출되면 결과를 폐기해 한 번 재생성한다. 두 번째
+결과도 범위를 벗어나면 저장하지 않고 명시적인 생성 실패로 반환한다.
 
-**왜**: 다음 사람이 같은 것을 다시 시도하지 않게 근거를 남긴다.
+**왜**: 비정형 추출기가 `MySQL JOIN`을 하나의 기술로 만들거나, Python 기초 노드의 회사 맥락을
+확장해 FastAPI 웹 서버 아키텍처를 필수 학습으로 만드는 사례가 확인됐다. 프롬프트 경고만으로는
+재발을 막을 수 없으므로, 알려진 세부 연산의 기술 승격과 언어 기초의 후속 기술 혼입을 반환 계약
+검사로 차단한다. 모르는 신기술은 세부 연산 표식이 없으면 계속 보존해 taxonomy의 확장 가능성을
+유지한다.
 
-- 외곽을 ReAct 로 바꾸면 플래너 평가셋 52케이스·동의 게이트·전제 검증·환각 차단 하네스를
-  전부 재검증해야 한다. 지금 정확도 1.0·안정 1.0 은 그 하네스가 만든 값이다.
-- 프로토타입(`Agent_Test`)이 그 구조였고 W1~W3 결함이 거기서 나왔다(비교분석 §2-1).
-- 프로토타입도 같은 분할을 했다: 툴 선택은 LLM, level 분기는 조건엣지(D11).
-- 실측(D129): 자율성이 모자란 원인은 루프 구조가 아니라 도구 목록이었다. 구조를 바꿨다면
-  같은 병목을 그대로 안고 하네스만 잃었을 것이다.
-
-**측정**: 없음(하지 않기로 한 결정). 다시 검토할 조건: 에이전트가 실제 외부 도구를 여럿
-갖게 되고, `loop_consistency` 에서 상한 도달·궤적 불안정이 관측될 때.
-
-**출처**: `orchestrator/chat.py` 5) 주석 · `orchestrator/observe_rules.py` 모듈 docstring
+**출처**: `graph/read_nodes.py::_PROFILE_BUILDER_SYSTEM` ·
+`v2bridge/mapping.py::_skill_suggestions` · `v2bridge/service.py::_scope_guard_violations`
 
 ---
 
-### D137 (08-03) 진행 단계에 화자 키(agent)를 싣는다 — 색·로고는 웹이 고른다
+### D136 (08-04) 공고의 직무 경로는 브리지에서 표준화하고 혼합 직무만 사용자에게 확정받는다
 
-**결정**: `/v1/chat/stream` 과 `ChatResponse.progress` 의 각 단계에 **`agent`(화자 키)** 를
-추가한다. 에이전트가 한 일은 그 에이전트 이름으로, 플래너·실행 계획·관찰처럼 에이전트를
-**고르는** 쪽은 `orchestrator` 로 낸다. 위임(`delegate`)의 화자는 묻는 쪽(`from`)이다.
+**결정**: 서비스 계약으로 변환할 때 실제 에이전트가 반환한 역할명과 공고 원문을 함께 보고
+`COMMON/FRONTEND/BACKEND/MOBILE/DATA/AI_ML/CLOUD_DEVOPS/GAME/SECURITY/QA/EMBEDDED`의
+서비스 경로로 표준화한다. 게임은 `GAME_CLIENT`, `GAME_SERVER`, `GAME_PLATFORM_BACKEND`를
+구분하고, 게임 서버를 일반 웹 백엔드로 합치지 않는다. 프론트엔드와 백엔드, 게임 클라이언트와
+게임 서버처럼 준비 경로가 실질적으로 갈리는 공고는 분석 전에 선택 질문을 반환한다. 명시적인
+풀스택 공고는 하나의 혼합 경로로 유지한다. 알려지지 않은 역할은 백엔드로 추정하지 않고
+명시적인 미지원 역할로 반환한다.
 
-**왜**:
+**경계**: SVG의 분야 구성은 서비스가 지원하는 경로의 구조 참고이며 고정 공고 데이터가 아니다.
+실제 에이전트 코어의 역할 판정을 바꾸지 않고, 실험판 격리 규약이 허용하는 `v2bridge` 계약
+표준화에서만 적용한다. 새 기술명은 taxonomy에 없다는 이유로 폐기하지 않는다.
 
-- 웹이 담당별로 색·로고를 다르게 보여주려면 **안정된 키**가 필요하다. `label` 은 사람이
-  읽는 문구라 다듬는 순간(예: "공고 분석" → "공고 조건 정리") 화면 색이 조용히 바뀐다.
-- **색·로고는 브릿지가 정하지 않는다.** 웹 자원(Lucide 아이콘·팔레트)은 프론트에만 있고,
-  AI·백엔드·프론트 세 곳에 색을 복제하면 갈린다(protocol.py 의 "이름은 UI 가 갖는다"와 같은
-  이유). 브릿지는 키와 문구까지만 낸다 — 등록부는 `frontend/src/agents.ts` 한 곳이다.
-- 기존 키(`step`)로 대신할 수 없다. `step` 은 집계용이라 `start:fit_analysis` ·
-  `loop:coverletter_draft` 처럼 접두어가 섞여 있고, orchestrator 단계와 에이전트 단계를
-  구분하는 규칙이 화면 쪽에 또 생긴다(같은 사실을 두 곳에서 파싱).
+**로드맵 표현**: 기술·지식·검증 가능한 실무 방식은 학습 노드가 될 수 있다. 실제 경력과
+프로젝트 수행 이력은 완료형 기술 노드가 아니라 지원 관문으로 분리하며, 열정·책임감·태도 같은
+정성 조건은 분석 참고에만 남긴다. 같은 단계라도 서로 다른 종류의 역량은 하나의 합성 제목으로
+묶지 않는다.
 
-**측정**: `tests/test_v2bridge_contract.py::test_progress_shows_loop_steps_delegation_and_data_flow`
-(화자 키 3종 검증) · 실측 1턴(2026-08-03): `orchestrator` → `career_chat` → `orchestrator`
-순으로 스트림에 실려 백엔드 `chat_reply_agent_events` 에 순서대로 저장됨.
+**왜**: `Unity`와 `게임 개발에 대한 열정`, `Celery`와 `사용자 중심 자세`를 하나의 로드맵
+노드로 합치면 사용자가 무엇을 학습하고 어떻게 검증해야 하는지 알 수 없다. 게임 클라이언트와
+실시간 게임 서버도 요구 기반이 달라 백엔드 한 칸에 넣으면 경로가 왜곡된다. 반대로 모든 기술을
+폐쇄형 사전에 등록해야만 보존하는 구조는 새 기술을 놓치므로, 표준화와 보존을 분리한다.
 
-**출처**: `v2bridge/mapping.py` `ProgressMapper._step` · `v2bridge/models.py` `ProgressStep`
-
----
-
-### D138 (08-03) 같은 공고의 사이트별 중복은 RAG 어댑터에서 한 번 지운다
-
-**결정**: `rag.py` 의 `dedupe_postings` 로 후보 공고를 회사+직무 기준으로 중복 제거한다.
-회사 표기의 법인형(`(주)`·`㈜`·`주식회사`)과 제목 뒤 상태 표기(`(채용시 마감)` 등)를 지운 뒤
-비교하고, 먼저 온 것(점수 높은 쪽)을 남긴다. 적용 지점은 `LocalPostingsRagAdapter.search` 와
-`HttpRagAdapter.search` — 후보 items 가 만들어지는 두 자리 전부다.
-
-**왜**:
-
-- 실측(세션 `v2-chat-c1470d00`, 08-03): 추천 5건이 실제로는 공고 3개였다 — 같은
-  `posting_id` 54133661·54133629 가 work24·saramin 로 각각 두 번. 대안 공고 5건도 에버엑스
-  ("에버엑스㈜"/"에버엑스 주식회사")·피트인("(주)피트인"/"피트인")이 각각 두 번이었다.
-  사용자는 다른 선택지 5개를 받았다고 믿는다.
-- `posting_id` 만으로는 부족하다. 같은 공고가 사이트마다 다른 id 로 크롤돼 있다(에버엑스
-  49594447/54483510). 반대로 id 가 같은 중복도 있으니 회사+직무 정규화가 둘을 다 덮는다.
-- **소비자(job_recommend·`_alternatives_from_rag`·application_plan)가 아니라 어댑터에서
-  지운다.** 소비자마다 중복 제거를 붙이면 언젠가 한 곳이 빠진다 — 실제로 세 소비자 전부
-  빠져 있었다. 후보가 만들어지는 자리는 어댑터 두 곳뿐이다.
-- 괄호를 통째로 지우지 않는다. `백엔드(신입)`·`백엔드(경력)` 처럼 실제로 다른 공고가 합쳐진다.
-  지우는 것은 알려진 상태 표기뿐이다.
-
-**한계**: 결과 수가 `top_k` 보다 줄어들 수 있다 — 중복으로 자릿수를 채우는 것보다 낫다.
-회사명 표기가 크게 다른 중복(영문/한글 혼용)은 여전히 남는다.
-
-**측정**: `tests/test_rag_http.py::test_dedupe_postings_collapses_cross_site_duplicates`
-(위 실측 세션의 7건 입력 → 4건). 회귀 726건 통과.
-
-**출처**: `src/jobis_ai/rag.py` `dedupe_postings`
+**출처**: `v2bridge/role_catalog.py` · `v2bridge/taxonomy.py` ·
+`v2bridge/service.py::_completed` · Spring `RoadmapService`
 
 ---
 
-### D139 (08-03) 말하기 계층에 산수를 시키지 않는다 — 건수는 겹치지 않게 넘긴다
+### D137 (08-06) 통합 실험판의 legacy AI LLM은 Codex CLI로 고정한다
 
-**결정**: `nl_render._collect_facts` 가 넘기는 건수를 **상호 배타**로 만든다 —
-`metCount + partialCount + notMetCount + undecidedCount = requirementCount`.
-`gapCount`(=`len(gap["gaps"])`)를 없애고 `notMetCount`(status=not_met 개수)로 바꿨다.
-프롬프트에도 "건수는 주어진 값을 그대로 쓰고 더하거나 빼서 새 총계를 만들지 말 것" 한 줄을
-넣고, 결정론 요약도 부분 충족을 따로 말한다.
+**결정**: `start-ai-agent.ps1`이 `.env` 로드 뒤 `LLM_PROVIDER=codex_cli`를 강제한다. 기본 모델은
+`gpt-5.6-luna`, reasoning effort는 `low`이며 default/light/router 티어 모두 같은 모델을 쓴다.
+긴 입력은 stdin으로 넘기고 구조화 호출은 Codex `--output-schema` 계약으로 검증한다. Claude Code
+어댑터는 비교·회귀 자료로 보존하지만 통합 실험판 실행 경로에서는 선택하지 않는다.
 
-**왜**:
+**왜**: Claude CLI 로그인 세션이 만료되자 planner·user_facts·career_chat이 API 호출 전 모두
+종료 코드 1로 실패했고, HTTP 200 안에 결정론 폴백이 나가 정상처럼 보였다. AI v3는 이미 Codex
+CLI로 검증되고 있으므로 두 런타임의 로컬 모델 공급자를 통일해 인증 의존성과 진단 차이를 줄인다.
 
-- 실측(세션 `v2-chat-c1470d00`, 08-03): 요약이 "전체 **14개** 요구사항 중 1건 충족, 1건 부분
-  충족, 1건 판정 불가, **12건 격차**"로 나갔다 — 합이 15다. `gaps` 목록은 `not_met`(11)에
-  `partially_met`(1)을 함께 담는 계약인데, 그 길이 12를 `partialCount` 1 과 나란히 넘겼다.
-  **겹치는 수를 나란히 주면 모델은 그것을 더한다.**
-- 프롬프트로 "정확히 세라"고 시키는 것은 §3-1(규칙 추가보다 어휘 좁히기)의 반대다. 모델이
-  틀린 이유는 규칙을 몰라서가 아니라 **입력이 겹쳐 있었기** 때문이다 — 입력을 고친다.
-- 판정은 결정론이라 재현으로 확인했다: 저장된 `posting_summary`·`profile` 로
-  `gap_matcher` 를 다시 돌려 met 1 / partially_met 1 / not_met 11 / uncertain 1 = 14 확인.
-  `uncertain`(seniority-1)은 `gaps` 에 없다 — §2-1 은 지켜지고 있었다.
+**검증**: Codex 실행 인자·stdin·JSON Schema·JSONL 결과·사용량·오류 전달 단위 테스트와 legacy
+AI 전체 회귀 테스트를 실행한다.
 
-**측정**: `tests/test_nl_render.py::test_counts_partition_requirement_total`(위 실측 분포로
-합 = 전체 검증). 회귀 729건 통과.
-
-**출처**: `src/jobis_ai/nl_render.py` `_collect_facts` · `_deterministic_summary` · `_SUMMARY_SYSTEM`
+**출처**: `codex_cli_llm.py` · `llm.py::get_llm` · `scripts/start-ai-agent.ps1`
 
 ---
 
-### D140 (08-03) "RAG 미연결"은 정말 미연결일 때만 — 기업 맥락 부재는 따로 신고한다
+### D138 (08-06) 자유 채팅의 공고 원문은 의미 판독 후 원문 그대로 자산화한다
 
-**결정**: 공고 검색 어댑터(`HttpRagAdapter`·`LocalPostingsRagAdapter`)의
-`fetch_company_context` 가 `NullRagAdapter` 로 위임하는 것을 그만두고,
-`company_context_unsupported()`(코드 `company_context_unsupported`)로 사유를 낸다.
-정말 미연결인 `NullRagAdapter` 만 `rag_not_connected` 를 유지한다.
+**결정**: 플래너가 현재 발화의 `messageAssetType`을 `JOB_POSTING/RESUME/QUESTION_ONLY/NONE`으로
+읽는다. `JOB_POSTING`이면 사용자 메시지 원문을 재작성하지 않고 `job_posting`에 저장한 뒤
+`posting_analysis`를 실행한다. URL과 명시 첨부가 같은 턴에 접수됐다면 기존 인테이크를 우선한다.
+본문 없이 기능만 요청한 경우에는 문장을 공고로 오인하지 않고 `pendingRequest`에 요청을 보존해
+필요한 자산을 질문한다. 대형 플래너가 저확신 일반 대화로 빠진 경우에만 좁은 공고 요청 판독을
+한 번 실행하며, 정상 경로에는 LLM 호출을 추가하지 않는다.
 
-**왜**:
+**왜**: 실제 이스트게임즈 공고 4,872자가 `last_message`에만 남고 `job_posting`으로 승격되지 않아,
+플래너가 `posting_analysis`를 0.99로 선택했는데도 검증기가 전제 부족으로 제거하고
+`career_chat`으로 대체했다. 공고 내용을 코드의 길이·키워드 휴리스틱으로 판정하면 새 형식과
+일반 장문 상담을 오인하므로, LLM은 자료 의미만 읽고 코드는 원문 저장·파생 자산 무효화·요청
+보존만 결정론으로 수행한다.
 
-- 실측(세션 `v2-chat-c1470d00`, 08-03): 실 RAG(HTTP)가 정상 동작해 공고를 찾고 있었는데
-  (서버 로그에 검색 3회 성공) 분석 경고에는 `rag_not_connected` "RAG 미연결"이 찍혔다.
-  기업 맥락 조회를 Null 어댑터에 위임하면서 **그쪽 사유 문구까지 함께** 가져온 탓이다.
-- 경고가 틀린 원인을 가리키면 다음 사람이 없는 장애를 좇는다 — 폴백이 사유를 삼키는 것
-  (§2-6)의 거울상이고, 대가는 같다. 사유 자체는 남는다: 공고 검색 서비스는 인재상·기술문화를
-  대답할 소스가 아니다.
-- 코드를 나눈 이유는 집계다. "RAG 가 죽어서 맥락이 없음"과 "맥락은 애초에 검색 대상이 아님"을
-  한 코드로 세면 RAG 가용성을 영구히 알 수 없다.
+**검증**: 붙여넣은 공고 원문 승격, 본문 없는 요청 보존과 다음 턴 재개, 긴 일반 상담 비승격,
+저확신 플래너 복구, 평가 하네스 53케이스 계약을 추가했다. legacy AI 전체 705건 통과 및 실제
+Codex에서 공고 본문 `JOB_POSTING(0.99)`, 본문 없는 요청 `QUESTION_ONLY(0.98)`을 확인했다.
 
-**측정**: `tests/test_rag_http.py::test_connected_adapters_do_not_claim_rag_disconnected`.
-
-**출처**: `src/jobis_ai/rag.py` `company_context_unsupported`
-
----
-
-### D141 (08-03) 대화로 얻은 자산의 진실의 출처는 백엔드 테이블이다 — AI 세션은 캐시다
-
-**결정**: 에이전트와의 대화가 사용자 데이터를 얻는 창구이고, 그렇게 얻은 자산(공고 원문·파싱
-결과·이력서)은 AI 세션에 머무르지 않고 **백엔드의 알맞은 테이블에 적재된다**. AI 는 그것을
-`ChatResponse.collected` 로 내보내고, 백엔드는 첨부 경로가 쓰는 기존 서비스
-(`JobPostingService.create` · `career_sources`)로 적재한다. 계획은
-`작업로그/0803-대화자산-적재-계획.md`.
-
-**왜**:
-
-- 실측(08-03): 채팅에 URL 을 메시지로 붙이면 AI 는 공고를 수집·파싱·판정까지 하는데 백엔드는
-  그 공고를 **모른다** — `ConversationService.send` 는 `command.posting()`(첨부 UI)이 있을 때만
-  공고를 만들고, `ChatRequest` 는 `role`·`content` 만 싣는다. 세션 `v2-chat-c1470d00` 의 공고
-  (잡코리아 `49590699`)가 `job_postings` 에 없다. 사이드바 채용공고 페이지도, 커리어지도도
-  그 공고를 볼 수 없다.
-- **세션을 진실의 출처로 두면 대화가 끝나는 순간 사실이 사라진다.** 그리고 그 고장은 조용하다
-  — 채팅 화면에서는 분석이 다 된 것처럼 보인다.
-- 대칭도 깨진다: 첨부로 올린 공고는 적재되고 대화로 준 공고는 안 되는데, 사용자에게 그 둘은
-  같은 행동이다.
-- **추가만 하는 변경으로 가능하다.** 백엔드가 새 칸을 읽지 않으면 아무 일도 일어나지 않으므로
-  (Jackson 이 모르는 필드를 무시) AI 파트를 승인 대기 없이 먼저 끝낼 수 있다.
-
-**한계**: `preferences`·`user_facts`·`recommendations`·`coverletter`·`interview` 는 대응
-테이블이 없어 이번 범위 밖이다(새 테이블은 백엔드와 함께 정한다). 지금 막는 것은 공고·이력서다.
-
-**출처**: `orchestrator/session.py:ASSET_KEYS` · `ConversationService.send` ·
-`v2bridge/models.py:ChatRequest`
+**출처**: `orchestrator/planner.py::AgentPlan/recover_posting_request` ·
+`orchestrator/chat.py::planner_message_asset_update` · `evals/planner_dataset.json`
 
 ---
-
-### D142 (08-03) 로드맵은 커리어지도에서만 그린다 — 채팅은 "생겼다"까지만 말한다
-
-**결정**: 적합도 분석까지가 채팅·에이전트의 영역이고, 로드맵은 커리어지도에서 그린다. 채팅은
-로드맵 항목을 나열하지 않고 "로드맵이 다 그려지면 커리어지도에서 확인해 보세요" + `OPEN_MAP`
-까지만 낸다. 지도 재료(`competencyProposal`)를 내는 경로는 **분석 잡 하나로 유지한다** —
-`ChatResponse` 에는 싣지 않는다.
-
-**왜**:
-
-- 지도에 생긴 것을 채팅이 다시 읊으면 사용자는 같은 내용을 두 번 보고 지도를 열 이유가
-  없어진다. 이 정책은 `mapping.chat_actions` 주석에 이미 적혀 있었는데
-  (`OPEN_MAP` 은 "로드맵을 채팅으로 읊지 않기 위한 유일한 레버") **렌더러가 어기고 있었다** —
-  `render_roadmap_manager` 가 항목을 나열하고 "수정·진척 체크는 준비 중"을 붙였다. 사용자는
-  그것을 "로드맵 생성이 안 됨"으로 읽었다(실측 대화 08-03 16:59).
-- 재료를 내는 길을 둘로 두지 않는 이유: 같은 공고에 대해 채팅과 분석 잡이 각각 제안을 내면
-  `canonicalKey` 가 같아도 수준·검증 방법이 갈려 지도가 쪼개진다. 그 고장은 예외도 경고도
-  없다(`AnalyzedCompetency` docstring 이 지적한 그 고장이다).
-- 로드맵 재료는 **적합도 분석까지 쌓인 데이터**로 만들고 부족한 자리만 LLM 이 읽어 메운다
-  (`build_competency_proposal` + `enrich.classify_posting`) — 이미 그 구조다.
-
-**측정**: 구현 시 `render_roadmap_manager` 문구 테스트 + `_MAP_PRODUCERS` 에 `fit_analysis`
-포함 여부 테스트.
-
-**출처**: `agents/tool_render.py:render_roadmap_manager` · `v2bridge/mapping.py:chat_actions`
-
----
-
-### D143 (08-03) 같은 공고·같은 이력서면 다시 판정하지 않는다
-
-**결정**: `fit_analysis` 는 판정 전에 `analysis_key`(= {공고 지문, 이력서 지문})를 보고, 활성
-판정이 같은 키에서 나온 것이면 **파이프라인을 돌리지 않고 그 결과를 쓴다.** 재사용 사실은
-`analysis_reused` 경고로 남긴다. 표현 계층은 새로 돈다 — 판정은 같아도 다음 행동 제안은 이번
-턴의 맥락에 붙는 문장이다.
-
-**왜**:
-
-- 실측(08-03): 한 대화에서 같은 공고·이력서로 적합도 판정이 **두 번** 돌았다(채팅 턴 +
-  공고 첨부가 만든 분석 작업). 판정은 (공고 × 이력서)의 함수이고 판단 계층은 결정론이라
-  같은 입력에 같은 값을 낸다 — 다시 도는 것은 수십 초와 LLM 콜 여러 건을 태워 같은 결론을
-  얻는 일이다.
-- 무효화 기준을 **지문 두 개**로 좁힌 이유: 판정이 무엇의 함수인지가 그 둘이다. 시간·턴 수 같은
-  기준을 쓰면 "왜 다시 돌았나"에 답할 수 없다. 이력서 지문은 `resume_source_hash` 를 그대로
-  쓴다(이력서 축 비교가 이미 쓰는 함수 — 같은 판별을 두 벌 두지 않는다).
-- 재사용을 **경고로 신고**한다(§2-6). 즉시 답이 나온 이유가 어디에도 안 남으면, 다음 사람은
-  판정이 도는지 안 도는지를 로그로 알 수 없다.
-
-**안 한 것**: **채팅 세션과 분석 작업 세션 사이의** 재사용은 하지 않았다. 백엔드가 보관하는
-판정(`analysis_jobs.result_data`)은 **v2 형식**(job·evaluation·competencyProposal)이고 채팅
-세션의 `analysis` 는 **엔진 형식**(fitGrade·gaps·roadmap)이라, 교차 재사용은 형식 변환기나
-엔진 형식 보관소를 새로 세워야 한다. 지금 그것을 검증할 수 없어(로컬 DB 없음) 만들지 않았다 —
-그 사실 자체가 다음 사람이 알아야 할 값어치다.
-
-**측정**: `tests/test_agents_roster.py::test_fit_analysis_reuses_the_judgment_when_nothing_changed`
-(파이프라인을 monkeypatch 로 막고 재사용을 확인, 이력서가 바뀌면 다시 돌아야 함). 회귀 741건.
-
-**출처**: `agents/fit_analysis.py` `_analysis_key`·`_from_cached` · `orchestrator/session.py:ASSET_KEYS`
-
----
-
-### D144 (08-03) 지속 사실 추출은 에이전트와 **동시에** 돈다 — 스킵 조건을 늘리지 않는다
-
-**결정**: `user_facts`(D82) 추출을 턴 맨 끝 순차 실행에서 **발화 확정 직후 별 스레드 시작 →
-턴 끝에 거두기**로 바꿨다(`chat._start_user_facts`·`_collect_user_facts`). 스킵 조건은 종전
-그대로(빈 발화 / 합성 발화 / 600자 초과)이고 **더 좁히지 않았다.**
-
-**왜**:
-
-- 실측(08-03, 실 경로): "백엔드 직군은 주로 어떤 일 하는거야?" 한 턴이 28초였고 분해하면
-  플래너 7.8초 · `career_chat` 12초 · **`user_facts` 6.6초**. 마지막 6.6초는 답변이 이미
-  끝난 뒤에 붙어 있었다.
-- `extract_user_facts` 의 입력은 **발화 하나**다(+기존 목록). 플래너·에이전트 산출물에
-  의존하지 않으므로 동시에 돌 수 있다. **느린 이유가 "필요 없는 일"이 아니라 "줄을 잘못 선
-  일"이었으므로 순서만 바꾼다.**
-- **스킵 조건을 늘리는 처방을 버린 근거**: ① 1인칭 표지 기준 — 한국어는 주어를 생략해서
-  "9월까지 취업하고 싶어" 처럼 표지 없는 진짜 사실이 흔하다. ② 사실 어휘 화이트리스트 —
-  목록 밖 표현이 조용히 버려지고, §3-1 이 경고하는 "규칙 추가" 쪽이다. ③ 길이 하한 —
-  "부산 거주"(5자)가 사실이다. 셋 다 **놓친 사실**을 대가로 낸다.
-- **`copy_context()` 로 컨텍스트를 넘긴다.** 새 스레드는 contextvars 를 물려받지 않아서
-  그대로 두면 이 콜의 `trace` 이벤트가 진행 스트림에서 사라지고 `llm_usage` 집계의 콜 수가
-  줄어든다(조용한 관측 손실). `TraceRecorder` 는 이미 스레드 안전이고(자체 lock — "병렬 실행
-  구간에서는 여러 스레드가 같은 레코더에 쓴다"), 수집기도 lock 을 갖고 있다.
-- 상한 20초를 두고 못 거두면 경고와 함께 넘어간다 — 사실 축적은 강화(enrichment)라 답변이
-  끝난 턴을 붙잡을 값어치가 없다. **경고는 조건 밖에서 올린다**(작성 중 실제로 `facts is not
-  None` 안에 두어 타임아웃 사유를 삼켰고, 테스트가 그것을 잡았다 — §2-6).
-
-**안 한 것**: **플래너는 손대지 않았다.** 같은 입력으로 티어를 비교하니 `claude-opus-5` 8.1초
-`career_chat`(정답) vs `sonnet` 9.0초 `posting_analysis`(오판 — 공고 자산이 없는 세션이다).
-sonnet 은 빠르지도 않으면서 라우팅을 틀리므로 D74 를 뒤집을 근거가 없다. 한 턴에서 관측된
-플래너 98초는 그 시점 `claude` CLI 응답이 튄 것이고(백엔드 큐 대기는 1초), 같은 질문 재측정에서
-7~8초였다 — **CLI 호출 특성의 문제이므로 API 직접 호출로 갈 때 함께 해소된다**(사용자 판단).
-
-**측정**: `tests/test_orchestrator.py::test_user_facts_runs_beside_the_agents_and_keeps_its_observability`
-(다른 스레드에서 돌고 trace·usage 가 살아 있음) · `::test_user_facts_timeout_does_not_hold_the_turn`.
-실 경로 재측정: **28초 → 20초**, `career_chat` 완료(19.85초)와 턴 종료(19.86초) 차이 0.02초.
-회귀 743건.
-
-**출처**: `orchestrator/chat.py` `_start_user_facts`·`_collect_user_facts`·`_USER_FACTS_TIMEOUT_SEC`
-
----
-
-### D145 (08-03) 자료를 달라는 되묻기를 어댑터가 대신 대답하지 않는다 — 그리고 공고 첨부도 대화다
-
-**결정** 둘:
-
-1. **AI** — `v2bridge.analyze` 의 자동 응답 `_ASSET_ANSWER` 를 없앴다. 에이전트가 이력서·공고를
-   청하면 그 **에이전트가 쓴 문장 그대로** 사유별 코드(`CAREER_DATA_REQUIRED` ·
-   `POSTING_TEXT_INSUFFICIENT`)로 이 턴을 끝낸다. 왕복하지 않는다.
-2. **백엔드** — 공고 첨부 경로도 `chatReplyJob` 을 만든다(`ConversationService.enqueueChatReply`
-   공유). 프론트 `attachPosting` 도 그 작업을 폴링한다.
-
-**왜**:
-
-- **누구 로직인지 확인부터 했다.** 왕복 상한과 자동 응답은 백엔드가 아니라 **우리 코드**다
-  (`v2bridge/service.py`, 커밋 `9321197`, 2026-07-30). 뿌리는 `webbridge/runner.MAX_TURNS` —
-  정적 데모용 러너의 "한 요청 = 한 결론" 전제가 v2bridge 로 그대로 따라왔다.
-- 실측(08-03, 이력서 없는 계정): 에이전트가 이력서를 청할 때마다 어댑터가 *"요청에 담긴 커리어
-  자료가 제가 가진 전부예요. 그 근거만으로 판정해 주세요."* 를 **사용자 발화로 지어 넣고** 다시
-  돌려 `posting_analysis` 가 **4번** 돌고 왕복 상한에서 죽었다. 사용자는 그 말을 한 적이 없고,
-  화면에는 "AI 서비스 응답이 지연되었습니다"만 남아 **정작 할 일(자료 등록)은 어디에도 없었다.**
-  LLM 4콜을 태워 아무것도 못 얻는다.
-- **에이전트 서비스에서 "물어볼 수 있음"은 능력이지 실패가 아니다.** 그 상태를 담을 자리가 잡
-  모델에 없어서 자동 응답으로 우회한 것이 문제였다 — 우회를 지우고, 물음을 그대로 위로 올린다.
-- 첨부 경로가 `chatReplyJobId=null` 을 돌려주던 것도 같은 계열이다: 같은 URL 을 채팅 본문에
-  쓰면 에이전트가 정리해 주는데, 왼쪽 버튼으로 넣으면 "백그라운드 분석을 시작했어요" 한 줄만
-  왔다. **사용자에게 그 둘은 같은 행동이다.** 발화에 이미 주소·원문이 있으므로 AI 쪽은 채팅
-  본문 경로와 같은 길을 탄다 — 따로 실어 보낼 것이 없다.
-
-**남긴 것**: `_CONSENT_FIELDS`(동의 게이트 → "네") 는 유지한다. 백엔드의 분석 실행 자체가
-사용자의 실행 지시라 지어내는 것이 아니다. `_NO_INFO_ANSWER`(선택지 없는 되묻기 → "정보 없음")도
-유지한다 — 사실을 주장하는 게 아니라 **더할 정보가 없다는 사실**이고, 엔진의 uncertain 처리가
-그걸 분모에서 뺀다(§2-1). 이것까지 실패로 바꾸면 지금 성공하는 분석이 깨진다(0803 §4 의 반전).
-
-**측정**: `tests/test_v2bridge_url_posting.py::test_asset_request_ends_the_turn_instead_of_answering_for_the_user`
-(자료 요청 뒤 **재실행 0회**, 에이전트 문장 그대로 전달, 코드 `CAREER_DATA_REQUIRED`).
-회귀 744건 · 백엔드 `compileJava` 통과. 재시도 폭주 위험 없음 — `fail()` 은 코드와 무관하게
-FAILED 로 끝내고 `claim_analysis_job` 은 QUEUED 만 집는다.
-
-**출처**: `v2bridge/service.py` `_ASSET_REQUEST_CODE` · `ConversationService.enqueueChatReply` ·
-`frontend/src/views/ChatView.vue:attachPosting`
-
----
-
-### D146 (08-03) 지도는 적합도 분석 뒤 자동으로 그려지고, 그 전에는 시도조차 막는다
-
-**결정** 셋(사용자 지시 + 세 가지 다듬기):
-
-1. **조건은 "분석 완료"가 아니라 "지도 재료가 있는가"** — `posting_competency_requirements`
-   에 `roadmap_eligible` 행이 있는지로 판단한다(`RoadmapService.eligibleMaterialCount`).
-2. **막는 곳은 서버.** `POST /api/roadmap/draft` 가 재료 없으면 409
-   `ROADMAP_MATERIAL_REQUIRED` 로 거부하고, `Workspace.canGenerate`·`generateBlockedReason`
-   을 실어 보낸다. 프론트는 그 값을 읽어 버튼을 비활성화하고 **조건을 다시 쓰지 않는다.**
-3. **자동 생성 뒤 자동 적용은 적용 버전이 없을 때만.** 초안 생성은 무해하지만 적용은 기존
-   적용 버전을 덮는다.
-
-**왜**:
-
-- **①**: 분석이 COMPLETED 여도 재료가 안 나오는 공고가 있다 — 실측(08-03): 필수 요건이 학력·
-  연차뿐이고 기술은 전부 우대인 공고에서 `provable` 이 비어 제안이 만들어지지 않았다. 완료
-  여부로 열면 **빈 지도**가 그려지고 사용자는 "분석했는데 지도가 비어 있다"를 만난다. 그리기가
-  실제로 읽는 표를 세면, 재료를 어느 경로(분석 작업/대화)가 넣었는지 알 필요조차 없다(§1).
-- **②**: 버튼만 비활성화하면 API 로는 여전히 되고 규칙이 두 곳에 갈린다. 오늘 실제로 그런
-  사고가 있었다 — `ChatView` 의 공고 첨부는 버튼 `:disabled` 와 함수 가드가 **따로** 있어
-  하나만 고치면 다른 쪽이 막았다(0803 §5-4). 판단은 서버가 한 번 하고 화면은 읽는다.
-- **③**: 사용자가 쓰고 있는 지도를 분석 한 번으로 말없이 갈아치우는 것은 파괴다(§8 의
-  "최종 확정은 사람"과 같은 결). 첫 버전일 때만 자동 적용해 첫 경험을 완결시키고, 그 뒤에는
-  초안까지만 만든다 — 화면에 "초안 미리보기 / 현재 적용 버전" 구분이 이미 있다.
-- 자동 실행 지점이 둘(`AnalysisWorker.complete` · `ChatReplyWorker.ingestOutputs`)인데
-  **같은 메서드**(`autoGenerateAfterAnalysis`)를 부르게 했다 — 규칙을 두 벌 두면 언젠가
-  한 벌이 낡는다. 실패는 로그만 남기고 부르는 쪽을 죽이지 않는다(판정은 이미 저장됐다).
-
-**측정**: 실경로 확인(백엔드 8080, 재료 0건 상태) — `GET /api/roadmap` →
-`canGenerate=false` + 이유 문구, `POST /api/roadmap/draft` → **409
-ROADMAP_MATERIAL_REQUIRED**. 백엔드 `compileJava`·`test` 통과, 프론트 `vue-tsc` 통과.
-
-**출처**: `RoadmapService.autoGenerateAfterAnalysis`·`eligibleMaterialCount`·
-`MATERIAL_REQUIRED_MESSAGE` · `frontend/src/views/CareerMapView.vue:regenerate`
-
----
-
-### D147 (08-03) 지도 재료를 대화가 만든다 — 적재는 기존 경로 하나를 그대로 쓴다
-
-**결정**: 채팅 턴에서 적합도 판정이 새로 나면 그 자산으로 `competencyProposal`(지도 재료)을
-만들어 `ChatResponse.collected.outputs.competencyProposal` 로 올린다. 백엔드는 그것을 그 공고의
-**공용 분석**(`posting_analysis_cache`)으로 저장하고, 그 공고의 분석 작업이 **기존 재사용 경로**
-(`AnalysisWorker.reuseSharedAnalysis`)로 집어 적재한다. 적재 SQL 은 복제하지 않는다.
-
-**왜**:
-
-- 사용자 지시: *"로드맵 생성까지 에이전트 대화를 통한 자산과 LLM 으로 생성되게"*. 지금까지
-  재료를 만들 수 있는 곳은 `/v1/analyses` 하나였고, 그 경로는 백엔드가 의도를 확정하는 고정
-  파이프라인이라 대화로 쌓인 자산(선호·이력서 라이브러리·지속 사실)을 보지 못한다(D145 의 진단).
-- **재료를 만드는 코드는 재사용한다** — `mapping.build_competency_proposal` + `enrich`.
-  대화 경로에서 다시 구현하면 두 경로의 지도가 갈린다. 이것이 D142 를 뒤집는 방식이다:
-  D142 의 의도("생산자는 하나")는 유지하고 **생산자를 대화로 옮긴다.**
-- **적재는 왜 복제하지 않나**: 그 코드는 `AnalysisWorker.complete` 안 500줄이고 공고 열 갱신·
-  커리어 노드 연결·준비도 계산과 얽혀 있다. 지금 추출하면 백엔드의 가장 민감한 자리를 검증
-  없이 흔든다. 그런데 **이미 "다른 곳에서 만든 제안을 받아 적재하는 통로"가 있었다** —
-  공용 분석 재사용(계정 간 재사용을 위해 만든 것)이 정확히 그 모양이다. 그 통로를 쓰면
-  writer 가 하나로 유지되고 변경이 SQL 한 조각으로 끝난다.
-- 판정 근거(`requirementStatus`)는 `fit_analysis` 가 세션에 남기게 했다 —
-  `judgment_summary` 자산의 선언된 용도("요건별 매칭·점수 산출")다. 안 남기면 브릿지가
-  `gap_matcher` 를 다시 돌려야 하고, 서술형 요건에 LLM 을 또 태워 같은 판정을 두 번 계산한다.
-- **판정이 이번 턴에 새로 난 경우만** 만든다 — 이미 있던 판정에 매 턴 재료를 다시 올리면
-  같은 재료가 계속 적재된다.
-
-**흐름**: 채팅에 공고·이력서 → 적합도 판정 → 재료 생성(대화 자산 + LLM) → 공용 분석 저장 →
-분석 작업이 적재 → **지도 자동 생성**(D146) → 사용자는 커리어지도 페이지에서 본다.
-채팅은 로드맵을 읊지 않는다(D142).
-
-**측정**: `tests/test_v2bridge_contract.py::test_chat_produces_the_map_material_from_conversation_assets`
-(LLM 미설정에서도 결정론 재료가 나온다 · 판정 없으면 None) ·
-`::test_map_material_ships_only_when_the_judgment_is_new`. AI 회귀 760건 · 백엔드 test 통과.
-
-**출처**: `v2bridge/service.py:_competency_proposal_for_chat` ·
-`agents/fit_analysis.py`(judgment_summary) · `ChatReplyWorker.ingestOutputs`(공용 분석 저장)
-
----
-
-### D148 (08-03) **D146-② 부분 뒤집힘** — 지도 생성 가능 여부를 매 순간 알리지 않는다
-
-**뒤집은 것**: D146-② 에서 `Workspace.canGenerate`·`generateBlockedReason` 을 응답에 실어
-화면이 생성 버튼을 **상시 비활성화**하고 이유를 보여주게 했다. 그 두 칸과 화면의 상시 판정을
-없앤다. **서버가 실제 생성 요청을 거부하는 것(409 `ROADMAP_MATERIAL_REQUIRED`)은 유지한다.**
-
-**왜 뒤집었나**(사용자 지적):
-
-- **에이전트 로직은 매 순간 가능·불가능을 따지지 않는다 — 사용자의 자율성을 중요시한다.**
-  로드맵은 적합도 분석이 끝나면 **생기는 결과**이고, 조회마다 "지금 생성 가능한가"를 계산해
-  알리면 화면이 사용자에게 허락을 따지는 창구가 된다.
-- 내가 ② 를 넣은 근거는 "버튼만 막으면 규칙이 두 곳에 갈린다"였는데, 그 근거는 **거부를
-  서버가 한다**는 부분으로 이미 충족된다. 화면이 그 판정을 미리 **읊는 것**까지는 필요하지
-  않았다 — 두 가지를 한 덩어리로 묶어 생각한 것이 잘못이다.
-- 안내 시점도 달라진다: 사용자가 **실제로 눌렀을 때** 서버가 사유를 답하고 화면은 그 문장을
-  그대로 보여준다(묻지 않았는데 미리 알리지 않는다).
-
-**유지한 것**: D146-①(조건은 "분석 완료"가 아니라 지도 재료 유무) · D146-③(자동 생성,
-적용은 적용 버전이 없을 때만) · 서버의 409 거부(빈 지도가 그려지는 것을 막는다).
-
-**측정**: 백엔드 `compileJava`·`test` 통과 · 프론트 `vue-tsc` 통과.
-
-**출처**: `RoadmapService.workspace`(두 칸 제거) · `CareerMapView.vue:regenerate`(상시 판정 제거)
-
----
-
-### D149 (08-03) 백엔드는 사용자향 문장을 쓰지 않는다 — 대화의 말은 에이전트가 한다
-
-**결정**: 백엔드가 대화창에 넣던 고정 문구를 걷어낸다.
-
-1. `AnalysisWorker.fail` — 대화 메시지 내용을 **AI 가 준 사유 그대로** 쓴다
-   (`conversationFailureMessage`). 우리 문구는 AI 의 문장이 없을 때(연결 실패·계약 위반)만.
-2. `ConversationService.send` — 공고 첨부 시 넣던 *"공고를 저장했고 백그라운드 분석을
-   시작했어요…"* 를 비운다. 그 행은 **진행 휠이 붙는 자리**(analysis_job_id 를 실은 메시지)라
-   유지하되 문장은 담지 않는다. 재사용 안내(`reuseMessage`)는 남긴다 — 그건 이 서비스만 아는
-   사실이고 에이전트는 모른다.
-3. 프론트 — 내용이 빈 메시지는 문장 자리를 만들지 않는다(`v-else-if="item.content.trim()"`).
-   막지 않으면 아바타만 있는 **빈 말풍선**이 뜬다.
-
-**왜**:
-
-- 사용자 지시: *"그런 사용자발화는 에이전트가 전부 할 거야."*
-- 실측(08-03 22:34): 에이전트가 *"이력서(또는 경력·기술 소개)를 주시겠어요?"* 라고 물었고
-  그 문장이 `error_message` 에 제대로 저장됐는데, 대화창에는 *"공고 분석을 완료하지 못했어요.
-  오류를 확인하고 다시 시도할 수 있습니다."* 만 떴다. **사용자는 정작 할 일을 보지 못했다.**
-  게다가 "다시 시도"는 그 경우 틀린 안내다 — 자료 없이 재시도하면 같은 결과다.
-- D145 에서 코드를 갈라 사유를 살렸는데(그래서 `CAREER_DATA_REQUIRED` 가 DB 에 남았다) **그
-  다음 한 겹**에서 다시 지워지고 있었다. 사유를 살리는 일은 저장까지가 아니라 **화면까지**다.
-- 이것은 AI 쪽 §2-3("도구는 말하지 않는다 — 문구는 표현 계층이 만든다")을 서비스 경계에 그대로
-  적용한 것이다: 여기서는 백엔드가 도구이고 에이전트가 표현 계층이다.
-
-**측정**: 백엔드 `compileJava`·`test` 통과 · 프론트 `vue-tsc` 통과. 빈 말풍선 방어를 함께 넣었다.
-
-**출처**: `AnalysisWorker.conversationFailureMessage` · `ConversationService.send` ·
-`ChatView.vue`(빈 내용 렌더 방어)
-
----
-
-### D150 (08-03) 분석 작업은 대화창에 끼어들지 않는다 — 자리만 남기고 문장은 담지 않는다
-
-**결정**: `AnalysisWorker` 가 대화에 넣던 `ANALYSIS_STATUS` 메시지의 **문장을 비운다**(성공·실패
-둘 다). 행 자체는 남긴다 — 진행 카드가 붙는 **자리**다.
-
-**왜**:
-
-- D149 로 실패 사유가 화면까지 오게 했더니, 그 문장이 **에이전트가 답하는 턴에 화자 없이 따로**
-  떴다. 실측(08-03 22:47): 에이전트가 휴먼코아 공고를 정리해 답하는 사이에 *"이력서(또는 경력·
-  기술 소개)를 주시겠어요?"* 가 별 말풍선으로 나와, 누가 무엇을 요구하는지 흐려졌다.
-  **사용자향 발화는 에이전트가 전부 한다**(사용자 지시) — 분석 작업은 화자가 아니다.
-- **사유는 사라지지 않는다.** `error_code`·`error_message` 는 그대로 저장되고, 화면의 진행
-  카드가 이미 그것을 읽어 보여준다(상태 FAILED + `errorMessage` + "다시 분석" 버튼).
-  D149 의 목표(사유를 화면까지)는 카드가 충족하고, 대화창 문장은 중복이었다.
-- **행을 지우지 않은 이유**: 그 행이 진행 카드의 anchor 다(`analysis_job_id` 를 실은 메시지).
-  채팅 본문에 URL 을 쓴 경로는 사용자 메시지에 그 id 가 없어서, 이 행을 지우면 카드가 붙을
-  자리가 없어지고 실패가 화면에서 통째로 사라진다.
-- `pauseForQuestion`(NEEDS_INPUT)의 메시지는 그대로 둔다 — 선택지가 실린 질문이고 화면이 그
-  카드로 답을 받는다. 그건 상태 알림이 아니라 **구조화된 입력 요청**이다.
-
-**측정**: 백엔드 `compileJava`·`test` 통과. 빈 내용 렌더 방어는 D149 에서 이미 넣었다.
-
-**출처**: `AnalysisWorker.complete`·`fail`(ANALYSIS_STATUS content 비움)
-
----
-
-### D151 (08-03) 자산 복원이 에이전트의 "방금 받았나" 판단을 덮어쓰지 않는다
-
-**결정**: 요청으로 복원해 심은 자산에 `_origin="backend"` 표식을 남기고, `posting_analysis` 는
-**파싱 재사용**(`fromCache`)과 **이 대화에서 보여준 적 있나**(`alreadyShown`)를 갈라 본다.
-`firstLook` 은 후자만 본다.
-
-**왜**:
-
-- 무상태 전환(§2-3)에서 공고 파싱 결과를 요청으로 복원해 심었더니, `posting_analysis` 가
-  `posting_summary._sourceHash` 일치를 보고 "이미 정리해 본 공고"로 읽어 **전 항목 정리를
-  건너뛰었다.** 실측(08-03): 공고를 처음 붙인 턴인데 요건 정리가 안 나왔다.
-- **파싱을 아끼려던 복원이 사용자에게 보여줄 것까지 지웠다.** 두 사실은 다르다 — 파싱 결과가
-  있다는 것과, 그 내용을 이 대화에서 보여줬다는 것.
-- 더 일반적인 교훈: **자산을 복원하는 층이 에이전트의 "이번 턴에 무엇이 새로 왔나"를 흐리면
-  에이전트의 단계별 행동이 무너진다.** 그 신호 위에 D71(정리 단계 삽입)·확신 문턱 면제·
-  `firstLook` 이 서 있다. 복원은 값만 돌려주고 **판단 신호는 건드리지 않아야 한다.**
-- 처음에는 "제출 턴에는 판정을 미루고 묻는다"는 **새 규칙을 더하려** 했다가 되돌렸다 —
-  그건 플래너의 판단을 덮어쓰는 것이고(명시로 청한 판정까지 막았다: 회귀 5건), 원인이 아니라
-  증상을 가리는 처방이었다. 사용자 지적: *"고치는 게 아니라 원래 에이전트 구현이 우선되게."*
-
-**측정**: `tests/test_v2bridge_contract.py::test_seeded_posting_does_not_suppress_the_first_look`
-(심은 것은 `fromCache=True`·`alreadyShown=False`, 우리가 정리한 것은 둘 다 True). 회귀 763건.
-
-**출처**: `agents/posting_analysis.py`(`already_shown`·`alreadyShown`) ·
-`v2bridge/service.py:_seed_postings`(`_origin="backend"`)
-
----
-
-### D152 (08-03) 에이전트 자산 블롭이 진실의 출처다(ⓐ) — 번역기를 없앤다
-
-**결정**: 세션 자산 **전체**를 응답 `collected.outputs.session_state` 로 싣고, 백엔드가
-`agent_session_state.state`(V23) 에 통째로 upsert 한 뒤 다음 요청 `career.sessionState` 로
-그대로 돌려준다. AI 는 이것을 **번역 없이** 복원한다(`_seed_session_state` 하나).
-`_seed_resumes` · `_seed_postings` · `_seed_profile` 세 번역기는 삭제. 도메인 테이블
-(`job_postings`·`career_sources`·`user_goal_profiles`·V23 산출물)은 **읽기용 투영**으로
-유지한다 — `collected` 의 나머지 칸(posting·resume·outputs.*)이 그 재료이고, 방향이
-한쪽(자산 → 투영)이며 테이블마다 writer 가 하나(백엔드)라 갈리지 않는다.
-
-**왜**:
-
-- **번역이 있는 한 D151 계열 회귀가 반복된다.** 백엔드 어휘(`career.resumes` 의
-  `title`·`source_type`)를 세션 어휘(`_label`·`_origin`·`_sourceHash`)로 옮겨 적는 층이
-  자산마다 있었고, 그 층이 에이전트의 "이번 턴에 무엇이 새로 왔나" 신호를 덮어써 단계별
-  행동을 무너뜨렸다(실측 08-03: 공고를 처음 붙인 턴인데 요건 정리가 사라졌다). 왕복이
-  원문 그대로면 표식도 그대로 살아남아 **이 문제가 구조적으로 사라진다.**
-- 반대했던 ⓐ는 "같은 사실을 양방향으로 서로 덮어쓰는" 형태였다. 이건 그게 아니다 —
-  방향이 한쪽이고 writer 가 테이블마다 하나다.
-- 블롭은 무엇이든 바뀐 턴에 **전량**을 싣는다(부분 갱신·병합 없음). 백엔드 upsert
-  (`state = excluded.state`)와 복원이 갈릴 여지를 없애기 위해서다. history 가 매 턴
-  붙으므로 사실상 매 턴 나간다 — 진실의 출처가 최신이어야 하는 비용으로 받아들인다.
-- 복원은 **세션에 값이 없을 때만** 세운다 — 세션(SQLite)이 살아 있으면 그쪽이 최신이고,
-  요청 블롭은 직전 턴의 사본이다.
-- 백엔드는 바꾸지 않았다: `ChatReplyWorker` 가 이미 통째 upsert + 회신을 하고 있었고
-  계약 타입이 JsonNode/dict 라 블롭이 커져도 그대로 흐른다.
-
-**측정**: `pytest -q` 757건 통과(번역기 테스트 6건 삭제·블롭 왕복 테스트로 대체 — 763→757).
-`tests/test_persistence_map.py` 가 "backend 선언 키가 블롭에 실제로 실리는가"를 코드로 확인.
-
-**출처**: `v2bridge/service.py`(`_seed_session_state`·`_collected_outputs`·`_outputs_snapshot`) ·
-`v2bridge/persistence_map.py`(전 자산 목적지를 블롭으로 갱신) ·
-`작업로그/0803-인수인계-에이전트스키마전환.md` §0(사용자 결정)
-
----
-
-### D153 (08-04) 담당의 발화는 완성되는 즉시 화면에 나온다 — 배달도 단계별로
-
-**결정**: `agent_end` 진행 이벤트에 발화 본문(`message`)을 싣는다. 계약 세 층을 관통한다 —
-AI `ProgressStep.message`(4000자) → 백엔드 `AiContracts.ProgressStep.message`
-(`chat_reply_agent_events` 에 그대로 저장) → 프론트 `agent-stream` 이 과정 라벨과 별개의
-발화 문단(`agent-turn__speech`)으로 그린다. 최종 합본 메시지·`replySources` 는 그대로 둔다.
-
-**왜**:
-
-- 엔진은 이미 단계별로 말한다: 각 에이전트가 자기 발화를 만들고 화자별로
-  `replySources` 에 남으며, `agent_end` 트레이스에는 발화 본문까지 실려 있었다. 그런데
-  `ProgressMapper` 가 그 본문을 버리고 "완료 · 4.2초"만 남겨, **생산은 단계별인데 배달이
-  일괄**이었다 — 3분 넘는 턴의 이력서 정리·적합도 판정·로드맵 안내가 턴 끝에 한 덩어리로
-  도착했다(실측 08-03 사용자 관측).
-- 새 통로를 만들지 않았다. 스트림 → `chat_reply_agent_events` → 프론트 폴링이라는 기존
-  경로에 필드 하나를 더했을 뿐이다. 끝난 턴은 `agent-stream` 이 접히고(기존 동작) 최종
-  답변이 `replySources` 로 나뉘어 뜨므로, 같은 내용이 화면에 두 번 펼쳐지지 않는다.
-- 발화가 없는 단계는 빈 문자열 — 화면은 빈 발화 문단을 만들지 않는다.
-
-**측정**: AI `pytest -q` 758건 · 백엔드 `compileJava`+`test` 통과 · 프론트 `vue-tsc` 통과.
-
-**출처**: `v2bridge/models.py`(ProgressStep.message) · `v2bridge/mapping.py`(agent_end) ·
-백엔드 `AiContracts.ProgressStep`·`AiAnalysisClient`(스트림 파서) ·
-프론트 `ChatView.vue`(agentTurns·speech)·`types.ts`·`base.css`
-
----
-
-### D154 (08-04) 지도 재료에는 공고 맥락(jobContext)이 함께 간다 — 빈 캐시가 재사용 경로를 죽였다
-
-**결정**: 세 가지를 한 묶음으로 고쳤다.
-
-1. **AI**: `collected.outputs` 에 `jobContext`(JobContext: 경력 관문·트랙·마감)를 추가한다.
-   `competency_proposal` 이 실리는 턴에 같은 재료(`mapping.build_job_context`)로 만들어
-   함께 싣는다 — 분석 경로(`/v1/analyses`)와 같은 함수라 두 경로의 지도가 갈리지 않는다.
-2. **백엔드**: `ChatReplyWorker` 의 공용 분석 캐시 insert 가 `job` 칸을 이 `jobContext` 로
-   채운다(없으면 종전 열 조합 폴백). `AnalysisWorker` 는 `experienceRequirement=null` 을
-   `('NONE', 0, null, '')` 로 받아낸다 — AI 계약상 근거 없는 공고는 null 이 정상이다
-   ("받는 쪽은 넉넉하게", 08-03 인수인계 §2-4).
-3. **백엔드 V24**: `conversation_messages` 의 content 1자 이상 제약을
-   `kind='ANALYSIS_STATUS'` 에 한해 푼다.
-
-**왜**:
-
-- **캐시의 job 이 빈약해서 재사용이 곧 사고였다.** 채팅 턴의 캐시 insert 는 아직 분석 전인
-  `job_postings` 열로 job 을 지어냈고(`experienceRequirement`·`primaryTrack` 없음), D146
-  설계상 그 캐시를 곧바로 같은 공고의 분석 작업이 재사용한다 → `experience.type()` NPE 로
-  job FAILED, 지도 미생성(실측 08-04 00:40, job 0159276f). 파싱 결과를 `CollectedPosting`
-  에 싣지 않는 결정(D141, writer 단일화)은 유지한다 — jobContext 는 `job_postings` 열이
-  아니라 **캐시 페이로드**의 재료다.
-- **빈 상태 카드가 완료 트랜잭션을 통째로 되돌렸다.** D150 이 카드 content 를 비웠는데
-  V2 제약(`char_length BETWEEN 1 AND 100000`)이 그 insert 를 거부해 **성공한 분석도 전부
-  FAILED** 가 됐다(실측 08-04 00:46, job c0651e89). 금지는 프롬프트가 아니라 구조로 —
-  스키마가 설계(빈 카드)를 거부하면 고칠 것은 스키마다.
-
-**측정**: AI `pytest -q` 758건 통과 · 백엔드 `compileJava` 통과 · V24 부팅 적용 확인.
-
-**출처**: `v2bridge/models.py`(CollectedOutputs.job_context) · `v2bridge/service.py`
-(`_competency_proposal_for_chat`) · 백엔드 `AiContracts.CollectedOutputs` ·
-`ChatReplyWorker`(캐시 insert) · `AnalysisWorker`(`experienceOrNone`) ·
-`V24__allow_empty_analysis_status_cards.sql`
-
-### D155 (08-04) 트랙을 못 정한 공고도 지도에 오른다 — 쓰기 쪽도 `'BACKEND'` 로 받아낸다
-
-**결정**: `AnalysisWorker` 가 `job.primaryTrack` 이 null·빈 문자열이면 `'BACKEND'` 로 채워
-`posting_path_profiles` · `publish_analyzed_posting` 두 곳에 넣는다(`trackOrDefault`).
-
-**왜**: AI 는 트랙을 모르면 **짐작하지 않고 null 을 준다**(`mapping.track_from_posting`,
-§2-1 모른다 ≠ 아니다). 그런데 `posting_path_profiles.primary_track` 은 NOT NULL + 10종
-CHECK 이고 `'ETC'` 가 없다 — null 을 그대로 넣으면 **판정을 다 끝낸 분석이 마지막 적재에서
-통째로 죽는다**(실측 08-04 01:13, job 765a595e: `null value in column "primary_track"
-violates not-null constraint`). 조회 쪽은 이미 `coalesce(profile.primary_track, 'BACKEND')`
-로 같은 기본값을 쓰고 있었다(`RoadmapService.loadTargets`) — **읽기만 넉넉하고 쓰기가
-빡빡해서** 생긴 구멍이라 쓰기를 읽기에 맞췄다. D154 의 `experienceOrNone` 과 같은 처방.
-
-**대안(버림)**: AI 가 트랙 없으면 `jobContext` 를 아예 안 싣기 → D154 이전의 빈 job 폴백으로
-되돌아가 NPE 를 되살린다. 스키마에 `'ETC'` 추가 → 지도의 트랙 가지가 자랄 곳이 없는 값이
-생긴다(가지 없는 노드).
-
-**측정**: 백엔드 `compileJava` 통과.
-
-**출처**: `AnalysisWorker.trackOrDefault` · `V11__integrated_career_path_profiles.sql`
-(track CHECK) · `RoadmapService.loadTargets`
-
-### D156 (08-04) 실경로 지도 생성 최초 확인 — 대화 → 분석 → 커리어지도가 끝까지 돌았다
-
-**결정**: 기록만. "실경로 `roadmap_targets` 생성을 아직 못 봤다"(08-03 인수인계 §4-3)를 닫는다.
-
-**실측 08-04 01:13:40** (공고 `19e0f909` ㈜유알피 AI 응용·백엔드, 잡 `9a6adb08`):
-
-| 관문 | 결과 |
-|---|---|
-| 이력서 적재 | `career_sources` 4건 (§4-1 도 닫힌다) |
-| 캐시 `jobContext` | `primaryTrack='AI'` · `experienceRequirement={REQUIRED, 24개월, "경력 2년이상"}` |
-| 분석 잡 | `SUCCEEDED` / `COMPLETED` |
-| 역량 적재 | `posting_competency_requirements` 34건 · `posting_path_profiles` 1건 |
-| 지도 | `roadmap_targets` 1건 · `roadmap_versions` v2 **PUBLISHED** (노드 17 · 간선 17) |
-
-**같이 얻은 것 — 좀비 잡은 아무도 회수하지 않는다.** `claim_analysis_job`(V16)은
-`status='QUEUED'` 만 집는데, 서버가 도중에 죽으면 잡은 `RUNNING` 으로 남고 락 만료 뒤에도
-회수되지 않는다. 게다가 `JobPostingService.findActiveAnalysis` 는 `RUNNING` 을 "진행 중"으로
-보고 **새 요청을 그 좀비에 붙인다** → 같은 공고로 재시도하면 영원히 "분석 중". 이번엔 새 공고로
-우회했고 남은 좀비 15건은 손으로 `FAILED` 처리 + 공고 `archived_at` 처리했다.
-**미해결로 남긴다** — 고칠 곳은 회수 조건(락 만료된 `RUNNING` → `QUEUED`)과
-`findActiveAnalysis` 의 만료 무시 두 줄이다.
-
-### D157 (08-04) 공고 파싱이 담당업무·조건·전형·조직까지 읽는다 — 칸이 없어서 못 읽었다
-
-**결정**: `NormalizedJobPosting`·`_JobPostingRead` 에 `responsibilities`·`conditions`·
-`hiringProcess`·`teamContext` 를 신설하고, 요건 섹션 제약은 **요건 칸에만** 적용한다(새 칸은
-`fullText` 전체에서 읽는다).
-
-**왜**: 외부 LLM 과 같은 공고(SK일렉링크 Backend Engineer)를 비교했더니 격차가 말솜씨가 아니라
-**읽은 양**이었다 — 상대는 업무 3축·조직·전형 4단계를 냈고 우리는 담당업무가 통째로 없었다.
-스키마에 칸이 없었기 때문이다. 공고 담당에게는 이미 "`read_posting` 으로 원문을 확인하라"고
-적어 뒀지만 `read_posting` 은 **줄 단위 grep** 이라 여러 줄로 적힌 담당업무·전형 블록을 못 잡는다
-(같은 결함의 앞선 실측: 2026-08-02 근무시간·복리후생이 원문에 있는데 "기재 없음"으로 나갔다).
-§2-2 의 대칭 적용이다 — 하면 안 되는 것은 선택지에서 빼고, **해야 하는 것은 칸을 만든다.**
-
-**함께 한 것**: `posting_analysis._GOAL_SYSTEM` 의 firstLook 을 6절 순서로 재작성했다
-(어떤 자리 → **하는 일** → 필수 → 우대 → 채용 조건·전형 → 읽어야 할 신호). 하는 일을 요건보다
-앞에 둔 이유: 사용자가 먼저 알아야 할 것은 무엇을 요구하는지가 아니라 무슨 일을 하는지다.
-"읽어야 할 신호" 절은 **근거 원문 표현을 그 줄에 인용할 수 있을 때만** 쓰게 못박았다.
-
-**받지 않은 것**: 외부 LLM 의 "온프레미스→EKS 전환이 병행 중일 가능성이 높다", "배지는 SK 계열
-기준으로 보인다". 공고에 없는 추정이다 — 사용자는 그것을 사실로 읽고, 근거 없는 문장은 근거
-없는 결정이 된다(§2-5). 정리 항목의 `conditions` 도 값이 자리표시자("근무지: 미기재")인 줄은
-정규화에서 버린다: 못 찾은 것을 없다고 단정하면 원문에 있는 조건을 사용자가 놓친다(§2-1).
-
-### D158 (08-04) 동의 게이트는 무거운 것만 미룬다 — 묻는 동안 낸 자료의 정리는 나간다
-
-**결정**: 게이트가 걸린 턴에도 **이번 턴 제출물의 정리 단계**(D71 의 공고 분석·이력서 진단)는
-실행하고, 질문은 그 답 **뒤에** 붙인다. 판정과 그 산출을 기대하는 뒷단계(자소서 등)만 미룬다.
-
-**왜**: 전에는 `Dispatch(())` 로 계획 전체를 막아 턴이 질문 하나로 끝났다. 공고를 붙였는데
-적합도 분석이 게이트에 걸리면 **공고 정리까지 삼켜져서**, 사용자는 자료를 냈는데 정리 하나 없이
-질문만 받았다. 게이트의 목적은 무거운 것을 말없이 시작하지 않는 것이지(§2-7) 가벼운 담당의
-입을 막는 것이 아니다.
-
-**어디에 뒀나 — 검증기가 아니라 오케스트레이터.** `validate_plan` 에서 "지금 돌 수 있는 것"을
-골라 실행하는 쪽을 먼저 시도했다가 되돌렸다: (ㄱ) 계획의 나머지는 미루는 것의 산출을 기대하고
-배치된 것이라 생산자 없이 돌리면 근거가 빈 산출이 되고(자소서가 판정 없이 써졌다), (ㄴ) 애초에
-정리 단계는 `validate_plan` 의 계획에 없다 — `submission_review_inserts` 가 **이번 턴 제출
-kind** 로 끼우는 것이라 그 정보를 아는 곳은 오케스트레이터뿐이다. 그래서 게이트 분기에서
-`dispatch.pending` 을 그 함수에 넘겨 정리 단계만 실행한다.
-
-**기대값을 고친 테스트**: `test_chat_heavy_precondition_asks_consent`,
-`test_consent_gate_records_what_it_asked_and_passes_next_turn` — 둘 다 `dispatched == []` 를
-못 박고 있었다. 이 결정이 그 기대를 바꿨다(§3-5).
-
-### D159 (08-04) 판정 전에 어느 이력서로 볼지 공고당 한 번 묻는다
-
-**결정**: 커리어 저장소 이력서로 적합도를 판정하려 할 때, 그 공고에 대해 **한 번** 묻는다 —
-"이 공고에 맞춰 분석할 이력서가 따로 있으신가요? 없으면 저장소의 '○○'로 분석할게요."
-물어본 공고의 지문을 `resumeAskedFor` 에 적어 같은 공고로 두 번 묻지 않는다.
-
-**왜**: 이 서비스의 이력서는 **대화 중에** 들어온다(저장 경로가 채팅이다). 그래서 저장소에 있는
-것이 이 공고를 위해 낸 것이라는 보장이 없는데, 강행하면 사용자는 그 판정이 자기가 의도한
-이력서의 것인 줄 안다 — `switch_active_resume`(D126)이 이력서 지목 실패에서 이미 고른 방향의
-확장이다.
-
-**커리어 저장소 것일 때만 묻는다.** 기준은 `resume_identity` 의 origin 이고 새 표식을 심지
-않았다: `career_summary` 만 확인 대상이고 `pasted`·`uploaded` 는 사용자가 이 대화에서 직접 준
-것이라 되물으면 소음이다. 처음에는 "이번 턴에 이력서를 냈는가"로 걸렀는데 **직전 턴에 붙여넣은
-이력서에도 되물었다** — 턴 단위로는 부족했다.
-
-**배관은 D158 을 그대로 탄다** — 새 흐름을 만들지 않았다. 물어본 이름을 `pending` 에 실으면
-정리 단계는 실행되고 질문은 뒤에 붙고 `pendingConsent` 로 다음 턴 통과권이 생긴다. 동의 게이트
-**앞에** 두는 이유: 둘 다 걸릴 상황이면 이 질문이 더 구체적이고 답이 동의까지 겸한다.
-
-**필드 이름은 `resume` 가 아니라 `confirm_resume` 다.** `/analyze` 는 `field="resume"` 를
-"자료가 없다"로 읽어 분석을 `CAREER_DATA_REQUIRED` 로 끝낸다(`_ASSET_REQUEST_CODE`) — 자료가
-**있는데** 어느 것을 쓸지 묻는 여기서는 그 코드가 거짓말이 된다. 선택지 2개를 함께 내는 이유는
-`mapping.build_question` 이 선택지 없는 질문을 만들지 않아서다(없으면 왼쪽 패널에서 질문이
-사라진다). "다른 이력서를 올릴게요"를 고르면 그 분석은 자료 요청으로 끝난다 — 사용자가 쓰겠다고
-한 이력서가 아직 없는데 저장소 것으로 계속하면 그 판정을 사용자는 자기가 고른 이력서의 것으로
-읽는다.
-
-### D160 (08-04) 이력서 서술의 디테일은 프롬프트가 아니라 **배관**이 막고 있었다
-
-**결정**: 이력서 진단이 정형 항목화 **뒤에** 서술의 디테일을 짚는다 — 프로젝트에 안 적힌 맥락
-칸(기간·팀 규모·담당 범위), 측정값 없는 성과 문장, 이력서 안에서 검증 불가능한 자기평가 줄,
-서술에 짝이 없어 보이는 스킬 괄호 수식어. 근거는 새 결정론 모듈 `resume_observations.observe`
-가 계산하고, 루프의 LLM 은 그중 무엇을 말할지만 고른다.
-
-**왜 — 격차의 원인이 프롬프트가 아니었다.** 같은 이력서를 외부 LLM 과 비교했더니 상대는
-"기간·팀 규모·역할 비중이 없다", "숫자가 딱 하나다", "'이해도 보유'는 안 해봤다로 읽힌다"를
-짚었고 우리는 항목 개수만 셌다. 프롬프트를 의심할 자리였지만 실제 원인은
-`tool_render.resume_facts` 였다 — 프로젝트를 **제목 문자열**로 평평하게 만들어서
-`ProfileEntry.period`·`teamSize`·`role`·`achievements` 가 **루프에 도달조차 하지 않았다.**
-없는 사실은 어떤 프롬프트로도 말할 수 없다. D157(공고 쪽 "칸이 없어서 못 읽었다")과 같은
-모양의 결함이 이력서 쪽에도 있었던 것이다 — 그쪽은 **스키마**에 칸이 없었고 이쪽은 스키마엔
-있는데 **전달 경로**에서 잘렸다.
-
-**판단은 룰이 한다(§1).** "숫자가 없다"·"자기평가다"·"수식어에 짝이 없다"는 전부 판단이라
-LLM 에게 맡기지 않았다. `observe` 가 원문 문장을 그대로 실어 주고 LLM 은 인용만 한다 —
-인용할 문장이 없으면 그 지적을 못 하게 된다(§2-5).
-
-**정형 항목화는 손대지 않았다.** 파싱 항목(`NormalizedUserProfile` 필드)도, 항목별 줄을 항상
-밝히는 동작도 그대로다 — 사용자가 무엇을 근거로 판정받을지 확인하는 자리라 디테일이 그것을
-**대체하지 않고 뒤에 붙는다**(사용자 명시 요구).
-
-**수치를 지어내지 않는다 — 빈칸으로 둔다.** 비교 대상 LLM 은 고쳐쓰기 예시에 "p95 850ms →
-210ms"를 **만들어** 넣었다. 그럴듯하지만 이력서에 없는 숫자이고, 그대로 쓰면 사용자가 면접에서
-답할 수 없다. 우리는 `p95 ___ms → ___ms` 로 남기고 무엇을 채워야 하는지 알린다(§2 읽기 계층은
-없는 사실을 만들지 않는다). 실측(08-04)에서 루프가 이 빈칸 형식을 그대로 지켰다.
-
-**안 받은 것 — 지원 전략·시장 위치.** 상대는 "이 이력서로 승산이 있는 곳"까지 말했다. 그건
-공고와 대조하는 판정이라 `fit_analysis`·`job_recommend` 의 몫이다. 이력서 담당이 하면 공고
-없이 우열을 말하게 된다.
-
-**실측 오탐 3건을 룰에서 고쳤다**(첫 실모델 실행에서 드러났다 — §3-7 이 잡은 것):
-- `\d` 하나로 측정값을 세면 "ORM N+1"의 `1` 때문에 **"API Latency 대폭 단축"이 정량 문장으로**
-  잡혔다 — 상대가 대표적 모호 문장으로 짚은 바로 그 줄이다. 단위·화살표가 붙어야 측정으로 센다.
-- 중점(`·`)을 문장 경계로 쓰면 "공간·건축 디자인"이 `공간` 으로 잘려 나갔다. 경계는 `.`·개행뿐.
-- 스킬 괄호 수식어에 제목 괄호(`Backend Developer (주니어)`)와 약어(`(DRF)`)가 섞였다.
-  라틴 문자가 없으면 수식어가 아니고, 머리글자가 일치하면 약어라 물을 것이 없다.
-
-**한계(남겨 둠)**: 수식어 대조는 **글자 그대로**다 — `Redis (Caching)` 의 `Caching` 은 서술에
-"캐시"로 적혀 있어 `inNarrative=false` 로 나온다. 퍼지 매칭·임베딩을 넣지 않은 이유는 그쪽이
-근거 없는 단정을 만들기 때문이고, 대신 프롬프트가 **false 를 "표기가 다를 수도 있다"로 읽고
-단정하지 말고 확인을 청하라**고 좁혀 둔다.
-
-**커리어 저장소까지 — 새 테이블을 만들지 않았다.** `career_fragments` 가 이미
-`description text` + `detail jsonb` 를 갖고 `PROJECT`·`EXPERIENCE`·`ACHIEVEMENT` 를 받으며,
-그 `detail` 이 백엔드를 지나 프론트 타입까지 흐른다. 비어 있던 이유는 스키마가 아니라
-`v2bridge.mapping.fragments_from_profile` 이었다 — `summary` 를 `projectType`·`period` 와
-`·` 로 뭉쳐 서술을 메타에 묻고 `achievements`·`role`·`teamSize`·`techStack` 은 통째로 버렸다.
-서술은 `description`, 정형 칸은 `detail` 로 갈라 담는다. **DB 마이그레이션 0, 백엔드 변경 0.**
-
-### D161 (08-04) 버려진 분석 작업을 회수한다 — 그리고 상한을 다 쓰면 실패라고 말한다
-
-> **번호 재부여**: 원래 `D157` 로 적혔으나 같은 저녁 다른 작업이 그 번호를 먼저 썼다(두 세션이 같은 파일에 동시에 append 했다). 커밋 `a50e4b0` 메시지의 `D157` 가 이것이다.
-
-**결정**(백엔드 V25 + `JobPostingService`):
-1. `claim_analysis_job` 이 **락이 만료된 `RUNNING`** 도 집는다(재시도 상한 `attempt_count < 3`
-   은 그대로).
-2. 상한까지 쓴 좀비는 폴링 때 `FAILED`(`error_code='ABANDONED'`)로 닫는다.
-3. `findActiveAnalysis` 는 락이 만료된 `RUNNING` 을 "진행 중"으로 세지 않는다.
-
-**왜**: V16 의 회수 조건이 `status='QUEUED'` 하나여서, 워커·서버가 실행 도중 죽으면 작업이
-`RUNNING` 인 채로 영원히 남았다. 게다가 같은 공고의 새 요청이 그 좀비에 붙어(`findActiveAnalysis`)
-**재시도할수록 더 확실히 막혔다** — 실측 08-04 좀비 5건, 새 공고로 우회해야 지도가 그려졌다.
-①만 고치면 상한을 다 쓴 좀비가 화면에 "분석 중"으로 남으므로 ②가 함께 필요하다(§2-6 폴백은
-이유를 삼키지 않는다 — 여기서는 *실패를 실패라고 말한다*). ③은 회수를 기다리는 동안에도 새
-요청이 살아 있는 길을 갖게 한다.
-
-**측정**: `PostgresRlsIntegrationTest.abandonedRunningJobIsReclaimedAndGivesUpAtTheAttemptCap`
-(재시도 여유 있는 좀비는 회수, 상한 좀비는 FAILED+ABANDONED) · `gradlew test` 통과 ·
-V25 부팅 적용 확인(08-04 07:49).
-
-### D162 (08-04) 같은 지도를 다시 그리면 초안을 새로 만들지 않는다
-
-> **번호 재부여**: 원래 `D158` 로 적혔으나 같은 저녁 다른 작업이 그 번호를 먼저 썼다(두 세션이 같은 파일에 동시에 append 했다). 커밋 `a50e4b0` 메시지의 `D158` 가 이것이다.
-
-**결정**: `RoadmapService.generateDraft` 가 스냅샷을 만든 뒤, 기존 `DRAFT` 의 스냅샷과 **구조가
-같으면** 그 초안을 그대로 돌려준다(새 버전 insert·기존 초안 `DISCARDED` 없음).
-
-**왜**: 초안 생성을 부르는 곳이 둘(`AnalysisWorker` 완료 후 · `ChatReplyWorker` 적재 후)인데
-대화 턴마다 또 불려서, 한 번의 분석에 초안이 2~3개 생기고 앞의 것들이 `DISCARDED` 로 쌓였다
-(실측 08-04 01:52: v11·v12 버림 → v13, 노드 수 40 으로 셋이 동일). 호출자끼리 "누가 그릴
-차례인가"를 맞추는 대안은 규칙이 두 벌이 되고 한쪽이 낡는다(§3-1 규칙 추가보다 어휘 좁히기) —
-**결과가 같으면 그대로 둔다**가 한 곳에서 끝난다. 덤으로 사용자가 보고 있는 초안의 id 가
-분석마다 바뀌지 않는다.
-
-**측정**: `gradlew test` 통과. 실경로 재확인은 다음 분석에서.
-
-### D163 (08-04) 발화 절단은 결함이 아니다 — 닫는다
-
-> **번호 재부여**: 원래 `D159` 로 적혔으나 같은 저녁 다른 작업이 그 번호를 먼저 썼다(두 세션이 같은 파일에 동시에 append 했다). 커밋 `a50e4b0` 메시지의 `D159` 가 이것이다.
-
-**결정**: 08-03 인수인계 §4-2("발화가 잘려 온다")를 **고치지 않고 닫는다.**
-
-**왜**: 절단의 출처는 `career_chat._clip_message` 의 1000자 상한(M6/D75)이다. 자산으로
-승격되지 못한 긴 원문이 통째로 대화 근거가 되는 것을 **구조로** 막는 장치이고
-(§2-5 근거는 도구만 준다 — 2026-07-31 이력서 원문 위 즉흥 코칭 유출이 그 계기),
-DB 에는 원문이 온전히 있다(실측: 문제의 발화 2388자 그대로 저장됨). 이력서 적재가 뚫린 뒤
-(D156) 긴 이력서 붙여넣기는 자산 경로로 가고, 오늘 성공한 세 번의 실경로에서 `career_chat`
-은 한 번도 불리지 않았다. **문구를 바꾸는 대안은 프롬프트 변경이라 평가셋 재측정이 따라와야
-한다**(§3-6) — 결함이 아닌 것에 그 비용을 쓰지 않는다.
-
-### D164 (08-04) AI 서버에 닿지 못한 턴은 큐에 남은 시도로 되돌린다
-
-**결정**: 백엔드 `ChatReplyWorker` 가 전송 실패(`ResourceAccessException`)를 최종 실패로
-닫지 않고 **15초 뒤 재시도로 되돌린다**(`requeue_chat_reply_job(uuid, uuid, integer)`,
-마이그레이션 V26). AI 가 스스로 낸 오류(`AiServiceException`)는 되돌리지 않는다.
-
-**왜**: 실측(08-04 09:20) — 대화 도중 다른 세션이 AI 서버(8000)를 재시작하자, 판정이 전부
-끝난 턴이 "Connection reset" 으로, 뒤이어 큐에 있던 턴이 "Connection refused" 로 각각
-**한 번에** FAILED 로 닫혔다(`attempt_count = 1`). 큐는 처음부터 3회를 허용하는데
-(`claim_chat_reply_job` 의 `attempt_count < 3`) 워커가 그 예산을 한 번도 쓰지 않았다.
-답변이 틀린 것도 AI 가 거절한 것도 아니라 **말을 걸지 못한 것**이라, 다시 걸면 된다.
-
-**왜 지연 15초인가**: 서버 재시작 공백이 실측 12초였고 워커 폴링은 3초다. 즉시 되돌리면
-서버가 뜨기도 전에 남은 두 번을 태워 재시도 예산이 있으나 마나가 된다.
-
-**안 한 것**: `AiServiceException` 재시도(다시 걸어도 같은 답이고 매번 LLM 비용을 새로 쓴다) ·
-큐 행 재삽입(`INSERT` 하면 `attempt_count` 가 0 으로 돌아가 상한이 사라진다 — V26 은 `UPDATE`
-만 한다) · 기존 2인자 `requeue_chat_reply_job` 변경(사람이 누르는 재시도는 즉시가 맞다).
-
-**측정**: `gradlew test` 28건 통과(`ChatReplyWorkerTest` 3건 신설 — 실측으로 온 두 메시지로
-분류를 고정, `PostgresRlsIntegrationTest` 가 V26 마이그레이션까지 적용해 검증).
-
-### D165 (08-04) 승인·거부·차단은 턴이 끝나도 남는다 — 감사 로그를 판다
-
-**결정**: `trace.emit` 이 **정책 결정 6종**(`consent_gate` · `consent_granted` ·
-`resume_confirm_gate` · `delegate` · `delegate_refused` · `limit`)을 `logs/audit.jsonl` 에
-append 한다. 기본 켜짐(`JOBIS_AUDIT_LOG=off` 로 끄고, 같은 변수로 경로를 옮긴다).
-세션 id 는 `trace.audit_session` 이 붙이고 `chat.handle_chat` 이 턴마다 연다.
-승인 이벤트(`consent_granted`)는 이번에 **새로 emit** 했다 — 물은 것만 남기고 승인을 안
-남기면 분모만 있고 분자가 없다(위임 거부에서 겪은 것과 같은 실수다).
-
-**왜**: 이 저장소가 가장 비싸게 배운 두 사고가 전부 *기록이 없어서*였다 — 위임 거부가 관찰
-문자열로만 사라져 hand-off 성공률의 **분모가 없었고**(§1-1), 자기 루프가 통째로 꺼진 채
-폴백이 정상처럼 답하고 있었다(§3-3). 이벤트는 이미 전부 emit 되고 있었고 **버려지고만
-있었다** — 새 계층을 만든 게 아니라 배출구를 달았다. 실측: 회귀 769건을 한 번 돌린 것만으로
-`delegate_refused` 13건(사유 코드 `not_declared`·`heavy` 등)·`consent_gate` 3건·
-`consent_granted` 2건이 파일에 남았다.
-
-**왜 `_persist`(JOBIS_TRACE_DIR) 로 안 하나**: 층이 다르다. 그쪽은 **턴 하나 전체**를 파일
-하나로 남기는 디버깅용 opt-in 이고, 이쪽은 **정책 결정만** 골라 한 줄씩 잇는 append-only 다.
-줄 단위라 `grep`·`jq` 로 세어진다 — "동의를 몇 번 물어 몇 번 승인됐나"에 답하는 것이 목적이다.
-
-**안 한 것**: 정책 엔진 외부화(가드는 이미 `call_agent_readonly`·`validate_plan`·
-`verify_rules` 한 곳씩에 모여 테스트로 잠겨 있다 — 밖으로 빼도 더 단일해지지 않는다) ·
-`llm_call` 실패를 감사에 넣기(D56 이 이미 WARNING/ERROR 로 남긴다. 두 곳에서 세면 갈린다).
-
-**측정**: `pytest -q` **769건** 통과(`tests/test_audit_and_cost.py` 3건 신설 — 감사 대상만
-남는지 · 레코더 없이도 남는지 · off 스위치). 긴 문자열은 200자로 자른다(위임 성공 이벤트가
-답변 전문을 실어 파일이 답변 로그가 되던 것 — 전문이 필요하면 그 턴의 trace 를 본다).
-
-### D166 (08-04) 비용은 환산하되, 단가를 모르는 콜은 0 으로 세지 않는다
-
-**결정**: `llm_usage` 가 콜마다 **모델명**을 함께 기록하고(모델은 `Settings.active_model(tier)`
-에서 파생 — 호출부가 따로 적으면 실제 부른 모델과 갈린다, D58 의 오귀속과 같은 실수),
-요약에 `costUsd` · `uncostedCalls` · `costBasis` 를 낸다. 단가표는
-`MODEL_PRICES_USD_PER_MTOK`(USD/1M 토큰) 한 곳이다.
-
-**왜**: 평가 리포트가 §2-3 "비용 대비 성능"을 **분자가 없어 판정 불능**으로 남겨 뒀다. 토큰은
-D59 로 이미 재고 있었으므로 남은 것은 단가를 곱하는 일뿐이었다. 그리고 이 숫자가 있어야
-"모델 티어를 더 쪼갤 것인가"를 **감이 아니라 값으로** 판단할 수 있다(경량화 시도가 실측에서
-두 번 손해였던 곳이다 — 플래너 100%→48.8%, 표현 6.4→15.6초).
-
-**왜 None 인가**: 단가를 모르거나 토큰을 못 잰 콜의 비용은 **0 이 아니라 None** 이다. 0 이면
-"공짜로 돌았다"로 읽힌다(§2-1 모른다 ≠ 아니다 — 유사도 실패를 `0.0` 으로 돌려주던 것과 같은
-자리다). 구독형(`claude_code` CLI)은 애초에 토큰을 안 주므로 단가표에 넣지 않았다 — 콜당 단가라는
-개념이 성립하지 않는 경로이고, 그 사실은 `unmeteredCalls` 로 이미 남는다.
-
-**낡을 것을 안다**: 공급자가 가격을 바꾸면 이 표도 바뀌어야 하고, 안 바꾸면 비용 숫자가 조용히
-죽는다(baseline 이 5시간 만에 죽던 것과 같은 종류다). 그래서 `costBasis` 로 기준일을 요약에
-함께 실어 보낸다.
-
-**측정**: `pytest -q` 769건 통과(`test_audit_and_cost.py` 2건 신설 — 단가 미상은 None,
-합계는 아는 콜만 더하고 나머지는 `uncostedCalls` 로 따로 센다).
-
-### D167 (08-05) Claude CLI 오류는 wrapper 가 아니라 result 를 남기고 영구 한도는 재시도하지 않는다
-
-**결정**: Claude CLI 의 비정상 종료는 stdout JSON wrapper 의 `result`·`api_error_status`·
-`terminal_reason` 을 파싱해 예외로 올린다. `HTTP 429` 중 `weekly limit`·리셋 시각이 명시된
-구독 주간 한도는 `retryable=False` 로 표시해 구조화·표현 경로 모두 한 번만 시도한다.
-일반 429나 5xx·형식 오류는 기존 재시도 정책을 유지한다.
-
-**왜**: 실측(08-05)에서 모든 노드가 종료 코드 1로 실패했지만 로그는 JSON 앞 300자만 잘라
-실제 원인인 `You've hit your weekly limit · resets 5pm (Asia/Seoul)` 을 숨겼다. 인증과 설치는
-정상이었고 최소 CLI 호출도 `duration_api_ms=0`, 토큰 0, `api_error_status=429` 로 같은 원인을
-반환했다. 리셋 전에는 같은 호출을 세 번 보내도 성공 가능성이 없고 실패 지연만 늘어난다.
-
-**보안 경계**: 타임아웃 예외는 전체 command 를 포함하므로 프롬프트 원문을 로그에 남기지 않고
-제한시간만 기록한다. CLI 오류 원문도 wrapper 전체 대신 `result` 중심으로 1000자까지만 남긴다.
-
-**측정**: quota result 보존·일시적 503 재시도 가능·타임아웃 프롬프트 비노출·구조화/표현
-영구 실패 1회 호출을 단위 테스트로 고정한다. 실제 한도 상태의 최소 CLI 호출로 HTTP 429와
-리셋 안내가 파싱 대상과 일치함을 확인했다.
-
-### D168 (08-05) Codex는 새 분기로만 붙이고 노드 지침과 판단 로직은 공유한다
-
-**결정**: `LLM_PROVIDER=codex`(`gpt` alias)를 추가한다. 인증·토큰 갱신·Codex Responses
-SSE 조립은 `fake-ai/codex_oauth_adapter/provider.py`에서 검증한 로직을
-`jobis_ai.codex_oauth_adapter` 네임스페이스 안에 독립 사본으로 둔다. 기존 `openai`(GMS),
-`anthropic`, `claude_code` 분기와 노드 코드는 바꾸지 않는다.
-
-**지침 경계**: `structured.py`와 표현 노드가 이미 만드는 `(system, human)` 메시지를 Codex
-어댑터가 각각 Responses API의 `instructions`, `input`으로 옮긴다. 프롬프트를 provider별로
-복사하지 않는다. 그래야 GMS에서 쓰던 모델 지침·스키마·금지표현 검증이 Codex 선택 시에도
-같은 단일 출처를 사용하고, 한쪽만 수정돼 행동이 갈리는 일을 막는다.
-
-**모델 경계**: GMS의 default/light 티어와 Claude의 router 티어 계약을 그대로 적용해
-`CODEX_MODEL`, `CODEX_MODEL_LIGHT`, `CODEX_MODEL_ROUTER`를 둔다. Codex 고유 설정은
-`CODEX_REASONING_EFFORT`, `CODEX_TIMEOUT_SEC`뿐이다. 샘플링 temperature는 Codex reasoning
-모델 계약에 없는 값이라 전송하지 않는다. 공통 `LLM_MAX_TOKENS`도 실제 호출에서
-`HTTP 400: Unsupported parameter: max_output_tokens`가 확인돼 Codex 경로에는 보내지 않는다.
-
-**인증 경계**: 기본 상태 파일 위치와 형식은 fake-ai와 같아 이미 한 OAuth 로그인이 있으면
-재사용한다. `CODEX_OAUTH_STATE_DIR`로 분리할 수 있다. 토큰은 환경 예시·로그·예외에 넣지
-않고, 최초 로그인은 `uv run jobis-codex-oauth --login` 명령으로만 수행한다.
-
-**측정**: payload에서 system/user 경계와 JSON Schema 보존, 구조화 파싱,
-analysis 비노출 스트리밍, 토큰 usage, default/light/router 모델 선택을 네트워크 없는 회귀
-테스트로 고정한다. 전체 AI 회귀 798건이 통과했고, 기존 fake-ai OAuth 상태로 모델 목록을
-조회한 뒤 `LLM_PROVIDER=codex` + `structured.run_structured`의 실제 `gpt-5.4` 호출이
-`{"result":"OK"}`, `warnings=[]`를 반환했다.
-
-### D169 (08-05) 운영 AI는 v2bridge 하나로 고정하고 상태와 이미지를 분리한다
-
-**결정**: 운영 HTTP 서버는 `jobis_ai.v2bridge.app` 하나다. 별도 계약 어댑터와 옛
-WebSocket 서버 실행 경로를 제거하고, Jenkins가 `jobis-ai:<Git SHA>` 이미지를
-`backend`·`frontend`와 함께 검증·배포한다. 컨테이너에는 서비스 DB 자격증명을 주지 않는다.
-
-**상태 경계**: 세션 SQLite, Codex OAuth, 감사 로그는 이미지 안이 아니라
-`/var/lib/jobis-ai` 영속 경로에 둔다. 이미지는 Git SHA로 롤백하고 DB는 `pg_dump`와 실제
-복구 훈련으로 보호한다. DB volume이나 컨테이너 이미지는 백업으로 세지 않는다.
-
-**왜**: CI가 v2bridge를 테스트하면서 배포에서는 별도 adapter/fake AI를 빌드해 검증 대상과
-운영 대상이 갈려 있었다. 또한 이미지 안의 세션/OAuth 파일은 재배포 때 사라지고, DB 이미지를
-보관해도 사용자 데이터 시점 복구를 증명하지 못한다. 실행물·AI 상태·서비스 DB를 서로 다른
-복구 단위로 만들어야 각 실패 경계와 롤백 증거가 명확하다.
-
-**검증 게이트**: AI health는 HTTP 200만 보지 않고 `service=jobis-ai-v2bridge`를 확인한다.
-백엔드 health는 PostgreSQL `select 1`, 프론트 smoke는 `/`와 프록시된 `/api/auth/csrf`를
-확인한다. master CD는 세 이미지 존재와 배포 직전 DB 덤프 검증이 모두 성공해야 전환한다.
-
-### D170 (08-05) 최초 전환은 레거시 런타임과 DB를 보존한 별도 v2 경계에서 준비한다
-
-**결정**: 기존 `jobis` Compose 프로젝트와 `jobiss` DB를 제자리 변경하지 않는다. 신규 스택은
-`jobis-v2` 프로젝트, `/etc/jobis/jobis-v2.env`, `jobiss_v2` DB와
-`jobiss_migrator`/`jobiss_app` 역할을 사용한다. 최초 cutover에서만 기존 backend를
-stop 후 rename하고 fake AI를 stop한다. 컨테이너와 이미지는 자동 삭제하지 않는다.
-
-**데이터 경계**: Flyway V27이 이관 감사 테이블을 만들고, 운영자가 양쪽 DB 백업을 검증한 뒤
-레거시 핵심 데이터를 한 트랜잭션으로 가져온다. 기존 DB는 계속 보존하며 이관 감사 레코드가
-없으면 predeploy를 실패시킨다. DB dump가 애플리케이션과 같은 filesystem에 있으면 사전
-검증은 경고하지만 실제 release는 차단한다.
-
-**라우팅과 복구**: Nginx는 활성 upstream 파일 하나만 바꿔 기존 backend 8080과 신규 frontend
-8088 사이를 전환한다. 첫 배포 실패 시 보존한 backend 이름을 원복하고 fake AI를 다시 시작한다.
-RAG listener가 실제로 준비되기 전에는 `RAG_PROVIDER=null`로 두어 존재하지 않는 8765를 운영
-의존성으로 가장하지 않는다.
-
-**검증**: 격리 PostgreSQL에서 v2 DB bootstrap 멱등성, 레거시 DB 불변, 레거시/v2 dump 복원,
-V1~V27 스키마 위 데이터 이관, 재실행 차단을 확인한다. 서버 사전 감사와 SHA predeploy,
-배포 후 postdeploy 감사를 서로 다른 게이트로 둔다.

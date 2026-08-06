@@ -1,0 +1,144 @@
+{
+  "$defs": {
+    "AssessmentGenerationAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "generatorVersion": {
+          "minLength": 1,
+          "title": "Generatorversion",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "attempts": {
+          "minimum": 1,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "durationMs": {
+          "minimum": 0,
+          "title": "Durationms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "generatorVersion",
+        "provider",
+        "model",
+        "attempts",
+        "durationMs"
+      ],
+      "title": "AssessmentGenerationAudit",
+      "type": "object"
+    },
+    "CriterionGrade": {
+      "additionalProperties": false,
+      "properties": {
+        "criterionIndex": {
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Criterionindex",
+          "type": "integer"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "feedback": {
+          "minLength": 1,
+          "title": "Feedback",
+          "type": "string"
+        }
+      },
+      "required": [
+        "criterionIndex",
+        "score",
+        "feedback"
+      ],
+      "title": "CriterionGrade",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "default": "jobis.ai.v3alpha1",
+      "title": "Contractversion",
+      "type": "string"
+    },
+    "questionId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Questionid",
+      "type": "string"
+    },
+    "criterionGrades": {
+      "items": {
+        "$ref": "#/$defs/CriterionGrade"
+      },
+      "maxItems": 5,
+      "minItems": 2,
+      "title": "Criteriongrades",
+      "type": "array"
+    },
+    "score": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Score",
+      "type": "integer"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "strengths": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Strengths",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "feedback": {
+      "minLength": 1,
+      "title": "Feedback",
+      "type": "string"
+    },
+    "scopeViolationDetected": {
+      "title": "Scopeviolationdetected",
+      "type": "boolean"
+    },
+    "audit": {
+      "$ref": "#/$defs/AssessmentGenerationAudit"
+    }
+  },
+  "required": [
+    "questionId",
+    "criterionGrades",
+    "score",
+    "passed",
+    "feedback",
+    "scopeViolationDetected",
+    "audit"
+  ],
+  "title": "CapabilityAssessmentGrade",
+  "type": "object"
+}

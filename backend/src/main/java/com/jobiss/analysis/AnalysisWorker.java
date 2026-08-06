@@ -1,8 +1,9 @@
 package com.jobiss.analysis;
 
-import com.jobiss.roadmap.RoadmapService;
 import com.jobiss.db.RlsTransactionExecutor;
 import com.jobiss.config.JobissProperties;
+import com.jobiss.analysis.v3.V3AnalysisJobProcessor;
+import com.jobiss.security.SensitiveTextCipher;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,11 +42,13 @@ public class AnalysisWorker {
     private final AiAnalysisClient aiClient;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final AnalysisTaskRegistry taskRegistry;
+    private final V3AnalysisJobProcessor v3Processor;
+    private final SensitiveTextCipher sensitiveText;
     private final String workerId;
     private final int maxConcurrentAnalyses;
     private final ExecutorService executor;
     private final AtomicInteger activeAnalyses = new AtomicInteger();
-    private final RoadmapService roadmapService;
 
     public AnalysisWorker(
             JdbcClient jdbcClient,
@@ -53,14 +57,18 @@ public class AnalysisWorker {
             ObjectMapper objectMapper,
             TransactionTemplate transactionTemplate,
             JobissProperties properties,
-            RoadmapService roadmapService
+            AnalysisTaskRegistry taskRegistry,
+            V3AnalysisJobProcessor v3Processor,
+            SensitiveTextCipher sensitiveText
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
-        this.roadmapService = roadmapService;
+        this.taskRegistry = taskRegistry;
+        this.v3Processor = v3Processor;
+        this.sensitiveText = sensitiveText;
         this.workerId = hostName() + "-" + UUID.randomUUID();
         this.maxConcurrentAnalyses = Math.max(
                 1,
@@ -79,27 +87,39 @@ public class AnalysisWorker {
 
     @Scheduled(fixedDelayString = "${jobiss.ai.poll-delay-ms:3000}")
     public void dispatchAvailable() {
+        recoverStaleJobs();
         while (activeAnalyses.get() < maxConcurrentAnalyses) {
             ClaimedJob job = claim();
             if (job == null) {
                 break;
             }
             activeAnalyses.incrementAndGet();
-            executor.submit(() -> {
+            FutureTask<Void> task = new FutureTask<>(() -> {
                 try {
                     process(job);
                 } finally {
+                    taskRegistry.complete(job.id());
                     activeAnalyses.decrementAndGet();
                 }
+                return null;
             });
+            taskRegistry.register(job.id(), task);
+            executor.execute(task);
         }
     }
 
     private void process(ClaimedJob job) {
         AnalysisCacheKey cacheKey = null;
         boolean ownsAnalysisLease = false;
+        String failureStage = "INITIALIZATION";
         try {
+            if (v3Processor.supports(job.userId(), job.id())) {
+                failureStage = "CAREER_PIPELINE";
+                v3Processor.process(job.userId(), job.id(), workerId);
+                return;
+            }
             AiContracts.AnalysisRequest request = loadRequest(job);
+            failureStage = "AI_ANALYSIS";
             AiContracts.AnalysisResponse response;
             if (request.sharedAnalysis() != null) {
                 response = reuseSharedAnalysis(job, request.sharedAnalysis());
@@ -110,7 +130,7 @@ public class AnalysisWorker {
                     updateStage(
                             job,
                             "WAITING_FOR_SHARED_ANALYSIS",
-                            "같은 공고 분석이 진행 중이라 결과를 기다리고 있어요"
+                            "같은 공고의 커리어 적합도 분석이 진행 중이라 결과를 기다리고 있어요"
                     );
                     SharedAnalysisWait wait = awaitSharedAnalysis(job, cacheKey);
                     ownsAnalysisLease = wait.ownsLease();
@@ -140,15 +160,25 @@ public class AnalysisWorker {
                     || response.competencyProposal() == null) {
                 throw new IllegalStateException("AI response did not include a competency proposal");
             }
+            response = ensureTargetProject(response);
+            validateAnalysisQuality(response);
+            failureStage = "RESULT_VALIDATION";
             updateStage(job, "VALIDATING", "추출한 역량과 공고 조건을 검증하고 있어요");
+            failureStage = "RESULT_PERSISTENCE";
             complete(job, request, response);
-            // 재료가 적재됐으면 지도를 자동으로 그린다 — 페이지에서 버튼을 한 번 더 누르지
-            // 않아도 되고 "분석했는데 지도가 비어 있다"가 사라진다. 규칙은 RoadmapService
-            // 한 곳에 있다(대화 경로도 같은 메서드를 부른다).
-            roadmapService.autoGenerateAfterAnalysis(job.userId(), job.id());
+        } catch (SupersededAnalysisException exception) {
+            log.info("Ignoring result from superseded analysis job {}", job.id());
         } catch (Exception exception) {
             log.warn("Analysis job {} failed: {}", job.id(), exception.getMessage());
-            fail(job, exception);
+            try {
+                fail(job, exception, failureStage);
+            } catch (RuntimeException failureUpdateException) {
+                log.error(
+                        "Could not persist failure for analysis job {}",
+                        job.id(),
+                        failureUpdateException
+                );
+            }
         } finally {
             if (ownsAnalysisLease && cacheKey != null) {
                 releaseAnalysisLease(cacheKey, job.id());
@@ -158,7 +188,43 @@ public class AnalysisWorker {
 
     @PreDestroy
     void shutdown() {
-        executor.shutdown();
+        try {
+            Integer interrupted = transactionTemplate.execute(status -> jdbcClient.sql("""
+                            select interrupt_analysis_jobs(:workerId)
+                            """)
+                    .param("workerId", workerId)
+                    .query(Integer.class)
+                    .single());
+            if (interrupted != null && interrupted > 0) {
+                log.info("Marked {} analysis jobs interrupted during shutdown", interrupted);
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Could not mark active analysis jobs interrupted: {}", exception.getMessage());
+        }
+        taskRegistry.cancelAll();
+        executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                log.warn("Analysis executor did not terminate within 5 seconds");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void recoverStaleJobs() {
+        try {
+            Integer recovered = transactionTemplate.execute(status -> jdbcClient.sql("""
+                            select recover_stale_analysis_jobs()
+                            """)
+                    .query(Integer.class)
+                    .single());
+            if (recovered != null && recovered > 0) {
+                log.warn("Recovered {} stale analysis jobs", recovered);
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Could not recover stale analysis jobs: {}", exception.getMessage());
+        }
     }
 
     private ClaimedJob claim() {
@@ -188,25 +254,6 @@ public class AnalysisWorker {
                     .param("jobId", job.id())
                     .update();
 
-            jdbc.sql("""
-                            update analysis_jobs
-                            set
-                                status = 'RUNNING',
-                                stage = 'CONTEXT',
-                                stage_message = '공고와 현재 커리어 자료를 정리하고 있어요',
-                                worker_id = :workerId,
-                                locked_until = now() + interval '15 minutes',
-                                attempt_count = :attemptCount,
-                                started_at = coalesce(started_at, now()),
-                                error_code = null,
-                                error_message = null
-                            where id = :jobId
-                            """)
-                    .param("workerId", workerId)
-                    .param("attemptCount", job.attemptCount())
-                    .param("jobId", job.id())
-                    .update();
-
             OwnedPosting posting = jdbc.sql("""
                             select
                                 p.id,
@@ -223,7 +270,7 @@ public class AnalysisWorker {
                             rs.getObject("id", UUID.class),
                             rs.getString("source_type"),
                             rs.getString("source_url"),
-                            rs.getString("raw_text"),
+                            sensitiveText.decrypt(rs.getString("raw_text")),
                             rs.getString("content_fingerprint")
                     ))
                     .single();
@@ -303,6 +350,10 @@ public class AnalysisWorker {
                                 question_key,
                                 question_text,
                                 answer_value,
+                                input_type,
+                                answer_status,
+                                related_requirement_ids::text,
+                                absence_scope,
                                 options::text
                             from analysis_questions
                             where analysis_job_id = :jobId
@@ -312,12 +363,18 @@ public class AnalysisWorker {
                     .param("jobId", job.id())
                     .query((rs, rowNum) -> {
                         String answerValue = rs.getString("answer_value");
+                        String optionsJson = rs.getString("options");
+                        String inputType = rs.getString("input_type");
                         return AnalysisClarificationNormalizer.normalize(
                                 new AiContracts.AnalysisAnswer(
                                         rs.getString("question_key"),
                                         rs.getString("question_text"),
                                         answerValue,
-                                        optionLabel(rs.getString("options"), answerValue)
+                                        optionLabel(optionsJson, answerValue),
+                                        inputType,
+                                        rs.getString("answer_status"),
+                                        readStringList(rs.getString("related_requirement_ids")),
+                                        rs.getString("absence_scope")
                                 )
                         );
                     })
@@ -326,20 +383,26 @@ public class AnalysisWorker {
             String clarificationFingerprint =
                     AnalysisClarificationNormalizer.fingerprint(answers);
 
-            AiContracts.SharedPostingAnalysis sharedAnalysis = jdbc.sql("""
+            String sharedAnalysisJson = jdbc.sql("""
                             select normalized_analysis::text
                             from posting_analysis_cache
                             where content_fingerprint = :contentFingerprint
                               and clarification_fingerprint = :clarificationFingerprint
                               and schema_version = 1
+                              and invalidated_at is null
                             limit 1
                             """)
                     .param("contentFingerprint", posting.contentFingerprint())
                     .param("clarificationFingerprint", clarificationFingerprint)
                     .query(String.class)
                     .optional()
-                    .map(this::readSharedAnalysis)
                     .orElse(null);
+            AiContracts.SharedPostingAnalysis sharedAnalysis = parseSharedAnalysis(
+                    jdbc,
+                    posting.contentFingerprint(),
+                    clarificationFingerprint,
+                    sharedAnalysisJson
+            );
             if (sharedAnalysis != null) {
                 jdbc.sql("""
                                 update posting_analysis_cache
@@ -348,6 +411,7 @@ public class AnalysisWorker {
                                     last_used_at = now()
                                 where content_fingerprint = :contentFingerprint
                                   and clarification_fingerprint = :clarificationFingerprint
+                                  and invalidated_at is null
                                 """)
                         .param("contentFingerprint", posting.contentFingerprint())
                         .param("clarificationFingerprint", clarificationFingerprint)
@@ -380,15 +444,21 @@ public class AnalysisWorker {
                             null
                     ));
 
-            jdbc.sql("""
+            int staged = jdbc.sql("""
                             update analysis_jobs
                             set
                                 stage = 'AI_ANALYSIS',
                                 stage_message = '필수·우대 조건과 현재 증거를 비교하고 있어요'
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
+                    .param("workerId", workerId)
                     .param("jobId", job.id())
                     .update();
+            if (staged == 0) {
+                throw new SupersededAnalysisException();
+            }
 
             return new AiContracts.AnalysisRequest(
                     job.id(),
@@ -421,10 +491,17 @@ public class AnalysisWorker {
                 || question.key() == null
                 || question.text() == null
                 || question.reason() == null
+                || question.inputType() == null
                 || question.options() == null
-                || question.options().size() < 2
-                || question.options().size() > 4) {
+                || question.relatedRequirementIds() == null
+                || question.absenceScope() == null) {
             throw new IllegalStateException("AI requested input without a valid question");
+        }
+        boolean textQuestion = "TEXT".equalsIgnoreCase(question.inputType());
+        if ((textQuestion && !question.options().isEmpty())
+                || (!textQuestion && (question.options().size() < 2
+                || question.options().size() > 4))) {
+            throw new IllegalStateException("AI requested input with an invalid question shape");
         }
         if (request.questionCount() >= 3) {
             throw new IllegalStateException("AI exceeded the clarification question limit");
@@ -436,7 +513,7 @@ public class AnalysisWorker {
         String optionsJson = writeJson(normalizedQuestion.options());
         rls.write(job.userId(), jdbc -> {
             QuestionJobState state = jdbc.sql("""
-                            select status::text, question_count
+                            select status::text, question_count, worker_id
                             from analysis_jobs
                             where id = :jobId
                             for update
@@ -444,10 +521,12 @@ public class AnalysisWorker {
                     .param("jobId", job.id())
                     .query((rs, rowNum) -> new QuestionJobState(
                             rs.getString("status"),
-                            rs.getInt("question_count")
+                            rs.getInt("question_count"),
+                            rs.getString("worker_id")
                     ))
                     .single();
-            if (!"RUNNING".equals(state.status())) {
+            if (!"RUNNING".equals(state.status())
+                    || !workerId.equals(state.workerId())) {
                 log.info(
                         "Ignoring stale clarification result for analysis job {} in state {}",
                         job.id(),
@@ -486,7 +565,10 @@ public class AnalysisWorker {
                                 question_key,
                                 question_text,
                                 reason,
+                                input_type,
                                 options,
+                                related_requirement_ids,
+                                absence_scope,
                                 ordinal
                             )
                             values (
@@ -495,7 +577,10 @@ public class AnalysisWorker {
                                 :questionKey,
                                 :questionText,
                                 :reason,
+                                :inputType,
                                 cast(:options as jsonb),
+                                cast(:relatedRequirementIds as jsonb),
+                                :absenceScope,
                                 :ordinal
                             )
                             returning id
@@ -505,10 +590,23 @@ public class AnalysisWorker {
                     .param("questionKey", normalizedQuestion.key())
                     .param("questionText", normalizedQuestion.text())
                     .param("reason", normalizedQuestion.reason())
+                    .param("inputType", normalizedQuestion.inputType())
                     .param("options", optionsJson)
+                    .param(
+                            "relatedRequirementIds",
+                            writeJson(normalizedQuestion.relatedRequirementIds())
+                    )
+                    .param("absenceScope", normalizedQuestion.absenceScope())
                     .param("ordinal", ordinal)
                     .query(UUID.class)
                     .single();
+
+            jdbc.sql("""
+                            delete from posting_analysis_leases
+                            where owner_analysis_job_id = :jobId
+                            """)
+                    .param("jobId", job.id())
+                    .update();
 
             jdbc.sql("""
                             update analysis_jobs
@@ -537,7 +635,7 @@ public class AnalysisWorker {
                             values (
                                 :userId,
                                 'ANALYSIS_INPUT_REQUIRED',
-                                '공고 분석에 확인이 필요해요',
+                                '커리어 적합도 분석에 확인이 필요해요',
                                 :questionText,
                                 jsonb_build_object(
                                     'analysisJobId', cast(:jobId as text),
@@ -608,6 +706,7 @@ public class AnalysisWorker {
         String proposalJson = objectMapper.writeValueAsString(response.competencyProposal());
 
         rls.write(job.userId(), jdbc -> {
+            requireCurrentWorker(jdbc, job);
             jdbc.sql("""
                             update job_postings p
                             set
@@ -617,19 +716,7 @@ public class AnalysisWorker {
                                 experience_text = :experienceText,
                                 closes_at = :closesAt,
                                 lifecycle_status = :lifecycleStatus,
-                                parsed_data = cast(:parsedData as jsonb),
-                                -- 주소만 받은 공고의 자리표시를 수집 원문으로 되메운다.
-                                -- 사용자가 직접 붙여넣은 원문은 건드리지 않는다:
-                                -- raw_text 가 source_url 과 같을 때만 바꾼다.
-                                -- 존재 여부는 boolean 파라미터로 판별한다(AGENTS.md SQL 규칙 —
-                                -- nullable 이름 파라미터를 `is not null` 로 재지 않는다).
-                                raw_text = case
-                                    when :hasSourceText
-                                         and p.source_url is not null
-                                         and p.raw_text = p.source_url
-                                    then cast(:sourceText as text)
-                                    else p.raw_text
-                                end
+                                parsed_data = cast(:parsedData as jsonb)
                             from analysis_jobs j
                             where j.id = :jobId
                               and p.id = j.posting_id
@@ -644,9 +731,6 @@ public class AnalysisWorker {
                             effectiveLifecycleStatus(response.job())
                     )
                     .param("parsedData", writeJson(response.job().parsedData()))
-                    .param("hasSourceText", blankToNull(response.job().sourceText()) != null)
-                    .param("sourceText", blankToNull(response.job().sourceText()) == null
-                            ? "" : response.job().sourceText())
                     .param("jobId", job.id())
                     .update();
 
@@ -660,7 +744,7 @@ public class AnalysisWorker {
                     .single();
 
             AiContracts.ExperienceRequirement experience =
-                    experienceOrNone(response);
+                    response.job().experienceRequirement();
             jdbc.sql("""
                             insert into posting_path_profiles (
                                 posting_id,
@@ -698,7 +782,7 @@ public class AnalysisWorker {
                     .param("postingId", postingId)
                     .param("userId", job.userId())
                     .param("jobId", job.id())
-                    .param("primaryTrack", trackOrDefault(response))
+                    .param("primaryTrack", response.job().primaryTrack())
                     .param("experienceType", experience.type())
                     .param("minimumMonths", experience.minimumMonths())
                     .param("maximumMonths", experience.maximumMonths())
@@ -914,7 +998,7 @@ public class AnalysisWorker {
                                 )
                                 """)
                         .param("postingId", postingId)
-                        .param("primaryTrack", trackOrDefault(response))
+                        .param("primaryTrack", response.job().primaryTrack())
                         .param("experienceType", experience.type())
                         .param("minimumMonths", experience.minimumMonths())
                         .param("maximumMonths", experience.maximumMonths())
@@ -1076,15 +1160,16 @@ public class AnalysisWorker {
 
             AiContracts.TargetProjectBrief project =
                     response.competencyProposal().targetProject();
-            List<String> requiredProjectKeys = project.requiredCompetencyRefs()
-                    .stream()
-                    .map(ref -> competenciesByRef.get(ref).canonicalKey())
-                    .toList();
-            List<String> optionalProjectKeys = project.optionalCompetencyRefs()
-                    .stream()
-                    .map(ref -> competenciesByRef.get(ref).canonicalKey())
-                    .toList();
-            jdbc.sql("""
+            if (project != null) {
+                List<String> requiredProjectKeys = project.requiredCompetencyRefs()
+                        .stream()
+                        .map(ref -> competenciesByRef.get(ref).canonicalKey())
+                        .toList();
+                List<String> optionalProjectKeys = project.optionalCompetencyRefs()
+                        .stream()
+                        .map(ref -> competenciesByRef.get(ref).canonicalKey())
+                        .toList();
+                jdbc.sql("""
                             insert into posting_target_projects (
                                 posting_id,
                                 user_id,
@@ -1119,8 +1204,9 @@ public class AnalysisWorker {
                     .param("requiredKeys", writeJson(requiredProjectKeys))
                     .param("optionalKeys", writeJson(optionalProjectKeys))
                     .param("deliverables", writeJson(project.deliverables()))
-                    .param("acceptanceCriteria", writeJson(project.acceptanceCriteria()))
-                    .update();
+                        .param("acceptanceCriteria", writeJson(project.acceptanceCriteria()))
+                        .update();
+            }
 
             AiContracts.Evaluation deterministicEvaluation =
                     evaluateReadiness(jdbc, postingId, response);
@@ -1170,7 +1256,9 @@ public class AnalysisWorker {
                             )
                             do update set
                                 normalized_analysis = excluded.normalized_analysis,
-                                last_used_at = now()
+                                last_used_at = now(),
+                                invalidated_at = null,
+                                invalid_reason = null
                             """)
                     .param(
                             "clarificationFingerprint",
@@ -1181,7 +1269,7 @@ public class AnalysisWorker {
                     .param("postingId", postingId)
                     .update();
 
-            jdbc.sql("""
+            int completed = jdbc.sql("""
                             update analysis_jobs
                             set
                                 status = 'SUCCEEDED',
@@ -1191,10 +1279,16 @@ public class AnalysisWorker {
                                 completed_at = now(),
                                 locked_until = null
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
                     .param("resultJson", resultJson)
+                    .param("workerId", workerId)
                     .param("jobId", job.id())
                     .update();
+            if (completed == 0) {
+                throw new SupersededAnalysisException();
+            }
 
             jdbc.sql("""
                             insert into graph_change_sets (
@@ -1230,7 +1324,7 @@ public class AnalysisWorker {
                             values (
                                 :userId,
                                 'ANALYSIS_COMPLETED',
-                                '공고 분석이 완료됐어요',
+                                '커리어 적합도 분석이 완료됐어요',
                                 '추출한 역량을 확인한 뒤 목표 공고에 추가해 주세요.',
                                 jsonb_build_object(
                                     'analysisJobId', cast(:jobId as text),
@@ -1262,8 +1356,7 @@ public class AnalysisWorker {
                                 p.conversation_id,
                                 'ASSISTANT',
                                 'ANALYSIS_STATUS',
-                                -- 완료 안내도 에이전트가 한다 — 여기는 카드 자리만 남긴다.
-                                '',
+                                '커리어 적합도 분석이 완료됐어요. 역량과 맞춤 프로젝트를 확인해 주세요.',
                                 p.id,
                                 j.id,
                                 jsonb_build_object(
@@ -1288,6 +1381,124 @@ public class AnalysisWorker {
                     .optional();
             return null;
         });
+    }
+
+    private AiContracts.AnalysisResponse ensureTargetProject(
+            AiContracts.AnalysisResponse response
+    ) {
+        AiContracts.CompetencyProposal proposal = response.competencyProposal();
+        if (proposal.targetProject() != null) {
+            return response;
+        }
+        Map<String, AiContracts.AnalyzedCompetency> competenciesByRef =
+                proposal.competencies().stream()
+                        .filter(AiContracts.AnalyzedCompetency::roadmapEligible)
+                        .collect(java.util.stream.Collectors.toMap(
+                                AiContracts.AnalyzedCompetency::ref,
+                                item -> item,
+                                (left, right) -> left,
+                                java.util.LinkedHashMap::new
+                        ));
+        if (competenciesByRef.isEmpty()) {
+            return response;
+        }
+        List<String> requiredRefs = proposal.requirements().stream()
+                .filter(item -> "REQUIRED".equals(item.relation()))
+                .map(AiContracts.AnalyzedRequirement::competencyRef)
+                .filter(competenciesByRef::containsKey)
+                .distinct()
+                .limit(30)
+                .toList();
+        if (requiredRefs.isEmpty()) {
+            return response;
+        }
+        final List<String> requiredProjectRefs = requiredRefs;
+        List<String> optionalRefs = proposal.requirements().stream()
+                .filter(item -> "PREFERRED".equals(item.relation()))
+                .map(AiContracts.AnalyzedRequirement::competencyRef)
+                .filter(competenciesByRef::containsKey)
+                .filter(ref -> !requiredProjectRefs.contains(ref))
+                .distinct()
+                .limit(20)
+                .toList();
+        List<String> requiredTitles = requiredProjectRefs.stream()
+                .map(competenciesByRef::get)
+                .map(AiContracts.AnalyzedCompetency::title)
+                .limit(8)
+                .toList();
+        List<String> requirementContext = proposal.requirements().stream()
+                .filter(item -> "REQUIRED".equals(item.relation()))
+                .map(AiContracts.AnalyzedRequirement::sourceText)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .limit(3)
+                .toList();
+        String company = defaultText(response.job().companyName(), "목표 회사");
+        String role = defaultText(response.job().roleTitle(), "지원 직무");
+        String title = company + " " + role + " 지원 프로젝트";
+        String objective = requiredTitles.isEmpty()
+                ? "공고의 필수 요구사항을 하나의 실행 가능한 결과물로 증명합니다."
+                : String.join(", ", requiredTitles)
+                        + " 역량을 하나의 실행 가능한 결과물로 증명합니다.";
+        String domainContext = requirementContext.isEmpty()
+                ? company + "의 " + role + " 업무 맥락"
+                : String.join(" / ", requirementContext);
+        List<String> deliverables = List.of(
+                "실행 가능한 " + role + " 핵심 기능 소스 코드",
+                "설계 선택과 로컬 실행 방법을 정리한 README",
+                "필수 역량별 테스트 또는 재현 가능한 검증 기록"
+        );
+        List<String> acceptanceCriteria = new ArrayList<>();
+        acceptanceCriteria.add("저장소의 안내만으로 로컬 빌드와 핵심 기능 실행을 재현할 수 있음");
+        requiredTitles.forEach(item -> acceptanceCriteria.add(
+                item + " 요구 범위를 코드와 테스트에서 확인할 수 있음"
+        ));
+        acceptanceCriteria.add("실패·예외 경로와 검증 결과가 문서 또는 자동화 테스트에 남아 있음");
+        AiContracts.TargetProjectBrief project = new AiContracts.TargetProjectBrief(
+                title.length() > 200 ? title.substring(0, 200) : title,
+                objective,
+                domainContext.length() > 4000
+                        ? domainContext.substring(0, 4000)
+                        : domainContext,
+                requiredProjectRefs,
+                optionalRefs,
+                deliverables,
+                acceptanceCriteria.stream().limit(30).toList()
+        );
+        AiContracts.CompetencyProposal completedProposal =
+                new AiContracts.CompetencyProposal(
+                        proposal.competencies(),
+                        proposal.requirements(),
+                        project
+                );
+        return new AiContracts.AnalysisResponse(
+                response.status(),
+                response.question(),
+                response.job(),
+                response.evaluation(),
+                completedProposal
+        );
+    }
+
+    private void validateAnalysisQuality(AiContracts.AnalysisResponse response) {
+        if (response.job().companyName() == null
+                || response.job().companyName().isBlank()
+                || response.job().roleTitle() == null
+                || response.job().roleTitle().isBlank()
+                || response.job().primaryTrack() == null
+                || response.job().primaryTrack().isBlank()) {
+            throw new AiServiceException(
+                    "ANALYSIS_INSUFFICIENT",
+                    "공고의 회사명, 직무 또는 직무 분야를 충분히 확인하지 못했습니다. 공고 원문을 확인한 뒤 다시 시도해 주세요."
+            );
+        }
+        if (response.competencyProposal().competencies() == null
+                || response.competencyProposal().competencies().isEmpty()) {
+            throw new AiServiceException(
+                    "ANALYSIS_INSUFFICIENT",
+                    "공고에서 검토할 역량을 추출하지 못했습니다. 공고 원문을 확인한 뒤 다시 시도해 주세요."
+            );
+        }
     }
 
     private AiContracts.Evaluation evaluateReadiness(
@@ -1366,7 +1577,8 @@ public class AnalysisWorker {
                         """)
                 .query(Integer.class)
                 .single();
-        AiContracts.ExperienceRequirement experience = experienceOrNone(response);
+        AiContracts.ExperienceRequirement experience =
+                response.job().experienceRequirement();
         boolean experienceMet = !"REQUIRED".equals(experience.type())
                 || experienceMonths >= experience.minimumMonths();
         int experienceShortage = Math.max(
@@ -1374,11 +1586,13 @@ public class AnalysisWorker {
                 experience.minimumMonths() - experienceMonths
         );
         double coverage = counts.requiredTotal() == 0
-                ? 1
+                ? 0
                 : (double) counts.requiredMet() / counts.requiredTotal();
 
         String verdict;
-        if (counts.requiredMet() == counts.requiredTotal() && experienceMet) {
+        if (counts.requiredTotal() == 0) {
+            verdict = "REVIEW_REQUIRED";
+        } else if (counts.requiredMet() == counts.requiredTotal() && experienceMet) {
             verdict = "APPLY_NOW";
         } else if ((!experienceMet && experienceShortage > 12)
                 || coverage < 0.5) {
@@ -1388,6 +1602,9 @@ public class AnalysisWorker {
         }
 
         List<String> reasons = new ArrayList<>();
+        if (counts.requiredTotal() == 0) {
+            reasons.add("필수 지원 조건을 충분히 추출하지 못해 준비도를 계산하지 않았습니다.");
+        }
         reasons.add("검증된 필수 역량 "
                 + counts.requiredMet() + "/" + counts.requiredTotal());
         if (counts.preferredTotal() > 0) {
@@ -1405,6 +1622,8 @@ public class AnalysisWorker {
         }
 
         String summary = switch (verdict) {
+            case "REVIEW_REQUIRED" ->
+                    "공고 본문에서 충분한 필수 지원 조건을 추출하지 못해 준비도 판정을 보류했습니다.";
             case "APPLY_NOW" ->
                     "현재 검증된 필수 역량과 경력 조건을 기준으로 지원 가능한 상태입니다.";
             case "STRENGTHEN_THEN_APPLY" ->
@@ -1415,24 +1634,35 @@ public class AnalysisWorker {
         return new AiContracts.Evaluation(verdict, summary, List.copyOf(reasons));
     }
 
-    private void fail(ClaimedJob job, Exception exception) {
+    private void fail(ClaimedJob job, Exception exception, String failureStage) {
         rls.write(job.userId(), jdbc -> {
-            jdbc.sql("""
+            String errorCode = "INITIALIZATION".equals(failureStage)
+                    && !(exception instanceof AiServiceException)
+                    ? "ANALYSIS_INITIALIZATION_FAILED"
+                    : classify(exception);
+            int failed = jdbc.sql("""
                             update analysis_jobs
                             set
                                 status = 'FAILED',
                                 stage = 'FAILED',
-                                stage_message = '공고 분석을 완료하지 못했어요',
+                                stage_message = '커리어 적합도 분석을 완료하지 못했어요',
                                 error_code = :errorCode,
                                 error_message = :errorMessage,
                                 completed_at = now(),
                                 locked_until = null
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
-                    .param("errorCode", classify(exception))
+                    .param("errorCode", errorCode)
                     .param("errorMessage", safeMessage(exception))
+                    .param("workerId", workerId)
                     .param("jobId", job.id())
                     .update();
+            if (failed == 0) {
+                log.info("Ignoring failure from superseded analysis job {}", job.id());
+                return null;
+            }
             jdbc.sql("""
                             insert into conversation_messages (
                                 user_id,
@@ -1449,17 +1679,13 @@ public class AnalysisWorker {
                                 p.conversation_id,
                                 'ASSISTANT',
                                 'ANALYSIS_STATUS',
-                                -- **문장을 담지 않는다.** 이 턴에 말할 주체는 에이전트다.
-                                -- 이 행은 진행 카드가 붙는 자리로만 남긴다(카드가 상태 FAILED ·
-                                -- errorMessage · "다시 분석"을 보여준다). 실측(08-03 22:47):
-                                -- 에이전트가 공고를 정리해 답하는 턴에 "이력서를 주시겠어요?"가
-                                -- 화자 없이 따로 떠서 누가 무엇을 요구하는지 흐려졌다.
-                                '',
+                                '커리어 적합도 분석을 완료하지 못했어요. 오류를 확인하고 다시 시도할 수 있습니다.',
                                 p.id,
                                 j.id,
                                 jsonb_build_object(
                                     'status', 'FAILED',
                                     'analysisJobId', cast(j.id as text),
+                                    'failureStage', :failureStage,
                                     'errorMessage', :errorMessage
                                 )
                             from analysis_jobs j
@@ -1469,6 +1695,7 @@ public class AnalysisWorker {
                             """)
                     .param("userId", job.userId())
                     .param("jobId", job.id())
+                    .param("failureStage", failureStage)
                     .param("errorMessage", safeMessage(exception))
                     .update();
             jdbc.sql("select finish_analysis_job(:jobId, :userId)")
@@ -1478,11 +1705,6 @@ public class AnalysisWorker {
                     .optional();
             return null;
         });
-    }
-
-    /** 빈 문자열은 "값 없음"이다 — SQL 에서 null 로 다뤄야 되메우기 조건이 성립한다. */
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     private String writeJson(Object value) {
@@ -1495,6 +1717,17 @@ public class AnalysisWorker {
 
     private tools.jackson.databind.JsonNode readJson(String value) {
         return value == null ? objectMapper.createObjectNode() : objectMapper.readTree(value);
+    }
+
+    private List<String> readStringList(String value) {
+        List<String> items = new ArrayList<>();
+        for (tools.jackson.databind.JsonNode item : readJson(value)) {
+            String text = item.stringValue("").trim();
+            if (!text.isEmpty()) {
+                items.add(text);
+            }
+        }
+        return List.copyOf(items);
     }
 
     private String optionLabel(String optionsJson, String answerValue) {
@@ -1538,34 +1771,40 @@ public class AnalysisWorker {
         }
     }
 
-    /**
-     * AI 계약상 경력 근거가 없는 공고는 {@code experienceRequirement} 가 null 이다
-     * (근거 없이 "요건 없음"을 단정하지 않는다는 AI 쪽 원칙). 경력 관문은
-     * {@code REQUIRED·개월>0} 에서만 생기므로 'NONE'/0 은 V11 백필과 같은 무관문 표기다 —
-     * null 그대로 쓰면 NPE 로 분석 job 이 통째로 죽는다(실측 08-04, 캐시 재사용 경로).
-     */
-    /** 트랙을 못 정한 공고도 지도에 올린다 — `primary_track` 은 두 테이블에서 NOT NULL 이다.
-
-     * <p>AI 계약상 `primaryTrack` 은 null 이 될 수 있다(모르면 짐작하지 않는다). 그런데
-     * `posting_path_profiles`·`posting_catalog` 는 10종 중 하나를 강제하고 'ETC' 가 없어,
-     * null 을 그대로 넣으면 성공한 분석이 마지막 적재에서 통째로 죽는다(실측 08-04:
-     * job 765a595e, `null value in column "primary_track"`). 조회 쪽이 이미
-     * `coalesce(profile.primary_track, 'BACKEND')` 로 같은 기본값을 쓰므로(RoadmapService)
-     * 쓰기도 같은 값으로 맞춘다 — 받는 쪽은 넉넉하게.
-     */
-    private static String trackOrDefault(AiContracts.AnalysisResponse response) {
-        String track = response.job().primaryTrack();
-        return track == null || track.isBlank() ? "BACKEND" : track;
-    }
-
-    private static AiContracts.ExperienceRequirement experienceOrNone(
-            AiContracts.AnalysisResponse response
+    private AiContracts.SharedPostingAnalysis parseSharedAnalysis(
+            JdbcClient jdbc,
+            String contentFingerprint,
+            String clarificationFingerprint,
+            String value
     ) {
-        AiContracts.ExperienceRequirement experience =
-                response.job().experienceRequirement();
-        return experience != null
-                ? experience
-                : new AiContracts.ExperienceRequirement("NONE", 0, null, "");
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return readSharedAnalysis(value);
+        } catch (RuntimeException exception) {
+            String reason = safeMessage(exception);
+            jdbc.sql("""
+                            update posting_analysis_cache
+                            set
+                                invalidated_at = now(),
+                                invalid_reason = :reason
+                            where content_fingerprint = :contentFingerprint
+                              and clarification_fingerprint = :clarificationFingerprint
+                              and invalidated_at is null
+                            """)
+                    .param("reason", reason)
+                    .param("contentFingerprint", contentFingerprint)
+                    .param("clarificationFingerprint", clarificationFingerprint)
+                    .update();
+            log.warn(
+                    "Invalidated shared posting analysis cache {}:{}: {}",
+                    contentFingerprint,
+                    clarificationFingerprint,
+                    reason
+            );
+            return null;
+        }
     }
 
     private AiContracts.AnalysisResponse reuseSharedAnalysis(
@@ -1583,7 +1822,7 @@ public class AnalysisWorker {
                 shared.job(),
                 new AiContracts.Evaluation(
                         "STRENGTHEN_THEN_APPLY",
-                        "공용 공고 분석을 재사용해 현재 준비도를 다시 계산합니다.",
+                        "기존 공고 요건을 재사용해 현재 준비도를 다시 계산합니다.",
                         List.of("공고 자체를 다시 생성하지 않고 현재 커리어 근거만 비교합니다.")
                 ),
                 shared.competencyProposal()
@@ -1603,7 +1842,6 @@ public class AnalysisWorker {
                 job.experienceRequirement(),
                 job.closesAt(),
                 job.lifecycleStatus(),
-                job.sourceText(),
                 job.parsedData()
         );
     }
@@ -1698,12 +1936,13 @@ public class AnalysisWorker {
             AnalysisCacheKey key
     ) {
         return transactionTemplate.execute(status -> {
-            AiContracts.SharedPostingAnalysis shared = jdbcClient.sql("""
+            String sharedJson = jdbcClient.sql("""
                             select normalized_analysis::text
                             from posting_analysis_cache
                             where content_fingerprint = :contentFingerprint
                               and clarification_fingerprint = :clarificationFingerprint
                               and schema_version = 1
+                              and invalidated_at is null
                             limit 1
                             """)
                     .param("contentFingerprint", key.contentFingerprint())
@@ -1713,8 +1952,13 @@ public class AnalysisWorker {
                     )
                     .query(String.class)
                     .optional()
-                    .map(this::readSharedAnalysis)
                     .orElse(null);
+            AiContracts.SharedPostingAnalysis shared = parseSharedAnalysis(
+                    jdbcClient,
+                    key.contentFingerprint(),
+                    key.clarificationFingerprint(),
+                    sharedJson
+            );
             if (shared != null) {
                 jdbcClient.sql("""
                                 update posting_analysis_cache
@@ -1723,6 +1967,7 @@ public class AnalysisWorker {
                                     last_used_at = now()
                                 where content_fingerprint = :contentFingerprint
                                   and clarification_fingerprint = :clarificationFingerprint
+                                  and invalidated_at is null
                                 """)
                         .param("contentFingerprint", key.contentFingerprint())
                         .param(
@@ -1745,6 +1990,12 @@ public class AnalysisWorker {
                             where content_fingerprint = :contentFingerprint
                               and clarification_fingerprint = :clarificationFingerprint
                               and owner_analysis_job_id = :analysisJobId
+                              and exists (
+                                  select 1
+                                  from analysis_jobs job
+                                  where job.id = :analysisJobId
+                                    and job.worker_id = :workerId
+                              )
                             """)
                     .param("contentFingerprint", key.contentFingerprint())
                     .param(
@@ -1752,6 +2003,7 @@ public class AnalysisWorker {
                             key.clarificationFingerprint()
                     )
                     .param("analysisJobId", analysisJobId)
+                    .param("workerId", workerId)
                     .update());
         } catch (RuntimeException exception) {
             log.warn(
@@ -1764,15 +2016,24 @@ public class AnalysisWorker {
 
     private void updateStage(ClaimedJob job, String stage, String message) {
         rls.write(job.userId(), jdbc -> {
-            jdbc.sql("""
+            int updated = jdbc.sql("""
                             update analysis_jobs
-                            set stage = :stage, stage_message = :message
+                            set
+                                stage = :stage,
+                                stage_message = :message,
+                                locked_until = now() + interval '15 minutes'
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
                     .param("stage", stage)
                     .param("message", message)
+                    .param("workerId", workerId)
                     .param("jobId", job.id())
                     .update();
+            if (updated == 0) {
+                throw new SupersededAnalysisException();
+            }
             return null;
         });
     }
@@ -1793,6 +2054,7 @@ public class AnalysisWorker {
         }
         String eventJson = writeJson(event);
         rls.write(job.userId(), jdbc -> {
+            requireCurrentWorker(jdbc, job);
             jdbc.sql("""
                             insert into analysis_agent_events (
                                 user_id,
@@ -1820,6 +2082,17 @@ public class AnalysisWorker {
                     .param("occurredAt", event.occurredAt())
                     .update();
 
+            jdbc.sql("""
+                            update analysis_jobs
+                            set locked_until = now() + interval '15 minutes'
+                            where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
+                            """)
+                    .param("jobId", job.id())
+                    .param("workerId", workerId)
+                    .update();
+
             if ("STAGE_UPDATED".equals(event.type()) && event.stage() != null) {
                 String message = event.stage().message();
                 boolean hasMessage = message != null && !message.isBlank();
@@ -1843,6 +2116,23 @@ public class AnalysisWorker {
         });
     }
 
+    private void requireCurrentWorker(JdbcClient jdbc, ClaimedJob job) {
+        boolean current = jdbc.sql("""
+                        select status = 'RUNNING' and worker_id = :workerId
+                        from analysis_jobs
+                        where id = :jobId
+                        for update
+                        """)
+                .param("workerId", workerId)
+                .param("jobId", job.id())
+                .query(Boolean.class)
+                .optional()
+                .orElse(false);
+        if (!current) {
+            throw new SupersededAnalysisException();
+        }
+    }
+
     private String classify(Exception exception) {
         if (exception instanceof AiServiceException aiException) {
             return aiException.code();
@@ -1861,11 +2151,26 @@ public class AnalysisWorker {
             return "AI 서비스 응답이 지연되거나 중단되었습니다. 공고는 저장되어 있으니 "
                     + "잠시 후 다시 분석할 수 있습니다.";
         }
+        if ("INTERNAL_ERROR".equals(code)) {
+            return "AI 분석 내부 처리 중 오류가 발생했습니다. 저장된 공고에서 다시 시도해 주세요.";
+        }
+        if ("AI_TIMEOUT".equals(code)) {
+            return "AI 모델의 응답 제한 시간을 초과했습니다. 공고와 답변은 저장되어 있으니 "
+                    + "잠시 후 다시 분석할 수 있습니다.";
+        }
+        if ("ANALYSIS_CONVERGENCE_FAILED".equals(code)) {
+            return "AI 호출은 완료됐지만 분석 상태가 반복되어 결과를 확정하지 못했습니다. "
+                    + "저장된 공고에서 다시 분석해 주세요.";
+        }
         String message = exception.getMessage();
         if (message == null || message.isBlank()) {
             return "AI 분석을 완료하지 못했습니다.";
         }
         return message.length() > 1000 ? message.substring(0, 1000) : message;
+    }
+
+    private String defaultText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private static String hostName() {
@@ -1897,7 +2202,8 @@ public class AnalysisWorker {
 
     private record QuestionJobState(
             String status,
-            int questionCount
+            int questionCount,
+            String workerId
     ) {
     }
 
@@ -1922,5 +2228,11 @@ public class AnalysisWorker {
             AiContracts.SharedPostingAnalysis sharedAnalysis,
             boolean ownsLease
     ) {
+    }
+
+    private static final class SupersededAnalysisException extends RuntimeException {
+        private SupersededAnalysisException() {
+            super("Analysis result belongs to an inactive worker");
+        }
     }
 }

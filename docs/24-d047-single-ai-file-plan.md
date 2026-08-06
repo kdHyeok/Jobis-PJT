@@ -1,0 +1,411 @@
+# 24. D047 단일 AI 파일 단위 구현 설계
+
+- 작성일: `2026-08-06`
+- 기준 결정: `D047`
+- 기준선 감사: `docs/23-d047-latest-baseline-audit.md`
+- 구현 대상: `C:\JOBIS`
+- 읽기 전용 원본: 최신 팀 AI `C:\S15P11C202\AI`, 기존 통합판
+  `C:\jobiss-service-v3-integration-lab`, v3 기능 원본 `C:\JOBIS\AI-v3`
+
+## 1. 결론
+
+최종 AI 서버의 실행 기반은 최신 팀 AI로 한다. 실제 수정 대상은 `C:\JOBIS\AI`이며,
+`C:\S15P11C202\AI`를 직접 수정하지 않는다.
+
+```text
+최신 팀 AI
+  ├─ 오케스트레이터·세션·에이전트·provider·RAG·평가 하네스 유지
+  ├─ 현재 JOBIS의 Spring/프론트 호환 계약을 명시적 DTO와 adapter로 이식
+  └─ AI-v3의 검증 공고·프로젝트·원자 역량·Capability Graph·로드맵을 내부 workflow로 이식
+        ↓
+하나의 C:\JOBIS\AI 프로세스
+```
+
+`AI-v3` 패키지를 별도 의존성으로 호출하거나 8500번 서버를 계속 호출하는 방식은 최종 구조가
+아니다. v3의 검증된 모듈은 `jobis_ai.career_pipeline` 아래로 이식하고 최신 AI의 provider와
+오케스트레이터를 사용한다.
+
+Capability Graph는 AI가 아니라 승인된 지식 데이터 서비스다. 8600번 graph 서비스는 별도로
+유지할 수 있지만, 이를 호출하는 AI 서버는 하나다.
+
+## 2. 최종 런타임 구조
+
+```text
+Vue
+  ↓
+Spring/PostgreSQL
+  ↓ 하나의 AI base URL
+JOBIS AI · C:\JOBIS\AI
+  ├─ FastAPI v2bridge
+  ├─ Chat Orchestrator
+  ├─ conversational agents
+  ├─ career_pipeline
+  │   ├─ source verification contract
+  │   ├─ posting interpretation
+  │   ├─ ambiguity resolution
+  │   ├─ evidence-aware fit
+  │   ├─ company project planning
+  │   ├─ capability normalization
+  │   ├─ capability graph lookup
+  │   └─ career roadmap proposal
+  └─ shared LLM/RAG provider
+       ↓ read-only
+Capability Graph
+```
+
+Spring/PostgreSQL이 사용자 데이터, 질문 답변, job 상태, 취소, roadmap draft/version의 정본이다.
+AI의 session state는 실행 재개를 위한 snapshot이며 운영 데이터의 유일한 정본이 아니다.
+
+## 3. 최종 Python 패키지 배치
+
+### 3.1 최신 AI에서 기준으로 유지할 파일
+
+| 대상 파일 | 처리 | 책임 |
+|---|---|---|
+| `AI/src/jobis_ai/v2bridge/app.py` | 최신 기준으로 교체 후 확장 | 단일 HTTP 진입점 |
+| `AI/src/jobis_ai/v2bridge/models.py` | 최신 기준으로 재작성 | 외부 서비스 DTO의 유일한 정본 |
+| `AI/src/jobis_ai/v2bridge/service.py` | 최신 기준으로 교체 후 pipeline 연결 | 요청과 내부 workflow 조정 |
+| `AI/src/jobis_ai/v2bridge/stream.py` | 최신 기준으로 교체 후 stage adapter 연결 | NDJSON/SSE 이벤트 |
+| `AI/src/jobis_ai/v2bridge/mapping.py` | 최신 기준으로 교체 후 명시적 mapping만 추가 | 내부 결과→서비스 DTO |
+| `AI/src/jobis_ai/v2bridge/assessment.py` | 유지·확장 | 원자 역량 평가 |
+| `AI/src/jobis_ai/v2bridge/enrich.py` | 유지 | 분석 산출물 보강 |
+| `AI/src/jobis_ai/orchestrator/chat.py` | 최신 기준 유지·확장 | 전체 대화 실행 계획 |
+| `AI/src/jobis_ai/orchestrator/session.py` | 최신 기준 유지·Spring snapshot 연동 | 세션 hydrate/update |
+| `AI/src/jobis_ai/orchestrator/planner.py` | 최신 기준 유지·새 workflow 등록 | 의도와 실행 계획 |
+| `AI/src/jobis_ai/orchestrator/router.py` | 최신 기준 유지 | 결정적 진입·폴백 |
+| `AI/src/jobis_ai/agents/*` | 최신 기준 유지 | 자유 대화와 역할별 에이전트 |
+| `AI/src/jobis_ai/config.py` | 최신 기준 유지·graph 설정 병합 | 단일 설정 |
+| `AI/src/jobis_ai/llm.py` | 최신 기준 유지 | provider 단일 진입점 |
+| `AI/src/jobis_ai/codex_llm.py` | 최신 기준 유지 | Codex provider |
+| `AI/src/jobis_ai/codex_oauth_adapter/*` | 최신 기준 유지 | Codex 인증·Responses adapter |
+| `AI/src/jobis_ai/structured.py` | 최신 기준 유지 | 구조화 출력·재시도 |
+| `AI/src/jobis_ai/llm_usage.py` | 최신 기준 유지·pipeline stage 연결 | 시간·토큰·비용 로그 |
+
+### 3.2 AI-v3에서 내부 workflow로 이식할 파일
+
+다음 파일은 기존 이름과 책임을 최대한 보존해 `jobis_ai.career_pipeline`으로 옮긴다. 이식 중에는
+LLM provider와 FastAPI 앱만 최신 AI 경계로 바꾸고 계약 검증을 약화하지 않는다.
+
+| AI-v3 원본 | 최종 대상 |
+|---|---|
+| `AI-v3/src/jobis_ai_v3/contracts/*.py` | `AI/src/jobis_ai/career_pipeline/contracts/*.py` |
+| `AI-v3/src/jobis_ai_v3/source/*.py` | `AI/src/jobis_ai/career_pipeline/source/*.py` |
+| `AI-v3/src/jobis_ai_v3/interpretation/*.py` | `AI/src/jobis_ai/career_pipeline/interpretation/*.py` |
+| `AI-v3/src/jobis_ai_v3/resolution/*.py` | `AI/src/jobis_ai/career_pipeline/resolution/*.py` |
+| `AI-v3/src/jobis_ai_v3/fit/*.py` | `AI/src/jobis_ai/career_pipeline/fit/*.py` |
+| `AI-v3/src/jobis_ai_v3/project_planning/*.py` | `AI/src/jobis_ai/career_pipeline/project_planning/*.py` |
+| `AI-v3/src/jobis_ai_v3/normalization/*.py` | `AI/src/jobis_ai/career_pipeline/normalization/*.py` |
+| `AI-v3/src/jobis_ai_v3/capability_graph/*.py` | `AI/src/jobis_ai/career_pipeline/capability_graph/*.py` |
+| `AI-v3/src/jobis_ai_v3/roadmap/*.py` | `AI/src/jobis_ai/career_pipeline/roadmap/*.py` |
+| `AI-v3/src/jobis_ai_v3/assessment/*.py` | `AI/src/jobis_ai/career_pipeline/assessment/*.py` |
+| `AI-v3/src/jobis_ai_v3/pipeline/service.py` | `AI/src/jobis_ai/career_pipeline/service.py` |
+| `AI-v3/src/jobis_ai_v3/cancellation.py` | `AI/src/jobis_ai/career_pipeline/cancellation.py` |
+
+다음 파일은 그대로 이식하지 않는다.
+
+| AI-v3 파일 | 이유와 대체 |
+|---|---|
+| `AI-v3/src/jobis_ai_v3/api.py` | 두 번째 FastAPI 앱을 만들지 않고 `v2bridge/app.py` 사용 |
+| `AI-v3/src/jobis_ai_v3/config.py` | graph/pipeline 설정만 최신 `jobis_ai/config.py`에 병합 |
+| `AI-v3/src/jobis_ai_v3/llm/provider.py` | 최신 `jobis_ai/llm.py`와 `structured.py`를 사용하는 adapter로 교체 |
+
+새로 만드는 통합 파일은 다음과 같다.
+
+| 새 파일 | 책임 |
+|---|---|
+| `AI/src/jobis_ai/career_pipeline/__init__.py` | 내부 workflow 공개 경계 |
+| `AI/src/jobis_ai/career_pipeline/llm_adapter.py` | v3 schema 생성 요청을 최신 provider로 연결 |
+| `AI/src/jobis_ai/career_pipeline/progress_adapter.py` | 내부 progress를 외부 `AnalysisStreamEvent`로 변환 |
+| `AI/src/jobis_ai/career_pipeline/session_adapter.py` | Spring snapshot과 pipeline checkpoint 변환 |
+| `AI/src/jobis_ai/agents/career_pipeline.py` | 정식 분석 workflow를 실행하는 전문 에이전트 |
+
+## 4. 외부 AI 계약
+
+### 4.1 유지할 endpoint
+
+모든 endpoint는 같은 `v2bridge/app.py`, 같은 base URL과 shared secret을 사용한다.
+
+- `GET /health`
+- `POST /v1/chat`, `POST /v1/chat/stream`
+- `GET /v1/sessions/{conversationId}`
+- `POST /v1/analyses`, `POST /v1/analyses/stream`
+- `POST /v1/career-extractions`
+- `POST /v1/evidence-verifications`
+- `POST /v1/competency-assessments`
+- `POST /v1/competency-learning`
+- `POST /v1/sources/acquire`
+
+사용자 확인은 Spring이 DB에 `VerifiedPostingSnapshot`을 저장하는 상태 전이다. AI가 별도 DB를
+소유하는 verify endpoint는 만들지 않는다. 정식 분석 요청에는 검증된 snapshot과 revision/hash가
+포함된다.
+
+### 4.2 `v2bridge/models.py` 정리
+
+현재 `models.py` 마지막의 `from service_contract import *`를 제거한다. 다음 DTO를
+`models.py`에 명시적으로 한 번만 정의한다.
+
+- `ChatRequest`, `ChatResponse`, `CollectedAssets`, `CollectedOutputs`
+- `AgentExecutionPlan`, `AgentStage`, `AgentWorkProduct`
+- `ProposedAgentAction`, `PendingConfirmation`
+- `AnalysisRequest`, `AnalysisResponse`, `AnalysisStreamEvent`
+- `UnifiedAnalysisContext`, `PostingReview`, `StructuredPostingCheckpoint`
+- 프로젝트·역량·로드맵의 서비스 투영 DTO
+
+내부 `career_pipeline/contracts` 객체를 외부 DTO로 직접 노출하지 않는다. 명시적 mapper가 모든
+필드를 옮기며 다음 값이 누락되면 성공 응답을 만들지 않는다.
+
+- 선택 position ID와 공고 requirement/evidence ID
+- 경력 최소·최대 개월과 관련 role scope
+- project task와 completion criteria
+- canonical capability 또는 provisional candidate
+- relation type/reason과 graph version/hash
+- base/current/proposed roadmap version
+
+### 4.3 진행 이벤트
+
+외부 이벤트는 최신 팀 AI의 `RUN_STARTED | STAGE_UPDATED | RESULT | ERROR`를 정본으로 사용한다.
+
+```text
+SOURCE_ACQUISITION → POSTING_INTERPRETATION → AMBIGUITY_RESOLUTION
+→ POSTING_CONFIRMATION → PROFILE_ASSEMBLY → FIT_ANALYSIS
+→ PROJECT_PLANNING → CAPABILITY_NORMALIZATION → CAPABILITY_GRAPH_LOOKUP
+→ ROADMAP_PROPOSAL → RESULT_ASSEMBLY
+```
+
+실제 필요한 단계만 계획에 포함한다. 이미 확인된 checkpoint가 있으면 수집·구조화 단계를 다시
+LLM으로 실행하지 않는다. 화면에는 provider/model 이름을 보내지 않고 agent/tool/service 역할과
+사용자용 문구만 보낸다.
+
+## 5. 하나의 채팅 실행 흐름
+
+```text
+1. 사용자 메시지를 Spring이 즉시 저장
+2. /v1/chat/stream이 의도와 입력 자산을 확인
+3. URL/본문/이미지를 한 번 수집
+4. StructuredPosting.positions[] 생성
+5. 복수 직무·혼합 경력이면 결과를 크게 바꾸는 질문을 한 번에 하나씩 제시
+6. 선택 포지션의 PostingReview를 구조화 결과에서 결정적으로 투영
+7. 채팅에 같은 공고 카드 하나를 AWAITING_CONFIRMATION으로 저장
+8. 사용자가 확인하면 Spring이 verified snapshot과 답변을 저장
+9. /v1/analyses/stream에 checkpoint를 보내 fit부터 재개
+10. project→normalization→graph→roadmap proposal 실행
+11. 완료 카드와 로드맵 미리보기 행동을 같은 채팅에 저장
+12. 적용은 사용자 버튼 후 Spring 트랜잭션으로 새 roadmap version 발행
+```
+
+일반 답변, 공고 요약, 구조화 결과, 확인 카드가 같은 내용을 반복하지 않는다. 채팅 메시지는 짧은
+설명 하나, 공고 카드는 상태와 핵심 확인 정보 하나, 상세 원문은 펼쳐보기 하나로 구성한다.
+
+## 6. 단계별 구현과 파일
+
+### Phase 0 · 기준선과 수용 fixture 고정
+
+수정 파일:
+
+- `contract-fixtures/d047/*`
+- `AI/tests/test_d047_*.py`
+- `AI-v3/tests/test_d047_unified_baseline_fixture.py`
+- `backend/src/test/java/com/jobiss/analysis/*`
+- `frontend/tests/e2e/chat-posting-flow.spec.ts`
+- `frontend/tests/v3-adapter.test.ts`
+
+이스트게임즈 복수 직무, 네이버 2~4년, AI 보안 4년 공고를 고정하고 AI 원본→Spring 저장→API→
+adapter→JourneyModel을 같은 correlation ID로 추적한다.
+
+완료 조건: 기존 세 구현의 기준 결과와 의도적 차이를 테스트가 설명한다.
+
+### Phase 1 · 최신 팀 AI 코어 기준화
+
+수정 대상:
+
+- `AI/pyproject.toml`, `AI/uv.lock`
+- `AI/src/jobis_ai/config.py`
+- `AI/src/jobis_ai/llm.py`, `codex_llm.py`, `codex_oauth_adapter/*`
+- `AI/src/jobis_ai/structured.py`, `llm_usage.py`, `trace.py`
+- `AI/src/jobis_ai/orchestrator/*`, `AI/src/jobis_ai/agents/*`
+- `AI/src/jobis_ai/v2bridge/app.py`, `service.py`, `stream.py`, `mapping.py`
+- 최신 원본에 대응하는 `AI/tests/*`
+
+`.env`, `.venv`, SQLite, log, cache는 복사하지 않는다. `webbridge/*`는 최신 기준에 없으므로
+새 기반에 포함하지 않는다.
+
+완료 조건: 최신 AI의 800개 기준 테스트와 JOBIS D047 contract fixture가 함께 통과한다.
+
+### Phase 2 · 단일 서비스 계약
+
+수정 대상:
+
+- `AI/src/jobis_ai/v2bridge/models.py`, `mapping.py`, `service.py`, `stream.py`
+- `AI/tests/test_v2bridge_contract.py`, `test_v2bridge_stream.py`
+- `backend/src/main/java/com/jobiss/analysis/AiContracts.java`
+- `backend/src/test/java/com/jobiss/analysis/AiAnalysisClientTest.java`
+
+삭제 예정: `AI/src/jobis_ai/v2bridge/service_contract.py`
+
+완료 조건: Python schema와 Java record가 fixture 하나를 함께 검증하며 같은 DTO 정본이 두 파일에
+존재하지 않는다.
+
+### Phase 3 · 공고 수집·구조화·질문·확인 통합
+
+수정/이식 대상:
+
+- `AI/src/jobis_ai/feat_url/__init__.py`
+- `AI/src/jobis_ai/agents/posting_fetch.py`, `posting_analysis.py`
+- `AI/src/jobis_ai/posting_detection.py`
+- `AI/src/jobis_ai/career_pipeline/source/*`
+- `AI/src/jobis_ai/career_pipeline/interpretation/*`
+- `AI/src/jobis_ai/career_pipeline/resolution/*`
+- `AI/src/jobis_ai/orchestrator/chat.py`, `session.py`
+- 관련 URL/source/posting/fixture 테스트
+
+최신 AI의 수집기를 재사용하고 v3는 source/evidence 계약과 보안 검증을 제공한다. 복수 직무는
+`positions[]`로 보존하고 확인 카드는 `StructuredPosting`에서 결정적으로 만든다.
+
+완료 조건: URL과 붙여넣기 공고가 같은 상태 전이를 사용하며 이스트게임즈 질문과 확인 카드가
+한 번만 표시된다.
+
+### Phase 4 · 적합도·프로젝트·역량·로드맵 내부화
+
+수정/이식 대상:
+
+- `AI/src/jobis_ai/career_pipeline/fit/*`
+- `project_planning/*`, `normalization/*`, `capability_graph/*`, `roadmap/*`
+- `career_pipeline/service.py`, `llm_adapter.py`, `progress_adapter.py`
+- `AI/src/jobis_ai/agents/career_pipeline.py`
+- `AI/src/jobis_ai/v2bridge/service.py`, `mapping.py`
+- `AI/tests/career_pipeline/test_*.py`
+
+원칙:
+
+- 공고 해석은 역량 사전과 무관하게 먼저 수행한다.
+- 회사 프로젝트 과제를 먼저 설계하고 각 과제에 역량을 연결한다.
+- 미등록 학습 역량은 `PROVISIONAL_CANDIDATE`로 보존한다.
+- 정성 조건·학위·병역·경력은 기술 node가 아니다.
+- 기존 `TargetProjectBrief`는 v3 `CompanyProjectBlueprint`의 축약 투영으로만 유지한다.
+- AI-v3의 별도 LLM provider는 사용하지 않는다.
+
+완료 조건: 프로젝트·역량·relation·경력 gate가 공고 근거까지 역추적되고 알 수 없는 capability
+key를 임의 placeholder로 만들지 않는다.
+
+### Phase 5 · 단일 세션·취소·복원
+
+수정 대상:
+
+- `AI/src/jobis_ai/orchestrator/session.py`, `chat.py`
+- `AI/src/jobis_ai/career_pipeline/session_adapter.py`, `cancellation.py`
+- `AI/src/jobis_ai/v2bridge/service.py`, `stream.py`
+- `backend/.../conversation/ChatReplyWorker.java`
+- `backend/.../analysis/AnalysisWorker.java`, `AuxiliaryAiJobRecovery.java`
+- `backend/.../analysis/AnalysisTaskRegistry.java`
+- `backend/.../conversation/ChatReplyTaskRegistry.java`
+
+완료 조건: 질문·선택·확인·진행·완료가 새로고침 뒤 복원되고 사용자 취소가 재진입이나 서버
+재시작으로 부활하지 않는다.
+
+### Phase 6 · Spring 단일 AI client 전환
+
+수정 대상:
+
+- `backend/src/main/resources/application.yml`
+- `backend/.../config/JobissProperties.java`, `ProductionConfigurationValidator.java`
+- `backend/.../analysis/AiAnalysisClient.java`, `AnalysisWorker.java`, `AnalysisJobService.java`
+- `backend/.../conversation/ChatReplyWorker.java`, `ChatReplyJobService.java`
+- `backend/.../analysis/v3/V3AnalysisRequestFactory.java`, `V3AnalysisJobProcessor.java`
+- `backend/.../analysis/v3/V3SourceService.java`
+- `backend/.../analysis/v3/V3RoadmapCompiler.java`, `V3RoadmapService.java`
+
+보존·이동:
+
+- request factory의 user evidence/current roadmap 조립은 `UnifiedAnalysisRequestFactory`로 이동한다.
+- V3 processor의 저장 mapping은 `UnifiedAnalysisJobProcessor`로 이동한다.
+- roadmap compiler/service는 제품 기능이므로 보존하되 중립 이름으로 이동한다.
+- `V3SourceService`는 `SourceIntakeService`로 이동한다.
+
+동등성 검증 후 삭제:
+
+- `analysis/v3/V3AiClient.java`
+- `config/V3AiProperties.java`
+- shadow worker의 이중 전송 경로
+
+완료 조건: Spring 설정에 AI base URL이 하나이고 모든 AI job이 같은 client/event/cancel 정책을
+사용한다.
+
+### Phase 7 · DB와 상태 명칭 통합
+
+새 migration: `backend/src/main/resources/db/migration/V62__unified_ai_runtime.sql`
+
+- 새 job provider는 `UNIFIED`로 기록한다.
+- conversation/analysis/source/roadmap correlation ID와 checkpoint revision/hash를 보장한다.
+- 기존 `ai_v3_*` 테이블은 즉시 rename하지 않는다. 과거 버전 재현과 rollback을 위해 유지한다.
+- RLS, unique constraint, 취소, lease, idempotency를 실제 PostgreSQL에서 검증한다.
+
+### Phase 8 · 프론트 단일 작업 흐름
+
+수정/이름 변경 대상:
+
+- `frontend/src/api.ts`, `types.ts`
+- `frontend/src/views/ChatView.vue`
+- `frontend/src/components/V3PostingReviewCard.vue` → `PostingReviewCard.vue`
+- `frontend/src/views/NewPostingView.vue`, `PostingDetailView.vue`, `PostingsView.vue`
+- `frontend/src/views/HomeView.vue`, `CareerMapView.vue`
+- `frontend/src/roadmap/v3-adapter.ts` → `roadmap-adapter.ts`
+- `frontend/src/roadmap/journey.ts`
+- `frontend/tests/e2e/chat-posting-flow.spec.ts`
+- `frontend/tests/v3-adapter.test.ts` → `roadmap-adapter.test.ts`
+
+provider/model 이름과 V3 분기를 사용자 UI에서 제거한다. 채팅 메시지 하나와 상태가 갱신되는
+공고/분석 카드 하나를 연결하고, 실제 active job일 때만 진행 시각화를 표시한다.
+
+완료 조건: 채팅이 작업의 목적지이고 전용 페이지는 같은 정본을 관리·탐색한다.
+
+### Phase 9 · 별도 런타임 제거와 문서·스크립트 정리
+
+수정 대상:
+
+- `scripts/start-all.ps1`, `start-ai-agent.ps1`, `start-ai-v3.ps1`, `check.ps1`
+- `JOBIS-START-AI.cmd`, `JOBIS-START-AI-V3.cmd`
+- `README.md`, `docs/02-target-architecture.md`, `docs/03-contracts-and-states.md`
+- `docs/07-decision-register.md`, `TASK.md`
+
+동등성 검증 후 8500 실행 경로, V3 client/properties, provider UI, 폐기된 webbridge와 사용하지 않는
+shadow 이중 실행을 제거한다. `C:\JOBIS\AI-v3` 원본 자체 삭제는 모든 이식·롤백 검증 후 별도
+확인을 받고 수행한다.
+
+## 7. 테스트 게이트
+
+각 Phase는 다음 게이트를 통과하기 전 다음 단계로 넘어가지 않는다.
+
+1. 최신 팀 AI 전체 단위 테스트
+2. 이식한 career pipeline 전체 단위·계약 테스트
+3. Python schema와 Java record fixture 동등성
+4. Spring 전체 테스트와 실제 PostgreSQL RLS
+5. 프론트 unit/build/Playwright
+6. URL/본문/이미지 진입점 동등성
+7. 취소·재시도·서버 재시작·새로고침 복원
+8. 이스트게임즈→관련 취업→경력 2년→네이버웹툰 하나의 커리어 그래프
+9. AI 보안 4년 공고의 보안 경로와 provisional capability 보존
+10. 실제 provider 표본의 시간·오류·토큰·비용 기록
+
+실제 LLM을 쓰지 않는 테스트 성공을 live provider 성공으로 표현하지 않는다. skip된 DB 검사는
+통과로 계산하지 않는다.
+
+## 8. 가장 먼저 구현할 작업 묶음
+
+첫 구현은 아래 범위만 수행한다.
+
+```text
+Phase 0 수용 fixture 보강
+→ Phase 1 최신 코어 기준화
+→ Phase 2 단일 DTO 계약
+```
+
+첫 묶음에서는 AI-v3 모듈, Spring provider 제거, 프론트 UI를 아직 수정하지 않는다.
+
+- `C:\JOBIS\AI`가 최신 팀 AI 코어와 테스트를 사용한다.
+- 현재 Spring이 요구하는 서비스 필드는 명시적 DTO와 mapper로 보존된다.
+- `service_contract.py` wildcard 덮어쓰기가 사라진다.
+- 기존 자유 대화와 공고 URL 수집이 회귀하지 않는다.
+- 이후 v3 기능을 넣을 안정적인 단일 Python 경계가 생긴다.
+
+이 묶음이 통과한 뒤에만 Phase 3의 복수 직무·공고 확인과 Phase 4의 프로젝트·역량·로드맵을
+이식한다.

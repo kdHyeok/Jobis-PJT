@@ -1,7 +1,5 @@
 package com.jobiss.roadmap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.jobiss.common.ApiException;
 import com.jobiss.db.RlsTransactionExecutor;
 import org.springframework.http.HttpStatus;
@@ -26,9 +24,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class RoadmapService {
-
-    private static final Logger log =
-            LoggerFactory.getLogger(RoadmapService.class);
 
     private static final List<String> STAGE_ORDER = List.of(
             "FOUNDATION",
@@ -66,7 +61,9 @@ public class RoadmapService {
             Map.entry("CLOUD", "클라우드"),
             Map.entry("SECURITY", "보안"),
             Map.entry("GAME", "게임"),
-            Map.entry("MOBILE", "모바일")
+            Map.entry("MOBILE", "모바일"),
+            Map.entry("QA", "QA·테스트 자동화"),
+            Map.entry("EMBEDDED", "임베디드·펌웨어")
     );
     private static final int CAREER_TIER_WIDTH = 16;
     private static final int FIRST_TIER_BASE_RANK = 3;
@@ -83,6 +80,160 @@ public class RoadmapService {
 
     public Workspace get(UUID userId) {
         return rls.read(userId, jdbc -> workspace(jdbc, userId));
+    }
+
+    public List<VersionSummary> versions(UUID userId) {
+        return rls.read(userId, jdbc -> jdbc.sql("""
+                        select
+                            id,
+                            version_number,
+                            status,
+                            base_version_number,
+                            jsonb_array_length(coalesce(snapshot -> 'targets', '[]'::jsonb)) as target_count,
+                            change_summary::text,
+                            created_at,
+                            published_at
+                        from roadmap_versions
+                        where status in ('PUBLISHED', 'SUPERSEDED')
+                        order by version_number desc
+                        limit 30
+                        """)
+                .query((rs, rowNum) -> new VersionSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getLong("version_number"),
+                        rs.getString("status"),
+                        rs.getObject("base_version_number", Long.class),
+                        rs.getInt("target_count"),
+                        readChangeSummary(rs.getString("change_summary")),
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getObject("published_at", OffsetDateTime.class)
+                ))
+                .list());
+    }
+
+    public DraftResult restoreVersion(UUID userId, UUID versionId) {
+        return rls.write(userId, jdbc -> {
+            StoredVersion source = jdbc.sql("""
+                            select
+                                id,
+                                version_number,
+                                snapshot::text,
+                                change_summary::text,
+                                created_at
+                            from roadmap_versions
+                            where id = :versionId
+                              and status in ('PUBLISHED', 'SUPERSEDED')
+                            for update
+                            """)
+                    .param("versionId", versionId)
+                    .query((rs, rowNum) -> new StoredVersion(
+                            rs.getObject("id", UUID.class),
+                            rs.getLong("version_number"),
+                            rs.getString("snapshot"),
+                            rs.getString("change_summary"),
+                            rs.getObject("created_at", OffsetDateTime.class)
+                    ))
+                    .optional()
+                    .orElseThrow(() -> new ApiException(
+                            HttpStatus.NOT_FOUND,
+                            "ROADMAP_VERSION_NOT_FOUND",
+                            "복원할 로드맵 버전을 찾을 수 없습니다."
+                    ));
+            RoadmapSnapshot restored = readSnapshot(source.snapshotJson());
+            List<UUID> postingIds = restored.targets().stream()
+                    .map(TargetSummary::postingId)
+                    .distinct()
+                    .toList();
+
+            for (UUID postingId : postingIds) {
+                boolean restorable = jdbc.sql("""
+                                select exists (
+                                    select 1
+                                    from roadmap_targets target
+                                    join job_postings posting on posting.id = target.posting_id
+                                    join analysis_jobs analysis on analysis.id = target.analysis_job_id
+                                    where target.posting_id = :postingId
+                                      and analysis.status = 'SUCCEEDED'
+                                )
+                                """)
+                        .param("postingId", postingId)
+                        .query(Boolean.class)
+                        .single();
+                if (!restorable) {
+                    throw new ApiException(
+                            HttpStatus.CONFLICT,
+                            "ROADMAP_VERSION_TARGET_MISSING",
+                            "이 버전의 공고 또는 분석 기록이 삭제되어 안전하게 복원할 수 없습니다."
+                    );
+                }
+            }
+
+            jdbc.sql("""
+                            update roadmap_targets
+                            set active = false, removed_at = now()
+                            where active
+                            """)
+                    .update();
+            for (UUID postingId : postingIds) {
+                jdbc.sql("""
+                                update roadmap_targets
+                                set active = true, removed_at = null, added_at = now()
+                                where posting_id = :postingId
+                                """)
+                        .param("postingId", postingId)
+                        .update();
+            }
+
+            StoredVersion published = loadVersion(jdbc, "PUBLISHED", false);
+            RoadmapSnapshot current = published == null
+                    ? foundationOnlySnapshot(jdbc, userId)
+                    : readSnapshot(published.snapshotJson());
+            ChangeSummary changes = compare(current, restored);
+            jdbc.sql("update roadmap_versions set status = 'DISCARDED' where status = 'DRAFT'")
+                    .update();
+            long nextVersion = jdbc.sql("""
+                            select greatest(
+                                coalesce((select max(version_number) from roadmap_versions), 0),
+                                coalesce((select version from career_graphs limit 1), 0)
+                            ) + 1
+                            """)
+                    .query(Long.class)
+                    .single();
+            RoadmapSnapshot versioned = snapshotWithVersion(restored, nextVersion);
+            UUID draftId = jdbc.sql("""
+                            insert into roadmap_versions (
+                                user_id,
+                                version_number,
+                                status,
+                                base_version_number,
+                                target_signature,
+                                snapshot,
+                                change_summary
+                            )
+                            values (
+                                :userId,
+                                :versionNumber,
+                                'DRAFT',
+                                :baseVersion,
+                                :targetSignature,
+                                cast(:snapshot as jsonb),
+                                cast(:changeSummary as jsonb)
+                            )
+                            returning id
+                            """)
+                    .param("userId", userId)
+                    .param("versionNumber", nextVersion)
+                    .param("baseVersion", published == null ? null : published.versionNumber())
+                    .param("targetSignature", stableId(postingIds.stream()
+                            .map(UUID::toString)
+                            .sorted()
+                            .collect(Collectors.joining("|"))))
+                    .param("snapshot", writeJson(versioned))
+                    .param("changeSummary", writeJson(changes))
+                    .query(UUID.class)
+                    .single();
+            return new DraftResult(null, draftId, nextVersion, changes);
+        });
     }
 
     public DraftResult addTarget(UUID userId, UUID analysisJobId) {
@@ -119,17 +270,7 @@ public class RoadmapService {
                 throw new ApiException(
                         HttpStatus.CONFLICT,
                         "ANALYSIS_NOT_COMPLETED",
-                        "완료된 공고 분석만 목표에 추가할 수 있습니다."
-                );
-            }
-            if ("EXPIRED".equals(target.lifecycleStatus())
-                    || "CLOSED".equals(target.lifecycleStatus())
-                    || (target.closesAt() != null
-                    && !target.closesAt().isAfter(OffsetDateTime.now()))) {
-                throw new ApiException(
-                        HttpStatus.CONFLICT,
-                        "POSTING_CLOSED",
-                        "마감된 공고는 새 목표로 추가할 수 없습니다. 분석 결과는 학습 참고로 유지됩니다."
+                        "완료된 커리어 적합도 분석만 목표에 추가할 수 있습니다."
                 );
             }
             int requirementCount = jdbc.sql("""
@@ -197,77 +338,8 @@ public class RoadmapService {
         });
     }
 
-    /** 재료가 없으면 생성 자체를 막는 문구 — 화면과 서버가 같은 문장을 쓴다. */
-    static final String MATERIAL_REQUIRED_MESSAGE =
-            "공고 적합도 분석을 먼저 완료해 주세요. 분석이 끝나면 지도가 자동으로 그려집니다.";
-
-    /**
-     * 적합도 분석의 재료가 적재된 직후 지도를 자동으로 그린다.
-     *
-     * <p>부르는 곳이 둘이다(공고 분석 작업 완료 · 대화가 만든 산출물 적재) — <b>같은 메서드를
-     * 부르게 해서 규칙이 두 벌 되지 않게 한다.</b>
-     *
-     * <p><b>적용(publish)은 적용 버전이 아직 없을 때만 한다.</b> 초안 생성은 무해하지만 적용은
-     * 기존 적용 버전을 덮으므로, 사용자가 쓰고 있는 지도를 분석 한 번으로 말없이 갈아치우면
-     * 그건 파괴다. 이미 적용 버전이 있으면 초안까지만 만들고 적용은 사용자가 누른다
-     * (화면에 "초안 미리보기 / 현재 적용 버전" 구분이 이미 있다).
-     *
-     * <p>실패는 삼키지 않되 부르는 쪽을 죽이지도 않는다 — 판정은 이미 저장됐고, 지도는
-     * 사용자가 페이지에서 다시 만들 수 있다.
-     */
-    public void autoGenerateAfterAnalysis(UUID userId) {
-        autoGenerateAfterAnalysis(userId, null);
-    }
-
-    /**
-     * @param analysisJobId 방금 완료된 분석 작업. 주어지면 <b>그 공고를 목표로 자동 등재</b>한다
-     *                      — 목표({@code roadmap_targets})는 지금까지 화면 버튼
-     *                      ({@code addTarget})으로만 만들어져서, 첫 분석 뒤의 자동 생성이 항상
-     *                      "목표 공고 없음"으로 조용히 빠졌다(실측 08-04: 재료는 적재됐는데
-     *                      {@code roadmap_targets} 0건, 지도 빈 화면). 분석을 청한 공고가 곧
-     *                      지도의 목표라는 것이 D146 의 전제다. 마감·역량 미적재로 등재가
-     *                      거절되면 이유를 남기고 기존 목표로만 다시 그린다.
-     */
-    public void autoGenerateAfterAnalysis(UUID userId, UUID analysisJobId) {
-        try {
-            boolean targetAdded = false;
-            if (analysisJobId != null) {
-                try {
-                    addTarget(userId, analysisJobId);   // 초안 생성까지 포함한다
-                    targetAdded = true;
-                } catch (ApiException exception) {
-                    log.warn("Roadmap target not auto-added for analysis {}: {}",
-                            analysisJobId, exception.getMessage());
-                }
-            }
-            boolean hasMaterial = rls.read(userId, jdbc -> eligibleMaterialCount(jdbc) > 0);
-            if (!hasMaterial) {
-                return;
-            }
-            if (!targetAdded) {
-                regenerate(userId);
-            }
-            boolean alreadyPublished = rls.read(userId,
-                    jdbc -> loadVersion(jdbc, "PUBLISHED", false) != null);
-            if (!alreadyPublished) {
-                applyDraft(userId);
-            }
-        } catch (Exception exception) {
-            // 지도 생성 실패가 판정 저장을 되돌리지 않는다.
-            log.warn("Roadmap auto-generation skipped for {}: {}", userId, exception.getMessage());
-        }
-    }
-
     public DraftResult regenerate(UUID userId) {
         return rls.write(userId, jdbc -> {
-            if (eligibleMaterialCount(jdbc) == 0) {
-                // 프론트의 비활성화에만 맡기지 않는다 — 규칙이 두 곳에 갈리면 한쪽이 낡는다.
-                throw new ApiException(
-                        HttpStatus.CONFLICT,
-                        "ROADMAP_MATERIAL_REQUIRED",
-                        MATERIAL_REQUIRED_MESSAGE
-                );
-            }
             DraftVersion draft = generateDraft(jdbc, userId);
             return new DraftResult(
                     null,
@@ -327,7 +399,11 @@ public class RoadmapService {
         });
     }
 
-    public ApplyResult applyDraft(UUID userId) {
+    public ApplyResult applyDraft(
+            UUID userId,
+            UUID expectedDraftId,
+            long expectedVersion
+    ) {
         return rls.write(userId, jdbc -> {
             StoredVersion draft = loadVersion(jdbc, "DRAFT", true);
             if (draft == null) {
@@ -335,6 +411,14 @@ public class RoadmapService {
                         HttpStatus.CONFLICT,
                         "ROADMAP_DRAFT_NOT_FOUND",
                         "적용할 새 로드맵이 없습니다."
+                );
+            }
+            if (!draft.id().equals(expectedDraftId)
+                    || draft.versionNumber() != expectedVersion) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "ROADMAP_DRAFT_CHANGED",
+                        "검토하던 로드맵 초안이 다른 변경으로 교체되었습니다. 최신 초안을 다시 확인해 주세요."
                 );
             }
             RoadmapSnapshot snapshot = readSnapshot(draft.snapshotJson());
@@ -393,6 +477,47 @@ public class RoadmapService {
         });
     }
 
+    public DraftDiscardResult discardDraft(
+            UUID userId,
+            UUID expectedDraftId,
+            long expectedVersion
+    ) {
+        return rls.write(userId, jdbc -> {
+            StoredVersion draft = loadVersion(jdbc, "DRAFT", true);
+            if (draft == null) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "ROADMAP_DRAFT_NOT_FOUND",
+                        "취소할 로드맵 초안이 없습니다."
+                );
+            }
+            if (!draft.id().equals(expectedDraftId)
+                    || draft.versionNumber() != expectedVersion) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "ROADMAP_DRAFT_CHANGED",
+                        "검토하던 로드맵 초안이 다른 변경으로 교체되었습니다. 최신 초안을 다시 확인해 주세요."
+                );
+            }
+            int discarded = jdbc.sql("""
+                            update roadmap_versions
+                            set status = 'DISCARDED'
+                            where id = :draftId
+                              and status = 'DRAFT'
+                            """)
+                    .param("draftId", draft.id())
+                    .update();
+            if (discarded != 1) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "ROADMAP_DRAFT_CHANGED",
+                        "로드맵 초안 상태가 변경되었습니다. 최신 상태를 다시 확인해 주세요."
+                );
+            }
+            return new DraftDiscardResult(draft.id(), draft.versionNumber());
+        });
+    }
+
     private Workspace workspace(JdbcClient jdbc, UUID userId) {
         StoredVersion published = loadVersion(jdbc, "PUBLISHED", false);
         StoredVersion draft = loadVersion(jdbc, "DRAFT", false);
@@ -416,57 +541,20 @@ public class RoadmapService {
                         """)
                 .query(Integer.class)
                 .single();
-        // **가능 여부를 응답에 싣지 않는다.** 로드맵은 적합도 분석이 끝나면 생기는 결과이고,
-        // 매 조회마다 "지금 생성 가능한가"를 계산해 알리면 화면이 사용자에게 허락을 따지는
-        // 창구가 된다 — 에이전트 쪽 규율(사용자의 자율성을 깎지 않는다)과 어긋난다.
-        // 재료가 없을 때의 안내는 **실제로 생성을 눌렀을 때** 그 응답으로만 한다(regenerate).
         return new Workspace(currentSnapshot, draftView, targetCount);
-    }
-
-    /**
-     * 지도에 올릴 수 있는 재료(로드맵 대상 역량 요건)의 수.
-     *
-     * <p>이것이 0이면 그릴 것이 없다. 그리기가 실제로 읽는 표를 그대로 세므로, 재료를 어느
-     * 경로가 넣었는지(공고 분석 작업이든 대화든) 여기서 알 필요가 없다.
-     */
-    private int eligibleMaterialCount(JdbcClient jdbc) {
-        return jdbc.sql("""
-                        select count(*)
-                        from posting_competency_requirements
-                        where roadmap_eligible
-                        """)
-                .query(Integer.class)
-                .single();
     }
 
     private DraftVersion generateDraft(JdbcClient jdbc, UUID userId) {
         List<TargetRow> targets = loadTargets(jdbc);
-        if (targets.isEmpty()) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "ROADMAP_TARGETS_EMPTY",
-                    "로드맵에 반영할 목표 공고가 없습니다."
-            );
-        }
         List<RequirementRow> requirements = loadRequirements(jdbc);
-        RoadmapSnapshot snapshot = buildSnapshot(jdbc, userId, targets, requirements);
+        RoadmapSnapshot snapshot = targets.isEmpty()
+                ? foundationOnlySnapshot(jdbc, userId)
+                : buildSnapshot(jdbc, userId, targets, requirements);
         StoredVersion published = loadVersion(jdbc, "PUBLISHED", false);
         RoadmapSnapshot current = published == null
                 ? foundationOnlySnapshot(jdbc, userId)
                 : readSnapshot(published.snapshotJson());
         ChangeSummary changes = compare(current, snapshot);
-
-        // 같은 지도를 다시 그렸으면 초안을 새로 만들지 않는다. 부르는 곳이 둘이고(분석 작업
-        // 완료 · 대화 산출물 적재) 대화 턴마다 또 불리므로, 한 번의 분석에 초안이 2~3개씩
-        // 생기고 그중 앞의 것들이 DISCARDED 로 쌓였다(실측 08-04 01:52: v11·v12 버림 → v13,
-        // 노드 수 40 으로 셋이 동일). 호출자끼리 "누가 그릴 차례인가"를 맞추는 대신 결과가
-        // 같으면 그대로 두는 쪽이 규칙이 하나다 — 사용자가 보고 있는 초안의 id 도 안 바뀐다.
-        StoredVersion existingDraft = loadVersion(jdbc, "DRAFT", false);
-        if (existingDraft != null
-                && readSnapshot(existingDraft.snapshotJson())
-                        .equals(snapshotWithVersion(snapshot, existingDraft.versionNumber()))) {
-            return new DraftVersion(existingDraft.id(), existingDraft.versionNumber(), changes);
-        }
 
         jdbc.sql("""
                         update roadmap_versions
@@ -900,7 +988,10 @@ public class RoadmapService {
                     completedRequired,
                     required,
                     completedPreferred,
-                    preferred
+                    preferred,
+                    opportunityGoalMode(target.lifecycleStatus(), target.closesAt()),
+                    effectiveLifecycleStatus(target.lifecycleStatus(), target.closesAt()),
+                    target.closesAt()
             );
         }).toList();
 
@@ -927,7 +1018,10 @@ public class RoadmapService {
             Map<String, List<RequirementRow>> matchingByPlacement = rows.stream()
                     .filter(row -> !isCareerGateRequirement(row, targetById))
                     .collect(Collectors.groupingBy(
-                            row -> row.track() + "|" + row.stage(),
+                            // 같은 단계라도 기술·지식·업무·개발 실천은 완료 방식이 다르다.
+                            // 종류를 빼면 "Celery · REST API · 사용자 중심 태도"처럼 서로
+                            // 검증할 수 없는 항목이 한 마일스톤으로 합쳐진다.
+                            row -> row.track() + "|" + row.stage() + "|" + row.kind(),
                             LinkedHashMap::new,
                             Collectors.toList()
                     ));
@@ -961,6 +1055,7 @@ public class RoadmapService {
                         .collect(Collectors.joining(","));
                 String groupKey = representative.track() + "|"
                         + representative.stage() + "|"
+                        + representative.kind() + "|"
                         + relationSignature;
                 GroupBuilder group = groups.computeIfAbsent(
                         groupKey,
@@ -1319,6 +1414,8 @@ public class RoadmapService {
         Map<UUID, List<RequirementRow>> requirementsByPosting =
                 loadRequirements(jdbc).stream()
                         .collect(Collectors.groupingBy(RequirementRow::postingId));
+        Map<UUID, TargetRow> targetsByPosting = loadTargets(jdbc).stream()
+                .collect(Collectors.toMap(TargetRow::postingId, item -> item));
         return snapshotTargets.stream().map(target -> {
             List<RequirementRow> requirements = requirementsByPosting
                     .getOrDefault(target.postingId(), List.of());
@@ -1336,6 +1433,13 @@ public class RoadmapService {
                     .filter(item -> "PREFERRED".equals(item.relation()))
                     .filter(this::requirementCompleted)
                     .count();
+            TargetRow liveTarget = targetsByPosting.get(target.postingId());
+            String lifecycleStatus = liveTarget == null
+                    ? target.lifecycleStatus()
+                    : liveTarget.lifecycleStatus();
+            OffsetDateTime closesAt = liveTarget == null
+                    ? target.closesAt()
+                    : liveTarget.closesAt();
             return new TargetSummary(
                     target.postingId(),
                     target.companyName(),
@@ -1343,9 +1447,32 @@ public class RoadmapService {
                     completedRequired,
                     required,
                     completedPreferred,
-                    preferred
+                    preferred,
+                    opportunityGoalMode(lifecycleStatus, closesAt),
+                    effectiveLifecycleStatus(lifecycleStatus, closesAt),
+                    closesAt
             );
         }).toList();
+    }
+
+    private String opportunityGoalMode(String lifecycleStatus, OffsetDateTime closesAt) {
+        String effectiveStatus = effectiveLifecycleStatus(lifecycleStatus, closesAt);
+        if ("CLOSED".equals(effectiveStatus) || "EXPIRED".equals(effectiveStatus)) {
+            return "REOPENING_PREPARATION";
+        }
+        if ("ACTIVE".equals(effectiveStatus)) {
+            return "ACTIVE_APPLICATION";
+        }
+        return "REFERENCE_TARGET";
+    }
+
+    private String effectiveLifecycleStatus(String lifecycleStatus, OffsetDateTime closesAt) {
+        if (closesAt != null && !closesAt.isAfter(OffsetDateTime.now())) {
+            return "CLOSED";
+        }
+        return lifecycleStatus == null || lifecycleStatus.isBlank()
+                ? "UNKNOWN"
+                : lifecycleStatus;
     }
 
     private void materializeCareerNodes(
@@ -1359,26 +1486,13 @@ public class RoadmapService {
                 .param("userId", userId)
                 .query(UUID.class)
                 .single();
-        jdbc.sql("""
-                        update career_nodes
-                        set archived_at = now()
-                        where graph_id = :graphId
-                          and kind <> 'FOUNDATION'
-                        """)
-                .param("graphId", graphId)
-                .update();
         jdbc.sql("delete from career_edges where graph_id = :graphId")
                 .param("graphId", graphId)
                 .update();
-        jdbc.sql("""
-                        delete from job_requirements
-                        where posting_id in (
-                            select posting_id from roadmap_targets where active
-                        )
-                        """)
-                .update();
+        jdbc.sql("delete from job_requirements").update();
 
         Set<UUID> materializedCompetencies = new LinkedHashSet<>();
+        Set<UUID> activeNodeIds = new LinkedHashSet<>();
         for (RoadmapNode roadmapNode : snapshot.nodes()) {
             for (CompetencyItem competency : roadmapNode.competencies()) {
                 if (!materializedCompetencies.add(competency.id())) {
@@ -1411,6 +1525,7 @@ public class RoadmapService {
                         );
                     }
                     syncNodeProgress(jdbc, userId, foundationNodeId, competency);
+                    activeNodeIds.add(foundationNodeId);
                     continue;
                 }
                 UUID nodeId = upsertCareerNode(
@@ -1432,6 +1547,7 @@ public class RoadmapService {
                         )
                 );
                 syncNodeProgress(jdbc, userId, nodeId, competency);
+                activeNodeIds.add(nodeId);
             }
             if ("PROJECT".equals(roadmapNode.type())) {
                 UUID nodeId = upsertCareerNode(
@@ -1450,8 +1566,9 @@ public class RoadmapService {
                         roadmapNode.project()
                 );
                 ensureNodeProgress(jdbc, userId, nodeId);
+                activeNodeIds.add(nodeId);
             } else if ("OPPORTUNITY".equals(roadmapNode.type())) {
-                upsertCareerNode(
+                UUID nodeId = upsertCareerNode(
                         jdbc,
                         userId,
                         graphId,
@@ -1466,8 +1583,20 @@ public class RoadmapService {
                         roadmapNode.postingId(),
                         Map.of("postingId", roadmapNode.postingId().toString())
                 );
+                activeNodeIds.add(nodeId);
             }
         }
+
+        jdbc.sql("""
+                        update career_nodes
+                        set archived_at = now()
+                        where graph_id = :graphId
+                          and kind <> 'FOUNDATION'
+                          and not (id = any(cast(:activeNodeIds as uuid[])))
+                        """)
+                .param("graphId", graphId)
+                .param("activeNodeIds", activeNodeIds.toArray(UUID[]::new))
+                .update();
 
         jdbc.sql("""
                         insert into job_requirements (
@@ -1683,6 +1812,8 @@ public class RoadmapService {
                             t.analysis_job_id,
                             p.company_name,
                             p.role_title,
+                            p.lifecycle_status,
+                            p.closes_at,
                             coalesce(
                                 profile.primary_track,
                                 'BACKEND'
@@ -1721,6 +1852,8 @@ public class RoadmapService {
                         rs.getObject("analysis_job_id", UUID.class),
                         rs.getString("company_name"),
                         rs.getString("role_title"),
+                        rs.getString("lifecycle_status"),
+                        rs.getObject("closes_at", OffsetDateTime.class),
                         rs.getString("primary_track"),
                         rs.getString("experience_requirement_type"),
                         rs.getInt("minimum_experience_months"),
@@ -2114,6 +2247,21 @@ public class RoadmapService {
     public record ApplyResult(UUID roadmapVersionId, long graphVersion) {
     }
 
+    public record DraftDiscardResult(UUID draftId, long draftVersion) {
+    }
+
+    public record VersionSummary(
+            UUID id,
+            long version,
+            String status,
+            Long baseVersion,
+            int targetCount,
+            ChangeSummary changes,
+            OffsetDateTime createdAt,
+            OffsetDateTime publishedAt
+    ) {
+    }
+
     public record RoadmapSnapshot(
             long version,
             String title,
@@ -2177,7 +2325,10 @@ public class RoadmapService {
             int completedRequired,
             int required,
             int completedPreferred,
-            int preferred
+            int preferred,
+            String goalMode,
+            String lifecycleStatus,
+            OffsetDateTime closesAt
     ) {
     }
 
@@ -2218,6 +2369,8 @@ public class RoadmapService {
             UUID analysisJobId,
             String companyName,
             String roleTitle,
+            String lifecycleStatus,
+            OffsetDateTime closesAt,
             String primaryTrack,
             String experienceRequirementType,
             int minimumExperienceMonths,

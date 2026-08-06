@@ -27,22 +27,33 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(secret);
     }
 
-    public String createAccessToken(UUID userId) {
+    public String createAccessToken(UUID userId, long authVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
+                .claim("ver", authVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(properties.auth().accessTokenSeconds())))
                 .signWith(key)
                 .compact();
     }
 
-    public UUID parseUserId(String token) {
+    public TokenPrincipal parsePrincipal(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return UUID.fromString(claims.getSubject());
+        Number version = claims.get("ver", Number.class);
+        if (version == null) {
+            throw new IllegalArgumentException("Token auth version is missing");
+        }
+        return new TokenPrincipal(
+                UUID.fromString(claims.getSubject()),
+                version.longValue()
+        );
+    }
+
+    public record TokenPrincipal(UUID userId, long authVersion) {
     }
 }

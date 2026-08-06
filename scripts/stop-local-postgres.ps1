@@ -4,7 +4,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $dataRoot = Join-Path $projectRoot ".local\postgres-data"
 
 if (-not (Test-Path -LiteralPath (Join-Path $dataRoot "PG_VERSION"))) {
-    Write-Host "JOBISS local PostgreSQL has not been initialized."
+    Write-Host "JOBIS local PostgreSQL has not been initialized."
     exit 0
 }
 
@@ -16,7 +16,7 @@ $pgCtl = Join-Path $postgresVersion.FullName "bin\pg_ctl.exe"
 
 & $pgCtl status -D $dataRoot *> $null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "JOBISS local PostgreSQL is already stopped."
+    Write-Host "JOBIS local PostgreSQL is already stopped."
     exit 0
 }
 
@@ -25,4 +25,4 @@ if ($LASTEXITCODE -ne 0) {
     throw "PostgreSQL shutdown failed."
 }
 
-Write-Host "JOBISS local PostgreSQL stopped."
+Write-Host "JOBIS local PostgreSQL stopped."

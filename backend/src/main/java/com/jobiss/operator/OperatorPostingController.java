@@ -35,6 +35,14 @@ public class OperatorPostingController {
         return service.list(operatorId, status);
     }
 
+    @GetMapping("/audit")
+    List<OperatorPostingService.AuditView> audit(
+            @AuthenticationPrincipal UUID operatorId,
+            @RequestParam(defaultValue = "100") int limit
+    ) {
+        return service.audit(operatorId, Math.max(1, Math.min(limit, 200)));
+    }
+
     @PostMapping("/{candidateId}/resolve")
     ResponseEntity<Void> resolve(
             @AuthenticationPrincipal UUID operatorId,

@@ -48,7 +48,7 @@ def main() -> None:
 
     print("전이 행렬 (v1 -> v2):")
     trans = Counter((v1[k], v2[k]) for k in common)
-    print("v1\\v2".rjust(12) + " " + " ".join(f"{x:>10}" for x in LABELS))
+    print(f'{"v1\\v2":>12} ' + " ".join(f"{x:>10}" for x in LABELS))
     for a in LABELS:
         print(f"{a:>12} " + " ".join(f"{trans[(a, b)]:>10}" for b in LABELS))
 

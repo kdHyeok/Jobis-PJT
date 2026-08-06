@@ -1,19 +1,27 @@
 package com.jobiss.conversation;
 
+import com.jobiss.common.WebUrls;
+
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +42,17 @@ public class ConversationController {
         return service.list(userId);
     }
 
+    @GetMapping("/search")
+    ConversationService.ConversationPage search(
+            @AuthenticationPrincipal UUID userId,
+            @RequestParam(defaultValue = "") String query,
+            @RequestParam(defaultValue = "ACTIVE") String status,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size
+    ) {
+        return service.search(userId, query, status, page, size);
+    }
+
     @PostMapping
     ConversationService.ConversationView create(
             @AuthenticationPrincipal UUID userId
@@ -47,6 +66,32 @@ public class ConversationController {
             @PathVariable UUID conversationId
     ) {
         return service.get(userId, conversationId);
+    }
+
+    @GetMapping("/{conversationId}/messages")
+    ConversationService.MessagePage messages(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID conversationId,
+            @RequestParam OffsetDateTime beforeCreatedAt,
+            @RequestParam UUID beforeId,
+            @RequestParam(defaultValue = "100") @Min(1) @Max(200) int limit
+    ) {
+        return service.messagesBefore(
+                userId,
+                conversationId,
+                beforeCreatedAt,
+                beforeId,
+                limit
+        );
+    }
+
+    @PatchMapping("/{conversationId}")
+    ConversationService.ConversationSummary rename(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID conversationId,
+            @Valid @RequestBody RenameConversationRequest request
+    ) {
+        return service.rename(userId, conversationId, request.title());
     }
 
     @PostMapping("/{conversationId}/messages")
@@ -68,7 +113,18 @@ public class ConversationController {
                 new ConversationService.SendCommand(
                         request.clientMessageId(),
                         request.content(),
-                        posting
+                        posting,
+                        request.context() == null
+                                ? ConversationService.AgentContext.automatic()
+                                : new ConversationService.AgentContext(
+                                        request.context().mode(),
+                                        request.context().postingIds() == null
+                                                ? List.of()
+                                                : request.context().postingIds(),
+                                        request.context().careerSourceIds() == null
+                                                ? List.of()
+                                                : request.context().careerSourceIds()
+                                )
                 )
         );
     }
@@ -79,6 +135,15 @@ public class ConversationController {
             @PathVariable UUID conversationId
     ) {
         service.archive(userId, conversationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{conversationId}/restore")
+    ResponseEntity<Void> restore(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID conversationId
+    ) {
+        service.restore(userId, conversationId);
         return ResponseEntity.noContent().build();
     }
 
@@ -94,23 +159,32 @@ public class ConversationController {
     public record SendMessageRequest(
             UUID clientMessageId,
             @NotBlank @Size(max = 20_000) String content,
-            @Valid PostingAttachmentRequest posting
+            @Valid PostingAttachmentRequest posting,
+            @Valid AgentContextRequest context
     ) {
     }
 
-    /**
-     * 대화에 붙인 공고.
-     *
-     * <p>{@code rawText} 는 {@code @NotBlank} 가 아니다 — <b>URL 만 준 경우가 정상</b>이기
-     * 때문이다. 사용자가 공고 주소만 붙여넣으면 원문은 AI 가 수집한다(URL 자산 →
-     * {@code posting_fetch}). 전에는 여기서 막혀 URL 입력이 400 으로 떨어졌다.
-     *
-     * <p>둘 다 비어 있는 경우는 서비스가 거른다 — 무엇을 분석할지가 없다.
-     */
+    public record RenameConversationRequest(
+            @NotBlank @Size(max = 120) String title
+    ) {
+    }
+
+    public record AgentContextRequest(
+            @NotBlank @Pattern(regexp = "AUTO|CAREER_CHAT|POSTING_QA|RESUME_DIAGNOSIS|POSTING_COMPARE|RESUME_COMPARE|INTERVIEW_PREP|COVER_LETTER|APPLICATION_PLAN|JOB_DISCOVERY")
+            String mode,
+            @Size(max = 5) List<UUID> postingIds,
+            @Size(max = 5) List<UUID> careerSourceIds
+    ) {
+    }
+
     public record PostingAttachmentRequest(
             @NotBlank @Pattern(regexp = "TEXT|URL") String sourceType,
             @Size(max = 2_000) String sourceUrl,
-            @Size(max = 100_000) String rawText
+            @NotBlank @Size(max = 100_000) String rawText
     ) {
+        @AssertTrue(message = "URL 방식에서는 http 또는 https 공고 주소가 필요합니다.")
+        public boolean isSourceUrlSafe() {
+            return !"URL".equals(sourceType) || WebUrls.isHttpUrl(sourceUrl);
+        }
     }
 }

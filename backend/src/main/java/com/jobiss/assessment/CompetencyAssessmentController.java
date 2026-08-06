@@ -63,6 +63,14 @@ public class CompetencyAssessmentController {
         return service.requestReview(userId, sessionId, request.reason());
     }
 
+    @PostMapping("/competency-assessments/{sessionId}/abandon")
+    CompetencyAssessmentService.AssessmentView abandon(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID sessionId
+    ) {
+        return service.abandon(userId, sessionId);
+    }
+
     public record StartAssessmentRequest(UUID targetPostingId) {
     }
 

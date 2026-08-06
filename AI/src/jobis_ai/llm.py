@@ -83,6 +83,17 @@ def get_llm(tier: str = "default") -> Any:
             timeout_sec=settings.codex_timeout_sec,
         )
 
+    if settings.llm_provider == "codex_cli":
+        # 기존 통합판 실행 스크립트와 환경변수의 호환 경계다. 최종 런타임 전환 전까지
+        # 로컬 CLI provider를 유지하되 새 코드에서는 codex(OAuth)를 우선 사용한다.
+        from jobis_ai.codex_cli_llm import CodexCliChat
+
+        return CodexCliChat(
+            model=settings.active_model(tier),
+            cli=settings.codex_cli,
+            effort=settings.codex_effort,
+        )
+
     if settings.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 

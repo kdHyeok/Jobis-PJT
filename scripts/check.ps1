@@ -4,13 +4,29 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $backendRoot = Join-Path $projectRoot "backend"
 $frontendRoot = Join-Path $projectRoot "frontend"
 $aiRoot = Join-Path $projectRoot "AI"
-$aiPytestTemp = Join-Path $projectRoot ".local\pytest-ai-check"
-$uvCommand = Get-Command uv -ErrorAction Stop
+$aiPython = Join-Path $aiRoot ".venv\Scripts\python.exe"
+$capabilityGraphRoot = "C:\jobiss-capability-graph-lab"
+$capabilityGraphPython = Join-Path $capabilityGraphRoot ".venv\Scripts\python.exe"
 
-$javaCommand = Get-Command java -ErrorAction Stop
-$javaHomeForJobiss = Split-Path -Parent (Split-Path -Parent $javaCommand.Source)
+if (-not (Test-Path -LiteralPath $aiPython)) {
+    throw "Real AI virtual environment is missing: $aiPython"
+}
+if (-not (Test-Path -LiteralPath $capabilityGraphPython)) {
+    throw "Capability Graph virtual environment is missing: $capabilityGraphPython"
+}
+
+$javaHomeForJobiss = $env:JOBISS_JAVA_HOME
+$knownJava17 = "C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot"
+if ([string]::IsNullOrWhiteSpace($javaHomeForJobiss) -and (Test-Path -LiteralPath $knownJava17)) {
+    $javaHomeForJobiss = $knownJava17
+}
+if ([string]::IsNullOrWhiteSpace($javaHomeForJobiss)) {
+    $javaCommand = Get-Command java -ErrorAction Stop
+    $javaHomeForJobiss = Split-Path -Parent (Split-Path -Parent $javaCommand.Source)
+}
 $env:JAVA_HOME = $javaHomeForJobiss
-$javaVersionOutput = (& java --version | Select-Object -First 1).ToString()
+$javaExecutable = Join-Path $javaHomeForJobiss "bin\java.exe"
+$javaVersionOutput = (& $javaExecutable --version | Select-Object -First 1).ToString()
 if ($javaVersionOutput -notmatch '\b(1[7-9]|[2-9][0-9])(?:\.|\b)') {
     throw "Java 17 or later is required. Found: $javaVersionOutput"
 }
@@ -28,18 +44,25 @@ finally {
 
 Push-Location $aiRoot
 try {
-    $env:PYTHONUTF8 = "1"
-    New-Item -ItemType Directory -Force -Path $aiPytestTemp | Out-Null
-    & $uvCommand.Source run --frozen --extra dev --extra prototype pytest -q `
-        --basetemp $aiPytestTemp
+    & $aiPython -m pytest -q
     if ($LASTEXITCODE -ne 0) {
-        throw "AI v2bridge tests failed."
+        throw "AI server tests failed."
     }
+}
+finally {
+    Pop-Location
+}
 
-    & $uvCommand.Source run --frozen --extra prototype python -m jobis_ai.explain `
-        | Out-Null
+& $aiPython (Join-Path $PSScriptRoot "validate-fixtures.py")
+if ($LASTEXITCODE -ne 0) {
+    throw "JOBIS regression fixture validation failed."
+}
+
+Push-Location $capabilityGraphRoot
+try {
+    & $capabilityGraphPython -m pytest -q
     if ($LASTEXITCODE -ne 0) {
-        throw "AI architecture explanation check failed."
+        throw "Capability Graph tests failed."
     }
 }
 finally {
@@ -48,13 +71,26 @@ finally {
 
 Push-Location $frontendRoot
 try {
+    & npm.cmd run test -- --run
+    if ($LASTEXITCODE -ne 0) {
+        throw "Frontend tests failed."
+    }
     & npm.cmd run build
     if ($LASTEXITCODE -ne 0) {
         throw "Frontend build failed."
+    }
+    & npm.cmd run test:e2e
+    if ($LASTEXITCODE -ne 0) {
+        throw "Frontend browser E2E tests failed."
     }
 }
 finally {
     Pop-Location
 }
 
-Write-Host "Backend, AI v2bridge, and frontend checks passed."
+& (Join-Path $PSScriptRoot "test-local-postgres.ps1")
+if ($LASTEXITCODE -ne 0) {
+    throw "Isolated local PostgreSQL tests failed."
+}
+
+Write-Host "Backend, unified JOBIS AI, Capability Graph, frontend tests/build/E2E, and isolated PostgreSQL checks passed."

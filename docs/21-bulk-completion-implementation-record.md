@@ -1,0 +1,66 @@
+# 21. 일괄 결정 구현·검증 기록
+
+- 기준 결정: `docs/20-bulk-completion-decisions.md`
+- 구현일: 2026-08-06
+- 대상: `C:\jobiss-service-v3-integration-lab`, `C:\jobiss-capability-graph-lab`
+- 보호 결과: Legacy AI와 기존 사용자 데이터는 삭제하지 않았고, Git commit·push와 데이터 초기화도 수행하지 않았다.
+
+## 항목별 반영 결과
+
+| 번호 | 반영 결과 | 대표 근거 |
+|---|---|---|
+| 1 | 통합 실험판의 자동 검증 기준을 완성 대상으로 삼고 운영 전환은 분리했다. | `docs/07-decision-register.md` D046, 이 문서의 출시 경계 |
+| 2 | TEXT·URL·IMAGE에서 만든 추출 결과는 verified snapshot 확인 전 분석되지 않는다. 이미지 화면은 원본과 추출문을 나란히 보여 준다. | `V3SourceService`, `ChatView.vue`, `NewPostingView.vue` |
+| 3 | exact canonical/alias만 자동 재사용하고 신규·유사·범위 변경은 운영 검토 후보로 남긴다. 승인된 신규 직무는 별도 발행 후 AI role catalog 입력으로 사용한다. | `OperatorCapabilityService`, `OperatorRoleService`, `approvedRoleCatalog` 계약 |
+| 4 | 종합 점수 대신 형식 조건·필수·우대·프로젝트·검증 준비도를 분리하고 상태 가중치와 계산 불가 이유를 보존한다. | AI v3 fit 계약, `PostingDetailView.vue` |
+| 5 | 실험판 기본은 V3, 운영 기본은 별도 출시 전 Legacy다. 숨은 fallback은 없고 provider/model/시간/사용량은 운영 로그에만 남긴다. | `application.yml`, AI v3 LLM usage audit |
+| 6 | 외부 Capability Graph에 preview·import·validate·activate·rollback과 원자적 active pointer를 추가했다. | `jobiss-capability-graph-lab/src/jobis_capability_graph/release.py` |
+| 7 | 관련 경력은 CLAIMED/EVIDENCED/VERIFIED로 저장한다. EVIDENCED부터 기간 진행을 표시하고 VERIFIED 기간만 공식 경력 관문을 통과시킨다. | `V56`, `V60`, `V3CareerProgressOverlay`, 운영자 경력 검토함 |
+| 8 | 최소·최대 경력은 현재 공고 적합도에 보존하고 장기 지도에서는 최소 경력을 gate, 최대 경력을 경고로 표시한다. | `V3RoadmapCompiler`, `V3CareerProgressOverlay` |
+| 9 | 회사 맞춤 프로젝트는 필수 task·완료 기준·결과물 증거·필수 원자 역량 검증이 모두 있어야 완료된다. 범위/버전 변경 때 부족한 부분만 다시 검증한다. | `V3ProjectProgressService`, 기존 evidence verification flow |
+| 10 | 현재 목표와 최종 목표를 분리하고 사용자가 최종 선택한다. | `V52`, `CareerGoalService`, `CareerMapView.vue` |
+| 11 | 탈퇴 즉시 WITHDRAWN·토큰 폐기 후 비동기 물리 삭제한다. 삭제 영수증을 반환하며 AI 진단 30일·감사 1년 정리 worker를 둔다. | `V55`, `V57`, `V61`, `AccountPurgeWorker`, `OperationalRetentionWorker` |
+| 12 | 신규 공고·이력서 원문과 검증 답변을 AES-GCM으로 저장하고 공고 fingerprint는 HMAC으로 분리한다. 평문 기존 행은 읽을 수 있어 점진적 backfill이 가능하다. | `SensitiveTextCipher`, `JobPostingService`, `CareerRepositoryService`, assessment services |
+| 13 | access 2시간, 회전형 refresh 14일, 로그인 유지 30일, reuse 시 family 폐기와 프론트 자동 갱신을 적용했다. | `V50`, `RefreshTokenService`, `AuthController`, frontend request retry |
+| 14 | 사용자당 2개·로컬 worker 전체 2개, 취소 가능한 대기열과 중복 억제를 적용했다. 격리 PostgreSQL, Vitest/Vue Test Utils/Playwright와 라이브 AI 평가를 추가했다. | `V51`, `AnalysisWorker`, `test-local-postgres.ps1`, frontend E2E |
+
+## 실제 검증 기록
+
+- Spring 전체 테스트: 통과
+- AI v3 전체 테스트: `162 passed`
+- Capability Graph 전체 테스트: `24 passed`
+- 프론트 단위 테스트와 production build: 통과
+- Playwright 핵심 사용자 흐름: `2 passed`
+- 격리 PostgreSQL Flyway/RLS/refresh token/queue/탈퇴 purge: 통과
+- Codex 기반 라이브 V3 파이프라인 1회: `PASS`, 61초, 직무 1개, 정규화 역량 5개, progress event 46개
+- 단일 종합 명령 `scripts/check.ps1`: 전체 단계 통과
+
+라이브 평가는 허용된 최대 20회 중 1회만 사용했다. 이 결과는 기능 연결 확인이지 D036의 운영 품질·비용 전환 승인을 대신하지 않는다.
+
+테스트 출력에는 설치된 Starlette `TestClient`가 내는 외부 의존성 deprecation warning 1건이 남아 있다. 애플리케이션 Java deprecation warning은 정리했으며, Starlette 경고는 `httpx2` 전환을 별도 dependency upgrade로 검증하기 전까지 숨기지 않고 기록한다.
+
+## 운영 배포 전에 남는 외부 작업
+
+다음은 코드 누락이 아니라 배포 인프라 또는 실제 데이터가 있어야 완료할 수 있는 작업이다.
+
+1. 기존 평문 원문·검증 답변의 일회성 AES-GCM backfill과 표본 복호화 검증
+2. 암호화/HMAC 키를 DB 밖의 운영 비밀 저장소에 주입하고 열람·회전 감사 구성
+3. 백업 저장소에 탈퇴 데이터 최대 30일 lifecycle 적용 및 복원 훈련
+4. 운영자 승인 release bundle을 외부 Capability Graph에 preview/import/activate하고 rollback 훈련
+5. 실제 공고와 실제 사용자 표본으로 정확성·p50/p95·비용을 측정한 뒤 V3 운영 기본 전환 승인
+
+## 재검증 명령
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\jobiss-service-v3-integration-lab\scripts\check.ps1
+powershell -ExecutionPolicy Bypass -File C:\jobiss-service-v3-integration-lab\scripts\test-local-postgres.ps1
+cd C:\jobiss-service-v3-integration-lab\frontend
+npm run test:e2e
+```
+
+라이브 AI smoke는 사용량이 발생하므로 필요할 때만 실행한다.
+
+```powershell
+cd C:\jobiss-service-v3-integration-lab\AI-v3
+.\.venv\Scripts\python.exe scripts\eval_phase8_pipeline_live.py
+```

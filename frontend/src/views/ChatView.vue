@@ -2,72 +2,239 @@
 import {
   ArrowRight,
   BriefcaseBusiness,
+  Archive,
+  ArchiveRestore,
   Check,
+  CheckCircle2,
   ChevronDown,
   CircleAlert,
   CircleHelp,
   FilePlus2,
-  FileUp,
+  Globe2,
   LoaderCircle,
   MessageCircleMore,
-  Paperclip,
+  Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
+  Search,
   Send,
   Sparkles,
   Trash2,
-  Upload,
   X,
 } from "@lucide/vue";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { agentIdentity } from "@/agents";
 import { api } from "@/api";
+import { productDialog } from "@/product-dialog";
+import AgentExecutionMap from "@/components/AgentExecutionMap.vue";
+import AgentWorkProductCard from "@/components/AgentWorkProductCard.vue";
 import AnalysisProgressWheel from "@/components/AnalysisProgressWheel.vue";
-import {
-  RESUME_ACCEPT,
-  RESUME_MIN_CHARS,
-  readResumeFile,
-  titleFromFileName,
-} from "@/resumeFile";
+import V3PostingReviewCard from "@/components/V3PostingReviewCard.vue";
 import type {
+  AgentArtifact,
+  AgentActionExecution,
+  AgentProposedAction,
+  AgentChatResult,
+  AgentContext,
+  AgentMode,
+  AgentProgressEvent,
   AnalysisJob,
-  ChatAgentStep,
+  CareerSourceSummary,
   ChatReplyJob,
-  ChatReplyMetadata,
-  ChatReplySource,
   Conversation,
   ConversationMessage,
   ConversationSummary,
+  Posting,
+  V3SourceView,
 } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
 const conversations = ref<ConversationSummary[]>([]);
+const conversationQuery = ref("");
+const conversationStatus = ref<"ACTIVE" | "ARCHIVED">("ACTIVE");
+const conversationPage = ref(0);
+const conversationTotal = ref(0);
+const loadingOlderMessages = ref(false);
 const conversation = ref<Conversation | null>(null);
 const message = ref("");
 const loading = ref(true);
 const sending = ref(false);
 const error = ref("");
-// 첨부는 한 자리에서 받는다 — 버튼 두 개(공고·이력서)가 따로 있으면 무엇을 올리는
-// 자리인지 아이콘만 보고는 알 수 없었다. 팝업 안에서 대상을 먼저 고른다.
 const showPosting = ref(false);
-const attachKind = ref<"POSTING" | "RESUME">("POSTING");
 const sourceType = ref<"TEXT" | "URL">("TEXT");
 const sourceUrl = ref("");
 const rawText = ref("");
+const attachedV3Source = ref<V3SourceView | null>(null);
+const attachedExtractedText = ref("");
+const attachedPostingReviewState = ref<"NONE" | "PENDING" | "READY">("NONE");
 const analysisById = ref<Record<string, AnalysisJob>>({});
 const answerSelections = ref<Record<string, string>>({});
 const chatJobsById = ref<Record<string, ChatReplyJob>>({});
 const actionJobId = ref<string | null>(null);
 const messageList = ref<HTMLElement | null>(null);
+const composerInput = ref<HTMLTextAreaElement | null>(null);
 const showNewMessages = ref(false);
+const showAgentContext = ref(false);
+const agentMode = ref<AgentMode>("AUTO");
+const availablePostings = ref<Posting[]>([]);
+const availableCareerSources = ref<CareerSourceSummary[]>([]);
+const selectedPostingIds = ref<string[]>([]);
+const selectedCareerSourceIds = ref<string[]>([]);
+const assetsLoading = ref(false);
 let pollTimer: number | null = null;
+let conversationRequestSequence = 0;
+const forcedAnalysisPollIds = ref<Set<string>>(new Set());
+const forcedAnalysisPollDeadlines = new Map<string, number>();
+const activePostingReviewKey = ref<string | null>(null);
+const postingReviewEdits = ref<Record<string, string>>({});
+const CHAT_POSTING_DRAFT_KEY = "jobis:v3-chat-posting-draft";
+const CHAT_COMPOSER_DRAFT_PREFIX = "jobis:chat-composer:";
+const HANDLED_POSTING_REVIEW_KEY = "jobis:v3-handled-posting-reviews";
+const CHAT_INPUT_MAX_CHARS = 20_000;
+const POSTING_ANALYSIS_SUFFIX = "\n\n위 채용 공고를 분석해줘";
+const POSTING_URL_ANALYSIS_SUFFIX = "\n\n이 채용 공고를 분석해줘";
+const POSTING_TEXT_MAX_CHARS = CHAT_INPUT_MAX_CHARS - POSTING_ANALYSIS_SUFFIX.length;
+
+const composerContent = computed(() => message.value.trim());
+const composerHint = computed(() => {
+  const content = composerContent.value;
+  if (!content) {
+    return "Enter로 전송 · JOBIS가 대화 맥락을 보고 필요한 작업을 선택해요";
+  }
+  return `${content.length.toLocaleString()} / ${CHAT_INPUT_MAX_CHARS.toLocaleString()}자 · Shift+Enter로 줄바꿈`;
+});
+const composerHasLengthError = computed(
+  () => composerContent.value.length > CHAT_INPUT_MAX_CHARS,
+);
+
+watch([
+  sourceType,
+  sourceUrl,
+  rawText,
+  attachedV3Source,
+  attachedExtractedText,
+  attachedPostingReviewState,
+  activePostingReviewKey,
+], () => {
+  if (!conversation.value) return;
+  if (!sourceUrl.value && !rawText.value && !attachedV3Source.value) {
+    window.localStorage.removeItem(CHAT_POSTING_DRAFT_KEY);
+    return;
+  }
+  window.localStorage.setItem(CHAT_POSTING_DRAFT_KEY, JSON.stringify({
+    conversationId: conversation.value.id,
+    sourceType: sourceType.value,
+    sourceUrl: sourceUrl.value,
+    rawText: rawText.value,
+    sourceId: attachedV3Source.value?.id ?? null,
+    extractedText: attachedExtractedText.value || null,
+    reviewState: attachedPostingReviewState.value,
+    reviewKey: activePostingReviewKey.value,
+  }));
+});
+
+const agentModes: Array<{
+  value: AgentMode;
+  label: string;
+  description: string;
+  postingMinimum: number;
+  sourceMinimum: number;
+}> = [
+  {
+    value: "AUTO",
+    label: "자동 선택",
+    description: "대화와 보유 자료를 보고 JOBIS가 필요한 에이전트를 자동으로 선택합니다.",
+    postingMinimum: 0,
+    sourceMinimum: 0,
+  },
+  {
+    value: "CAREER_CHAT",
+    label: "자유 대화",
+    description: "목표, 경험, 학습 방향을 자유롭게 이야기합니다.",
+    postingMinimum: 0,
+    sourceMinimum: 0,
+  },
+  {
+    value: "POSTING_QA",
+    label: "공고 질문",
+    description: "선택한 공고의 조건과 의미를 근거로 설명합니다.",
+    postingMinimum: 1,
+    sourceMinimum: 0,
+  },
+  {
+    value: "RESUME_DIAGNOSIS",
+    label: "이력서 진단",
+    description: "선택한 커리어 자료의 강점과 공백을 진단합니다.",
+    postingMinimum: 0,
+    sourceMinimum: 1,
+  },
+  {
+    value: "POSTING_COMPARE",
+    label: "공고 비교",
+    description: "둘 이상의 공고를 같은 기준으로 비교합니다.",
+    postingMinimum: 2,
+    sourceMinimum: 0,
+  },
+  {
+    value: "RESUME_COMPARE",
+    label: "이력서 비교",
+    description: "둘 이상의 커리어 자료를 비교해 사용할 버전을 찾습니다.",
+    postingMinimum: 0,
+    sourceMinimum: 2,
+  },
+  {
+    value: "INTERVIEW_PREP",
+    label: "면접 준비",
+    description: "공고와 내 경험에 맞춘 질문과 평가 기준을 만듭니다.",
+    postingMinimum: 1,
+    sourceMinimum: 0,
+  },
+  {
+    value: "COVER_LETTER",
+    label: "자소서 초안",
+    description: "공고와 확인된 커리어 근거로 회사 맞춤 초안을 만듭니다.",
+    postingMinimum: 1,
+    sourceMinimum: 1,
+  },
+  {
+    value: "APPLICATION_PLAN",
+    label: "지원 계획",
+    description: "필수 조건과 마감에 맞춘 준비 순서를 정합니다.",
+    postingMinimum: 1,
+    sourceMinimum: 0,
+  },
+  {
+    value: "JOB_DISCOVERY",
+    label: "공고 탐색",
+    description: "희망 조건을 정리해 실제 공고 탐색 기준을 만듭니다.",
+    postingMinimum: 0,
+    sourceMinimum: 0,
+  },
+];
+
+const selectedMode = computed(
+  () => agentModes.find((item) => item.value === agentMode.value) ?? agentModes[0],
+);
+
+const contextReady = computed(
+  () =>
+    selectedPostingIds.value.length >= selectedMode.value.postingMinimum &&
+    selectedCareerSourceIds.value.length >= selectedMode.value.sourceMinimum,
+);
+
+const currentAgentContext = computed<AgentContext>(() => ({
+  mode: agentMode.value,
+  postingIds: selectedPostingIds.value,
+  careerSourceIds: selectedCareerSourceIds.value,
+}));
 
 const activeJobs = computed(() =>
   Object.values(analysisById.value).filter((item) =>
-    ["QUEUED", "RUNNING"].includes(item.status),
+    ["QUEUED", "RUNNING"].includes(item.status) ||
+    forcedAnalysisPollIds.value.has(item.id),
   ),
 );
 
@@ -94,15 +261,119 @@ function messageJob(item: ConversationMessage): AnalysisJob | null {
   return item.analysisJobId ? analysisById.value[item.analysisJobId] ?? null : null;
 }
 
+function postingReviewFor(item: ConversationMessage) {
+  return messageJob(item)?.result?.postingReview ?? null;
+}
+
+function answeredQuestionForMessage(
+  item: ConversationMessage,
+): AnalysisJob["questionHistory"][number] | null {
+  if (item.role !== "USER" || item.kind !== "ANALYSIS_STATUS") return null;
+  const questionId =
+    typeof item.metadata.questionId === "string"
+      ? item.metadata.questionId
+      : null;
+  if (!questionId) return null;
+  return (
+    messageJob(item)?.questionHistory.find(
+      (question) => question.id === questionId,
+    ) ?? null
+  );
+}
+
+function isPostingReviewQuestion(item: ConversationMessage) {
+  return answeredQuestionForMessage(item)?.key.startsWith("posting-review-") ?? false;
+}
+
+function v3AssessmentFor(item: ConversationMessage) {
+  const fit = messageJob(item)?.result?.fit as
+    | { assessment?: Record<string, any> }
+    | undefined;
+  return fit?.assessment ?? null;
+}
+
+function v3ProjectFor(item: ConversationMessage) {
+  return (messageJob(item)?.result as Record<string, any> | null)?.projectBlueprint ?? null;
+}
+
+function v3ResultTitle(item: ConversationMessage) {
+  const review = postingReviewFor(item);
+  const project = v3ProjectFor(item);
+  if (project?.title) return project.title;
+  if (review?.companyName && review.positionTitle) {
+    return `${review.companyName} · ${review.positionTitle} 준비 분석`;
+  }
+  return "회사 맞춤 프로젝트와 로드맵 초안이 준비됐어요";
+}
+
+function analysisLifecycleStatus(item: ConversationMessage) {
+  const currentJob = messageJob(item);
+  if (currentJob?.analysisProvider === "UNIFIED") {
+    const structured = currentJob.result?.structuredPosting as
+      | { postingStatus?: string }
+      | undefined;
+    return structured?.postingStatus ?? "UNKNOWN";
+  }
+  return currentJob?.result?.job?.lifecycleStatus ?? "UNKNOWN";
+}
+
+function isClosedAnalysis(item: ConversationMessage) {
+  return ["EXPIRED", "CLOSED"].includes(analysisLifecycleStatus(item));
+}
+
+function readinessValue(value: unknown, emptyLabel = "근거 없음") {
+  return typeof value === "number" ? value + "%" : emptyLabel;
+}
+
+function requiredVerificationValue(assessment: any) {
+  const metrics = assessment?.metrics;
+  if (!metrics || (metrics.requiredTotal ?? 0) === 0) return "계산 불가";
+  return `${metrics.requiredVerifiedMet ?? 0}/${metrics.requiredTotal}`;
+}
+
+function readinessUnavailableMessage(assessment: any) {
+  const reason = assessment?.metrics?.readinessUnavailableReason;
+  if (reason === "NO_REQUIRED_REQUIREMENTS") {
+    return "필수 요건을 계산 대상으로 구성하지 못했습니다. 공고 원문을 다시 확인하거나 재분석해 주세요.";
+  }
+  if (reason === "REQUIRED_EVIDENCE_UNKNOWN") {
+    return "확정된 커리어 근거가 없어 준비도는 아직 계산하지 않았어요. 로드맵은 공고 조건을 기준으로 먼저 만들었습니다.";
+  }
+  return "";
+}
+
+function followAnalysisUntilSettled(id: string) {
+  const next = new Set(forcedAnalysisPollIds.value);
+  next.add(id);
+  forcedAnalysisPollIds.value = next;
+  forcedAnalysisPollDeadlines.set(id, Date.now() + 2 * 60 * 1000);
+}
+
+function stopFollowingAnalysis(id: string) {
+  if (!forcedAnalysisPollIds.value.has(id)) return;
+  const next = new Set(forcedAnalysisPollIds.value);
+  next.delete(id);
+  forcedAnalysisPollIds.value = next;
+  forcedAnalysisPollDeadlines.delete(id);
+}
+
 function roadmapCompetenciesFor(item: ConversationMessage) {
   return (messageJob(item)?.proposal?.competencies ?? []).filter(
     (competency) => competency.roadmapEligible !== false,
   );
 }
 
+function experienceCompetenciesFor(item: ConversationMessage) {
+  return (messageJob(item)?.proposal?.competencies ?? []).filter(
+    (competency) =>
+      competency.roadmapEligible === false && competency.kind === "EXPERIENCE",
+  );
+}
+
 function qualitativeCompetenciesFor(item: ConversationMessage) {
   return (messageJob(item)?.proposal?.competencies ?? []).filter(
-    (competency) => competency.roadmapEligible === false,
+    (competency) =>
+      competency.roadmapEligible === false && competency.kind !== "EXPERIENCE",
   );
 }
 
@@ -114,81 +385,150 @@ function chatJobForMessage(item: ConversationMessage): ChatReplyJob | null {
   );
 }
 
-/**
- * 진행 단계 목록 → 에이전트별 말풍선.
- *
- * 이어지는 같은 화자의 단계는 한 말풍선으로 묶는다 — 도구를 세 번 부른 담당이 말풍선 세
- * 개로 갈리면 대화가 아니라 로그로 읽힌다. 색·로고는 `agent` 키로만 고른다.
- */
-type AgentTurn = {
-  key: string;
-  agent: string;
-  identity: ReturnType<typeof agentIdentity>;
-  lines: string[];
-  /** 담당이 완성한 발화 본문(D153) — 과정 라벨(lines)과 달리 대화 내용으로 그린다. */
-  speech: string[];
-  running: boolean;
-};
+function agentResultForMessage(item: ConversationMessage): AgentChatResult {
+  return item.role === "ASSISTANT"
+    ? (item.metadata as AgentChatResult)
+    : {};
+}
 
-function agentTurns(steps: ChatAgentStep[] | null | undefined): AgentTurn[] {
-  const turns: AgentTurn[] = [];
-  (steps ?? []).forEach((step, index) => {
-    const identity = agentIdentity(step.agent);
-    // 화자 이름과 다른 라벨(예: "계획 수립", "자소서 초안 루프")만 문구 앞에 붙인다.
-    const line = [step.label === identity.label ? "" : step.label, step.detail]
-      .filter((part) => part && part.trim())
-      .join(" · ");
-    const spoken = (step.message ?? "").trim();
-    if (!line && !spoken) return;
-    const last = turns[turns.length - 1];
-    if (last && last.agent === step.agent) {
-      if (line) last.lines.push(line);
-      if (spoken) last.speech.push(spoken);
-      last.running = step.step.startsWith("start:");
-      return;
+function chatJobForAssistant(item: ConversationMessage): ChatReplyJob | null {
+  const jobId = typeof item.metadata.chatReplyJobId === "string"
+    ? item.metadata.chatReplyJobId
+    : null;
+  return jobId ? chatJobsById.value[jobId] ?? null : null;
+}
+
+function agentActionBusyKey(item: ConversationMessage, action: AgentProposedAction) {
+  return `${chatJobForAssistant(item)?.id ?? "missing"}:${action.actionId}`;
+}
+
+function executedAgentAction(
+  item: ConversationMessage,
+  action: AgentProposedAction,
+) {
+  return agentResultForMessage(item).actionExecutions?.[action.actionId]
+    ?? chatJobForAssistant(item)?.result.actionExecutions?.[action.actionId]
+    ?? null;
+}
+
+function agentArtifactForMessage(item: ConversationMessage): AgentArtifact | null {
+  return agentResultForMessage(item).artifact ?? null;
+}
+
+function agentProgressForMessage(item: ConversationMessage): AgentProgressEvent[] {
+  return agentResultForMessage(item).progress ?? [];
+}
+
+function latestAgentProgress(job: ChatReplyJob | null): AgentProgressEvent[] {
+  if (!job) return [];
+  const positions = new Map<string, number>();
+  const latest: AgentProgressEvent[] = [];
+  for (const event of job.progressEvents) {
+    const position = positions.get(event.agentId);
+    if (position === undefined) {
+      positions.set(event.agentId, latest.length);
+      latest.push(event);
+    } else {
+      latest[position] = event;
     }
-    turns.push({
-      key: `${index}-${step.agent}`,
-      agent: step.agent,
-      identity,
-      lines: line ? [line] : [],
-      speech: spoken ? [spoken] : [],
-      // "실행 중…"(start:*)으로 끝난 담당이 지금 일하는 담당이다.
-      running: step.step.startsWith("start:"),
-    });
-  });
-  return turns;
+  }
+  return latest;
 }
 
-function chatTurnsFor(item: ConversationMessage): AgentTurn[] {
-  return agentTurns(chatJobForMessage(item)?.progressSteps);
+function artifactSectionTitle(section: Record<string, unknown>, index: number) {
+  const title = section.title ?? section.heading ?? section.label ?? section.name;
+  return typeof title === "string" && title.trim() ? title : `항목 ${index + 1}`;
 }
 
-/**
- * 최종 답변의 화자별 조각. AI 가 `replySources` 를 준 턴은 담당별로 말풍선을 나눈다 —
- * 여러 담당이 만든 답변을 한 덩어리로 붙이면 누가 무엇을 말했는지 사라진다.
- * 없으면(구버전 응답·단일 담당) 빈 배열이고 화면은 기존 한 덩어리 말풍선을 쓴다.
- */
-function replyMetadata(item: ConversationMessage): ChatReplyMetadata {
-  return (item.metadata ?? {}) as ChatReplyMetadata;
+function artifactSectionBody(section: Record<string, unknown>) {
+  const values = Object.entries(section)
+    .filter(([key]) => !["title", "heading", "label", "name"].includes(key))
+    .map(([, value]) => {
+      if (Array.isArray(value)) return value.map(String).join("\n");
+      if (value && typeof value === "object") return JSON.stringify(value, null, 2);
+      return value == null ? "" : String(value);
+    })
+    .filter(Boolean);
+  return values.join("\n");
 }
 
-function replySourcesFor(item: ConversationMessage): ChatReplySource[] {
-  const sources = replyMetadata(item).replySources;
-  if (!Array.isArray(sources)) return [];
-  const spoken = sources.filter((source) => (source.text ?? "").trim());
-  return spoken.length > 1 ? spoken : [];
+function postingLabel(posting: Posting) {
+  return [posting.companyName, posting.roleTitle].filter(Boolean).join(" · ") || "이름 없는 공고";
 }
 
-/** 이 답변이 LLM 실패 뒤의 결정론 요약본이면 그 이유. 정상 답변이면 빈 문자열. */
-function degradedReasonFor(item: ConversationMessage): string {
-  return (replyMetadata(item).degradedReason ?? "").trim();
+function togglePosting(id: string) {
+  if (selectedPostingIds.value.includes(id)) {
+    selectedPostingIds.value = selectedPostingIds.value.filter((item) => item !== id);
+  } else if (selectedPostingIds.value.length < 5) {
+    selectedPostingIds.value = [...selectedPostingIds.value, id];
+  }
+}
+
+function toggleCareerSource(id: string) {
+  if (selectedCareerSourceIds.value.includes(id)) {
+    selectedCareerSourceIds.value = selectedCareerSourceIds.value.filter(
+      (item) => item !== id,
+    );
+  } else if (selectedCareerSourceIds.value.length < 5) {
+    selectedCareerSourceIds.value = [...selectedCareerSourceIds.value, id];
+  }
+}
+
+function contextRequirementText() {
+  const requirements: string[] = [];
+  if (selectedMode.value.postingMinimum) {
+    requirements.push(`공고 ${selectedMode.value.postingMinimum}개 이상`);
+  }
+  if (selectedMode.value.sourceMinimum) {
+    requirements.push(`커리어 자료 ${selectedMode.value.sourceMinimum}개 이상`);
+  }
+  return requirements.length ? `${requirements.join(", ")}를 선택해 주세요.` : "자료 선택 없이 시작할 수 있어요.";
+}
+
+async function loadAgentAssets() {
+  assetsLoading.value = true;
+  try {
+    const [postings, sources] = await Promise.all([
+      api.postings(),
+      api.careerSources(false),
+    ]);
+    availablePostings.value = postings.filter((item) => !item.archivedAt);
+    availableCareerSources.value = sources.filter((item) => !item.archivedAt);
+    selectedPostingIds.value = selectedPostingIds.value.filter((id) =>
+      availablePostings.value.some((item) => item.id === id),
+    );
+    selectedCareerSourceIds.value = selectedCareerSourceIds.value.filter((id) =>
+      availableCareerSources.value.some((item) => item.id === id),
+    );
+  } finally {
+    assetsLoading.value = false;
+  }
+}
+
+function applyRouteAgentContext() {
+  const mode = typeof route.query.mode === "string" ? route.query.mode : "";
+  if (agentModes.some((item) => item.value === mode)) {
+    agentMode.value = mode as AgentMode;
+  }
+  const postingId = typeof route.query.posting === "string" ? route.query.posting : null;
+  const sourceId = typeof route.query.source === "string" ? route.query.source : null;
+  if (postingId && !selectedPostingIds.value.includes(postingId)) {
+    selectedPostingIds.value = [...selectedPostingIds.value, postingId].slice(0, 5);
+  }
+  if (sourceId && !selectedCareerSourceIds.value.includes(sourceId)) {
+    selectedCareerSourceIds.value = [...selectedCareerSourceIds.value, sourceId].slice(0, 5);
+  }
+  if (mode || postingId || sourceId) showAgentContext.value = true;
 }
 
 function verdictLabel(verdict?: string) {
+  if (verdict === "REVIEW_REQUIRED") return "판정 보류";
+  if (verdict === "UNKNOWN") return "판정 보류";
   if (verdict === "APPLY_NOW") return "지금 지원";
   if (verdict === "STRENGTHEN_THEN_APPLY") return "보강 후 지원";
-  if (verdict === "ALTERNATIVE_FIRST") return "대체 공고 우선";
+  if (verdict === "ALTERNATIVE_FIRST" || verdict === "ALTERNATIVE_PATH") {
+    return "대체 경로 우선";
+  }
   return "분석 완료";
 }
 
@@ -224,11 +564,16 @@ function messageUpdateSignature() {
     .sort()
     .join("|");
   const replies = Object.values(chatJobsById.value)
-    // 단계 수까지 본다 — 상태·stage 가 같아도 새 담당이 말하면 화면이 자라기 때문이다.
-    .map(
-      (item) =>
-        `${item.id}:${item.status}:${item.stage}:${item.progressSteps?.length ?? 0}`,
-    )
+    .map((item) => {
+      const last = item.progressEvents[item.progressEvents.length - 1];
+      return [
+        item.id,
+        item.status,
+        item.stage,
+        last?.agentId ?? "",
+        last?.status ?? "",
+      ].join(":");
+    })
     .sort()
     .join("|");
   return `${messages}::${analyses}::${replies}`;
@@ -246,16 +591,41 @@ async function scrollToBottom(behavior: ScrollBehavior = "smooth") {
 }
 
 async function loadConversations(preferredId?: string) {
-  conversations.value = await api.conversations();
+  conversationPage.value = 0;
+  const page = await api.searchConversations({
+    query: conversationQuery.value.trim(),
+    status: conversationStatus.value,
+    page: 0,
+    size: 30,
+  });
+  conversations.value = page.items;
+  conversationTotal.value = page.total;
   const selected =
     preferredId ??
-    conversation.value?.id ??
-    conversations.value.find((item) => item.status === "ACTIVE")?.id;
+    (conversation.value?.status === conversationStatus.value
+      ? conversation.value.id
+      : undefined) ??
+    conversations.value[0]?.id;
   if (selected) {
     await openConversation(selected);
-  } else {
+  } else if (conversationStatus.value === "ACTIVE" && !conversationQuery.value.trim()) {
     await createConversation();
+  } else {
+    conversation.value = null;
   }
+}
+
+async function loadMoreConversations() {
+  const nextPage = conversationPage.value + 1;
+  const page = await api.searchConversations({
+    query: conversationQuery.value.trim(),
+    status: conversationStatus.value,
+    page: nextPage,
+    size: 30,
+  });
+  conversations.value = [...conversations.value, ...page.items];
+  conversationPage.value = nextPage;
+  conversationTotal.value = page.total;
 }
 
 async function createConversation() {
@@ -267,17 +637,103 @@ async function createConversation() {
 }
 
 async function refreshConversationList() {
-  conversations.value = await api.conversations();
+  const page = await api.searchConversations({
+    query: conversationQuery.value.trim(),
+    status: conversationStatus.value,
+    page: 0,
+    size: Math.max(30, conversations.value.length),
+  });
+  conversations.value = page.items;
+  conversationTotal.value = page.total;
 }
 
 async function openConversation(id: string) {
-  conversation.value = await api.conversation(id);
+  const requestSequence = ++conversationRequestSequence;
+  const previousId = conversation.value?.id;
+  const loaded = await api.conversation(id);
+  if (requestSequence !== conversationRequestSequence) return;
+  conversation.value = loaded;
+  message.value = window.localStorage.getItem(`${CHAT_COMPOSER_DRAFT_PREFIX}${id}`) ?? "";
+  if (previousId !== id) {
+    agentMode.value = "AUTO";
+    selectedPostingIds.value = [];
+    selectedCareerSourceIds.value = [];
+    showAgentContext.value = false;
+  }
   await hydrateJobs();
   await scrollToBottom("auto");
 }
 
+async function loadOlderMessages() {
+  const current = conversation.value;
+  const first = current?.messages[0];
+  const list = messageList.value;
+  if (!current?.hasOlderMessages || !first || loadingOlderMessages.value) return;
+  loadingOlderMessages.value = true;
+  const previousHeight = list?.scrollHeight ?? 0;
+  try {
+    const page = await api.conversationMessagesBefore(
+      current.id,
+      first.createdAt,
+      first.id,
+      100,
+    );
+    if (conversation.value?.id !== current.id) return;
+    conversation.value.messages = [...page.items, ...conversation.value.messages];
+    conversation.value.hasOlderMessages = page.hasMore;
+    await nextTick();
+    if (list) list.scrollTop += list.scrollHeight - previousHeight;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "이전 메시지를 불러오지 못했습니다.";
+  } finally {
+    loadingOlderMessages.value = false;
+  }
+}
+
+async function renameConversation(item: ConversationSummary) {
+  const title = await productDialog.prompt({
+    title: "대화 이름 변경",
+    message: "이 대화를 나중에 쉽게 찾을 수 있는 이름으로 바꿉니다.",
+    confirmLabel: "저장",
+    input: { label: "대화 이름", value: item.title, maxLength: 120 },
+  });
+  if (title === null || !title.trim() || title.trim() === item.title) return;
+  try {
+    const updated = await api.renameConversation(item.id, title.trim());
+    conversations.value = conversations.value.map((value) =>
+      value.id === item.id ? updated : value,
+    );
+    if (conversation.value?.id === item.id) conversation.value.title = updated.title;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "대화 이름을 바꾸지 못했습니다.";
+  }
+}
+
+async function toggleConversationArchive(item: ConversationSummary) {
+  try {
+    if (item.status === "ARCHIVED") await api.restoreConversation(item.id);
+    else await api.archiveConversation(item.id);
+    if (conversation.value?.id === item.id) conversation.value = null;
+    await loadConversations();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "대화 보관 상태를 바꾸지 못했습니다.";
+  }
+}
+
+async function restoreCurrentConversation() {
+  if (!conversation.value || conversation.value.status !== "ARCHIVED") return;
+  try {
+    await api.restoreConversation(conversation.value.id);
+    conversation.value.status = "ACTIVE";
+    conversationStatus.value = "ACTIVE";
+    await loadConversations();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "대화를 복원하지 못했습니다.";
+  }
+}
+
 async function deleteConversation(id: string) {
-  if (!window.confirm("이 대화 세션을 삭제할까요? 연결된 공고와 분석 기록은 유지됩니다.")) {
+  if (!await productDialog.confirm({ title: "대화 삭제", message: "이 대화 세션을 삭제할까요? 연결된 공고와 분석 기록은 유지됩니다.", confirmLabel: "대화 삭제", danger: true })) {
     return;
   }
   error.value = "";
@@ -312,7 +768,59 @@ async function hydrateJobs() {
   );
   const chatJobs = await api.chatReplyJobs(conversation.value?.id ?? "");
   chatJobsById.value = Object.fromEntries(chatJobs.map((job) => [job.id, job]));
+  await executeAutomaticActions();
   schedulePoll();
+}
+
+async function executeAutomaticActions() {
+  let conversationRefreshNeeded = false;
+  for (const job of Object.values(chatJobsById.value)) {
+    if (job.status !== "SUCCEEDED") continue;
+    for (const action of job.result.proposedActions ?? []) {
+      const previousExecution = job.result.actionExecutions?.[action.actionId];
+      if (previousExecution) {
+        if (previousExecution.resourceType === "POSTING_REVIEW") {
+          const reviewKey = `${job.id}:${action.actionId}`;
+          const reviewText = typeof previousExecution.result.reviewText === "string"
+            ? previousExecution.result.reviewText.trim()
+            : "";
+          if (reviewText && !postingReviewEdits.value[reviewKey]) {
+            postingReviewEdits.value[reviewKey] = reviewText;
+          }
+        }
+        if (
+          previousExecution.analysisJobId &&
+          !analysisById.value[previousExecution.analysisJobId]
+        ) {
+          try {
+            analysisById.value[previousExecution.analysisJobId] =
+              await api.analysisJob(previousExecution.analysisJobId);
+            conversationRefreshNeeded = true;
+          } catch {
+            // 다음 폴링 또는 화면 재진입에서 복구한다.
+          }
+        }
+      }
+    }
+  }
+  if (conversationRefreshNeeded && conversation.value) {
+    conversation.value = await api.conversation(conversation.value.id);
+    const createdIds = new Set(
+      conversation.value.messages
+        .map((item) => item.analysisJobId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    await Promise.all(
+      [...createdIds].map(async (id) => {
+        if (analysisById.value[id]) return;
+        try {
+          analysisById.value[id] = await api.analysisJob(id);
+        } catch {
+          // 다음 폴링 또는 화면 재진입에서 복구한다.
+        }
+      }),
+    );
+  }
 }
 
 function schedulePoll() {
@@ -326,11 +834,22 @@ async function pollJobs() {
   const previousSignature = messageUpdateSignature();
   const ids = activeJobs.value.map((item) => item.id);
   const chatIds = activeChatJobs.value.map((item) => item.id);
-  await Promise.all(
-    [
+  try {
+    await Promise.all(
+      [
       ...ids.map(async (id) => {
         try {
-          analysisById.value[id] = await api.analysisJob(id);
+          const refreshed = await api.analysisJob(id);
+          analysisById.value[id] = refreshed;
+          const deadline = forcedAnalysisPollDeadlines.get(id);
+          if (
+            ["SUCCEEDED", "FAILED", "CANCELLED"].includes(refreshed.status) ||
+            (refreshed.status === "WAITING_FOR_INPUT" &&
+              Boolean(refreshed.pendingQuestion)) ||
+            (deadline !== undefined && Date.now() >= deadline)
+          ) {
+            stopFollowingAnalysis(id);
+          }
         } catch {
           // 다음 폴링에서 복구한다.
         }
@@ -342,22 +861,38 @@ async function pollJobs() {
           // 다음 폴링에서 복구한다.
         }
       }),
-    ],
-  );
-  if (conversation.value) {
-    conversation.value = await api.conversation(conversation.value.id);
+      ],
+    );
+    if (conversation.value) {
+      const currentId = conversation.value.id;
+      const refreshed = await api.conversation(currentId);
+      if (conversation.value?.id === currentId) conversation.value = refreshed;
+    }
+    await executeAutomaticActions();
+    const contentChanged = previousSignature !== messageUpdateSignature();
+    if (contentChanged) {
+      if (followLatest) await scrollToBottom();
+      else showNewMessages.value = true;
+    }
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "작업 상태를 갱신하지 못했습니다.";
+  } finally {
+    schedulePoll();
   }
-  const contentChanged = previousSignature !== messageUpdateSignature();
-  if (contentChanged) {
-    if (followLatest) await scrollToBottom();
-    else showNewMessages.value = true;
-  }
-  schedulePoll();
 }
 
 async function sendText() {
   const content = message.value.trim();
   if (!content || !conversation.value || sending.value) return;
+  if (content.length > CHAT_INPUT_MAX_CHARS) {
+    error.value = `한 번에 보낼 수 있는 최대 길이는 ${CHAT_INPUT_MAX_CHARS.toLocaleString()}자예요. 내용을 나누어 보내주세요.`;
+    return;
+  }
+  if (!contextReady.value) {
+    showAgentContext.value = true;
+    error.value = contextRequirementText();
+    return;
+  }
   const conversationId = conversation.value.id;
   const optimisticId = `local-${crypto.randomUUID()}`;
   const optimistic: ConversationMessage = {
@@ -367,7 +902,10 @@ async function sendText() {
     content,
     postingId: null,
     analysisJobId: null,
-    metadata: { optimistic: true },
+    metadata: {
+      optimistic: true,
+      agentContext: currentAgentContext.value,
+    },
     createdAt: new Date().toISOString(),
   };
   conversation.value.messages.push(optimistic);
@@ -376,7 +914,12 @@ async function sendText() {
   sending.value = true;
   await scrollToBottom();
   try {
-    const result = await api.sendMessage(conversationId, content);
+    const result = await api.sendMessage(
+      conversationId,
+      content,
+      undefined,
+      currentAgentContext.value,
+    );
     if (conversation.value?.id === conversationId) {
       const index = conversation.value.messages.findIndex(
         (item) => item.id === optimisticId,
@@ -417,6 +960,147 @@ async function sendText() {
   }
 }
 
+function postingLengthMessage(length: number) {
+  return `분석에 사용할 내용이 시스템 제한을 넘었어요. 현재 ${length.toLocaleString()}자이며 최대 ${POSTING_TEXT_MAX_CHARS.toLocaleString()}자예요.`;
+}
+
+async function answerAgentConfirmation(option: string) {
+  if (sending.value) return;
+  message.value = option;
+  await sendText();
+}
+
+function handledPostingReviews(): Set<string> {
+  try {
+    const values = JSON.parse(
+      window.localStorage.getItem(HANDLED_POSTING_REVIEW_KEY) ?? "[]",
+    ) as string[];
+    return new Set(values.filter((value) => typeof value === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function markPostingReviewHandled(reviewKey = activePostingReviewKey.value) {
+  if (!reviewKey) return;
+  const values = handledPostingReviews();
+  values.add(reviewKey);
+  window.localStorage.setItem(
+    HANDLED_POSTING_REVIEW_KEY,
+    JSON.stringify([...values].slice(-100)),
+  );
+  if (activePostingReviewKey.value === reviewKey) activePostingReviewKey.value = null;
+}
+
+function postingReviewKey(item: ConversationMessage, action: AgentProposedAction) {
+  return `${chatJobForAssistant(item)?.id ?? "missing"}:${action.actionId}`;
+}
+
+function postingReviewExecution(
+  item: ConversationMessage,
+  action: AgentProposedAction,
+): AgentActionExecution | null {
+  const execution = executedAgentAction(item, action);
+  return execution?.resourceType === "POSTING_REVIEW" ? execution : null;
+}
+
+function postingReviewText(item: ConversationMessage, action: AgentProposedAction) {
+  const key = postingReviewKey(item, action);
+  if (postingReviewEdits.value[key]) return postingReviewEdits.value[key];
+  const execution = postingReviewExecution(item, action);
+  return typeof execution?.result.reviewText === "string"
+    ? execution.result.reviewText
+    : "";
+}
+
+function updatePostingReviewText(
+  item: ConversationMessage,
+  action: AgentProposedAction,
+  event: Event,
+) {
+  postingReviewEdits.value[postingReviewKey(item, action)] =
+    (event.target as HTMLTextAreaElement).value;
+}
+
+async function confirmPostingReviewExecution(
+  item: ConversationMessage,
+  action: AgentProposedAction,
+) {
+  const execution = postingReviewExecution(item, action);
+  if (!conversation.value || !execution) return;
+  const key = postingReviewKey(item, action);
+  const originalText = typeof execution.result.rawText === "string"
+    ? execution.result.rawText.trim()
+    : "";
+  const reviewedText = postingReviewText(item, action).trim();
+  if (originalText.length < 20 || reviewedText.length < 20) {
+    error.value = "확인할 공고 내용을 불러오지 못했습니다.";
+    return;
+  }
+  if (reviewedText.length > POSTING_TEXT_MAX_CHARS) {
+    error.value = postingLengthMessage(reviewedText.length);
+    return;
+  }
+
+  actionJobId.value = key;
+  error.value = "";
+  try {
+    const acquired = await api.acquireV3Source({
+      inputType: "TEXT",
+      entryPoint: "CHAT",
+      extractionRevision: 1,
+      text: originalText,
+    });
+    await startVerifiedPostingAnalysis(
+      acquired,
+      reviewedText,
+      acquired.sourceDocument.rawText,
+      "STRUCTURE_CORRECTION",
+    );
+    markPostingReviewHandled(key);
+  } catch (cause) {
+    error.value = cause instanceof Error
+      ? cause.message
+      : "확인한 공고로 분석을 시작하지 못했습니다.";
+  } finally {
+    actionJobId.value = null;
+  }
+}
+
+async function executeAgentAction(
+  item: ConversationMessage,
+  action: AgentProposedAction,
+) {
+  const job = chatJobForAssistant(item);
+  if (!job || executedAgentAction(item, action)) return;
+  const busyKey = agentActionBusyKey(item, action);
+  actionJobId.value = busyKey;
+  error.value = "";
+  try {
+    const execution = await api.executeChatAction(job.id, action.actionId);
+    const route = execution.result?.route;
+    if (execution.resourceType === "POSTING_REVIEW") {
+      const reviewKey = `${job.id}:${action.actionId}`;
+      const reviewText = typeof execution.result.reviewText === "string"
+        ? execution.result.reviewText.trim()
+        : "";
+      if (reviewText) postingReviewEdits.value[reviewKey] = reviewText;
+    }
+    if (conversation.value) {
+      conversation.value = await api.conversation(conversation.value.id);
+      await hydrateJobs();
+    }
+    if (typeof route === "string") await router.push(route);
+    await scrollToBottom();
+  } catch (cause) {
+    error.value = cause instanceof Error
+      ? cause.message
+      : "AI가 제안한 작업을 실행하지 못했습니다.";
+  } finally {
+    actionJobId.value = null;
+  }
+}
+
 async function retryChat(job: ChatReplyJob) {
   actionJobId.value = job.id;
   error.value = "";
@@ -431,66 +1115,193 @@ async function retryChat(job: ChatReplyJob) {
   }
 }
 
-// 공고를 붙일 수 있는 조건 — **버튼과 함수가 같은 규칙을 본다.**
-// 전에는 버튼의 :disabled 와 함수의 가드가 따로 있어서, 하나만 고치면 다른 쪽이 막았다.
-// URL 만 주는 것이 정상 입력이다: 원문은 AI 가 주소에서 수집한다(posting_fetch).
-//
-// **기준값은 지어내지 않고 AI 가 실제로 받아들이는 값을 쓴다.**
-// - 본문 최소 40자: `AI/src/jobis_ai/orchestrator/attachment_kind.py` MIN_ASSET_CHARS
-//   (이보다 짧으면 AI 가 자산으로 승격하지 않는다 — UI 만 통과시키면 조용히 무시된다)
-// - URL 판별: 같은 저장소가 쓰는 `startswith("http://" | "https://")` 와 동일하게 둔다
-const POSTING_MIN_CHARS = 40;
-const postingUrlValid = computed(() => {
-  const url = sourceUrl.value.trim();
-  return (url.startsWith("http://") || url.startsWith("https://")) && url.length > 8;
-});
-const postingBodyValid = computed(
-  () => rawText.value.trim().length >= POSTING_MIN_CHARS,
-);
-const canAttachPosting = computed(() =>
-  sourceType.value === "URL"
-    ? postingUrlValid.value || postingBodyValid.value
-    : postingBodyValid.value,
-);
+async function cancelChat(job: ChatReplyJob) {
+  actionJobId.value = job.id;
+  error.value = "";
+  try {
+    await api.cancelChatReply(job.id);
+    chatJobsById.value[job.id] = await api.chatReplyJob(job.id);
+    schedulePoll();
+  } catch (cause) {
+    error.value = cause instanceof Error
+      ? cause.message
+      : "답변 생성을 취소하지 못했습니다.";
+  } finally {
+    actionJobId.value = null;
+  }
+}
 
-async function attachPosting() {
+function selectAttachedSourceType(type: "TEXT" | "URL") {
+  sourceType.value = type;
+  attachedV3Source.value = null;
+  attachedExtractedText.value = "";
+  attachedPostingReviewState.value = "NONE";
+  error.value = "";
+}
+
+async function openPostingModal() {
   if (!conversation.value) return;
-  if (!canAttachPosting.value) {
-    error.value =
-      sourceType.value === "URL"
-        ? `공고 주소를 http(s):// 로 시작하게 입력하거나, 원문을 ${POSTING_MIN_CHARS}자 이상 붙여넣어 주세요.`
-        : `공고 원문을 ${POSTING_MIN_CHARS}자 이상 붙여넣어 주세요.`;
+  showPosting.value = true;
+  const conversationId = conversation.value.id;
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(CHAT_POSTING_DRAFT_KEY) ?? "null",
+    ) as {
+      conversationId?: string;
+      sourceType?: "TEXT" | "URL";
+      sourceUrl?: string;
+      rawText?: string;
+      sourceId?: string;
+      extractedText?: string;
+      reviewState?: "NONE" | "PENDING" | "READY";
+      reviewKey?: string;
+    } | null;
+    if (!stored || stored.conversationId !== conversationId) {
+      sourceUrl.value = "";
+      rawText.value = "";
+      attachedV3Source.value = null;
+      attachedExtractedText.value = "";
+      attachedPostingReviewState.value = "NONE";
+      activePostingReviewKey.value = null;
+      return;
+    }
+    sourceType.value = stored.sourceType ?? "TEXT";
+    sourceUrl.value = stored.sourceUrl ?? "";
+    rawText.value = stored.rawText ?? "";
+    attachedExtractedText.value = stored.extractedText ?? "";
+    attachedPostingReviewState.value = stored.reviewState ?? "NONE";
+    activePostingReviewKey.value = stored.reviewKey ?? null;
+    if (stored.sourceId) {
+      const restored = await api.v3Source(stored.sourceId);
+      if (conversation.value?.id !== conversationId) return;
+      attachedV3Source.value = restored;
+      if (!attachedExtractedText.value) {
+        attachedExtractedText.value = restored.sourceDocument.rawText;
+      }
+      if (!rawText.value) rawText.value = restored.sourceDocument.rawText;
+    }
+  } catch {
+    attachedV3Source.value = null;
+    attachedExtractedText.value = "";
+    attachedPostingReviewState.value = "NONE";
+    activePostingReviewKey.value = null;
+  }
+}
+
+function startPostingAnalysis() {
+  if (!conversation.value || sending.value) return;
+  sourceType.value = "TEXT";
+  sourceUrl.value = "";
+  rawText.value = "";
+  attachedV3Source.value = null;
+  attachedExtractedText.value = "";
+  attachedPostingReviewState.value = "NONE";
+  activePostingReviewKey.value = null;
+  error.value = "";
+  window.localStorage.removeItem(CHAT_POSTING_DRAFT_KEY);
+  showPosting.value = true;
+}
+
+function closePostingModal() {
+  showPosting.value = false;
+}
+
+function resetAttachedSource() {
+  if (attachedPostingReviewState.value === "READY") markPostingReviewHandled();
+  attachedV3Source.value = null;
+  attachedExtractedText.value = "";
+  attachedPostingReviewState.value = "NONE";
+  error.value = "";
+}
+
+function canPrepareAttachedPosting() {
+  return sourceType.value === "URL"
+    ? sourceUrl.value.trim().length > 8
+    : rawText.value.trim().length >= 20
+      && rawText.value.trim().length <= POSTING_TEXT_MAX_CHARS;
+}
+
+async function prepareAttachedPosting() {
+  if (!conversation.value || !canPrepareAttachedPosting() || sending.value) return;
+  if (sourceType.value === "TEXT" && rawText.value.trim().length > POSTING_TEXT_MAX_CHARS) {
+    error.value = postingLengthMessage(rawText.value.trim().length);
+    return;
+  }
+  const analysisRequest = sourceType.value === "URL"
+    ? `${sourceUrl.value.trim()}${POSTING_URL_ANALYSIS_SUFFIX}`
+    : `${rawText.value.trim()}${POSTING_ANALYSIS_SUFFIX}`;
+  showPosting.value = false;
+  message.value = analysisRequest;
+  await sendText();
+  if (!message.value) {
+    sourceUrl.value = "";
+    rawText.value = "";
+    attachedV3Source.value = null;
+    attachedExtractedText.value = "";
+    attachedPostingReviewState.value = "NONE";
+    activePostingReviewKey.value = null;
+    window.localStorage.removeItem(CHAT_POSTING_DRAFT_KEY);
+  }
+}
+
+async function startVerifiedPostingAnalysis(
+  source: V3SourceView,
+  verifiedText: string,
+  extractedText: string,
+  correctionReason: "STRUCTURE_CORRECTION" | "OTHER" = "OTHER",
+) {
+  const conversationId = conversation.value?.id;
+  if (!conversationId) throw new Error("분석을 연결할 대화를 찾을 수 없습니다.");
+  const changed = verifiedText.trim() !== extractedText.trim();
+  await api.verifyV3Source(source.id, {
+    verifiedText: verifiedText.trim(),
+    corrections: changed
+      ? [{
+          field: "verifiedText",
+          before: extractedText,
+          after: verifiedText.trim(),
+          reason: correctionReason,
+        }]
+      : [],
+    verifiedBy: "USER",
+  });
+  const result = await api.startV3Analysis(source.id, conversationId);
+  if (result.analysisJobId) {
+    analysisById.value[result.analysisJobId] = await api.analysisJob(
+      result.analysisJobId,
+    );
+  }
+  showPosting.value = false;
+  markPostingReviewHandled();
+  sourceUrl.value = "";
+  rawText.value = "";
+  attachedV3Source.value = null;
+  attachedExtractedText.value = "";
+  attachedPostingReviewState.value = "NONE";
+  window.localStorage.removeItem(CHAT_POSTING_DRAFT_KEY);
+  await openConversation(conversationId);
+  await refreshConversationList();
+}
+
+async function confirmAttachedPosting() {
+  if (!conversation.value || !attachedV3Source.value || rawText.value.trim().length < 20) return;
+  if (rawText.value.trim().length > POSTING_TEXT_MAX_CHARS) {
+    error.value = postingLengthMessage(rawText.value.trim().length);
     return;
   }
   sending.value = true;
   error.value = "";
   try {
-    const title = sourceUrl.value
-      ? `채용 공고를 분석해 주세요: ${sourceUrl.value}`
-      : "이 채용 공고를 분석해서 제 커리어 지도와 비교해 주세요.";
-    const result = await api.sendMessage(conversation.value.id, title, {
-      sourceType: sourceType.value,
-      sourceUrl: sourceType.value === "URL" ? sourceUrl.value.trim() : null,
-      rawText: rawText.value.trim(),
-    });
-    if (result.analysisJobId) {
-      analysisById.value[result.analysisJobId] = await api.analysisJob(
-        result.analysisJobId,
-      );
-    }
-    // 첨부도 대화다 — 에이전트 답변 작업을 일반 발화와 똑같이 따라간다. 이게 없으면 답변이
-    // 만들어져도 화면이 폴링하지 않아 새로고침 전까지 안 보인다.
-    if (result.chatReplyJobId) {
-      chatJobsById.value[result.chatReplyJobId] = await api.chatReplyJob(
-        result.chatReplyJobId,
-      );
-      schedulePoll();
-    }
-    showPosting.value = false;
-    sourceUrl.value = "";
-    rawText.value = "";
-    await openConversation(conversation.value.id);
-    await refreshConversationList();
+    const source = attachedV3Source.value;
+    const verifiedText = rawText.value.trim();
+    await startVerifiedPostingAnalysis(
+      source,
+      verifiedText,
+      attachedExtractedText.value,
+      attachedPostingReviewState.value === "READY"
+        ? "STRUCTURE_CORRECTION"
+        : "OTHER",
+    );
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "공고를 등록하지 못했습니다.";
   } finally {
@@ -498,68 +1309,35 @@ async function attachPosting() {
   }
 }
 
-// 이력서 첨부 — 대화 중에 들어오는 이력서를 공고와 같은 자리에서 받는다.
-// 등록은 커리어 저장소로 간다(파편 확정은 저장소 화면에서 사용자가 한다 — 여기서 자동
-// 확정하지 않는다). docx 는 서버가 푼다(`resumeFile.readResumeFile`).
-const uploadingResume = ref(false);
-const notice = ref("");
-const resumeText = ref("");
-const resumeFileName = ref("");
-const resumeBase64 = ref("");
-
-const canAttachResume = computed(
-  () => Boolean(resumeBase64.value) || resumeText.value.trim().length >= RESUME_MIN_CHARS,
-);
-
-async function readResume(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-  error.value = "";
-  try {
-    const payload = await readResumeFile(file);
-    resumeFileName.value = payload.fileName;
-    resumeBase64.value = payload.fileBase64 ?? "";
-    resumeText.value = payload.rawText;
-  } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : "이력서 파일을 읽지 못했습니다.";
-  } finally {
-    input.value = "";
-  }
+async function confirmPostingReview(job: AnalysisJob) {
+  if (!job.pendingQuestion) return;
+  answerSelections.value[job.id] = "CONFIRM";
+  await answerAnalysisQuestion(job, "PROVIDED");
 }
 
-async function attachResume() {
-  if (!canAttachResume.value) {
-    error.value = `이력서 파일을 고르거나 원문을 ${RESUME_MIN_CHARS}자 이상 붙여넣어 주세요.`;
+async function revisePostingReview(job: AnalysisJob) {
+  const originalText = job.result?.postingReview?.originalText?.trim();
+  if (!originalText) {
+    error.value = "수정할 공고 원문을 찾을 수 없습니다.";
     return;
   }
-  uploadingResume.value = true;
+  actionJobId.value = job.id;
   error.value = "";
-  notice.value = "";
-  const label = resumeFileName.value || "대화에서 붙여넣은 이력서";
   try {
-    await api.createCareerSource({
-      sourceType: resumeFileName.value ? "FILE" : "TEXT",
-      title: titleFromFileName(label),
-      sourceUrl: null,
-      rawText: resumeText.value.trim(),
-      ...(resumeBase64.value
-        ? { fileBase64: resumeBase64.value, fileName: resumeFileName.value }
-        : {}),
-    });
-    // 추출은 비동기다(CareerExtractionWorker) — 끝난 척하지 않고 어디서 확인하는지 알린다.
-    // 성공은 `error` 가 아니라 `notice` 로 낸다(빨간 글씨로 성공을 알리지 않는다).
-    notice.value = `'${label}'을 커리어 저장소에 등록했어요. 읽고 나면 저장소에서 저장할 조각을 고를 수 있어요.`;
-    showPosting.value = false;
-    resumeText.value = "";
-    resumeFileName.value = "";
-    resumeBase64.value = "";
+    await api.cancelAnalysis(job.id);
+    sourceType.value = "TEXT";
+    sourceUrl.value = "";
+    rawText.value = originalText;
+    attachedV3Source.value = null;
+    attachedExtractedText.value = "";
+    showPosting.value = true;
+    analysisById.value[job.id] = await api.analysisJob(job.id);
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : "이력서를 등록하지 못했습니다.";
+    error.value = cause instanceof Error
+      ? cause.message
+      : "공고 원문 수정 화면을 열지 못했습니다.";
   } finally {
-    uploadingResume.value = false;
+    actionJobId.value = null;
   }
 }
 
@@ -567,24 +1345,50 @@ async function retry(job: AnalysisJob) {
   actionJobId.value = job.id;
   error.value = "";
   try {
+    followAnalysisUntilSettled(job.id);
     await api.retryAnalysis(job.id);
     analysisById.value[job.id] = await api.analysisJob(job.id);
     schedulePoll();
   } catch (cause) {
+    stopFollowingAnalysis(job.id);
     error.value = cause instanceof Error ? cause.message : "재시도하지 못했습니다.";
   } finally {
     actionJobId.value = null;
   }
 }
 
-async function answerAnalysisQuestion(job: AnalysisJob) {
+async function cancelAnalysis(job: AnalysisJob) {
+  if (!await productDialog.confirm({ title: "공고 분석 중단", message: "진행 중인 공고 분석을 취소할까요? 공고는 그대로 보관됩니다.", confirmLabel: "분석 중단", danger: true })) {
+    return;
+  }
+  actionJobId.value = job.id;
+  error.value = "";
+  try {
+    await api.cancelAnalysis(job.id);
+    analysisById.value[job.id] = await api.analysisJob(job.id);
+    schedulePoll();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "분석을 취소하지 못했습니다.";
+  } finally {
+    actionJobId.value = null;
+  }
+}
+
+async function answerAnalysisQuestion(
+  job: AnalysisJob,
+  answerStatus: "PROVIDED" | "CONFIRMED_ABSENT" = "PROVIDED",
+) {
   const question = job.pendingQuestion;
+  if (answerStatus === "CONFIRMED_ABSENT") {
+    answerSelections.value[job.id] = "없습니다.";
+  }
   const value = answerSelections.value[job.id];
   if (!question || !value) return;
   actionJobId.value = job.id;
   error.value = "";
   try {
-    await api.answerAnalysisQuestion(job.id, question.id, value);
+    followAnalysisUntilSettled(job.id);
+    await api.answerAnalysisQuestion(job.id, question.id, value, answerStatus);
     delete answerSelections.value[job.id];
     analysisById.value[job.id] = await api.analysisJob(job.id);
     if (conversation.value) {
@@ -593,6 +1397,7 @@ async function answerAnalysisQuestion(job: AnalysisJob) {
     schedulePoll();
     await scrollToBottom();
   } catch (cause) {
+    stopFollowingAnalysis(job.id);
     error.value =
       cause instanceof Error ? cause.message : "답변을 반영하지 못했습니다.";
   } finally {
@@ -604,9 +1409,21 @@ async function approve(job: AnalysisJob) {
   actionJobId.value = job.id;
   error.value = "";
   try {
+    if (job.analysisProvider === "UNIFIED") {
+      if (!job.changeSetId) throw new Error("로드맵 초안을 찾을 수 없습니다.");
+      await api.previewV3Roadmap(job.changeSetId);
+      await router.push({
+        name: "map",
+        query: { provider: "unified", proposal: job.changeSetId, preview: "draft" },
+      });
+      return;
+    }
     await api.approveAnalysis(job.id);
     analysisById.value[job.id] = await api.analysisJob(job.id);
-    await router.push({ name: "map" });
+    await router.push({
+      name: "map",
+      query: { posting: job.postingId, preview: "draft" },
+    });
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "목표 공고에 추가하지 못했습니다.";
   } finally {
@@ -615,10 +1432,16 @@ async function approve(job: AnalysisJob) {
 }
 
 async function reject(job: AnalysisJob) {
-  if (!window.confirm("이 변경안을 거절할까요? 공고와 분석 기록은 저장됩니다.")) return;
+  if (!await productDialog.confirm({ title: "로드맵 변경안 거절", message: "이 변경안을 거절할까요? 공고와 분석 기록은 저장됩니다.", confirmLabel: "변경안 거절", danger: true })) return;
   actionJobId.value = job.id;
   error.value = "";
   try {
+    if (job.analysisProvider === "UNIFIED") {
+      if (!job.changeSetId) throw new Error("로드맵 초안을 찾을 수 없습니다.");
+      await api.cancelV3Roadmap(job.changeSetId);
+      analysisById.value[job.id] = await api.analysisJob(job.id);
+      return;
+    }
     await api.rejectAnalysis(job.id);
     analysisById.value[job.id] = await api.analysisJob(job.id);
   } catch (cause) {
@@ -634,6 +1457,46 @@ function onComposerKeydown(event: KeyboardEvent) {
     void sendText();
   }
 }
+
+function resizeComposer() {
+  const input = composerInput.value;
+  if (!input) return;
+  input.style.height = "auto";
+  const style = window.getComputedStyle(input);
+  const lineHeight = Number.parseFloat(style.lineHeight) || 24;
+  const verticalPadding =
+    Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+  const maximumHeight = lineHeight * 10 + verticalPadding;
+  input.style.height = `${Math.min(input.scrollHeight, maximumHeight)}px`;
+  input.style.overflowY = input.scrollHeight > maximumHeight ? "auto" : "hidden";
+}
+
+function refreshChatOnReturn() {
+  if (document.visibilityState !== "visible" || !conversation.value) return;
+  void hydrateJobs();
+}
+
+watch(message, () => {
+  const conversationId = conversation.value?.id;
+  if (conversationId) {
+    const key = `${CHAT_COMPOSER_DRAFT_PREFIX}${conversationId}`;
+    if (message.value) window.localStorage.setItem(key, message.value);
+    else window.localStorage.removeItem(key);
+  }
+  void nextTick(resizeComposer);
+});
+
+watch(
+  () => route.query.conversationId,
+  async (id) => {
+    if (typeof id !== "string" || loading.value) return;
+    try {
+      await openConversation(id);
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : "대화를 찾지 못했습니다.";
+    }
+  },
+);
 
 watch(
   () => route.query.analysisJobId,
@@ -662,17 +1525,31 @@ watch(
 );
 
 onMounted(async () => {
-  try {
-    await loadConversations();
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "대화를 불러오지 못했습니다.";
-  } finally {
-    loading.value = false;
+  const requestedConversation = typeof route.query.conversationId === "string"
+    ? route.query.conversationId
+    : undefined;
+  const results = await Promise.allSettled([
+    loadConversations(requestedConversation),
+    loadAgentAssets(),
+  ]);
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed?.status === "rejected") {
+    error.value = failed.reason instanceof Error
+      ? failed.reason.message
+      : "일부 대화 정보를 불러오지 못했습니다.";
   }
+  applyRouteAgentContext();
+  loading.value = false;
+  await nextTick();
+  resizeComposer();
+  window.addEventListener("focus", refreshChatOnReturn);
+  document.addEventListener("visibilitychange", refreshChatOnReturn);
 });
 
 onBeforeUnmount(() => {
   if (pollTimer) window.clearTimeout(pollTimer);
+  window.removeEventListener("focus", refreshChatOnReturn);
+  document.removeEventListener("visibilitychange", refreshChatOnReturn);
 });
 </script>
 
@@ -688,36 +1565,96 @@ onBeforeUnmount(() => {
           <Plus :size="20" />
         </button>
       </div>
-      <div
-        v-for="item in conversations"
-        :key="item.id"
-        class="conversation-link-row"
-      >
+      <form class="conversation-search" @submit.prevent="loadConversations()">
+        <input
+          v-model="conversationQuery"
+          type="search"
+          aria-label="대화 검색"
+          placeholder="대화 검색"
+        />
+        <button class="icon-button" type="submit" aria-label="대화 검색">
+          <Search :size="16" />
+        </button>
+      </form>
+      <div class="conversation-status-tabs" role="tablist" aria-label="대화 상태">
         <button
-          class="conversation-link"
-          :class="{ active: conversation?.id === item.id }"
           type="button"
-          @click="openConversation(item.id)"
+          role="tab"
+          :aria-selected="conversationStatus === 'ACTIVE'"
+          :class="{ active: conversationStatus === 'ACTIVE' }"
+          @click="conversationStatus = 'ACTIVE'; loadConversations()"
         >
-          <MessageCircleMore :size="18" />
-          <span>
-            <strong>{{ item.title }}</strong>
-            <small>{{ item.lastMessage || "새 대화" }}</small>
-          </span>
-          <time>{{ formatTime(item.lastMessageAt) }}</time>
+          진행 중
         </button>
         <button
-          class="conversation-delete"
           type="button"
-          :aria-label="`${item.title} 삭제`"
-          title="대화 삭제"
-          @click="deleteConversation(item.id)"
+          role="tab"
+          :aria-selected="conversationStatus === 'ARCHIVED'"
+          :class="{ active: conversationStatus === 'ARCHIVED' }"
+          @click="conversationStatus = 'ARCHIVED'; loadConversations()"
         >
-          <Trash2 :size="15" />
+          보관함
         </button>
       </div>
-      <div v-if="conversations.length === 0 && !loading" class="sidebar-empty">
-        첫 대화를 시작해 보세요.
+      <div class="conversation-list">
+        <div
+          v-for="item in conversations"
+          :key="item.id"
+          class="conversation-link-row"
+        >
+          <button
+            class="conversation-link"
+            :class="{ active: conversation?.id === item.id }"
+            type="button"
+            @click="openConversation(item.id)"
+          >
+            <MessageCircleMore :size="18" />
+            <span>
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.lastMessage || "새 대화" }}</small>
+            </span>
+            <time>{{ formatTime(item.lastMessageAt) }}</time>
+          </button>
+          <button
+            class="conversation-row-action conversation-row-action--rename"
+            type="button"
+            :aria-label="`${item.title} 이름 변경`"
+            title="이름 변경"
+            @click="renameConversation(item)"
+          >
+            <Pencil :size="14" />
+          </button>
+          <button
+            class="conversation-row-action conversation-row-action--archive"
+            type="button"
+            :aria-label="`${item.title} ${item.status === 'ARCHIVED' ? '복원' : '보관'}`"
+            :title="item.status === 'ARCHIVED' ? '복원' : '보관'"
+            @click="toggleConversationArchive(item)"
+          >
+            <ArchiveRestore v-if="item.status === 'ARCHIVED'" :size="14" />
+            <Archive v-else :size="14" />
+          </button>
+          <button
+            class="conversation-delete"
+            type="button"
+            :aria-label="`${item.title} 삭제`"
+            title="대화 삭제"
+            @click="deleteConversation(item.id)"
+          >
+            <Trash2 :size="15" />
+          </button>
+        </div>
+        <div v-if="conversations.length === 0 && !loading" class="sidebar-empty">
+          {{ conversationStatus === "ARCHIVED" ? "보관된 대화가 없습니다." : "첫 대화를 시작해 보세요." }}
+        </div>
+        <button
+          v-if="conversations.length < conversationTotal"
+          class="conversation-load-more"
+          type="button"
+          @click="loadMoreConversations"
+        >
+          이전 대화 더 보기
+        </button>
       </div>
     </aside>
 
@@ -744,6 +1681,18 @@ onBeforeUnmount(() => {
           대화를 불러오는 중입니다.
         </div>
 
+        <button
+          v-if="conversation?.hasOlderMessages"
+          class="message-load-older"
+          type="button"
+          :disabled="loadingOlderMessages"
+          @click="loadOlderMessages"
+        >
+          <LoaderCircle v-if="loadingOlderMessages" class="spin" :size="15" />
+          <RefreshCw v-else :size="15" />
+          이전 메시지 불러오기
+        </button>
+
         <article
           v-for="item in conversation?.messages ?? []"
           :key="item.id"
@@ -754,46 +1703,216 @@ onBeforeUnmount(() => {
             <Sparkles :size="18" />
           </div>
           <div class="chat-bubble">
-            <!--
-              여러 담당이 만든 답변은 담당별로 나눠 말한다(replySources). 한 담당이거나
-              화자 정보가 없는 턴은 그대로 한 덩어리다 — 없는 화자를 지어내지 않는다.
-            -->
-            <template v-if="replySourcesFor(item).length">
-              <article
-                v-for="(source, index) in replySourcesFor(item)"
-                :key="index"
-                class="agent-reply"
-                :style="{ '--agent-color': agentIdentity(source.agent).color }"
-              >
-                <span class="agent-reply__avatar">
-                  <component
-                    :is="agentIdentity(source.agent).icon"
-                    :size="16"
-                    stroke-width="2.6"
-                  />
-                </span>
+            <section
+              v-if="answeredQuestionForMessage(item)"
+              class="answered-analysis-context"
+            >
+              <V3PostingReviewCard
+                v-if="isPostingReviewQuestion(item) && postingReviewFor(item)"
+                :review="postingReviewFor(item)!"
+                confirmed
+              />
+              <div v-else class="answered-analysis-context__question">
+                <span><CircleHelp :size="21" /></span>
                 <div>
-                  <strong>{{ agentIdentity(source.agent).label }}</strong>
-                  <p>{{ source.text }}</p>
+                  <small>
+                    JOBIS 확인 질문 · {{ answeredQuestionForMessage(item)?.ordinal }}번째
+                  </small>
+                  <strong>{{ answeredQuestionForMessage(item)?.text }}</strong>
+                  <em><Check :size="14" /> 답변 완료</em>
                 </div>
-              </article>
-            </template>
-            <!--
-              내용이 빈 메시지는 문장 자리를 만들지 않는다. 진행 휠이 붙는 상태 메시지
-              (ANALYSIS_STATUS)는 **사용자향 문장을 담지 않는다** — 그 말은 에이전트가 한다.
-              막지 않으면 아바타만 있는 빈 말풍선이 뜬다.
-            -->
-            <p v-else-if="item.content.trim()">{{ item.content }}</p>
+              </div>
+            </section>
+            <div class="chat-message__body">
+              <p class="chat-message__content">{{ item.content }}</p>
+              <time>{{ formatTime(item.createdAt) }}</time>
+            </div>
 
-            <!--
-              폴백 답변임을 답변 옆에서 알린다. 로그에만 남기면 답변을 읽는 사람은
-              요약본을 분석 결과로 읽는다 — 두 번 그렇게 됐다.
-            -->
-            <p v-if="degradedReasonFor(item)" class="reply-degraded">
-              <CircleAlert :size="15" />
-              <span>{{ degradedReasonFor(item) }}</span>
-            </p>
-            <time>{{ formatTime(item.createdAt) }}</time>
+            <AgentExecutionMap
+              v-if="agentResultForMessage(item).plan?.agents?.length"
+              :plan="agentResultForMessage(item).plan"
+              :events="agentProgressForMessage(item)"
+            />
+
+            <div
+              v-if="agentResultForMessage(item).detailedStatus"
+              class="agent-decision-status"
+            >
+              <Sparkles :size="15" />
+              내부 판단 · {{ agentResultForMessage(item).detailedStatus }}
+            </div>
+
+            <details
+              v-if="agentResultForMessage(item).warnings?.length"
+              class="agent-warnings"
+            >
+              <summary>
+                일부 확인이 필요한 항목 {{ agentResultForMessage(item).warnings?.length }}개
+                <ChevronDown :size="15" />
+              </summary>
+              <p
+                v-for="warning in agentResultForMessage(item).warnings ?? []"
+                :key="`${warning.agentId}-${warning.code}`"
+              >
+                <strong>{{ warning.agentId ?? "에이전트" }}</strong>
+                {{ warning.message }}
+              </p>
+            </details>
+
+            <section
+              v-if="agentResultForMessage(item).workProducts?.length"
+              class="agent-products"
+            >
+              <AgentWorkProductCard
+                v-for="(product, productIndex) in agentResultForMessage(item).workProducts ?? []"
+                :key="`${product.agentId}-${productIndex}`"
+                :product="product"
+              />
+            </section>
+
+            <section
+              v-if="agentArtifactForMessage(item)"
+              class="agent-artifact"
+            >
+              <header>
+                <span><Sparkles :size="17" /></span>
+                <div>
+                  <small>{{ agentArtifactForMessage(item)?.artifactType }}</small>
+                  <strong>{{ agentArtifactForMessage(item)?.title }}</strong>
+                </div>
+              </header>
+              <p>{{ agentArtifactForMessage(item)?.summary }}</p>
+              <details
+                v-if="agentArtifactForMessage(item)?.sections.length"
+                class="agent-artifact__sections"
+              >
+                <summary>
+                  결과 자세히 보기
+                  <ChevronDown :size="16" />
+                </summary>
+                <article
+                  v-for="(section, sectionIndex) in agentArtifactForMessage(item)?.sections ?? []"
+                  :key="sectionIndex"
+                >
+                  <strong>{{ artifactSectionTitle(section, sectionIndex) }}</strong>
+                  <p>{{ artifactSectionBody(section) }}</p>
+                </article>
+              </details>
+            </section>
+
+            <details
+              v-if="agentResultForMessage(item).replySources?.length"
+              class="agent-sources"
+            >
+              <summary>
+                답변 근거 {{ agentResultForMessage(item).replySources?.length }}개
+                <ChevronDown :size="15" />
+              </summary>
+              <article
+                v-for="source in agentResultForMessage(item).replySources ?? []"
+                :key="`${source.sourceType}-${source.sourceId}-${source.title}`"
+              >
+                <small>{{ source.sourceType }}</small>
+                <strong>{{ source.title }}</strong>
+                <p v-if="source.excerpt">{{ source.excerpt }}</p>
+              </article>
+            </details>
+
+            <section
+              v-if="agentResultForMessage(item).pendingConfirmation"
+              class="agent-confirmation"
+            >
+              <span><CircleHelp :size="20" /></span>
+              <div>
+                <strong>{{ agentResultForMessage(item).pendingConfirmation?.question }}</strong>
+                <p>{{ agentResultForMessage(item).pendingConfirmation?.reason }}</p>
+                <div>
+                  <button
+                    v-for="option in agentResultForMessage(item).pendingConfirmation?.options ?? []"
+                    :key="option"
+                    type="button"
+                    :disabled="sending"
+                    @click="answerAgentConfirmation(option)"
+                  >
+                    {{ option }}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section
+              v-if="agentResultForMessage(item).proposedActions?.length"
+              class="agent-proposals"
+            >
+              <strong>다음 행동</strong>
+              <article
+                v-for="action in agentResultForMessage(item).proposedActions ?? []"
+                :key="action.actionId"
+              >
+                <span>{{ action.label }}</span>
+                <p>{{ action.description }}</p>
+                <template v-if="executedAgentAction(item, action)">
+                  <small>
+                    {{ executedAgentAction(item, action)?.message ?? "요청을 준비했습니다." }}
+                  </small>
+                  <section
+                    v-if="postingReviewExecution(item, action)"
+                    class="posting-review-inline"
+                  >
+                    <div>
+                      <strong>분석할 공고 내용 확인</strong>
+                      <small>직무·경력·담당 업무·필수·우대 요건이 원문과 맞는지 확인해 주세요.</small>
+                    </div>
+                    <textarea
+                      :value="postingReviewText(item, action)"
+                      :disabled="handledPostingReviews().has(postingReviewKey(item, action))"
+                      rows="12"
+                      aria-label="분석할 공고 정리 내용"
+                      @input="updatePostingReviewText(item, action, $event)"
+                    />
+                    <button
+                      v-if="!handledPostingReviews().has(postingReviewKey(item, action))"
+                      type="button"
+                      :disabled="
+                        actionJobId === postingReviewKey(item, action) ||
+                        postingReviewText(item, action).trim().length < 20
+                      "
+                      @click="confirmPostingReviewExecution(item, action)"
+                    >
+                      <LoaderCircle
+                        v-if="actionJobId === postingReviewKey(item, action)"
+                        :size="14"
+                        class="spin"
+                      />
+                      <Check v-else :size="14" :stroke-width="3" />
+                      이 내용으로 분석 시작
+                    </button>
+                    <span v-else class="posting-review-inline__confirmed">
+                      <CheckCircle2 :size="16" /> 확인한 내용으로 분석을 시작했습니다.
+                    </span>
+                  </section>
+                </template>
+                <template v-else>
+                  <small v-if="action.requiresConsent">확인하기 전에는 실행하지 않습니다</small>
+                  <button
+                    type="button"
+                    :disabled="
+                      !chatJobForAssistant(item) ||
+                      actionJobId === agentActionBusyKey(item, action)
+                    "
+                    @click="executeAgentAction(item, action)"
+                  >
+                    <LoaderCircle
+                      v-if="actionJobId === agentActionBusyKey(item, action)"
+                      :size="14"
+                      class="spin"
+                    />
+                    <Check v-else :size="14" :stroke-width="3" />
+                    {{ action.label }}
+                  </button>
+                </template>
+              </article>
+            </section>
 
             <section
               v-if="item.analysisJobId && analysisMessageIds.has(item.id) && messageJob(item)"
@@ -811,6 +1930,20 @@ onBeforeUnmount(() => {
                     :events="messageJob(item)?.progressEvents"
                   />
                 </div>
+                <button
+                  class="press-button press-button--ghost analysis-card__cancel"
+                  type="button"
+                  :disabled="actionJobId === messageJob(item)!.id"
+                  @click="cancelAnalysis(messageJob(item)!)"
+                >
+                  <LoaderCircle
+                    v-if="actionJobId === messageJob(item)!.id"
+                    class="spin"
+                    :size="16"
+                  />
+                  <X v-else :size="16" />
+                  분석 취소
+                </button>
               </template>
 
               <template
@@ -828,6 +1961,19 @@ onBeforeUnmount(() => {
                     :queue-position="messageJob(item)?.queuePosition"
                     :events="messageJob(item)?.progressEvents"
                   />
+                  <V3PostingReviewCard
+                    v-if="
+                      messageJob(item)?.stage === 'AWAITING_POSTING_CONFIRMATION' &&
+                      postingReviewFor(item)
+                    "
+                    :review="postingReviewFor(item)!"
+                    :busy="actionJobId === messageJob(item)!.id"
+                    allow-revision
+                    @confirm="confirmPostingReview(messageJob(item)!)"
+                    @revise="revisePostingReview(messageJob(item)!)"
+                    @cancel="cancelAnalysis(messageJob(item)!)"
+                  />
+                  <template v-else>
                   <div class="analysis-card__question-heading">
                     <CircleHelp :size="22" />
                     <div>
@@ -837,25 +1983,39 @@ onBeforeUnmount(() => {
                       <strong>{{ messageJob(item)?.pendingQuestion?.text }}</strong>
                     </div>
                   </div>
-                  <details
-                    v-if="messageJob(item)?.questionHistory?.length"
-                    class="analysis-question-history"
-                  >
-                    <summary>
-                      이전 확인 답변 {{ messageJob(item)?.questionHistory?.length ?? 0 }}개
-                    </summary>
-                    <ol>
-                      <li
-                        v-for="history in messageJob(item)?.questionHistory ?? []"
-                        :key="history.id"
-                      >
-                        <strong>{{ history.text }}</strong>
-                        <span>{{ history.answerValue }}</span>
-                      </li>
-                    </ol>
-                  </details>
                   <p>{{ messageJob(item)?.pendingQuestion?.reason }}</p>
-                  <div class="analysis-question-options analysis-question-options--chat">
+                  <textarea
+                    v-if="messageJob(item)?.pendingQuestion?.inputType === 'TEXT'"
+                    v-model="answerSelections[messageJob(item)!.id]"
+                    class="analysis-question-text analysis-question-text--chat"
+                    rows="4"
+                    maxlength="2000"
+                    placeholder="실제 경험과 근거를 구체적으로 적어주세요."
+                  />
+                  <small
+                    v-if="messageJob(item)?.pendingQuestion?.inputType === 'TEXT'"
+                    class="analysis-question-count"
+                  >
+                    {{ (answerSelections[messageJob(item)!.id] ?? '').length }}/2,000
+                  </small>
+                  <button
+                    v-if="
+                      messageJob(item)?.pendingQuestion?.inputType === 'TEXT' &&
+                      messageJob(item)?.pendingQuestion?.absenceScope !== 'NONE'
+                    "
+                    class="analysis-question-absence"
+                    type="button"
+                    :disabled="actionJobId === messageJob(item)!.id"
+                    @click="
+                      answerAnalysisQuestion(
+                        messageJob(item)!,
+                        'CONFIRMED_ABSENT',
+                      )
+                    "
+                  >
+                    해당 경험 없음
+                  </button>
+                  <div v-else class="analysis-question-options analysis-question-options--chat">
                     <button
                       v-for="option in messageJob(item)?.pendingQuestion?.options ?? []"
                       :key="option.value"
@@ -882,7 +2042,7 @@ onBeforeUnmount(() => {
                       !answerSelections[messageJob(item)!.id] ||
                       actionJobId === messageJob(item)!.id
                     "
-                    @click="answerAnalysisQuestion(messageJob(item)!)"
+                    @click="answerAnalysisQuestion(messageJob(item)!, 'PROVIDED')"
                   >
                     <LoaderCircle
                       v-if="actionJobId === messageJob(item)!.id"
@@ -892,15 +2052,48 @@ onBeforeUnmount(() => {
                     <Check v-else :size="17" />
                     답변하고 분석 계속하기
                   </button>
+                  <button
+                    class="press-button press-button--ghost"
+                    type="button"
+                    :disabled="actionJobId === messageJob(item)!.id"
+                    @click="cancelAnalysis(messageJob(item)!)"
+                  >
+                    <X :size="16" /> 분석 취소
+                  </button>
+                  </template>
                 </div>
+              </template>
+
+              <template v-else-if="messageJob(item)?.status === 'CANCELLED'">
+                <div class="analysis-card__state analysis-card__state--cancelled">
+                  <X :size="22" />
+                  <div>
+                    <strong>진행 중이던 분석을 취소했어요</strong>
+                    <span>공고는 보관되어 있습니다. 필요하면 같은 공고로 다시 시작할 수 있어요.</span>
+                  </div>
+                </div>
+                <button
+                  v-if="(messageJob(item)?.attemptCount ?? 3) < 3"
+                  class="press-button press-button--secondary"
+                  type="button"
+                  :disabled="actionJobId === item.analysisJobId"
+                  @click="retry(messageJob(item)!)"
+                >
+                  <RefreshCw :size="17" />
+                  다시 분석
+                </button>
               </template>
 
               <template v-else-if="messageJob(item)?.status === 'FAILED'">
                 <div class="analysis-card__state analysis-card__state--error">
                   <CircleAlert :size="22" />
                   <div>
-                    <strong>분석을 완료하지 못했습니다</strong>
-                    <span>{{ messageJob(item)?.errorMessage }}</span>
+                    <strong>커리어 적합도 분석을 마치지 못했어요</strong>
+                    <span>공고는 안전하게 저장되어 있어요. 같은 공고로 다시 분석할 수 있습니다.</span>
+                    <details v-if="messageJob(item)?.errorMessage" class="analysis-error-details">
+                      <summary>오류 자세히 보기</summary>
+                      <p>{{ messageJob(item)?.errorMessage }}</p>
+                    </details>
                   </div>
                 </div>
                 <button
@@ -916,7 +2109,52 @@ onBeforeUnmount(() => {
               </template>
 
               <template v-else-if="messageJob(item)?.status === 'SUCCEEDED'">
-                <div class="analysis-verdict">
+                <div
+                  v-if="messageJob(item)?.analysisProvider === 'UNIFIED'"
+                  class="analysis-verdict analysis-verdict--v3"
+                >
+                  <span>{{ verdictLabel(v3AssessmentFor(item)?.verdictProposal) }}</span>
+                  <h3>{{ v3ResultTitle(item) }}</h3>
+                  <p>
+                    회사 맞춤 프로젝트와 필요한 원자 역량을 구성하고 새 로드맵 초안을 만들었습니다.
+                  </p>
+                  <p v-if="isClosedAnalysis(item)" class="analysis-goal-mode-note">
+                    모집은 마감되었지만 다음 채용을 대비하는 준비 목표로 등록할 수 있어요.
+                  </p>
+                  <div class="analysis-verdict__metrics">
+                    <small>
+                      필수 검증
+                      <strong>{{ requiredVerificationValue(v3AssessmentFor(item)) }}</strong>
+                    </small>
+                    <small>
+                      주장 준비도
+                      <strong>{{ readinessValue(v3AssessmentFor(item)?.metrics?.claimedReadinessPercent) }}</strong>
+                    </small>
+                    <small v-if="v3AssessmentFor(item)?.metrics?.capabilityReadinessPercent != null">
+                      필수 역량 준비도
+                      <strong>{{ readinessValue(v3AssessmentFor(item)?.metrics?.capabilityReadinessPercent) }}</strong>
+                    </small>
+                    <small>
+                      검증 준비도
+                      <strong>{{ readinessValue(v3AssessmentFor(item)?.metrics?.verifiedReadinessPercent, '검증 자료 없음') }}</strong>
+                    </small>
+                  </div>
+                  <p
+                    v-if="readinessUnavailableMessage(v3AssessmentFor(item))"
+                    class="analysis-goal-mode-note"
+                  >
+                    {{ readinessUnavailableMessage(v3AssessmentFor(item)) }}
+                  </p>
+                  <ul v-if="(v3AssessmentFor(item)?.gaps ?? []).length">
+                    <li
+                      v-for="gap in (v3AssessmentFor(item)?.gaps ?? []).slice(0, 4)"
+                      :key="gap"
+                    >
+                      {{ gap }}
+                    </li>
+                  </ul>
+                </div>
+                <div v-else class="analysis-verdict">
                   <span>{{ verdictLabel(messageJob(item)?.result?.evaluation?.verdict) }}</span>
                   <h3>{{ messageJob(item)?.result?.evaluation?.summary }}</h3>
                   <ul>
@@ -929,7 +2167,45 @@ onBeforeUnmount(() => {
                   </ul>
                 </div>
 
-                <details v-if="messageJob(item)?.proposal" class="proposal-details">
+                <details
+                  v-if="
+                    messageJob(item)?.analysisProvider === 'UNIFIED' &&
+                    v3ProjectFor(item)?.tasks?.length
+                  "
+                  class="proposal-details"
+                >
+                  <summary>
+                    회사 맞춤 프로젝트 구성 보기
+                    <span>과제 {{ v3ProjectFor(item)?.tasks?.length ?? 0 }}개</span>
+                    <ChevronDown :size="17" />
+                  </summary>
+                  <div class="proposal-section">
+                    <h4>{{ v3ProjectFor(item)?.title }}</h4>
+                    <p>{{ v3ProjectFor(item)?.objective }}</p>
+                    <article
+                      v-for="task in v3ProjectFor(item)?.tasks ?? []"
+                      :key="task.taskKey"
+                      class="proposal-row"
+                    >
+                      <span class="proposal-action proposal-action--create">
+                        {{ task.necessity === 'REQUIRED' ? '필수' : '확장' }}
+                      </span>
+                      <div>
+                        <strong>{{ task.title }}</strong>
+                        <p>{{ task.objective }}</p>
+                        <small>연결 역량 {{ task.capabilityKeys?.length ?? 0 }}개</small>
+                      </div>
+                    </article>
+                  </div>
+                </details>
+
+                <details
+                  v-if="
+                    messageJob(item)?.analysisProvider !== 'UNIFIED' &&
+                    messageJob(item)?.proposal
+                  "
+                  class="proposal-details"
+                >
                   <summary>
                     분석된 역량 자세히 보기
                     <span>
@@ -958,6 +2234,26 @@ onBeforeUnmount(() => {
                         <small v-if="competency.verificationMethod">
                           검증: {{ competency.verificationMethod }}
                         </small>
+                      </div>
+                    </article>
+                  </div>
+                  <div
+                    v-if="experienceCompetenciesFor(item).length"
+                    class="proposal-section proposal-section--experience"
+                  >
+                    <h4>경력·수행 경험 조건</h4>
+                    <p>
+                      배워서 완료하는 기술 노드가 아니라, 실제 수행 이력으로 충족해야 하는 지원 조건입니다.
+                    </p>
+                    <article
+                      v-for="competency in experienceCompetenciesFor(item)"
+                      :key="competency.ref"
+                      class="proposal-row"
+                    >
+                      <span class="proposal-action">조건</span>
+                      <div>
+                        <strong>{{ competency.title }}</strong>
+                        <p>{{ competency.scopeDefinition }}</p>
                       </div>
                     </article>
                   </div>
@@ -1023,7 +2319,7 @@ onBeforeUnmount(() => {
                 </details>
 
                 <div
-                  v-if="messageJob(item)?.changeSetStatus === 'PROPOSED'"
+                  v-if="['PROPOSED', 'DRAFT'].includes(messageJob(item)?.changeSetStatus ?? '')"
                   class="analysis-actions"
                 >
                   <button
@@ -1038,77 +2334,35 @@ onBeforeUnmount(() => {
                   <button
                     class="press-button press-button--primary"
                     type="button"
-                    :disabled="
-                      actionJobId === item.analysisJobId ||
-                      ['EXPIRED', 'CLOSED'].includes(
-                        messageJob(item)?.result?.job?.lifecycleStatus ?? '',
-                      )
-                    "
+                    :disabled="actionJobId === item.analysisJobId"
                     @click="approve(messageJob(item)!)"
                   >
                     <Check :size="18" />
-                    목표 공고에 추가
+                    {{
+                      isClosedAnalysis(item)
+                        ? '재오픈 대비 로드맵 미리보기'
+                        : messageJob(item)?.analysisProvider === 'UNIFIED'
+                          ? '로드맵 미리보기'
+                          : '목표 공고에 추가'
+                    }}
                     <ArrowRight :size="17" />
                   </button>
                 </div>
                 <div
-                  v-else-if="messageJob(item)?.changeSetStatus === 'APPROVED'"
+                  v-else-if="['APPROVED', 'APPLIED'].includes(messageJob(item)?.changeSetStatus ?? '')"
                   class="analysis-resolution analysis-resolution--applied"
                 >
                   <Check :size="17" />
                   목표 목록에 추가되었습니다. 로드맵에서 새 초안을 적용해 주세요.
                 </div>
                 <div
-                  v-else-if="messageJob(item)?.changeSetStatus === 'REJECTED'"
+                  v-else-if="['REJECTED', 'CANCELLED'].includes(messageJob(item)?.changeSetStatus ?? '')"
                   class="analysis-resolution"
                 >
                   이 변경안은 반영하지 않았습니다.
                 </div>
               </template>
             </section>
-
-            <!--
-              어느 담당이 지금 무엇을 하는지 — 에이전트마다 색·로고가 다른 말풍선으로
-              순서대로 말한다. 끝난 턴은 접어 둔다(기록은 남기되 대화를 가리지 않게).
-            -->
-            <component
-              :is="chatJobForMessage(item)?.status === 'SUCCEEDED' ? 'details' : 'div'"
-              v-if="item.role === 'USER' && chatTurnsFor(item).length"
-              class="agent-stream"
-            >
-              <summary v-if="chatJobForMessage(item)?.status === 'SUCCEEDED'">
-                담당 {{ chatTurnsFor(item).length }}명이 처리한 과정 보기
-                <ChevronDown :size="15" />
-              </summary>
-              <article
-                v-for="turn in chatTurnsFor(item)"
-                :key="turn.key"
-                class="agent-turn"
-                :class="{ 'agent-turn--running': turn.running }"
-                :style="{ '--agent-color': turn.identity.color }"
-              >
-                <span class="agent-turn__avatar">
-                  <component :is="turn.identity.icon" :size="17" stroke-width="2.6" />
-                </span>
-                <div class="agent-turn__bubble">
-                  <strong>
-                    {{ turn.identity.label }}
-                    <LoaderCircle v-if="turn.running" class="spin" :size="12" />
-                  </strong>
-                  <p v-for="(line, index) in turn.lines" :key="index">{{ line }}</p>
-                  <!-- 담당이 말을 마치는 즉시 발화 본문을 그대로 보여준다(D153) —
-                       과정 라벨과 달리 이건 대화 내용이다. 끝난 턴의 최종 답변
-                       (replySources)과 같은 내용이지만, 그때는 이 영역이 접힌다. -->
-                  <p
-                    v-for="(spoken, index) in turn.speech"
-                    :key="`speech-${index}`"
-                    class="agent-turn__speech"
-                  >
-                    {{ spoken }}
-                  </p>
-                </div>
-              </article>
-            </component>
 
             <section
               v-if="
@@ -1122,14 +2376,51 @@ onBeforeUnmount(() => {
               <template
                 v-if="['QUEUED', 'RUNNING'].includes(chatJobForMessage(item)?.status ?? '')"
               >
-                <LoaderCircle class="spin" :size="17" />
-                <span>{{ chatJobForMessage(item)?.stageMessage }}</span>
+                <div class="inline-agent-progress">
+                  <AgentExecutionMap
+                    compact
+                    :status="chatJobForMessage(item)?.status"
+                    :plan="chatJobForMessage(item)?.result.plan"
+                    :events="chatJobForMessage(item)?.progressEvents"
+                  />
+                  <div
+                    v-if="
+                      !chatJobForMessage(item)?.result.plan?.agents?.length &&
+                      !latestAgentProgress(chatJobForMessage(item)).length
+                    "
+                    class="inline-agent-waiting"
+                  >
+                    <LoaderCircle class="spin" :size="17" />
+                    <span>{{ chatJobForMessage(item)?.stageMessage ?? "요청을 이해하고 있어요" }}</span>
+                  </div>
+                  <button
+                    class="text-action"
+                    type="button"
+                    :disabled="actionJobId === chatJobForMessage(item)?.id"
+                    @click="cancelChat(chatJobForMessage(item)!)"
+                  >
+                    <X :size="13" /> 답변 중단
+                  </button>
+                </div>
               </template>
               <template v-else-if="chatJobForMessage(item)?.status === 'FAILED'">
                 <CircleAlert :size="17" />
                 <span>
                   {{ chatJobForMessage(item)?.errorMessage ?? "AI 답변을 만들지 못했어요." }}
                 </span>
+                <button
+                  v-if="(chatJobForMessage(item)?.attemptCount ?? 3) < 3"
+                  class="text-action"
+                  type="button"
+                  :disabled="actionJobId === chatJobForMessage(item)?.id"
+                  @click="retryChat(chatJobForMessage(item)!)"
+                >
+                  <RefreshCw :size="13" /> 다시 답변
+                </button>
+              </template>
+              <template v-else-if="chatJobForMessage(item)?.status === 'CANCELLED'">
+                <X :size="17" />
+                <span>사용자가 답변 생성을 중단했습니다.</span>
                 <button
                   v-if="(chatJobForMessage(item)?.attemptCount ?? 3) < 3"
                   class="text-action"
@@ -1155,26 +2446,154 @@ onBeforeUnmount(() => {
         <ChevronDown :size="16" :stroke-width="3" />
       </button>
 
-      <footer class="chat-composer">
+      <footer v-if="conversation?.status === 'ARCHIVED'" class="chat-composer chat-composer--archived">
+        <Archive :size="20" />
+        <div><strong>보관된 대화입니다</strong><small>메시지를 이어가려면 대화를 먼저 복원해 주세요.</small></div>
+        <button class="press-button press-button--secondary" type="button" @click="restoreCurrentConversation"><ArchiveRestore :size="16" /> 대화 복원</button>
+      </footer>
+      <footer v-else class="chat-composer">
         <p v-if="error" class="form-error">{{ error }}</p>
-        <p v-else-if="notice" class="composer-notice">{{ notice }}</p>
-        <div class="composer-box">
+        <div class="composer-primary-actions">
           <button
-            class="composer-attach"
+            class="composer-posting-analysis"
             type="button"
-            aria-label="공고·이력서 첨부"
-            title="공고·이력서 첨부"
-            @click="showPosting = true"
+            :disabled="sending"
+            @click="startPostingAnalysis"
           >
-            <LoaderCircle v-if="uploadingResume" class="spin" :size="20" />
-            <Paperclip v-else :size="20" />
+            <span><BriefcaseBusiness :size="17" /></span>
+            <strong>공고 분석</strong>
+            <small>URL 또는 원문으로 확실하게 시작</small>
+            <ArrowRight :size="16" />
           </button>
+          <button
+            class="agent-context-toggle"
+            :class="{ active: showAgentContext, ready: contextReady }"
+            type="button"
+            @click="showAgentContext = !showAgentContext"
+          >
+            <Sparkles :size="16" />
+            <span>
+              <strong>{{ selectedMode.label }}</strong>
+              <small>
+                {{
+                  agentMode === 'AUTO'
+                    ? '대화에 맞춰 담당 에이전트를 자동으로 선택합니다'
+                    : `공고 ${selectedPostingIds.length} · 커리어 자료 ${selectedCareerSourceIds.length}`
+                }}
+              </small>
+            </span>
+            <ChevronDown :size="16" />
+          </button>
+        </div>
+
+        <section v-if="showAgentContext" class="agent-context-panel">
+          <header>
+            <div>
+              <p class="eyebrow">ADVANCED AGENT CONTROL</p>
+              <h3>필요할 때만 작업과 근거를 직접 지정하세요</h3>
+            </div>
+            <button
+              class="icon-button"
+              type="button"
+              aria-label="에이전트 설정 닫기"
+              @click="showAgentContext = false"
+            >
+              <X :size="17" />
+            </button>
+          </header>
+          <label class="agent-mode-field">
+            작업 모드
+            <select v-model="agentMode">
+              <option v-for="mode in agentModes" :key="mode.value" :value="mode.value">
+                {{ mode.label }}
+              </option>
+            </select>
+            <small>{{ selectedMode.description }}</small>
+          </label>
+
+          <div class="agent-asset-columns">
+            <section>
+              <header>
+                <strong>채용 공고</strong>
+                <small>{{ selectedPostingIds.length }}/5</small>
+              </header>
+              <div v-if="assetsLoading" class="agent-asset-empty">
+                <LoaderCircle class="spin" :size="16" /> 불러오는 중
+              </div>
+              <div v-else-if="availablePostings.length" class="agent-asset-list">
+                <button
+                  v-for="posting in availablePostings"
+                  :key="posting.id"
+                  type="button"
+                  :class="{ selected: selectedPostingIds.includes(posting.id) }"
+                  @click="togglePosting(posting.id)"
+                >
+                  <span><BriefcaseBusiness :size="15" /></span>
+                  <strong>{{ postingLabel(posting) }}</strong>
+                  <i><Check :size="12" /></i>
+                </button>
+              </div>
+              <RouterLink v-else class="agent-asset-empty" :to="{ name: 'posting-new' }">
+                분석한 공고가 없습니다 · 공고 추가
+              </RouterLink>
+            </section>
+
+            <section>
+              <header>
+                <strong>커리어 원본 자료</strong>
+                <small>{{ selectedCareerSourceIds.length }}/5</small>
+              </header>
+              <div v-if="assetsLoading" class="agent-asset-empty">
+                <LoaderCircle class="spin" :size="16" /> 불러오는 중
+              </div>
+              <div v-else-if="availableCareerSources.length" class="agent-asset-list">
+                <button
+                  v-for="source in availableCareerSources"
+                  :key="source.id"
+                  type="button"
+                  :disabled="source.status !== 'CONFIRMED'"
+                  :class="{ selected: selectedCareerSourceIds.includes(source.id) }"
+                  @click="toggleCareerSource(source.id)"
+                >
+                  <span><FilePlus2 :size="15" /></span>
+                  <strong>{{ source.title }}</strong>
+                  <i><Check :size="12" /></i>
+                </button>
+              </div>
+              <RouterLink v-else class="agent-asset-empty" :to="{ name: 'storage', query: { add: '1' } }">
+                등록한 자료가 없습니다 · 자료 추가
+              </RouterLink>
+            </section>
+          </div>
+
+          <p
+            class="agent-context-requirement"
+            :class="{ warning: !contextReady }"
+          >
+            <Check v-if="contextReady" :size="15" />
+            <CircleAlert v-else :size="15" />
+            {{
+              agentMode === 'AUTO'
+                ? "선택하지 않아도 최근 공고와 확정된 커리어 자료에서 필요한 근거를 찾습니다."
+                : contextReady
+                  ? "이 근거로 작업을 시작할 수 있습니다."
+                  : contextRequirementText()
+            }}
+          </p>
+        </section>
+
+        <div class="composer-box">
           <textarea
+            ref="composerInput"
             v-model="message"
             rows="1"
-            maxlength="4000"
-            placeholder="커리어에 관해 자유롭게 물어보세요. 공고와 이력서는 왼쪽 클립 버튼으로 추가할 수 있어요."
+            :placeholder="
+              agentMode === 'AUTO'
+                ? '무엇이든 물어보세요. JOBIS가 담당자를 선택합니다.'
+                : `${selectedMode.label}에게 요청할 내용을 입력하세요.`
+            "
             @keydown="onComposerKeydown"
+            @input="resizeComposer"
           />
           <button
             class="composer-send"
@@ -1187,7 +2606,17 @@ onBeforeUnmount(() => {
             <Send v-else :size="20" />
           </button>
         </div>
-        <small>Enter로 전송 · Shift+Enter로 줄바꿈</small>
+        <small class="composer-guidance" :class="{ error: composerHasLengthError }">
+          {{ composerHint }}
+        </small>
+        <button
+          v-if="!showPosting && (rawText || sourceUrl || attachedV3Source)"
+          class="composer-draft-resume"
+          type="button"
+          @click="openPostingModal"
+        >
+          작성 중인 공고 확인 계속하기
+        </button>
       </footer>
     </section>
 
@@ -1196,123 +2625,158 @@ onBeforeUnmount(() => {
       class="modal-backdrop"
       type="button"
       aria-label="공고 첨부 닫기"
-      @click="showPosting = false"
+      @click="closePostingModal"
     />
-    <section v-if="showPosting" class="posting-modal" role="dialog" aria-modal="true">
+    <section
+      v-if="showPosting"
+      v-dialog-focus="{ onEscape: closePostingModal }"
+      class="posting-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chat-posting-dialog-title"
+      tabindex="-1"
+    >
       <header>
         <div class="modal-icon"><BriefcaseBusiness :size="22" /></div>
         <div>
-          <p class="eyebrow">ATTACH</p>
-          <h2>무엇을 분석할까요?</h2>
+          <p class="eyebrow">ATTACH A POSTING</p>
+          <h2 id="chat-posting-dialog-title">분석할 채용 공고</h2>
         </div>
-        <button class="icon-button" type="button" @click="showPosting = false">
+        <button class="icon-button" type="button" aria-label="공고 입력 창 닫기" @click="closePostingModal">
           <X :size="20" />
         </button>
       </header>
-      <div class="source-tabs">
-        <button
-          type="button"
-          :class="{ active: attachKind === 'POSTING' }"
-          @click="attachKind = 'POSTING'"
-        >
-          분석할 채용 공고
-        </button>
-        <button
-          type="button"
-          :class="{ active: attachKind === 'RESUME' }"
-          @click="attachKind = 'RESUME'"
-        >
-          분석할 이력서
-        </button>
-      </div>
-
-      <template v-if="attachKind === 'POSTING'">
+      <template v-if="!attachedV3Source">
         <div class="source-tabs">
           <button
             type="button"
             :class="{ active: sourceType === 'TEXT' }"
-            @click="sourceType = 'TEXT'"
+            @click="selectAttachedSourceType('TEXT')"
           >
             공고문 붙여넣기
           </button>
           <button
             type="button"
             :class="{ active: sourceType === 'URL' }"
-            @click="sourceType = 'URL'"
+            @click="selectAttachedSourceType('URL')"
           >
-            공고 URL
+            <Globe2 :size="16" /> URL로 가져오기
           </button>
         </div>
         <label v-if="sourceType === 'URL'">
-          공고 URL
+          공고 상세 페이지 URL
           <input v-model="sourceUrl" type="url" required placeholder="https://…" />
+          <small>목록이나 검색 결과가 아닌 공고 상세 페이지 주소를 넣어주세요.</small>
         </label>
-        <label>
-          공고 원문<span v-if="sourceType === 'URL'"> (선택 — 비우면 주소에서 수집합니다)</span>
+        <label v-else>
+          공고 원문
           <textarea
             v-model="rawText"
-            :minlength="POSTING_MIN_CHARS"
-            maxlength="100000"
-            :placeholder="
-              sourceType === 'URL'
-                ? '주소만 넣어도 됩니다. 원문이 있으면 붙여넣어 주세요.'
-                : '회사, 직무, 자격 요건, 우대 사항을 포함한 공고 원문을 붙여넣어 주세요.'
-            "
+            minlength="20"
+            placeholder="회사, 직무, 자격 요건, 우대 사항을 포함한 공고 원문을 붙여넣어 주세요."
           />
-          <small>{{ rawText.length.toLocaleString() }} / 100,000자</small>
+          <small :class="{ 'input-length-error': rawText.trim().length > POSTING_TEXT_MAX_CHARS }">
+            {{ rawText.length.toLocaleString() }} / {{ POSTING_TEXT_MAX_CHARS.toLocaleString() }}자
+          </small>
+          <span v-if="rawText.trim().length > POSTING_TEXT_MAX_CHARS" class="input-length-help">
+            회사 소개, 복리후생, 채용 절차와 중복 안내를 줄여주세요. 직무·업무·경력·필수·우대사항은 남겨주세요.
+          </span>
         </label>
         <button
           class="press-button press-button--primary modal-submit"
           type="button"
-          :disabled="!canAttachPosting || sending"
-          @click="attachPosting"
+          :disabled="sending || !canPrepareAttachedPosting()"
+          @click="prepareAttachedPosting"
         >
           <LoaderCircle v-if="sending" class="spin" :size="19" />
-          <FilePlus2 v-else :size="19" />
-          저장하고 분석 시작
+          <Sparkles v-else :size="19" />
+          {{
+            sending
+              ? sourceType === 'TEXT'
+                ? '직무와 조건을 구조화하고 있어요'
+                : '공고를 수집해 에이전트에게 전달하고 있어요'
+              : sourceType === 'TEXT'
+                ? '직무·경력 확인 시작하기'
+                : '에이전트로 공고 정리하기'
+          }}
         </button>
       </template>
 
-      <template v-else>
-        <label class="file-drop">
-          <Upload :size="22" />
-          <strong>{{ resumeFileName || "이력서 파일 올리기" }}</strong>
-          <span>DOCX, TXT, MD · 최대 2MB</span>
-          <input
-            type="file"
-            :accept="RESUME_ACCEPT"
-            :disabled="uploadingResume"
-            @change="readResume"
-          />
-        </label>
+      <section
+        v-else-if="attachedPostingReviewState === 'PENDING'"
+        class="posting-source-confirmation posting-source-confirmation--chat"
+      >
+        <header>
+          <span><LoaderCircle class="spin" :size="21" /></span>
+          <div>
+            <p class="eyebrow">AGENT REVIEW</p>
+            <h3>JOBIS가 공고의 직무와 조건을 정리하고 있어요</h3>
+            <p>여러 직무나 경력 기준이 발견되면 대화창에서 먼저 질문합니다. 답변이 끝나면 정리한 내용을 이 창에서 확인할 수 있어요.</p>
+          </div>
+        </header>
+        <div class="posting-source-confirmation__actions">
+          <button class="press-button press-button--primary" type="button" @click="closePostingModal">
+            <MessageCircleMore :size="17" /> 대화에서 진행 상황 보기
+          </button>
+        </div>
+      </section>
+
+      <section v-else class="posting-source-confirmation posting-source-confirmation--chat">
+        <header>
+          <span><CheckCircle2 :size="21" /></span>
+          <div>
+            <p class="eyebrow">SOURCE CHECK</p>
+            <h3>{{ attachedPostingReviewState === 'READY' ? '에이전트가 정리한 공고 내용을 확인해 주세요' : 'URL에서 가져온 원문을 확인해 주세요' }}</h3>
+            <p v-if="attachedPostingReviewState === 'READY'">선택한 직무를 기준으로 담당 업무·경력·필수·우대 조건만 추렸습니다. 필요한 부분을 고친 뒤 분석을 시작해 주세요.</p>
+            <p v-else>이 단계는 원문 추출 오류만 고치는 단계입니다. 직무를 선택한 뒤 필요한 내용만 별도 확인합니다.</p>
+          </div>
+        </header>
+        <div v-if="attachedV3Source.sourceDocument.warnings.length" class="posting-source-warnings">
+          <strong>확인이 필요한 내용 {{ attachedV3Source.sourceDocument.warnings.length }}개</strong>
+          <ul>
+            <li v-for="warning in attachedV3Source.sourceDocument.warnings" :key="`${warning.code}:${warning.message}`">
+              {{ warning.message }}
+            </li>
+          </ul>
+        </div>
         <label>
-          이력서 원문
-          <textarea
-            v-model="resumeText"
-            :minlength="RESUME_MIN_CHARS"
-            maxlength="100000"
-            :placeholder="
-              resumeBase64
-                ? 'docx 원문은 등록할 때 서버가 읽습니다 — 비워 두어도 됩니다.'
-                : '이력서, 경력기술서, 프로젝트에서 맡은 역할과 결과를 붙여넣어 주세요.'
-            "
-          />
-          <small>{{ resumeText.length.toLocaleString() }} / 100,000자</small>
+          {{ attachedPostingReviewState === 'READY' ? '분석에 사용할 공고 요약' : '분석에 사용할 공고 내용' }}
+          <textarea v-model="rawText" rows="12" />
+          <small :class="{ 'input-length-error': rawText.trim().length > POSTING_TEXT_MAX_CHARS }">
+            {{ rawText.length.toLocaleString() }} / {{ POSTING_TEXT_MAX_CHARS.toLocaleString() }}자 · 수정 내용은 검증 기록으로 남습니다.
+          </small>
+          <span v-if="rawText.trim().length > POSTING_TEXT_MAX_CHARS" class="input-length-help">
+            정리 결과가 비정상적으로 길어요. 다시 입력해 JOBIS가 내용을 재정리하도록 해주세요.
+          </span>
         </label>
-        <p class="form-hint">
-          커리어 저장소에 등록됩니다. AI가 읽고 나면 저장할 조각을 직접 고릅니다.
-        </p>
-        <button
-          class="press-button press-button--primary modal-submit"
-          type="button"
-          :disabled="!canAttachResume || uploadingResume"
-          @click="attachResume"
-        >
-          <LoaderCircle v-if="uploadingResume" class="spin" :size="19" />
-          <FileUp v-else :size="19" />
-          커리어 저장소에 등록
-        </button>
-      </template>
+        <details class="posting-extraction-details">
+          <summary>
+            {{ attachedPostingReviewState === 'READY' ? '수집 원문 보기' : '추출 근거 보기' }}
+            · {{ attachedV3Source.sourceDocument.segments.length }}개
+          </summary>
+          <ol>
+            <li v-for="segment in attachedV3Source.sourceDocument.segments" :key="segment.segmentId">
+              <span>{{ segment.method }}</span>
+              <p>{{ segment.text }}</p>
+            </li>
+          </ol>
+        </details>
+        <div class="posting-source-confirmation__actions">
+          <button class="press-button press-button--ghost" type="button" :disabled="sending" @click="resetAttachedSource">
+            <RotateCcw :size="17" /> 다시 입력
+          </button>
+          <button
+            class="press-button press-button--primary"
+            type="button"
+            :disabled="sending || rawText.trim().length < 20 || rawText.trim().length > POSTING_TEXT_MAX_CHARS"
+            @click="confirmAttachedPosting"
+          >
+            <LoaderCircle v-if="sending" class="spin" :size="18" />
+            <CheckCircle2 v-else :size="18" />
+            {{ sending ? '확인 내용을 저장하고 있어요' : attachedPostingReviewState === 'READY' ? '이 내용으로 분석 시작' : '내용이 맞아요 · 분석 시작' }}
+          </button>
+        </div>
+      </section>
     </section>
   </main>
 </template>

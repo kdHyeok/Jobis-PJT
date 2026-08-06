@@ -3,6 +3,8 @@ package com.jobiss.evidence;
 import com.jobiss.analysis.AiAnalysisClient;
 import com.jobiss.analysis.AiContracts;
 import com.jobiss.db.RlsTransactionExecutor;
+import com.jobiss.repository.RepositoryEvidenceCollector;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,6 +17,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @ConditionalOnProperty(name = "jobiss.ai.worker-enabled", havingValue = "true")
@@ -26,34 +31,82 @@ public class EvidenceVerificationWorker {
     private final RlsTransactionExecutor rls;
     private final AiAnalysisClient aiClient;
     private final ObjectMapper objectMapper;
+    private final RepositoryEvidenceCollector repositoryCollector;
     private final String workerId;
+    private final ExecutorService executor;
+    private final AtomicBoolean active = new AtomicBoolean();
 
     public EvidenceVerificationWorker(
             JdbcClient jdbcClient,
             RlsTransactionExecutor rls,
             AiAnalysisClient aiClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            RepositoryEvidenceCollector repositoryCollector
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
+        this.repositoryCollector = repositoryCollector;
         this.workerId = hostName() + "-evidence-" + UUID.randomUUID();
+        this.executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName("jobiss-evidence-worker");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     @Scheduled(fixedDelayString = "${jobiss.ai.poll-delay-ms:3000}", initialDelay = 1500)
     public void processOne() {
-        ClaimedEvidence claimed = claim();
-        if (claimed == null) {
+        if (!active.compareAndSet(false, true)) {
             return;
         }
+        ClaimedEvidence claimed = claim();
+        if (claimed == null) {
+            active.set(false);
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                process(claimed);
+            } finally {
+                active.set(false);
+            }
+        });
+    }
+
+    private void process(ClaimedEvidence claimed) {
         try {
             AiContracts.EvidenceVerificationRequest request = load(claimed);
+            AiContracts.EvidencePayload enriched = repositoryCollector.enrich(
+                    claimed.userId(), request.evidence()
+            );
+            request = new AiContracts.EvidenceVerificationRequest(
+                    enriched, request.node()
+            );
             AiContracts.EvidenceVerificationResponse response = aiClient.verifyEvidence(request);
             complete(claimed, response);
         } catch (Exception exception) {
             log.warn("Evidence verification {} failed: {}", claimed.id(), exception.getMessage());
             fail(claimed, exception);
+        }
+    }
+
+    @PreDestroy
+    void shutdown() {
+        interruptActiveJob();
+        executor.shutdownNow();
+    }
+
+    private void interruptActiveJob() {
+        try {
+            jdbcClient.sql("select interrupt_auxiliary_ai_jobs(:workerId)")
+                    .param("workerId", workerId)
+                    .query(Integer.class)
+                    .single();
+        } catch (RuntimeException exception) {
+            log.warn("Could not release active evidence job during shutdown: {}", exception.getMessage());
         }
     }
 

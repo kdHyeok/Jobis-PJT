@@ -120,11 +120,19 @@
       "caseId": "fit-missing-both",
       "message": "이 공고 나 되나?",
       "assets": [],
-      "expectedAgents": [
-        "career_chat"
-      ],
-      "expectAsk": false,
-      "note": "2026-07-29 갱신(후속7). 후속2 에서 preference_intake 로 뒀는데, 구조가 같은 resume-missing 은 career_chat 으로 둬서 **평가셋 안에서 같은 상황이 다르게 기대**되고 있었다(내 실수). 자산이 하나도 없으면 \"가진 자산으로 먼저 할 일\"이 없어 둘 다 대화로 받는 것이 맞고, 그중 career_chat 이 apt 하다 — preference_intake 는 *공고를 찾기 위한* 선호를 모으는 에이전트(produces=preferences)이고 이 발화는 공고 찾기가 아니다."
+      "expectedAgents": [],
+      "expectAsk": true,
+      "expectBlocked": ["fit_analysis"],
+      "note": "2026-08-06 변경(D138). 기능 요청은 명확하고 자료만 부족한 상태다. 일반 대화로 대체하지 않고 요청을 기억해 이력서·공고 입력을 받는다."
+    },
+    {
+      "caseId": "posting-analysis-missing-source",
+      "message": "공고 분석해줘",
+      "assets": [],
+      "expectedAgents": [],
+      "expectAsk": true,
+      "expectBlocked": ["posting_analysis"],
+      "note": "2026-08-06 추가(D138). 공고 분석 의도는 명확하지만 원문이 없으므로 요청을 기억하고 공고 입력을 받는다."
     },
     {
       "caseId": "posting-analysis-direct",
@@ -313,11 +321,10 @@
       "caseId": "resume-missing",
       "message": "내 이력서 진단해줘",
       "assets": [],
-      "expectedAgents": [
-        "career_chat"
-      ],
-      "expectAsk": false,
-      "note": "RESOLVED (2026-07-31, D78). OPEN(07-29 후속6) → D77(career_chat 수용 문장·preference_intake 1차 좁히기)로 0.33 → D78(preference_intake 의 '이력서를 자연스럽게 요청' 훅 제거, '공고 추천 요청에만')로 **1.00 안정·정답**. 처방은 끝까지 규칙 추가가 아니라 어휘 좁히기였다(§3-1). 이전 이력은 decisions.md D77·D78 참고."
+      "expectedAgents": [],
+      "expectAsk": true,
+      "expectBlocked": ["resume_diagnosis"],
+      "note": "2026-08-06 변경(D138). 진단 요청을 career_chat으로 바꾸지 않고 이력서 입력을 기다리는 요청으로 보존한다. 이전 정책은 D77·D78 참고."
     },
     {
       "caseId": "resume-strengths-with-posting",
@@ -490,11 +497,10 @@
       "caseId": "roadmap-missing",
       "message": "내 로드맵 보여줘",
       "assets": [],
-      "expectedAgents": [
-        "career_chat"
-      ],
-      "expectAsk": false,
-      "note": "2026-07-29 갱신. 같은 정책(07-27 대응표 제거) — 고정 문구로 대화를 끝내지 않는다."
+      "expectedAgents": [],
+      "expectAsk": true,
+      "expectBlocked": ["roadmap_manager"],
+      "note": "2026-08-06 변경(D138). 로드맵 요청은 명확하므로 일반 대화로 대체하지 않고 필요한 이력서 입력을 기다린다."
     },
     {
       "caseId": "multi-fit-then-coverletter",

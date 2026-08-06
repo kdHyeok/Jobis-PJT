@@ -1,0 +1,270 @@
+{
+  "fixtureVersion": "1.0",
+  "decision": "D047",
+  "metadata": {
+    "capturedAt": "2026-08-06T09:00:00Z",
+    "latestDevelopCommit": "20b5a5b66434dc091cdab1262a8440c80d4ecb9e",
+    "containsPersonalData": false,
+    "purpose": "단일 AI 통합 전에 복수 직무 공고의 질문 경계와 진행 이벤트를 고정한다."
+  },
+  "scenario": {
+    "id": "D047-MULTI-ROLE-001",
+    "rawText": "예시회사 서비스 개발자 공개 채용\n1) 프론트엔드 개발자: 신입, TypeScript와 React 개발 경험 필수\n2) 백엔드 개발자: 신입 또는 관련 경력 3년 이상, Java와 Spring 개발 경험 필수\n백엔드 개발자는 프론트엔드 개발자와 협업합니다.",
+    "invariants": [
+      "프론트엔드와 백엔드를 FULLSTACK 또는 하나의 직무로 합치지 않는다.",
+      "직무를 선택하기 전 적합도·프로젝트·로드맵을 생성하지 않는다.",
+      "협업 대상 언급을 추가 모집 직무의 근거로 사용하지 않는다.",
+      "진행 이벤트의 runId는 analysisJobId와 같고 sequence는 1부터 증가한다."
+    ]
+  },
+  "latestTeamBoundary": {
+    "analysisRequest": {
+      "analysisJobId": "00000000-0000-4000-8000-000000000047",
+      "posting": {
+        "id": "00000000-0000-4000-8000-000000000101",
+        "sourceType": "TEXT",
+        "sourceUrl": null,
+        "rawText": "예시회사 서비스 개발자 공개 채용\n1) 프론트엔드 개발자: 신입, TypeScript와 React 개발 경험 필수\n2) 백엔드 개발자: 신입 또는 관련 경력 3년 이상, Java와 Spring 개발 경험 필수\n백엔드 개발자는 프론트엔드 개발자와 협업합니다."
+      },
+      "career": {
+        "graphId": "00000000-0000-4000-8000-000000000201",
+        "version": 1,
+        "nodes": [],
+        "fragments": [],
+        "goals": {
+          "currentPostingId": null,
+          "currentCompanyName": null,
+          "currentRoleTitle": null,
+          "finalGoalText": null
+        }
+      },
+      "questionCount": 0,
+      "answers": [],
+      "sharedAnalysis": null
+    },
+    "analysisResponse": {
+      "status": "NEEDS_INPUT",
+      "question": {
+        "key": "role.selection",
+        "text": "어느 직무 기준으로 준비도를 분석할까요?",
+        "reason": "서로 다른 모집 직무는 경력 조건과 필수 역량이 달라 먼저 하나를 선택해야 합니다.",
+        "options": [
+          {
+            "value": "frontend",
+            "label": "프론트엔드 개발자",
+            "description": "신입 프론트엔드 직무와 TypeScript·React 요건을 기준으로 분석합니다."
+          },
+          {
+            "value": "backend",
+            "label": "백엔드 개발자",
+            "description": "신입 또는 경력 백엔드 직무와 Java·Spring 요건을 기준으로 분석합니다."
+          }
+        ]
+      },
+      "job": null,
+      "evaluation": null,
+      "competencyProposal": null
+    },
+    "progressEvents": [
+      {
+        "type": "RUN_STARTED",
+        "runId": "00000000-0000-4000-8000-000000000047",
+        "sequence": 1,
+        "occurredAt": "2026-08-06T09:00:01Z",
+        "stages": [
+          {
+            "id": "POSTING_STRUCTURE",
+            "label": "공고 구조화",
+            "role": "공고 해석 에이전트",
+            "message": "직무별 경력과 요건을 분리하고 있어요.",
+            "color": "#1cb0f6"
+          },
+          {
+            "id": "CLARIFICATION",
+            "label": "선택 확인",
+            "role": "대화 오케스트레이터",
+            "message": "분석 기준 직무를 사용자에게 확인해요.",
+            "color": "#ff9600"
+          }
+        ],
+        "stage": null,
+        "result": null,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      {
+        "type": "STAGE_UPDATED",
+        "runId": "00000000-0000-4000-8000-000000000047",
+        "sequence": 2,
+        "occurredAt": "2026-08-06T09:00:02Z",
+        "stages": [],
+        "stage": {
+          "id": "CLARIFICATION",
+          "status": "WAITING",
+          "message": "프론트엔드와 백엔드 중 분석할 직무 선택을 기다리고 있어요."
+        },
+        "result": null,
+        "errorCode": null,
+        "errorMessage": null
+      },
+      {
+        "type": "RESULT",
+        "runId": "00000000-0000-4000-8000-000000000047",
+        "sequence": 3,
+        "occurredAt": "2026-08-06T09:00:03Z",
+        "stages": [],
+        "stage": null,
+        "result": {
+          "status": "NEEDS_INPUT",
+          "question": {
+            "key": "role.selection",
+            "text": "어느 직무 기준으로 준비도를 분석할까요?",
+            "reason": "서로 다른 모집 직무는 경력 조건과 필수 역량이 달라 먼저 하나를 선택해야 합니다.",
+            "options": [
+              {
+                "value": "frontend",
+                "label": "프론트엔드 개발자",
+                "description": "신입 프론트엔드 직무와 TypeScript·React 요건을 기준으로 분석합니다."
+              },
+              {
+                "value": "backend",
+                "label": "백엔드 개발자",
+                "description": "신입 또는 경력 백엔드 직무와 Java·Spring 요건을 기준으로 분석합니다."
+              }
+            ]
+          },
+          "job": null,
+          "evaluation": null,
+          "competencyProposal": null
+        },
+        "errorCode": null,
+        "errorMessage": null
+      }
+    ]
+  },
+  "v3Boundary": {
+    "structuredPosting": {
+      "contractVersion": "jobis.ai.v3alpha1",
+      "analysisVersion": "baseline-audit-1",
+      "verifiedSnapshotId": "snapshot-d047-multirole",
+      "company": {
+        "displayName": "예시회사",
+        "canonicalCompanyId": null,
+        "evidenceIds": ["seg-company"],
+        "confidence": 0.99
+      },
+      "postingTitle": "프론트엔드·백엔드 개발자 공개 채용",
+      "postingTitleEvidenceIds": ["seg-title"],
+      "positions": [
+        {
+          "positionId": "pos-frontend",
+          "sourceTitle": "프론트엔드 개발자",
+          "role": {
+            "family": "SOFTWARE_ENGINEERING",
+            "specialization": "WEB_FRONTEND",
+            "canonicalRoleId": "role.web_frontend",
+            "status": "CANDIDATE",
+            "confidence": 0.98,
+            "evidenceIds": ["seg-frontend"]
+          },
+          "experience": {
+            "kind": "NEW_GRADUATE",
+            "minMonths": null,
+            "maxMonths": null,
+            "experiencedMinMonths": null,
+            "confidence": 0.98,
+            "evidenceIds": ["seg-frontend-exp"]
+          },
+          "responsibilities": [],
+          "requirements": [
+            {
+              "requirementId": "req-typescript",
+              "sourceText": "TypeScript와 React 개발 경험",
+              "atomicText": "TypeScript와 React 개발 경험",
+              "obligation": "REQUIRED",
+              "category": "TECHNOLOGY",
+              "appliesToPositionIds": ["pos-frontend"],
+              "evidenceIds": ["seg-frontend-req"],
+              "confidence": 0.98,
+              "normalizationStatus": "PENDING",
+              "warnings": []
+            }
+          ],
+          "warnings": []
+        },
+        {
+          "positionId": "pos-backend",
+          "sourceTitle": "백엔드 개발자",
+          "role": {
+            "family": "SOFTWARE_ENGINEERING",
+            "specialization": "WEB_BACKEND",
+            "canonicalRoleId": "role.web_backend",
+            "status": "CANDIDATE",
+            "confidence": 0.99,
+            "evidenceIds": ["seg-backend"]
+          },
+          "experience": {
+            "kind": "NEW_GRADUATE_OR_EXPERIENCED",
+            "minMonths": null,
+            "maxMonths": null,
+            "experiencedMinMonths": 36,
+            "confidence": 0.99,
+            "evidenceIds": ["seg-backend-exp"]
+          },
+          "responsibilities": [
+            {
+              "responsibilityId": "resp-backend-collab",
+              "sourceText": "프론트엔드 개발자와 협업",
+              "atomicText": "프론트엔드 개발자와 협업",
+              "evidenceIds": ["seg-backend-duty"],
+              "confidence": 0.98
+            }
+          ],
+          "requirements": [
+            {
+              "requirementId": "req-java",
+              "sourceText": "Java와 Spring 개발 경험",
+              "atomicText": "Java와 Spring 개발 경험",
+              "obligation": "REQUIRED",
+              "category": "TECHNOLOGY",
+              "appliesToPositionIds": ["pos-backend"],
+              "evidenceIds": ["seg-backend-req"],
+              "confidence": 0.99,
+              "normalizationStatus": "PENDING",
+              "warnings": []
+            }
+          ],
+          "warnings": []
+        }
+      ],
+      "sharedConditions": [],
+      "applicationDeadline": null,
+      "applicationDeadlineEvidenceIds": [],
+      "postingStatus": "UNKNOWN",
+      "ambiguities": [],
+      "warnings": []
+    },
+    "resolutionProjection": {
+      "status": "AWAITING_ANSWER",
+      "selectedPositionId": null,
+      "selectedExperienceTrack": null,
+      "activeAmbiguity": {
+        "ambiguityId": "amb-position-ea1312e9ae0c0ac2",
+        "type": "POSITION_SELECTION",
+        "blocking": true,
+        "reason": "서로 다른 모집 포지션이 둘 이상이라 선택에 따라 경력과 요건이 달라집니다.",
+        "candidateIds": ["pos-frontend", "pos-backend"],
+        "evidenceIds": ["seg-frontend", "seg-backend"],
+        "question": {
+          "inputType": "CHOICE",
+          "text": "어느 직무 기준으로 준비도를 분석할까요?",
+          "options": [
+            {"value": "pos-frontend", "label": "프론트엔드 개발자"},
+            {"value": "pos-backend", "label": "백엔드 개발자"}
+          ]
+        }
+      },
+      "resolvedAmbiguityIds": []
+    }
+  }
+}

@@ -8,6 +8,8 @@ public record JobissProperties(Auth auth, Ai ai) {
     public record Auth(
             String jwtSecret,
             long accessTokenSeconds,
+            long refreshTokenSeconds,
+            long rememberMeRefreshTokenSeconds,
             boolean cookieSecure
     ) {
     }

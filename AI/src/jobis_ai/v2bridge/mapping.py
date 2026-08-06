@@ -15,8 +15,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
+from jobis_ai.v2bridge import role_catalog
+from jobis_ai.v2bridge import taxonomy as roadmap_taxonomy
 from jobis_ai.v2bridge.models import (
     AnalysisQuestion,
     AnalysisQuestionOption,
@@ -158,22 +160,59 @@ def experience_requirement(posting: dict) -> ExperienceRequirement | None:
     )
 
 
-def build_job_context(posting: dict, *, source_text: str | None = None) -> JobContext:
+def build_job_context(
+    posting: dict,
+    *,
+    source_text: str | None = None,
+    raw_text: str = "",
+    answers: Iterable[object] = (),
+) -> JobContext:
     """normalizedJobPosting → JobContext. 파싱 결과만 옮기고 없는 필드는 None.
 
     `source_text` 는 URL 공고에서 수집한 원문(있을 때만). 백엔드가 주소만 저장된
     `raw_text` 를 이걸로 되메운다.
     """
 
+    resolution = role_catalog.resolve(posting, raw_text=raw_text, answers=answers)
+    parsed_data = dict(posting)
+    parsed_data["roleResolution"] = resolution.detail()
     return JobContext(
         company_name=posting.get("companyName") or None,
         role_title=posting.get("jobTitle") or posting.get("roleCategory") or None,
         employment_type=posting.get("employmentType") or None,
         experience_text=posting.get("yearsEvidence") or posting.get("seniority") or None,
-        primary_track=track_from_posting(posting),
+        primary_track=resolution.primary_track or track_from_posting(posting),
         experience_requirement=experience_requirement(posting),
         source_text=source_text,
-        parsed_data=dict(posting),
+        parsed_data=parsed_data,
+    )
+
+
+def role_clarification_question(
+    posting: dict,
+    *,
+    raw_text: str = "",
+    answers: Iterable[object] = (),
+) -> AnalysisQuestion | None:
+    """복수 직무 등 실제 분석 경로가 달라질 때만 사용자 선택을 요청한다."""
+
+    return role_catalog.clarification_question(
+        posting,
+        raw_text=raw_text,
+        answers=answers,
+    )
+
+
+def enrich_posting_role(
+    posting: dict,
+    *,
+    raw_text: str = "",
+    answers: Iterable[object] = (),
+) -> tuple[dict, role_catalog.RoleResolution]:
+    return role_catalog.enrich_posting(
+        posting,
+        raw_text=raw_text,
+        answers=answers,
     )
 
 
@@ -321,7 +360,7 @@ def draft_competencies(
     return drafts, requirements
 
 
-def build_competency_proposal(
+def _build_competency_proposal_from_posting(
     posting: dict, req_status: list[dict], gaps: list[dict], track: str,
     enrichment: Any = None,
 ) -> CompetencyProposal | None:
@@ -391,6 +430,98 @@ def build_competency_proposal(
         competencies=competencies[:100],
         requirements=requirements[:200],
         target_project=_target_project(posting, competencies, provable, enrichment),
+    )
+
+
+def build_competency_proposal(*args, **kwargs) -> CompetencyProposal | None:
+    """현재 공고 계약과 이전 ChangeProposal 계약을 명시적으로 연결한다.
+
+    새 호출은 ``posting, requirement_status, gaps, track``을 사용한다. 이전 Spring
+    전환 테스트가 넘기는 ``ChangeProposal``은 역량 DTO로만 투영하며 새 판단을 하지 않는다.
+    """
+
+    if args and isinstance(args[0], ChangeProposal):
+        if len(args) != 1 or kwargs:
+            raise TypeError("ChangeProposal compatibility mapping accepts one argument")
+        return _competency_proposal_from_change(args[0])
+    return _build_competency_proposal_from_posting(*args, **kwargs)
+
+
+def _competency_proposal_from_change(change: ChangeProposal) -> CompetencyProposal:
+    if not any(node.kind == "PROJECT" for node in change.nodes):
+        raise ValueError(
+            "legacy ChangeProposal without a project cannot become a CompetencyProposal"
+        )
+    competencies: list[AnalyzedCompetency] = []
+    nodes: dict[str, ProposedNode] = {}
+    seen_keys: set[str] = set()
+    for node in change.nodes:
+        if node.kind == "OPPORTUNITY":
+            continue
+        nodes[node.ref] = node
+        raw_taxonomy = node.detail.get("taxonomy")
+        classification = (
+            dict(raw_taxonomy)
+            if isinstance(raw_taxonomy, dict)
+            else roadmap_taxonomy.classify_legacy_node(node).detail()
+        )
+        canonical = node.canonical_key
+        if canonical in seen_keys:
+            suffix = re.sub(r"[^a-z0-9-]", "-", node.ref.lower()).strip("-") or "dup"
+            canonical = f"{canonical[: max(3, 158 - len(suffix))]}-{suffix}"[:160]
+        seen_keys.add(canonical)
+        scope = (node.scope_definition or str(node.detail.get("sourceText") or "")).strip()
+        if not scope:
+            raise ValueError(f"real agent node {node.ref!r} has no scopeDefinition")
+        competencies.append(AnalyzedCompetency(
+            ref=node.ref,
+            canonical_key=canonical,
+            title=node.title,
+            domain=str(classification["domain"]),
+            kind=str(classification["kind"]),
+            scope_definition=scope[:4000],
+            stage=str(classification["stage"]),
+            required_level=int(classification["required_level"]),
+            roadmap_eligible=bool(classification["roadmap_eligible"]),
+            verification_method=classification.get("verification_method"),
+        ))
+    refs = {item.ref for item in competencies}
+    requirements: list[AnalyzedRequirement] = []
+    seen_requirements: set[tuple[str, str]] = set()
+    for requirement in change.requirements:
+        if requirement.node_ref not in refs:
+            continue
+        identity = (requirement.node_ref, requirement.kind)
+        if identity in seen_requirements:
+            continue
+        seen_requirements.add(identity)
+        node = nodes[requirement.node_ref]
+        source_text = (requirement.source_text or node.scope_definition or "").strip()
+        if not source_text:
+            raise ValueError(f"real agent requirement {requirement.node_ref!r} has no source text")
+        requirements.append(AnalyzedRequirement(
+            competency_ref=requirement.node_ref,
+            relation=requirement.kind,
+            source_text=source_text[:4000],
+            confidence=requirement.confidence if requirement.confidence is not None else 0,
+        ))
+    project_node = next(node for node in change.nodes if node.kind == "PROJECT")
+    required_refs = [
+        requirement.competency_ref
+        for requirement in requirements
+        if requirement.relation == "REQUIRED"
+    ]
+    return CompetencyProposal(
+        competencies=competencies,
+        requirements=requirements,
+        target_project=TargetProjectBrief(
+            title=project_node.title,
+            objective=(project_node.scope_definition or project_node.title),
+            domain_context=project_node.domain,
+            required_competency_refs=required_refs,
+            deliverables=list(project_node.detail.get("deliverables") or []),
+            acceptance_criteria=list(project_node.detail.get("acceptanceCriteria") or []),
+        ),
     )
 
 
@@ -919,10 +1050,15 @@ def career_text(career: CareerSnapshot) -> str:
         body = (frag.description or "").strip()
         lines.append(f"{head}\n{body}".strip())
     for node in career.nodes:
-        if (node.progress_status or "").upper() in ("COMPLETED", "VERIFIED", "DONE"):
+        progress = (node.progress_status or "").upper()
+        if progress in ("COMPLETED", "VERIFIED", "DONE"):
             scope = (node.scope_definition or "").strip()
             lines.append(f"[보유 역량] {node.title} ({node.domain}, 수준 {node.level})"
                          + (f"\n{scope}" if scope else ""))
+        elif progress == "NOT_STARTED":
+            # 미착수 노드는 명시적인 격차 상태로만 전달한다. IN_PROGRESS는 아직 보유 근거가
+            # 아니면서 일부 경험으로 오해될 수 있어 이력 원천에는 싣지 않는다.
+            lines.append(f"[역량 상태: {progress}] {node.title}")
     return "\n\n".join(line for line in lines if line)
 
 

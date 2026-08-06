@@ -1,8 +1,16 @@
 package com.jobiss.db;
 
 import com.jobiss.analysis.AiUsageLimitService;
+import com.jobiss.analysis.AnalysisJobService;
+import com.jobiss.analysis.AnalysisTaskRegistry;
+import com.jobiss.analysis.AiAnalysisClient;
+import com.jobiss.analysis.v3.V3AtomicAssessmentService;
+import com.jobiss.config.DataProtectionProperties;
 import com.jobiss.posting.JobPostingService;
+import com.jobiss.security.SensitiveTextCipher;
 import com.jobiss.roadmap.RoadmapService;
+import com.jobiss.config.DataProtectionProperties;
+import com.jobiss.security.SensitiveTextCipher;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -23,6 +31,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @Testcontainers(disabledWithoutDocker = true)
 class PostgresRlsIntegrationTest {
@@ -30,18 +41,12 @@ class PostgresRlsIntegrationTest {
     private static final String APP_USER = "jobiss_app";
     private static final String APP_PASSWORD = "jobiss_app_test";
 
-    private static final String MIGRATOR_USER = "jobiss_migrator";
-    private static final String MIGRATOR_PASSWORD = "jobiss_migrator_test";
-
-    // 컨테이너 부트스트랩 사용자는 슈퍼유저이고 강등할 수 없다. 슈퍼유저는 FORCE ROW LEVEL
-    // SECURITY 까지 우회하므로, 운영과 같은 조건을 만들려면 스키마 소유자를 별도의 일반
-    // 역할(jobiss_migrator)로 두고 그 역할로 마이그레이션해야 한다.
     @Container
     static final PostgreSQLContainer postgres =
             new PostgreSQLContainer("postgres:17-alpine")
                     .withDatabaseName("jobiss")
-                    .withUsername("jobiss_bootstrap")
-                    .withPassword("jobiss_bootstrap_test");
+                    .withUsername("jobiss_migrator")
+                    .withPassword("jobiss_migrator_test");
 
     @BeforeAll
     static void migrate() throws Exception {
@@ -51,27 +56,18 @@ class PostgresRlsIntegrationTest {
                 postgres.getPassword()
         ); Statement statement = connection.createStatement()) {
             statement.execute("""
-                    create role jobiss_migrator
-                    login password '%s'
-                    nosuperuser nocreatedb nocreaterole noinherit nobypassrls
-                    """.formatted(MIGRATOR_PASSWORD));
-            statement.execute("""
                     create role jobiss_app
                     login password 'jobiss_app_test'
                     nosuperuser nocreatedb nocreaterole noinherit nobypassrls
                     """);
-            statement.execute(
-                    "grant connect on database jobiss to jobiss_migrator, jobiss_app"
-            );
-            statement.execute("grant create on database jobiss to jobiss_migrator");
-            statement.execute("alter schema public owner to jobiss_migrator");
+            statement.execute("grant connect on database jobiss to jobiss_app");
         }
 
         Flyway.configure()
                 .dataSource(
                         postgres.getJdbcUrl(),
-                        MIGRATOR_USER,
-                        MIGRATOR_PASSWORD
+                        postgres.getUsername(),
+                        postgres.getPassword()
                 )
                 .locations("classpath:db/migration")
                 .load()
@@ -108,6 +104,441 @@ class PostgresRlsIntegrationTest {
                 result.next();
                 assertThat(result.getInt(1)).isEqualTo(1);
             }
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void logoutRevokesEveryPreviouslyIssuedAccessTokenForTheAuthenticatedUser() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID anotherUserId = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, userId);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', 'logout-owner@example.com', 'Logout owner')
+                    """.formatted(userId));
+            statement.executeUpdate("""
+                    insert into auth_identities (user_id, email, password_hash)
+                    values ('%s', 'logout-owner@example.com', 'test-only-hash')
+                    """.formatted(userId));
+
+            try (ResultSet before = statement.executeQuery(
+                    "select current_auth_version('%s'::uuid)".formatted(userId)
+            )) {
+                before.next();
+                assertThat(before.getLong(1)).isEqualTo(1L);
+            }
+            try (ResultSet revoked = statement.executeQuery(
+                    "select invalidate_current_auth_tokens('%s'::uuid)".formatted(userId)
+            )) {
+                revoked.next();
+                assertThat(revoked.getLong(1)).isEqualTo(2L);
+            }
+            connection.rollback();
+
+            setUser(statement, anotherUserId);
+            assertThatThrownBy(() -> statement.executeQuery(
+                    "select invalidate_current_auth_tokens('%s'::uuid)".formatted(userId)
+            )).hasMessageContaining("auth identity owner mismatch");
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void careerMergeUndoHistoryIsPrivateToItsOwner() throws Exception {
+        UUID alice = UUID.randomUUID();
+        UUID bob = UUID.randomUUID();
+        UUID firstFragment = UUID.randomUUID();
+        UUID secondFragment = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, alice);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', 'merge-alice@example.com', 'Merge Alice')
+                    """.formatted(alice));
+            statement.executeUpdate("""
+                    insert into career_fragment_merge_events (
+                        user_id, target_fragment_id, fragment_ids, before_snapshot
+                    ) values (
+                        '%s', '%s', array['%s'::uuid, '%s'::uuid], '[]'::jsonb
+                    )
+                    """.formatted(alice, firstFragment, firstFragment, secondFragment));
+            connection.commit();
+
+            setUser(statement, bob);
+            try (ResultSet hidden = statement.executeQuery(
+                    "select count(*) from career_fragment_merge_events"
+            )) {
+                hidden.next();
+                assertThat(hidden.getInt(1)).isZero();
+            }
+            connection.rollback();
+
+            setUser(statement, alice);
+            try (ResultSet visible = statement.executeQuery(
+                    "select count(*) from career_fragment_merge_events"
+            )) {
+                visible.next();
+                assertThat(visible.getInt(1)).isEqualTo(1);
+            }
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void atomicAssessmentRowsAreIsolatedByUser() throws Exception {
+        UUID alice = UUID.randomUUID();
+        UUID bob = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+
+            setUser(statement, alice);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', 'atomic-alice@example.com', 'Atomic Alice')
+                    """.formatted(alice));
+            statement.executeUpdate("""
+                    insert into user_atomic_capabilities (
+                        user_id,
+                        canonical_key,
+                        graph_version,
+                        graph_node_version,
+                        technology_key,
+                        title,
+                        scope_definition,
+                        objective,
+                        verification_methods,
+                        completion_policy
+                    ) values (
+                        '%s',
+                        'java.exceptions',
+                        '0.1.0-alpha.1',
+                        1,
+                        'lang.java',
+                        '예외 정의와 처리',
+                        'checked·unchecked 예외와 throw·catch·finally',
+                        '실패를 예외로 표현하고 처리한다.',
+                        '["IMPLEMENT", "DEBUG"]',
+                        'ASSESSMENT'
+                    )
+                    """.formatted(alice));
+            statement.executeUpdate("""
+                    insert into atomic_capability_assessment_sessions (
+                        user_id,
+                        atomic_capability_id,
+                        required_question_count
+                    )
+                    select user_id, id, 2
+                    from user_atomic_capabilities
+                    where canonical_key = 'java.exceptions'
+                    """);
+            connection.commit();
+
+            setUser(statement, bob);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', 'atomic-bob@example.com', 'Atomic Bob')
+                    """.formatted(bob));
+
+            try (ResultSet capabilities = statement.executeQuery(
+                    "select count(*) from user_atomic_capabilities"
+            )) {
+                capabilities.next();
+                assertThat(capabilities.getInt(1)).isZero();
+            }
+            try (ResultSet sessions = statement.executeQuery(
+                    "select count(*) from atomic_capability_assessment_sessions"
+            )) {
+                sessions.next();
+                assertThat(sessions.getInt(1)).isZero();
+            }
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void atomicAssessmentPassSelfConfirmAndOperatorReviewChangeOnlyApprovedState() {
+        UUID userId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        );
+        RlsTransactionExecutor rls = new RlsTransactionExecutor(
+                JdbcClient.create(dataSource),
+                new org.springframework.transaction.support.TransactionTemplate(
+                        new DataSourceTransactionManager(dataSource)
+                )
+        );
+        ObjectMapper objectMapper = new ObjectMapper();
+        AiAnalysisClient aiClient = mock(AiAnalysisClient.class);
+        when(aiClient.createAssessmentQuestion(any())).thenAnswer(invocation -> {
+            var request = (tools.jackson.databind.JsonNode) invocation.getArgument(0);
+            int ordinal = request.path("ordinal").intValue();
+            String sessionId = request.path("sessionId").stringValue();
+            return objectMapper.readTree("""
+                    {
+                      "contractVersion":"jobis.ai.v3alpha1",
+                      "questionId":"question:%s:%d",
+                      "sessionId":"%s",
+                      "capabilityKey":"java.exceptions",
+                      "ordinal":%d,
+                      "method":"IMPLEMENT",
+                      "prompt":"예외 처리 코드를 작성하세요.",
+                      "answerInstructions":"코드와 이유를 작성하세요.",
+                      "coreCriteria":["실패를 예외로 표현한다.","예외를 삼키지 않는다."],
+                      "futureExtensions":[],
+                      "audit":{"generatorVersion":"e2e","provider":"fixture","model":"fixture","attempts":1,"durationMs":1}
+                    }
+                    """.formatted(sessionId, ordinal, sessionId, ordinal));
+        });
+        when(aiClient.gradeAssessmentAnswer(any())).thenAnswer(invocation -> {
+            var request = (tools.jackson.databind.JsonNode) invocation.getArgument(0);
+            String questionId = request.path("question").path("questionId").stringValue();
+            boolean fail = request.path("answer").stringValue("").contains("검토 필요");
+            int score = fail ? 50 : 80;
+            return objectMapper.readTree("""
+                    {
+                      "contractVersion":"jobis.ai.v3alpha1",
+                      "questionId":"%s",
+                      "criterionGrades":[
+                        {"criterionIndex":0,"score":%d,"feedback":"기준 확인"},
+                        {"criterionIndex":1,"score":%d,"feedback":"기준 확인"}
+                      ],
+                      "score":%d,
+                      "passed":%s,
+                      "strengths":[],
+                      "gaps":%s,
+                      "feedback":"검증 결과",
+                      "scopeViolationDetected":false,
+                      "audit":{"generatorVersion":"e2e","provider":"fixture","model":"fixture","attempts":1,"durationMs":1}
+                    }
+                    """.formatted(
+                            questionId,
+                            score,
+                            score,
+                            score,
+                            !fail,
+                            fail ? "[\"핵심 기준 복습 필요\"]" : "[]"
+                    ));
+        });
+        V3AtomicAssessmentService service = new V3AtomicAssessmentService(
+                rls,
+                aiClient,
+                objectMapper,
+                new SensitiveTextCipher(new DataProtectionProperties(
+                        "local-test-assessment-encryption-key",
+                        "local-test-assessment-fingerprint-key"
+                ))
+        );
+
+        rls.write(userId, jdbc -> {
+            jdbc.sql("""
+                            insert into users (id, email, display_name)
+                            values (:userId, :email, 'Atomic assessment user')
+                            """)
+                    .param("userId", userId)
+                    .param("email", userId + "@example.com")
+                    .update();
+            insertAtomicCapability(jdbc, userId, "java.exceptions", "ASSESSMENT");
+            insertAtomicCapability(jdbc, userId, "git.commit-history", "SELF_CONFIRM");
+            return null;
+        });
+        rls.write(operatorId, jdbc -> {
+            jdbc.sql("""
+                            insert into users (id, email, display_name, account_role)
+                            values (:operatorId, :email, 'Atomic operator', 'OPERATOR')
+                            """)
+                    .param("operatorId", operatorId)
+                    .param("email", operatorId + "@example.com")
+                    .update();
+            return null;
+        });
+
+        var passing = service.start(userId, "java.exceptions", null);
+        assertThat(passing.status()).isEqualTo("IN_PROGRESS");
+        passing = service.answer(userId, passing.id(), "정상 답변 1");
+        passing = service.answer(userId, passing.id(), "정상 답변 2");
+        assertThat(passing.status()).isEqualTo("PASSED");
+        assertThat(passing.averageScore()).isEqualTo(80);
+
+        var selfConfirmed = service.selfConfirm(userId, "git.commit-history");
+        assertThat(selfConfirmed.path("progressState").stringValue()).isEqualTo("VERIFIED");
+        assertThatThrownBy(() -> service.selfConfirm(userId, "java.exceptions"))
+                .hasMessageContaining("문제 또는 결과물 검증");
+
+        rls.write(userId, jdbc -> {
+            jdbc.sql("""
+                            update user_atomic_capabilities
+                            set progress_state = 'NOT_STARTED', verified_at = null
+                            where canonical_key = 'java.exceptions'
+                            """).update();
+            return null;
+        });
+        var failing = service.start(userId, "java.exceptions", null);
+        failing = service.answer(userId, failing.id(), "검토 필요 1");
+        failing = service.answer(userId, failing.id(), "검토 필요 2");
+        assertThat(failing.status()).isEqualTo("NEEDS_STUDY");
+
+        failing = service.requestReview(userId, failing.id(), "원자 범위 채점을 확인해 주세요.");
+        assertThat(failing.status()).isEqualTo("REVIEW_REQUESTED");
+        assertThat(service.operatorReviews(operatorId, "PENDING"))
+                .extracting(V3AtomicAssessmentService.AssessmentReviewView::sessionId)
+                .contains(failing.id());
+
+        service.resolveReview(operatorId, failing.id(), true, "범위 내 답변으로 확인했습니다.");
+        assertThat(service.latest(userId, "java.exceptions").status()).isEqualTo("PASSED");
+        rls.read(userId, jdbc -> {
+            assertThat(jdbc.sql("""
+                            select progress_state
+                            from user_atomic_capabilities
+                            where canonical_key = 'java.exceptions'
+                            """)
+                    .query(String.class)
+                    .single()).isEqualTo("VERIFIED");
+            assertThat(jdbc.sql("""
+                            select count(*)
+                            from user_atomic_capability_events
+                            where event_type in ('ASSESSMENT', 'OPERATOR_REVIEW', 'USER_CLAIM')
+                            """)
+                    .query(Integer.class)
+                    .single()).isEqualTo(3);
+            return null;
+        });
+    }
+
+    @Test
+    void v3ContractIdsAreScopedPerUserAndRowsRemainPrivate() throws Exception {
+        UUID alice = UUID.randomUUID();
+        UUID bob = UUID.randomUUID();
+        String sharedContractId = "source-contract-shared";
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+
+            setUser(statement, alice);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', '%s@example.com', 'Alice v3')
+                    """.formatted(alice, alice));
+            insertV3Source(statement, alice, sharedContractId, "Alice document");
+            connection.commit();
+
+            setUser(statement, bob);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', '%s@example.com', 'Bob v3')
+                    """.formatted(bob, bob));
+            insertV3Source(statement, bob, sharedContractId, "Bob document");
+            connection.commit();
+
+            setUser(statement, alice);
+            try (ResultSet result = statement.executeQuery("""
+                    select count(*), min(document ->> 'owner')
+                    from ai_v3_source_documents
+                    where source_document_id = 'source-contract-shared'
+                    """)) {
+                result.next();
+                assertThat(result.getInt(1)).isEqualTo(1);
+                assertThat(result.getString(2)).isEqualTo("Alice document");
+            }
+            connection.rollback();
+
+            setUser(statement, bob);
+            try (ResultSet result = statement.executeQuery("""
+                    select count(*), min(document ->> 'owner')
+                    from ai_v3_source_documents
+                    where source_document_id = 'source-contract-shared'
+                    """)) {
+                result.next();
+                assertThat(result.getInt(1)).isEqualTo(1);
+                assertThat(result.getString(2)).isEqualTo("Bob document");
+            }
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void autoAgentModeCanQueueAChatReplyJob() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, userId);
+            statement.executeUpdate("""
+                    insert into users (id, email, display_name)
+                    values ('%s', '%s@example.com', 'AUTO mode tester')
+                    """.formatted(userId, userId));
+
+            UUID conversationId;
+            try (ResultSet result = statement.executeQuery("""
+                    insert into conversations (user_id)
+                    values ('%s')
+                    returning id
+                    """.formatted(userId))) {
+                result.next();
+                conversationId = result.getObject(1, UUID.class);
+            }
+
+            UUID messageId;
+            try (ResultSet result = statement.executeQuery("""
+                    insert into conversation_messages (
+                        user_id,
+                        conversation_id,
+                        role,
+                        kind,
+                        content
+                    )
+                    values ('%s', '%s', 'USER', 'TEXT', '백엔드 진로를 알려주세요.')
+                    returning id
+                    """.formatted(userId, conversationId))) {
+                result.next();
+                messageId = result.getObject(1, UUID.class);
+            }
+
+            int inserted = statement.executeUpdate("""
+                    insert into chat_reply_jobs (
+                        user_id,
+                        conversation_id,
+                        trigger_message_id,
+                        request_context
+                    )
+                    values (
+                        '%s',
+                        '%s',
+                        '%s',
+                        '{"mode":"AUTO","postingIds":[],"careerSourceIds":[]}'::jsonb
+                    )
+                    """.formatted(userId, conversationId, messageId));
+
+            assertThat(inserted).isEqualTo(1);
             connection.rollback();
         }
     }
@@ -272,7 +703,14 @@ class PostgresRlsIntegrationTest {
                 )
         );
         AiUsageLimitService usageLimit = new AiUsageLimitService(rls);
-        JobPostingService service = new JobPostingService(rls, usageLimit);
+        JobPostingService service = new JobPostingService(
+                rls,
+                usageLimit,
+                new SensitiveTextCipher(new DataProtectionProperties(
+                        "local-test-sensitive-encryption-key",
+                        "local-test-sensitive-fingerprint-key"
+                ))
+        );
 
         rls.write(userId, jdbc -> {
             jdbc.sql("""
@@ -455,6 +893,12 @@ class PostgresRlsIntegrationTest {
                     competencyId,
                     "First company"
             );
+            statement.executeUpdate("""
+                    update job_postings
+                    set lifecycle_status = 'CLOSED',
+                        closes_at = now() - interval '1 day'
+                    where id = '%s'
+                    """.formatted(firstPostingId));
             insertPostingAnalysis(
                     statement,
                     userId,
@@ -645,7 +1089,11 @@ class PostgresRlsIntegrationTest {
         );
 
         RoadmapService.DraftResult firstDraft = service.addTarget(userId, firstJobId);
-        service.applyDraft(userId);
+        service.applyDraft(
+                userId,
+                firstDraft.draftId(),
+                firstDraft.draftVersion()
+        );
         RoadmapService.DraftResult secondDraft = service.addTarget(userId, secondJobId);
 
         assertThat(secondDraft.draftVersion())
@@ -653,6 +1101,12 @@ class PostgresRlsIntegrationTest {
         RoadmapService.Workspace workspace = service.get(userId);
         assertThat(workspace.targetCount()).isEqualTo(2);
         assertThat(workspace.draft()).isNotNull();
+        assertThat(workspace.draft().snapshot().targets())
+                .anySatisfy(target -> {
+                    assertThat(target.postingId()).isEqualTo(firstPostingId);
+                    assertThat(target.goalMode()).isEqualTo("REOPENING_PREPARATION");
+                    assertThat(target.lifecycleStatus()).isEqualTo("CLOSED");
+                });
         List<RoadmapService.RoadmapNode> draftNodes =
                 workspace.draft().snapshot().nodes();
         RoadmapService.RoadmapNode firstOpportunity = draftNodes.stream()
@@ -695,6 +1149,42 @@ class PostgresRlsIntegrationTest {
                 .filteredOn(node -> !"COMMON".equals(node.domain()))
                 .allMatch(node -> "BACKEND".equals(node.domain()));
 
+        assertThatThrownBy(() -> service.applyDraft(
+                userId,
+                UUID.randomUUID(),
+                secondDraft.draftVersion()
+        )).hasMessageContaining("최신 초안");
+
+        service.applyDraft(
+                userId,
+                secondDraft.draftId(),
+                secondDraft.draftVersion()
+        );
+        RoadmapService.DraftResult resetDraft = service.resetTargets(userId);
+        RoadmapService.Workspace resetWorkspace = service.get(userId);
+        assertThat(resetWorkspace.targetCount()).isZero();
+        assertThat(resetWorkspace.draft().snapshot().targets()).isEmpty();
+        assertThat(resetWorkspace.draft().snapshot().nodes())
+                .isNotEmpty()
+                .allMatch(node -> "COMMON".equals(node.domain()));
+        service.applyDraft(
+                userId,
+                resetDraft.draftId(),
+                resetDraft.draftVersion()
+        );
+        assertThat(service.get(userId).current().targets()).isEmpty();
+
+        long publishedVersion = service.get(userId).current().version();
+        RoadmapService.DraftResult disposableDraft = service.regenerate(userId);
+        service.discardDraft(
+                userId,
+                disposableDraft.draftId(),
+                disposableDraft.draftVersion()
+        );
+        RoadmapService.Workspace afterDiscard = service.get(userId);
+        assertThat(afterDiscard.draft()).isNull();
+        assertThat(afterDiscard.current().version()).isEqualTo(publishedVersion);
+
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(),
                 APP_USER,
@@ -720,88 +1210,319 @@ class PostgresRlsIntegrationTest {
         }
     }
 
-    /**
-     * 버려진 RUNNING 작업을 회수한다(V25).
-     *
-     * <p>워커가 실행 도중 죽으면 작업은 RUNNING 으로 남는다. V16 의 회수 조건은 QUEUED
-     * 뿐이라 그 작업은 락이 만료돼도 영영 집히지 않았다 — 화면에는 "분석 중"으로 남고,
-     * 같은 공고의 새 요청이 거기 붙었다(실측 08-04, 좀비 5건).
-     */
     @Test
-    void abandonedRunningJobIsReclaimedAndGivesUpAtTheAttemptCap() throws Exception {
-        UUID owner = UUID.randomUUID();
+    void clarificationQuestionsEnforceTheirDeclaredInputType() throws Exception {
+        UUID userId = UUID.randomUUID();
         UUID postingId = UUID.randomUUID();
-        UUID retryable = UUID.randomUUID();
-        UUID exhausted = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
 
-        // 큐 테이블(analysis_job_queue)은 jobiss_app 에 권한이 없다 — 워커도 SECURITY DEFINER
-        // 함수를 통해서만 만진다. 그래서 이 테스트는 소유자로 붙는다(FORCE RLS 라 소유자도
-        // app.current_user_id 를 세운다).
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(),
-                postgres.getUsername(),
-                postgres.getPassword()
+                APP_USER,
+                APP_PASSWORD
         ); Statement statement = connection.createStatement()) {
             connection.setAutoCommit(false);
-            setUser(statement, owner);
+            setUser(statement, userId);
             statement.executeUpdate("""
                     insert into users (id, email, display_name)
-                    values ('%s', 'zombie@example.com', 'Zombie owner')
-                    """.formatted(owner));
+                    values ('%s', '%s@example.com', 'Question Test')
+                    """.formatted(userId, userId));
             statement.executeUpdate("""
-                    insert into job_postings (
-                        id, user_id, source_type, raw_text, content_fingerprint
+                    insert into job_postings (id, user_id, source_type, raw_text)
+                    values ('%s', '%s', 'TEXT', 'Backend posting')
+                    """.formatted(postingId, userId));
+            statement.executeUpdate("""
+                    insert into analysis_jobs (
+                        id, user_id, posting_id, status, stage, stage_message
                     )
-                    values ('%s', '%s', 'TEXT', 'abandoned job posting', 'fp-zombie')
-                    """.formatted(postingId, owner));
-            for (UUID jobId : List.of(retryable, exhausted)) {
-                // 락이 15분 전에 만료된 RUNNING — 워커가 죽고 남은 모습 그대로.
-                statement.executeUpdate("""
-                        insert into analysis_jobs (
-                            id, user_id, posting_id, status, locked_until, started_at
-                        )
-                        values (
-                            '%s', '%s', '%s', 'RUNNING',
-                            now() - interval '15 minutes',
-                            now() - interval '30 minutes'
-                        )
-                        """.formatted(jobId, owner, postingId));
-            }
-            // 큐 행은 analysis_jobs INSERT 트리거(enqueue_analysis_job)가 이미 만들어 뒀다.
-            // 여기서는 시도 횟수만 원하는 모양으로 돌려놓는다 — 하나는 재시도 여유가 있고,
-            // 하나는 상한(3)을 다 썼다.
-            statement.executeUpdate("""
-                    update analysis_job_queue
-                    set attempt_count = case analysis_job_id
-                        when '%s'::uuid then 1
-                        else 3
-                    end
-                    where analysis_job_id in ('%s', '%s')
-                    """.formatted(retryable, retryable, exhausted));
-            connection.commit();
+                    values (
+                        '%s', '%s', '%s', 'RUNNING', 'CLARIFICATION', '기준 확인'
+                    )
+                    """.formatted(jobId, userId, postingId));
 
-            try (ResultSet result = statement.executeQuery(
-                    "select id from claim_analysis_job('test-worker')"
-            )) {
-                assertThat(result.next()).isTrue();
-                assertThat(result.getObject(1, UUID.class)).isEqualTo(retryable);
-                assertThat(result.next()).isFalse();
-            }
-            connection.commit();
+            int inserted = statement.executeUpdate("""
+                    insert into analysis_questions (
+                        user_id, analysis_job_id, question_key, question_text,
+                        reason, input_type, options, ordinal
+                    )
+                    values (
+                        '%s', '%s', 'project_evidence', '프로젝트 경험을 알려주세요.',
+                        '경험 범위를 확인합니다.', 'TEXT', '[]', 1
+                    )
+                    """.formatted(userId, jobId));
+            assertThat(inserted).isEqualTo(1);
 
-            setUser(statement, owner);
-            // 재시도 상한까지 쓴 좀비는 회수 대신 FAILED 로 닫힌다 — 실패를 실패라고 말한다.
-            try (ResultSet result = statement.executeQuery("""
-                    select status::text, error_code
-                    from analysis_jobs
-                    where id = '%s'
-                    """.formatted(exhausted))) {
-                result.next();
-                assertThat(result.getString(1)).isEqualTo("FAILED");
-                assertThat(result.getString(2)).isEqualTo("ABANDONED");
-            }
+            int confirmedAbsence = statement.executeUpdate("""
+                    insert into analysis_questions (
+                        user_id, analysis_job_id, question_key, question_text,
+                        reason, input_type, options, related_requirement_ids,
+                        absence_scope, status, answer_value, answer_status, ordinal
+                    )
+                    values (
+                        '%s', '%s', 'database_evidence', 'DB 경험이 있나요?',
+                        '요구조건을 확인합니다.', 'TEXT', '[]', '["req-db"]',
+                        'REQUIREMENTS', 'ANSWERED', '없습니다.',
+                        'CONFIRMED_ABSENT', 2
+                    )
+                    """.formatted(userId, jobId));
+            assertThat(confirmedAbsence).isEqualTo(1);
+
+            assertThatThrownBy(() -> statement.executeUpdate("""
+                    insert into analysis_questions (
+                        user_id, analysis_job_id, question_key, question_text,
+                        reason, input_type, options, absence_scope,
+                        status, answer_value, answer_status, ordinal
+                    )
+                    values (
+                        '%s', '%s', 'invalid_absence', '경험이 있나요?',
+                        '확인합니다.', 'TEXT', '[]', 'NONE',
+                        'ANSWERED', '없습니다.', 'CONFIRMED_ABSENT', 3
+                    )
+                    """.formatted(userId, jobId)))
+                    .hasMessageContaining("analysis_question_confirmed_absence_scope_check");
+
+            assertThatThrownBy(() -> statement.executeUpdate("""
+                    insert into analysis_questions (
+                        user_id, analysis_job_id, question_key, question_text,
+                        reason, input_type, options, ordinal
+                    )
+                    values (
+                        '%s', '%s', 'invalid_choice', '직무를 선택해 주세요.',
+                        '지원 직무를 확인합니다.', 'CHOICE', '[]', 4
+                    )
+                    """.formatted(userId, jobId)))
+                    .hasMessageContaining("analysis_question_options_check");
             connection.rollback();
         }
+    }
+
+    @Test
+    void cancellingAnAnalysisClearsItsQueueAndAllowsRetry() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID postingId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        );
+        RlsTransactionExecutor rls = new RlsTransactionExecutor(
+                JdbcClient.create(dataSource),
+                new org.springframework.transaction.support.TransactionTemplate(
+                        new DataSourceTransactionManager(dataSource)
+                )
+        );
+        AiUsageLimitService usageLimit = new AiUsageLimitService(rls);
+        AnalysisJobService service = new AnalysisJobService(
+                rls,
+                new ObjectMapper(),
+                usageLimit,
+                new AnalysisTaskRegistry(),
+                mock(AiAnalysisClient.class)
+        );
+
+        rls.write(userId, jdbc -> {
+            jdbc.sql("""
+                            insert into users (id, email, display_name)
+                            values (:userId, :email, 'Cancellation tester')
+                            """)
+                    .param("userId", userId)
+                    .param("email", userId + "@example.com")
+                    .update();
+            jdbc.sql("""
+                            insert into job_postings (
+                                id, user_id, source_type, raw_text
+                            )
+                            values (
+                                :postingId, :userId, 'TEXT',
+                                'Java Spring backend cancellation test posting'
+                            )
+                            """)
+                    .param("postingId", postingId)
+                    .param("userId", userId)
+                    .update();
+            jdbc.sql("""
+                            insert into analysis_jobs (
+                                id, user_id, posting_id, status, stage,
+                                stage_message, worker_id, locked_until
+                            )
+                            values (
+                                :jobId, :userId, :postingId, 'RUNNING',
+                                'AI_ANALYSIS', '분석 중', 'worker-test',
+                                now() + interval '15 minutes'
+                            )
+                            """)
+                    .param("jobId", jobId)
+                    .param("userId", userId)
+                    .param("postingId", postingId)
+                    .update();
+            return null;
+        });
+
+        service.cancel(userId, jobId);
+
+        rls.read(userId, jdbc -> {
+            assertThat(jdbc.sql("""
+                            select status::text
+                            from analysis_jobs
+                            where id = :jobId
+                            """)
+                    .param("jobId", jobId)
+                    .query(String.class)
+                    .single()).isEqualTo("CANCELLED");
+            assertThat(jdbc.sql("""
+                            select count(*)
+                            from analysis_job_queue
+                            where analysis_job_id = :jobId
+                            """)
+                    .param("jobId", jobId)
+                    .query(Integer.class)
+                    .single()).isZero();
+            return null;
+        });
+
+        service.retry(userId, jobId);
+        rls.read(userId, jdbc -> {
+            assertThat(jdbc.sql("""
+                            select status::text
+                            from analysis_jobs
+                            where id = :jobId
+                            """)
+                    .param("jobId", jobId)
+                    .query(String.class)
+                    .single()).isEqualTo("QUEUED");
+            assertThat(jdbc.sql("""
+                            select count(*)
+                            from analysis_job_queue
+                            where analysis_job_id = :jobId
+                            """)
+                    .param("jobId", jobId)
+                    .query(Integer.class)
+                    .single()).isEqualTo(1);
+            return null;
+        });
+    }
+
+    @Test
+    void cancellingAV3PostingReviewQuestionFinishesWithoutRequeueing() {
+        UUID userId = UUID.randomUUID();
+        UUID postingId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+        UUID questionId = UUID.randomUUID();
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        );
+        RlsTransactionExecutor rls = new RlsTransactionExecutor(
+                JdbcClient.create(dataSource),
+                new org.springframework.transaction.support.TransactionTemplate(
+                        new DataSourceTransactionManager(dataSource)
+                )
+        );
+        AnalysisJobService service = new AnalysisJobService(
+                rls,
+                new ObjectMapper(),
+                new AiUsageLimitService(rls),
+                new AnalysisTaskRegistry(),
+                mock(AiAnalysisClient.class)
+        );
+
+        rls.write(userId, jdbc -> {
+            jdbc.sql("""
+                            insert into users (id, email, display_name)
+                            values (:userId, :email, 'Posting review cancellation tester')
+                            """)
+                    .param("userId", userId)
+                    .param("email", userId + "@example.com")
+                    .update();
+            jdbc.sql("""
+                            insert into job_postings (
+                                id, user_id, source_type, raw_text
+                            )
+                            values (
+                                :postingId, :userId, 'TEXT',
+                                'Java Spring backend posting review test'
+                            )
+                            """)
+                    .param("postingId", postingId)
+                    .param("userId", userId)
+                    .update();
+            jdbc.sql("""
+                            insert into analysis_jobs (
+                                id, user_id, posting_id, status, stage,
+                                stage_message, question_count, analysis_provider
+                            )
+                            values (
+                                :jobId, :userId, :postingId, 'WAITING_FOR_INPUT',
+                                'AWAITING_POSTING_CONFIRMATION',
+                                '정리한 공고를 확인해 주세요', 1, 'UNIFIED'
+                            )
+                            """)
+                    .param("jobId", jobId)
+                    .param("userId", userId)
+                    .param("postingId", postingId)
+                    .update();
+            jdbc.sql("""
+                            insert into analysis_questions (
+                                id, user_id, analysis_job_id, question_key,
+                                question_text, reason, input_type, options, ordinal
+                            )
+                            values (
+                                :questionId, :userId, :jobId,
+                                'posting-review-test',
+                                '이 내용으로 회사 맞춤 프로젝트와 로드맵을 만들까요?',
+                                '선택한 공고 범위를 확인합니다.',
+                                'CHOICE',
+                                cast(:options as jsonb),
+                                1
+                            )
+                            """)
+                    .param("questionId", questionId)
+                    .param("userId", userId)
+                    .param("jobId", jobId)
+                    .param(
+                            "options",
+                            """
+                            [
+                              {"value":"CONFIRM","label":"이 내용으로 계속"},
+                              {"value":"CANCEL","label":"분석 취소"}
+                            ]
+                            """
+                    )
+                    .update();
+            return null;
+        });
+
+        service.answerQuestion(userId, jobId, questionId, "CANCEL", null);
+
+        rls.read(userId, jdbc -> {
+            assertThat(jdbc.sql("""
+                            select status::text
+                            from analysis_jobs
+                            where id = :jobId
+                            """)
+                    .param("jobId", jobId)
+                    .query(String.class)
+                    .single()).isEqualTo("CANCELLED");
+            assertThat(jdbc.sql("""
+                            select answer_value
+                            from analysis_questions
+                            where id = :questionId
+                            """)
+                    .param("questionId", questionId)
+                    .query(String.class)
+                    .single()).isEqualTo("CANCEL");
+            assertThat(jdbc.sql("""
+                            select count(*)
+                            from analysis_job_queue
+                            where analysis_job_id = :jobId
+                            """)
+                    .param("jobId", jobId)
+                    .query(Integer.class)
+                    .single()).isZero();
+            return null;
+        });
     }
 
     private static void insertPostingAnalysis(
@@ -812,10 +1533,6 @@ class PostgresRlsIntegrationTest {
             UUID competencyId,
             String companyName
     ) throws Exception {
-        // content_fingerprint 는 NOT NULL 이다(V17). 값은 **프로덕션과 같은 식**으로 만든다 —
-        // sha256(정규화된 raw_text). 상수를 박으면 두 회사의 공고가 같은 지문을 갖게 되고,
-        // 지문으로 재사용을 판단하는 로직(V19)이 검증하려는 상황 자체가 사라진다.
-        // (이 테스트는 도커가 없으면 건너뛰어져서, 그동안 이 누락이 드러나지 않았다.)
         statement.executeUpdate("""
                 insert into job_postings (
                     id,
@@ -824,26 +1541,18 @@ class PostgresRlsIntegrationTest {
                     raw_text,
                     company_name,
                     role_title,
-                    parsed_data,
-                    content_fingerprint
+                    parsed_data
                 )
-                select
+                values (
                     '%s',
                     '%s',
                     'TEXT',
-                    src.body,
+                    'Java backend posting',
                     '%s',
                     'Backend developer',
-                    '{"domain":"BACKEND"}',
-                    encode(
-                        digest(
-                            lower(regexp_replace(btrim(src.body), '\s+', ' ', 'g')),
-                            'sha256'
-                        ),
-                        'hex'
-                    )
-                from (select 'Java backend posting for %s'::text as body) src
-                """.formatted(postingId, userId, companyName, companyName));
+                    '{"domain":"BACKEND"}'
+                )
+                """.formatted(postingId, userId, companyName));
         statement.executeUpdate("""
                 insert into analysis_jobs (
                     id,
@@ -952,151 +1661,84 @@ class PostgresRlsIntegrationTest {
                 .single());
     }
 
+    private static void insertV3Source(
+            Statement statement,
+            UUID userId,
+            String sourceDocumentId,
+            String owner
+    ) throws Exception {
+        statement.executeUpdate("""
+                insert into ai_v3_source_documents (
+                    user_id,
+                    source_document_id,
+                    entry_point,
+                    input_type,
+                    extraction_revision,
+                    status,
+                    canonical_input_hash,
+                    content_hash,
+                    document
+                )
+                values (
+                    '%s',
+                    '%s',
+                    'POSTINGS_PAGE',
+                    'TEXT',
+                    1,
+                    'EXTRACTED',
+                    'sha256:canonical',
+                    'sha256:content',
+                    jsonb_build_object('owner', '%s')
+                )
+                """.formatted(userId, sourceDocumentId, owner));
+    }
+
+    private static void insertAtomicCapability(
+            JdbcClient jdbc,
+            UUID userId,
+            String canonicalKey,
+            String completionPolicy
+    ) {
+        jdbc.sql("""
+                        insert into user_atomic_capabilities (
+                            user_id,
+                            canonical_key,
+                            graph_version,
+                            graph_node_version,
+                            technology_key,
+                            title,
+                            scope_definition,
+                            objective,
+                            excluded_scope,
+                            verification_methods,
+                            completion_policy
+                        ) values (
+                            :userId,
+                            :canonicalKey,
+                            '0.1.0-alpha.1',
+                            1,
+                            :technologyKey,
+                            :title,
+                            :scope,
+                            :objective,
+                            '[]',
+                            '["IMPLEMENT", "DEBUG"]',
+                            :completionPolicy
+                        )
+                        """)
+                .param("userId", userId)
+                .param("canonicalKey", canonicalKey)
+                .param("technologyKey", canonicalKey.substring(0, canonicalKey.indexOf('.')))
+                .param("title", canonicalKey)
+                .param("scope", canonicalKey + " 원자 범위")
+                .param("objective", canonicalKey + " 목표")
+                .param("completionPolicy", completionPolicy)
+                .update();
+    }
+
     private static void setUser(Statement statement, UUID userId) throws Exception {
         statement.execute(
                 "select set_config('app.current_user_id', '%s', true)".formatted(userId)
         );
-    }
-
-    // 백그라운드 워커는 특정 사용자로 동작하지 않아 app.current_user_id 가 비어 있다.
-    // chat_reply_jobs / analysis_jobs 는 FORCE ROW LEVEL SECURITY 라서 SECURITY DEFINER
-    // 만으로는 정책을 통과하지 못하고, claim 함수가 항상 0건을 돌려주며 큐가 멈춘다.
-    @Test
-    void workerClaimsChatReplyJobWithoutUserContext() throws Exception {
-        UUID owner = UUID.randomUUID();
-
-        try (Connection connection = DriverManager.getConnection(
-                postgres.getJdbcUrl(),
-                APP_USER,
-                APP_PASSWORD
-        ); Statement statement = connection.createStatement()) {
-            connection.setAutoCommit(false);
-            setUser(statement, owner);
-            seedQueuedChatReplyJob(statement, owner);
-
-            // 워커 세션에는 사용자 컨텍스트가 없다.
-            statement.execute("select set_config('app.current_user_id', '', true)");
-
-            try (ResultSet result = statement.executeQuery(
-                    "select count(*) from claim_chat_reply_job('worker-1')"
-            )) {
-                result.next();
-                assertThat(result.getInt(1)).isEqualTo(1);
-            }
-
-            connection.rollback();
-        }
-    }
-
-    @Test
-    void workerClaimsAnalysisJobWithoutUserContext() throws Exception {
-        UUID owner = UUID.randomUUID();
-
-        try (Connection connection = DriverManager.getConnection(
-                postgres.getJdbcUrl(),
-                APP_USER,
-                APP_PASSWORD
-        ); Statement statement = connection.createStatement()) {
-            connection.setAutoCommit(false);
-            setUser(statement, owner);
-            seedQueuedAnalysisJob(statement, owner);
-
-            statement.execute("select set_config('app.current_user_id', '', true)");
-
-            try (ResultSet result = statement.executeQuery(
-                    "select count(*) from claim_analysis_job('worker-1')"
-            )) {
-                result.next();
-                assertThat(result.getInt(1)).isEqualTo(1);
-            }
-
-            connection.rollback();
-        }
-    }
-
-    // 워커 컨텍스트는 claim 함수 안에서만 켜져야 한다. 함수가 끝난 뒤에도 남아 있으면
-    // 같은 트랜잭션의 이후 질의가 다른 사용자의 행까지 보게 된다.
-    @Test
-    void workerContextDoesNotLeakAfterClaimReturns() throws Exception {
-        UUID owner = UUID.randomUUID();
-
-        try (Connection connection = DriverManager.getConnection(
-                postgres.getJdbcUrl(),
-                APP_USER,
-                APP_PASSWORD
-        ); Statement statement = connection.createStatement()) {
-            connection.setAutoCommit(false);
-            setUser(statement, owner);
-            seedQueuedChatReplyJob(statement, owner);
-
-            statement.execute("select set_config('app.current_user_id', '', true)");
-            statement.execute("select claim_chat_reply_job('worker-1')");
-
-            try (ResultSet result = statement.executeQuery(
-                    "select coalesce(current_setting('app.worker_context', true), '')"
-            )) {
-                result.next();
-                assertThat(result.getString(1)).isEmpty();
-            }
-
-            // 사용자 컨텍스트가 없는 상태에서는 여전히 아무 행도 보이지 않아야 한다.
-            for (String table : List.of("chat_reply_jobs", "analysis_jobs")) {
-                try (ResultSet result = statement.executeQuery(
-                        "select count(*) from " + table
-                )) {
-                    result.next();
-                    assertThat(result.getInt(1)).isZero();
-                }
-            }
-
-            connection.rollback();
-        }
-    }
-
-    private static void seedQueuedChatReplyJob(Statement statement, UUID owner)
-            throws Exception {
-        statement.executeUpdate("""
-                insert into users (id, email, display_name)
-                values ('%s', '%s@example.com', 'Owner')
-                """.formatted(owner, owner));
-        statement.executeUpdate("""
-                with conversation as (
-                    insert into conversations (user_id)
-                    values ('%1$s')
-                    returning id
-                ), message as (
-                    insert into conversation_messages (
-                        user_id, conversation_id, role, content
-                    )
-                    select '%1$s', conversation.id, 'USER', '안녕하세요'
-                    from conversation
-                    returning id, conversation_id
-                )
-                insert into chat_reply_jobs (
-                    user_id, conversation_id, trigger_message_id
-                )
-                select '%1$s', message.conversation_id, message.id
-                from message
-                """.formatted(owner));
-    }
-
-    private static void seedQueuedAnalysisJob(Statement statement, UUID owner)
-            throws Exception {
-        statement.executeUpdate("""
-                insert into users (id, email, display_name)
-                values ('%s', '%s@example.com', 'Owner')
-                """.formatted(owner, owner));
-        statement.executeUpdate("""
-                with posting as (
-                    insert into job_postings (
-                        user_id, source_type, raw_text, content_fingerprint
-                    )
-                    values ('%1$s', 'TEXT', 'Java Spring Boot', '%1$s-fingerprint')
-                    returning id
-                )
-                insert into analysis_jobs (user_id, posting_id, status)
-                select '%1$s', posting.id, 'QUEUED'
-                from posting
-                """.formatted(owner));
     }
 }

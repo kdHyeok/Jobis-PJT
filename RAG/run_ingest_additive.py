@@ -25,8 +25,7 @@ from pgvector.psycopg import register_vector
 
 from jobrag import tokenizer
 from jobrag.chunking import chunk_posting, chunk_stats
-from jobrag.embedding import backend as embedding_backend, embed_texts
-from jobrag.model_config import get_model_settings
+from jobrag.embedding import embed_texts
 from jobrag.sources import load_postings
 from jobrag.store import connect, unchanged_chunk_ids, upsert_chunks, upsert_postings
 
@@ -45,13 +44,7 @@ def main():
         print(__doc__)
         return
     src, dry = Path(args[0]), "--dry-run" in sys.argv
-    model_settings = get_model_settings()
-    print(
-        f"tokenizer={tokenizer.backend()}  "
-        f"embedding={embedding_backend()}  "
-        f"threads={model_settings.local_cpu_threads}  "
-        f"embed_batch={model_settings.embed_batch_size}  input={src}"
-    )
+    print(f"tokenizer={tokenizer.backend()}  input={src}")
 
     raw_records = json.loads(src.read_text(encoding="utf-8"))
     raw_by_uid = {f"{r.get('source')}:{r.get('posting_id')}": r for r in raw_records}
@@ -75,12 +68,9 @@ def main():
         return
 
     vectors: list[list[float] | None] = []
-    B = model_settings.ingest_window_size
+    B = 256
     for i in range(0, len(todo), B):
-        vecs, _ = embed_texts(
-            [c.text for c in todo[i:i + B]],
-            batch_size=model_settings.embed_batch_size,
-        )
+        vecs, _ = embed_texts([c.text for c in todo[i:i + B]], batch_size=32)
         vectors.extend(vecs)
         print(f"  임베딩 {min(i + B, len(todo))}/{len(todo)}", flush=True)
     by_id = dict(zip((c.chunk_id for c in todo), vectors))

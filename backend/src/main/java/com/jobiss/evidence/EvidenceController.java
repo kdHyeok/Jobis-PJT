@@ -1,6 +1,9 @@
 package com.jobiss.evidence;
 
+import com.jobiss.common.WebUrls;
+
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -79,5 +82,9 @@ public class EvidenceController {
             @Size(max = 2_000) String sourceUrl,
             @NotNull JsonNode content
     ) {
+        @AssertTrue(message = "증거 URL은 http 또는 https 주소여야 합니다.")
+        public boolean isSourceUrlSafe() {
+            return WebUrls.isBlankOrHttpUrl(sourceUrl);
+        }
     }
 }

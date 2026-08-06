@@ -9,20 +9,16 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.OffsetDateTime;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class ConversationService {
-
-    /**
-     * 공고 원문으로 인정하는 최소 길이.
-     *
-     * <p><b>이 숫자는 AI 가 정한다</b> — {@code AI/src/jobis_ai/orchestrator/attachment_kind.py}
-     * 의 {@code MIN_ASSET_CHARS}. 이보다 짧으면 AI 가 자산으로 승격하지 않으므로, 여기서
-     * 통과시키면 "저장은 됐는데 분석이 안 되는" 공고가 생긴다. AI 쪽 값이 바뀌면 같이 바꾼다.
-     */
-    private static final int POSTING_MIN_CHARS = 40;
 
     private static final String GREETING = """
             안녕하세요. 지금 어떤 일을 해왔고 앞으로 어디로 가고 싶은지부터 편하게 이야기해 주세요.
@@ -76,6 +72,79 @@ public class ConversationService {
                 .list());
     }
 
+    public ConversationPage search(
+            UUID userId,
+            String query,
+            String status,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        String normalizedQuery = query == null ? "" : query.trim();
+        String normalizedStatus = status == null ? "ACTIVE" : status.trim().toUpperCase();
+        if (!Set.of("ACTIVE", "ARCHIVED", "ALL").contains(normalizedStatus)) {
+            throw invalidContext("대화 상태는 ACTIVE, ARCHIVED, ALL 중 하나여야 합니다.");
+        }
+        return rls.read(userId, jdbc -> {
+            String sql = """
+                    select
+                        c.id,
+                        c.title,
+                        c.status,
+                        c.last_message_at,
+                        c.created_at,
+                        coalesce((
+                            select m.content
+                            from conversation_messages m
+                            where m.conversation_id = c.id
+                            order by m.created_at desc, m.id desc
+                            limit 1
+                        ), '') as last_message,
+                        count(*) over() as total_count
+                    from conversations c
+                    where (
+                        :query = ''
+                        or c.title ilike concat('%', :query, '%')
+                        or exists (
+                            select 1
+                            from conversation_messages m
+                            where m.conversation_id = c.id
+                              and m.content ilike concat('%', :query, '%')
+                        )
+                    )
+                      and (:status = 'ALL' or c.status::text = :status)
+                    order by c.last_message_at desc, c.id desc
+                    limit :limit offset :offset
+                    """;
+            var statement = jdbc.sql(sql)
+                    .param("query", normalizedQuery)
+                    .param("status", normalizedStatus)
+                    .param("limit", safeSize)
+                    .param("offset", safePage * safeSize);
+            List<ConversationRow> rows = statement
+                    .query((rs, rowNum) -> new ConversationRow(
+                            new ConversationSummary(
+                                    rs.getObject("id", UUID.class),
+                                    rs.getString("title"),
+                                    rs.getString("status"),
+                                    rs.getString("last_message"),
+                                    rs.getObject("last_message_at", OffsetDateTime.class),
+                                    rs.getObject("created_at", OffsetDateTime.class)
+                            ),
+                            rs.getInt("total_count")
+                    ))
+                    .list();
+            int total = rows.isEmpty() ? 0 : rows.get(0).total();
+            return new ConversationPage(
+                    rows.stream().map(ConversationRow::summary).toList(),
+                    safePage,
+                    safeSize,
+                    total
+            );
+        });
+    }
+
     public ConversationView create(UUID userId) {
         return rls.write(userId, jdbc -> {
             UUID id = jdbc.sql("""
@@ -106,7 +175,68 @@ public class ConversationService {
         return rls.read(userId, jdbc -> load(jdbc, conversationId));
     }
 
+    public MessagePage messagesBefore(
+            UUID userId,
+            UUID conversationId,
+            OffsetDateTime beforeCreatedAt,
+            UUID beforeId,
+            int limit
+    ) {
+        return rls.read(userId, jdbc -> {
+            ensureConversationExists(jdbc, conversationId);
+            int safeLimit = Math.min(200, Math.max(1, limit));
+            List<MessageView> rows = new ArrayList<>(jdbc.sql("""
+                            select *
+                            from (
+                                select
+                                    id,
+                                    role,
+                                    kind,
+                                    content,
+                                    posting_id,
+                                    analysis_job_id,
+                                    metadata::text as metadata,
+                                    created_at
+                                from conversation_messages
+                                where conversation_id = :conversationId
+                                  and (created_at, id) < (:beforeCreatedAt, :beforeId)
+                                order by created_at desc, id desc
+                                limit :queryLimit
+                            ) previous_messages
+                            order by created_at, id
+                            """)
+                    .param("conversationId", conversationId)
+                    .param("beforeCreatedAt", beforeCreatedAt)
+                    .param("beforeId", beforeId)
+                    .param("queryLimit", safeLimit + 1)
+                    .query(this::mapMessage)
+                    .list());
+            boolean hasMore = rows.size() > safeLimit;
+            if (hasMore) rows.remove(0);
+            return new MessagePage(List.copyOf(rows), hasMore);
+        });
+    }
+
+    public ConversationSummary rename(UUID userId, UUID conversationId, String title) {
+        return rls.write(userId, jdbc -> {
+            int updated = jdbc.sql("""
+                            update conversations
+                            set title = :title
+                            where id = :conversationId
+                            """)
+                    .param("title", title.trim())
+                    .param("conversationId", conversationId)
+                    .update();
+            if (updated == 0) throw notFound();
+            return loadSummary(jdbc, conversationId);
+        });
+    }
+
     public SendResult send(UUID userId, UUID conversationId, SendCommand command) {
+        AgentContext agentContext = normalizeContext(command.context());
+        if (command.posting() == null) {
+            validateAgentContext(userId, agentContext);
+        }
         ExistingMessage duplicate = rls.read(userId, jdbc -> {
             ensureConversation(jdbc, conversationId);
             if (command.clientMessageId() == null) {
@@ -131,18 +261,24 @@ public class ConversationService {
             return rls.read(userId, jdbc -> loadExistingResult(jdbc, conversationId, duplicate));
         }
 
-        MessageView userMessage = rls.write(userId, jdbc -> insertMessage(
-                jdbc,
-                userId,
-                conversationId,
-                "USER",
-                command.posting() == null ? "TEXT" : "POSTING",
-                command.content().trim(),
-                null,
-                null,
-                command.clientMessageId(),
-                objectMapper.createObjectNode()
-        ));
+        MessageView userMessage = rls.write(userId, jdbc -> {
+            var metadata = objectMapper.createObjectNode();
+            if (command.posting() == null) {
+                metadata.set("agentContext", objectMapper.valueToTree(agentContext));
+            }
+            return insertMessage(
+                    jdbc,
+                    userId,
+                    conversationId,
+                    "USER",
+                    command.posting() == null ? "TEXT" : "POSTING",
+                    command.content().trim(),
+                    null,
+                    null,
+                    command.clientMessageId(),
+                    metadata
+            );
+        });
 
         if (command.posting() != null) {
             PostingAttachment attachment = command.posting();
@@ -151,7 +287,7 @@ public class ConversationService {
                     new JobPostingService.CreatePosting(
                             attachment.sourceType(),
                             attachment.sourceUrl(),
-                            postingBody(attachment),
+                            attachment.rawText(),
                             conversationId
                     )
             );
@@ -176,51 +312,29 @@ public class ConversationService {
                         conversationId,
                         "ASSISTANT",
                         "ANALYSIS_STATUS",
-                        // **사용자향 문장은 에이전트가 쓴다.** 이 행은 진행 휠이 붙는 자리
-                        // (analysis_job_id 를 실은 메시지)라 필요하지만, 그 말까지 우리가
-                        // 지으면 같은 턴에 에이전트가 하는 답과 겹쳐 두 번 말하는 셈이 된다
-                        // — 첨부에도 답변 작업을 만들면서(D145) 에이전트가 이 턴에 답한다.
-                        // 재사용 안내는 그대로 둔다: 그건 이 서비스가 아는 사실(같은 공고의
-                        // 기존 분석을 이어 쓴다)이고 에이전트는 모른다.
-                        created.reusedAnalysis() ? created.reuseMessage() : "",
+                        created.reusedAnalysis() ? created.reuseMessage() :
+                        "공고를 저장했고 백그라운드 분석을 시작했어요. 다른 대화를 계속해도 완료되면 알려드릴게요.",
                         created.postingId(),
                         created.analysisJobId(),
                         null,
                         metadata
                 );
             });
-            // 공고 첨부도 **대화**다 — 에이전트가 답해야 한다.
-            //
-            // 전에는 여기서 chatReplyJobId 를 null 로 돌려줘 AI 대화 서버가 아예 불리지 않았다.
-            // 그래서 같은 URL 을 채팅 본문에 쓰면 에이전트가 공고를 정리해 주는데, 왼쪽 첨부
-            // 버튼으로 넣으면 "백그라운드 분석을 시작했어요" 한 줄만 오고 대화가 없었다 —
-            // 사용자에게 그 둘은 같은 행동이므로 결과도 같아야 한다.
-            //
-            // 발화(userMessage.content)에 이미 주소나 원문이 들어 있으므로 AI 쪽은 채팅 본문에
-            // URL 을 쓴 경우와 **같은 경로**를 탄다(chat.py 의 URL 인테이크). 여기서 따로 실어
-            // 보낼 것은 없다.
-            UUID attachmentChatJobId = enqueueChatReply(userId, conversationId, userMessage.id());
             return new SendResult(
                     userMessage,
                     assistant,
                     created.analysisJobId(),
-                    attachmentChatJobId,
+                    null,
                     true
             );
         }
 
-        UUID chatReplyJobId = enqueueChatReply(userId, conversationId, userMessage.id());
-        return new SendResult(userMessage, null, null, chatReplyJobId, true);
-    }
-
-    /**
-     * 사용자 메시지에 대한 AI 답변 작업을 큐에 넣고, 그 id 를 메시지 메타데이터에 심는다.
-     *
-     * <p>일반 발화 경로와 공고 첨부 경로가 **같은 함수**를 쓴다 — 두 벌로 두면 한쪽만 고쳐지고
-     * (실제로 첨부 경로에는 이 호출이 아예 없어서 대화가 끊겼다) 화면 동작이 갈린다.
-     */
-    private UUID enqueueChatReply(UUID userId, UUID conversationId, UUID messageId) {
-        UUID chatReplyJobId = chatReplyJobs.enqueue(userId, conversationId, messageId);
+        UUID chatReplyJobId = chatReplyJobs.enqueue(
+                userId,
+                conversationId,
+                userMessage.id(),
+                objectMapper.valueToTree(agentContext)
+        );
         rls.write(userId, jdbc -> {
             jdbc.sql("""
                             update conversation_messages
@@ -231,11 +345,11 @@ public class ConversationService {
                             where id = :messageId
                             """)
                     .param("chatReplyJobId", chatReplyJobId)
-                    .param("messageId", messageId)
+                    .param("messageId", userMessage.id())
                     .update();
             return null;
         });
-        return chatReplyJobId;
+        return new SendResult(userMessage, null, null, chatReplyJobId, true);
     }
 
     public void archive(UUID userId, UUID conversationId) {
@@ -250,6 +364,20 @@ public class ConversationService {
             if (updated == 0) {
                 throw notFound();
             }
+            return null;
+        });
+    }
+
+    public void restore(UUID userId, UUID conversationId) {
+        rls.write(userId, jdbc -> {
+            int updated = jdbc.sql("""
+                            update conversations
+                            set status = 'ACTIVE'
+                            where id = :conversationId
+                            """)
+                    .param("conversationId", conversationId)
+                    .update();
+            if (updated == 0) throw notFound();
             return null;
         });
     }
@@ -288,40 +416,85 @@ public class ConversationService {
                 ))
                 .optional()
                 .orElseThrow(this::notFound);
-        List<MessageView> messages = jdbc.sql("""
-                        select
-                            id,
-                            role,
-                            kind,
-                            content,
-                            posting_id,
-                            analysis_job_id,
-                            metadata::text,
-                            created_at
-                        from conversation_messages
-                        where conversation_id = :conversationId
+        List<MessageView> messages = new ArrayList<>(jdbc.sql("""
+                        select *
+                        from (
+                            select
+                                id,
+                                role,
+                                kind,
+                                content,
+                                posting_id,
+                                analysis_job_id,
+                                metadata::text as metadata,
+                                created_at
+                            from conversation_messages
+                            where conversation_id = :conversationId
+                            order by created_at desc, id desc
+                            limit 201
+                        ) recent_messages
                         order by created_at, id
-                        limit 200
                         """)
                 .param("conversationId", conversationId)
-                .query((rs, rowNum) -> new MessageView(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("role"),
-                        rs.getString("kind"),
-                        rs.getString("content"),
-                        rs.getObject("posting_id", UUID.class),
-                        rs.getObject("analysis_job_id", UUID.class),
-                        readJson(rs.getString("metadata")),
-                        rs.getObject("created_at", OffsetDateTime.class)
-                ))
-                .list();
+                .query(this::mapMessage)
+                .list());
+        boolean hasOlderMessages = messages.size() > 200;
+        if (hasOlderMessages) messages.remove(0);
         return new ConversationView(
                 header.id(),
                 header.title(),
                 header.status(),
-                messages,
+                List.copyOf(messages),
+                hasOlderMessages,
                 header.lastMessageAt(),
                 header.createdAt()
+        );
+    }
+
+    private ConversationSummary loadSummary(
+            org.springframework.jdbc.core.simple.JdbcClient jdbc,
+            UUID conversationId
+    ) {
+        return jdbc.sql("""
+                        select
+                            c.id,
+                            c.title,
+                            c.status,
+                            c.last_message_at,
+                            c.created_at,
+                            coalesce((
+                                select m.content
+                                from conversation_messages m
+                                where m.conversation_id = c.id
+                                order by m.created_at desc, m.id desc
+                                limit 1
+                            ), '') as last_message
+                        from conversations c
+                        where c.id = :conversationId
+                        """)
+                .param("conversationId", conversationId)
+                .query((rs, rowNum) -> new ConversationSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("title"),
+                        rs.getString("status"),
+                        rs.getString("last_message"),
+                        rs.getObject("last_message_at", OffsetDateTime.class),
+                        rs.getObject("created_at", OffsetDateTime.class)
+                ))
+                .optional()
+                .orElseThrow(this::notFound);
+    }
+
+    private MessageView mapMessage(ResultSet rs, int rowNum) throws SQLException {
+        return new MessageView(
+                rs.getObject("id", UUID.class),
+                rs.getString("role"),
+                rs.getString("kind"),
+                rs.getString("content"),
+                rs.getObject("posting_id", UUID.class),
+                rs.getObject("analysis_job_id", UUID.class),
+                readJson(rs.getString("metadata")),
+                rs.getObject("created_at", OffsetDateTime.class)
         );
     }
 
@@ -341,6 +514,22 @@ public class ConversationService {
         if (!exists) {
             throw notFound();
         }
+    }
+
+    private void ensureConversationExists(
+            org.springframework.jdbc.core.simple.JdbcClient jdbc,
+            UUID conversationId
+    ) {
+        boolean exists = jdbc.sql("""
+                        select exists (
+                            select 1 from conversations
+                            where id = :conversationId
+                        )
+                        """)
+                .param("conversationId", conversationId)
+                .query(Boolean.class)
+                .single();
+        if (!exists) throw notFound();
     }
 
     private MessageView insertMessage(
@@ -474,6 +663,90 @@ public class ConversationService {
         return value == null ? objectMapper.createObjectNode() : objectMapper.readTree(value);
     }
 
+    private AgentContext normalizeContext(AgentContext context) {
+        if (context == null || context.mode() == null || context.mode().isBlank()) {
+            return AgentContext.automatic();
+        }
+        return new AgentContext(
+                context.mode(),
+                uniqueIds(context.postingIds()),
+                uniqueIds(context.careerSourceIds())
+        );
+    }
+
+    private List<UUID> uniqueIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> unique = new LinkedHashSet<>(ids);
+        if (unique.contains(null) || unique.size() > 5) {
+            throw invalidContext("한 번에 선택할 수 있는 자료는 종류별 최대 5개입니다.");
+        }
+        return List.copyOf(unique);
+    }
+
+    private void validateAgentContext(UUID userId, AgentContext context) {
+        int postingMinimum = switch (context.mode()) {
+            case "POSTING_QA", "INTERVIEW_PREP", "APPLICATION_PLAN" -> 1;
+            case "POSTING_COMPARE" -> 2;
+            case "COVER_LETTER" -> 1;
+            default -> 0;
+        };
+        int sourceMinimum = switch (context.mode()) {
+            case "RESUME_DIAGNOSIS" -> 1;
+            case "RESUME_COMPARE" -> 2;
+            case "COVER_LETTER" -> 1;
+            default -> 0;
+        };
+        if (context.postingIds().size() < postingMinimum) {
+            throw invalidContext("이 작업에는 공고를 " + postingMinimum + "개 이상 선택해야 합니다.");
+        }
+        if (context.careerSourceIds().size() < sourceMinimum) {
+            throw invalidContext("이 작업에는 커리어 자료를 " + sourceMinimum + "개 이상 선택해야 합니다.");
+        }
+
+        rls.read(userId, jdbc -> {
+            if (!context.postingIds().isEmpty()) {
+                int found = jdbc.sql("""
+                                select count(*)
+                                from job_postings
+                                where id in (:postingIds)
+                                  and archived_at is null
+                                """)
+                        .param("postingIds", context.postingIds())
+                        .query(Integer.class)
+                        .single();
+                if (found != context.postingIds().size()) {
+                    throw invalidContext("선택한 공고 중 사용할 수 없는 항목이 있습니다.");
+                }
+            }
+            if (!context.careerSourceIds().isEmpty()) {
+                int found = jdbc.sql("""
+                                select count(*)
+                                from career_sources
+                                where id in (:sourceIds)
+                                  and status = 'CONFIRMED'
+                                  and archived_at is null
+                                """)
+                        .param("sourceIds", context.careerSourceIds())
+                        .query(Integer.class)
+                        .single();
+                if (found != context.careerSourceIds().size()) {
+                    throw invalidContext("선택한 커리어 자료 중 사용할 수 없는 항목이 있습니다.");
+                }
+            }
+            return null;
+        });
+    }
+
+    private ApiException invalidContext(String message) {
+        return new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_AGENT_CONTEXT",
+                message
+        );
+    }
+
     private String writeJson(Object value) {
         return objectMapper.writeValueAsString(value);
     }
@@ -498,32 +771,7 @@ public class ConversationService {
     private record ExistingMessage(UUID id, OffsetDateTime createdAt) {
     }
 
-    /**
-     * 저장할 공고 본문.
-     *
-     * <p>URL 만 준 경우 원문이 없다 — 그건 정상이다. AI 가 URL 자산을 수집해 내용을 채운다
-     * ({@code posting_fetch}). 다만 {@code job_postings.raw_text} 는 NOT NULL 이고 AI 계약도
-     * 최소 1자를 요구하므로, 수집 전까지의 자리표시로 <b>주소 자체</b>를 넣는다. 빈 문자열을
-     * 넣으면 "원문을 받았는데 비어 있다"와 구분되지 않는다.
-     *
-     * <p>둘 다 비면 예외 — 무엇을 분석할지가 없다.
-     */
-    private static String postingBody(PostingAttachment attachment) {
-        String body = attachment.rawText() == null ? "" : attachment.rawText().trim();
-        String url = attachment.sourceUrl() == null ? "" : attachment.sourceUrl().trim();
-        boolean hasUrl = url.startsWith("http://") || url.startsWith("https://");
-
-        if (body.length() >= POSTING_MIN_CHARS) {
-            return body;
-        }
-        if (hasUrl) {
-            return url;
-        }
-        throw new ApiException(
-                HttpStatus.BAD_REQUEST,
-                "POSTING_CONTENT_REQUIRED",
-                "공고 주소(http/https)나 원문 " + POSTING_MIN_CHARS + "자 이상 중 하나는 있어야 합니다."
-        );
+    private record ConversationRow(ConversationSummary summary, int total) {
     }
 
     public record PostingAttachment(
@@ -536,8 +784,19 @@ public class ConversationService {
     public record SendCommand(
             UUID clientMessageId,
             String content,
-            PostingAttachment posting
+            PostingAttachment posting,
+            AgentContext context
     ) {
+    }
+
+    public record AgentContext(
+            String mode,
+            List<UUID> postingIds,
+            List<UUID> careerSourceIds
+    ) {
+        public static AgentContext automatic() {
+            return new AgentContext("AUTO", List.of(), List.of());
+        }
     }
 
     public record ConversationSummary(
@@ -567,8 +826,23 @@ public class ConversationService {
             String title,
             String status,
             List<MessageView> messages,
+            boolean hasOlderMessages,
             OffsetDateTime lastMessageAt,
             OffsetDateTime createdAt
+    ) {
+    }
+
+    public record MessagePage(
+            List<MessageView> items,
+            boolean hasMore
+    ) {
+    }
+
+    public record ConversationPage(
+            List<ConversationSummary> items,
+            int page,
+            int size,
+            int total
     ) {
     }
 

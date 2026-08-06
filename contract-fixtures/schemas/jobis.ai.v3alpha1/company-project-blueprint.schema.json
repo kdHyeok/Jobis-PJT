@@ -1,0 +1,308 @@
+{
+  "$defs": {
+    "PlannedProjectTask": {
+      "additionalProperties": false,
+      "properties": {
+        "taskKey": {
+          "minLength": 3,
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+          "title": "Taskkey",
+          "type": "string"
+        },
+        "necessity": {
+          "$ref": "#/$defs/ProjectNecessity"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "objective": {
+          "minLength": 1,
+          "title": "Objective",
+          "type": "string"
+        },
+        "acceptanceCriteria": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Acceptancecriteria",
+          "type": "array"
+        },
+        "capabilityKeys": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Capabilitykeys",
+          "type": "array"
+        },
+        "requirementIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Requirementids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "taskKey",
+        "necessity",
+        "title",
+        "objective",
+        "acceptanceCriteria",
+        "requirementIds"
+      ],
+      "title": "PlannedProjectTask",
+      "type": "object"
+    },
+    "ProjectNecessity": {
+      "enum": [
+        "REQUIRED",
+        "RECOMMENDED",
+        "EXTENSION"
+      ],
+      "title": "ProjectNecessity",
+      "type": "string"
+    },
+    "ProjectPlanningAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "plannerVersion": {
+          "minLength": 1,
+          "title": "Plannerversion",
+          "type": "string"
+        },
+        "graphVersion": {
+          "minLength": 1,
+          "title": "Graphversion",
+          "type": "string"
+        },
+        "graphContentHash": {
+          "minLength": 1,
+          "title": "Graphcontenthash",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "generationAttempts": {
+          "minimum": 1,
+          "title": "Generationattempts",
+          "type": "integer"
+        },
+        "generationDurationMs": {
+          "minimum": 0,
+          "title": "Generationdurationms",
+          "type": "integer"
+        },
+        "generationEffort": {
+          "default": "medium",
+          "minLength": 1,
+          "title": "Generationeffort",
+          "type": "string"
+        },
+        "generationEffortHistory": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Generationefforthistory",
+          "type": "array"
+        },
+        "providerDurationMs": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Providerdurationms",
+          "type": "integer"
+        },
+        "providerApiDurationMs": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Providerapidurationms",
+          "type": "integer"
+        },
+        "inputTokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Inputtokens",
+          "type": "integer"
+        },
+        "outputTokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Outputtokens",
+          "type": "integer"
+        },
+        "cacheCreationInputTokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cachecreationinputtokens",
+          "type": "integer"
+        },
+        "cacheReadInputTokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cachereadinputtokens",
+          "type": "integer"
+        },
+        "totalCostUsd": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Totalcostusd",
+          "type": "number"
+        },
+        "providerSessionIds": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Providersessionids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "plannerVersion",
+        "graphVersion",
+        "graphContentHash",
+        "provider",
+        "model",
+        "generationAttempts",
+        "generationDurationMs"
+      ],
+      "title": "ProjectPlanningAudit",
+      "type": "object"
+    },
+    "WarningItem": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/WarningSeverity",
+          "default": "WARNING"
+        },
+        "evidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evidenceids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WarningItem",
+      "type": "object"
+    },
+    "WarningSeverity": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
+      "title": "WarningSeverity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "blueprintId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Blueprintid",
+      "type": "string"
+    },
+    "commonAnalysisId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Commonanalysisid",
+      "type": "string"
+    },
+    "selectedPositionId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Selectedpositionid",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "objective": {
+      "minLength": 1,
+      "title": "Objective",
+      "type": "string"
+    },
+    "domainContext": {
+      "minLength": 1,
+      "title": "Domaincontext",
+      "type": "string"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/PlannedProjectTask"
+      },
+      "maxItems": 12,
+      "title": "Tasks",
+      "type": "array"
+    },
+    "unresolvedRequirementIds": {
+      "items": {
+        "minLength": 3,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+        "type": "string"
+      },
+      "title": "Unresolvedrequirementids",
+      "type": "array"
+    },
+    "audit": {
+      "$ref": "#/$defs/ProjectPlanningAudit"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WarningItem"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "blueprintId",
+    "commonAnalysisId",
+    "selectedPositionId",
+    "title",
+    "objective",
+    "domainContext",
+    "audit"
+  ],
+  "title": "CompanyProjectBlueprint",
+  "type": "object"
+}
