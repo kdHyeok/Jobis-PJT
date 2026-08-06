@@ -231,12 +231,13 @@ else
   [[ "$code" == "200" ]] && pass "https / (프론트)" || fail "https / → HTTP $code"
   code="$(http_code -k -H "Host: $PUBLIC_HOST" https://127.0.0.1/api/health)"
   [[ "$code" == "200" ]] && pass "https /api/health (백엔드)" || fail "https /api/health → HTTP $code"
-  # Airflow 는 basic auth 로 막혀 있어야 한다. 200 이면 인증이 풀린 것이다.
-  code="$(http_code -k -H "Host: $PUBLIC_HOST" https://127.0.0.1/airflow/)"
+  # 접근 통제는 Airflow 자체 로그인이 담당한다. 로그인하지 않은 요청은 로그인
+  # 화면으로 넘어가야(302) 정상이고, 200 이면 UI 가 그대로 노출된 것이다.
+  code="$(http_code -k -H "Host: $PUBLIC_HOST" https://127.0.0.1/airflow/home)"
   case "$code" in
-    401) pass "https /airflow/ basic auth 적용됨" ;;
-    200) fail "https /airflow/ 가 인증 없이 열려 있다" ;;
-    *)   fail "https /airflow/ → HTTP $code" ;;
+    302) pass "https /airflow/ 미인증 요청이 로그인으로 유도됨" ;;
+    200) fail "https /airflow/home 이 로그인 없이 열려 있다" ;;
+    *)   fail "https /airflow/home → HTTP $code" ;;
   esac
 fi
 
