@@ -12,6 +12,12 @@
 pipeline {
   agent none
 
+  environment {
+    // 호스트 postgres(5432)와 겹치지 않는 CI 전용 포트. disableConcurrentBuilds 로
+    // 동시 실행이 없으므로 고정 포트를 써도 충돌하지 않는다.
+    CI_POSTGRES_PORT = '55432'
+  }
+
   options {
     disableConcurrentBuilds()
     timeout(time: 45, unit: 'MINUTES')
@@ -54,10 +60,13 @@ pipeline {
         updateGitlabCommitStatus name: 'jenkins', state: 'running'
         script {
           // 운영 DB가 PostgreSQL이므로 CI도 동일한 DB로 테스트한다 (방언 불일치 방지)
+          // 아래 테스트 에이전트는 Testcontainers 를 쓰기 위해 host 네트워크로 실행한다.
+          // host 네트워크에서는 --link 를 쓸 수 없으므로 루프백 포트로 발행해 연결한다.
           docker.image('postgres:17-alpine').withRun(
             '-e POSTGRES_DB=jobiss ' +
             '-e POSTGRES_USER=jobiss_migrator ' +
-            '-e POSTGRES_PASSWORD=ci-migrator-password'
+            '-e POSTGRES_PASSWORD=ci-migrator-password ' +
+            "-p 127.0.0.1:${CI_POSTGRES_PORT}:5432"
           ) { db ->
             // 현재 서비스 v2는 Flyway용 역할과 RLS가 적용되는 앱 역할을 분리한다.
             withEnv(["POSTGRES_CONTAINER=${db.id}"]) {
@@ -89,9 +98,18 @@ SQL
               '''
             }
 
-            docker.image('eclipse-temurin:17-jdk').inside("--link ${db.id}:postgres") {
+            // 소켓 그룹은 호스트 docker 그룹 GID 를 그대로 쓴다(하드코딩하지 않는다).
+            def dockerGid = sh(
+              script: 'stat -c %g /var/run/docker.sock',
+              returnStdout: true
+            ).trim()
+            docker.image('eclipse-temurin:17-jdk').inside(
+              '--network host ' +
+              '-v /var/run/docker.sock:/var/run/docker.sock ' +
+              "--group-add ${dockerGid}"
+            ) {
               withEnv([
-                'DB_URL=jdbc:postgresql://postgres:5432/jobiss',
+                "DB_URL=jdbc:postgresql://127.0.0.1:${CI_POSTGRES_PORT}/jobiss",
                 'DB_MIGRATOR_USER=jobiss_migrator',
                 'DB_MIGRATOR_PASSWORD=ci-migrator-password',
                 'DB_APP_USER=jobiss_app',
