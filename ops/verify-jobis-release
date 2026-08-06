@@ -53,6 +53,14 @@ query() {  # query <db> <sql>
   sudo -u postgres psql -d "$1" -tAc "$2" 2>/dev/null || true
 }
 
+# 정수를 기대하는 조회. 실패하면 빈 문자열을 돌려주므로 호출부가 "알 수 없음"과
+# "값이 0"을 구분할 수 있다. 이 검증은 롤백을 유발하므로 오검출을 피해야 한다.
+query_int() {  # query_int <db> <sql>
+  local out
+  out="$(query "$1" "$2")"
+  if [[ "$out" =~ ^[0-9]+$ ]]; then printf '%s' "$out"; fi
+}
+
 http_code() {  # http_code <url> [curl 추가인자...]
   curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$@" 2>/dev/null || echo "000"
 }
@@ -123,6 +131,12 @@ code="$(http_code -X POST -H 'Content-Type: application/json' \
 [[ "$code" == "200" ]] && pass "임베딩 실동작 (POST /search)" \
   || fail "임베딩 질의 실패 → HTTP $code"
 
+echo "== 데이터베이스 =="
+for db in jobiss_v2 jobrag airflow; do
+  [[ "$(query "$db" 'SELECT 1;')" == "1" ]] && pass "postgres 접속: $db" \
+    || fail "postgres 접속 실패: $db"
+done
+
 echo "== Airflow =="
 # base_url 에 /airflow 접두사가 있으므로 헬스 경로도 접두사를 포함한다.
 af_health="$(curl -fsS --max-time 10 http://127.0.0.1:8081/airflow/health 2>/dev/null || true)"
@@ -137,23 +151,27 @@ else
   warn "airflow scheduler heartbeat 가 healthy 가 아니다"
 fi
 
-import_errors="$(query airflow "SELECT count(*) FROM import_error;")"
-if [[ "${import_errors:-0}" =~ ^[0-9]+$ && "${import_errors:-0}" -eq 0 ]]; then
+import_errors="$(query_int airflow "SELECT count(*) FROM import_error;")"
+if [[ -z "$import_errors" ]]; then
+  warn "airflow DAG import 오류 수를 조회하지 못했다"
+elif [[ "$import_errors" -eq 0 ]]; then
   pass "airflow DAG import 오류 없음"
 else
   fail "airflow DAG import 오류 ${import_errors}건 (DAG 파일 문법·의존성 확인 필요)"
 fi
 
-dag_count="$(query airflow "SELECT count(*) FROM dag WHERE dag_id LIKE 'jobis%';")"
-if [[ "${dag_count:-0}" -ge 5 ]]; then
+dag_count="$(query_int airflow "SELECT count(*) FROM dag WHERE dag_id LIKE 'jobis%';")"
+if [[ -n "$dag_count" && "$dag_count" -ge 5 ]]; then
   pass "airflow JOBIS DAG ${dag_count}개 등록"
 else
   warn "airflow JOBIS DAG 이 ${dag_count:-0}개만 보인다 (기대 5개)"
 fi
 
 if [[ -n "$AIRFLOW_ADMIN_USERNAME" ]]; then
-  admin_rows="$(query airflow "SELECT count(*) FROM ab_user WHERE username = '${AIRFLOW_ADMIN_USERNAME//\'/\'\'}';")"
-  if [[ "${admin_rows:-0}" -ge 1 ]]; then
+  admin_rows="$(query_int airflow "SELECT count(*) FROM ab_user WHERE username = '${AIRFLOW_ADMIN_USERNAME//\'/\'\'}';")"
+  if [[ -z "$admin_rows" ]]; then
+    warn "airflow 관리자 계정을 조회하지 못했다"
+  elif [[ "$admin_rows" -ge 1 ]]; then
     pass "airflow 관리자 계정 존재 ($AIRFLOW_ADMIN_USERNAME)"
   else
     fail "airflow 관리자 계정이 없다: $AIRFLOW_ADMIN_USERNAME"
@@ -186,24 +204,20 @@ for variable in AIRFLOW_BASE_URL AIRFLOW_ADMIN_USERNAME AIRFLOW_WEBSERVER_SECRET
   fi
 done
 
-echo "== 데이터베이스 =="
-for db in jobiss_v2 jobrag airflow; do
-  [[ "$(query "$db" 'SELECT 1;')" == "1" ]] && pass "postgres 접속: $db" \
-    || fail "postgres 접속 실패: $db"
-done
-
 # 백그라운드 워커가 큐를 집어가지 못하면(예: RLS 정책 누락) 여기서 드러난다.
-stuck_chat="$(query jobiss_v2 "
+stuck_chat="$(query_int jobiss_v2 "
   SELECT count(*) FROM chat_reply_jobs j
   JOIN chat_reply_job_queue q ON q.chat_reply_job_id = j.id
   WHERE j.status = 'QUEUED' AND q.attempt_count = 0
     AND j.created_at < now() - interval '${STUCK_JOB_MINUTES} minutes';")"
-stuck_analysis="$(query jobiss_v2 "
+stuck_analysis="$(query_int jobiss_v2 "
   SELECT count(*) FROM analysis_jobs j
   JOIN analysis_job_queue q ON q.analysis_job_id = j.id
   WHERE j.status = 'QUEUED' AND q.attempt_count = 0
     AND j.created_at < now() - interval '${STUCK_JOB_MINUTES} minutes';")"
-if [[ "${stuck_chat:-0}" == "0" && "${stuck_analysis:-0}" == "0" ]]; then
+if [[ -z "$stuck_chat" || -z "$stuck_analysis" ]]; then
+  warn "워커 큐 상태를 조회하지 못했다"
+elif [[ "$stuck_chat" -eq 0 && "$stuck_analysis" -eq 0 ]]; then
   pass "워커 큐 정체 없음 (채팅·분석)"
 else
   warn "워커가 집어가지 못한 작업: 채팅 ${stuck_chat}건 · 분석 ${stuck_analysis}건 (${STUCK_JOB_MINUTES}분 초과)"
