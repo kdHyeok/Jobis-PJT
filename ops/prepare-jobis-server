@@ -26,6 +26,7 @@ required_sources=(
   ops/restore-jobis-db-test
   ops/restore-latest-jobis-db-test
   ops/audit-jobis-server
+  ops/verify-jobis-release
   ops/switch-jobis-nginx
   ops/install-jobis-nginx-control
   ops/bootstrap-jobis-v2-database
@@ -37,6 +38,7 @@ required_sources=(
   ops/sync-jobis-release-assets
   ops/jobis-deploy.sudoers
   ops/nginx-jobis-app.location.conf
+  ops/nginx-jobis-airflow.location.conf
   ops/nginx-jobis-upstream-legacy.conf
   ops/nginx-jobis-upstream-container.conf
   ops/jobis-db-backup.service
@@ -116,6 +118,9 @@ install -o root -g root -m 0644 \
   "${SOURCE_ROOT}/ops/nginx-jobis-app.location.conf" /opt/jobis/nginx-jobis-app.location.conf
 install -o root -g root -m 0644 \
   "${SOURCE_ROOT}/ops/nginx-jobis-upstream-legacy.conf" /opt/jobis/nginx-jobis-upstream-legacy.conf
+# Airflow 를 /airflow 로 프록시하는 스니펫. 사이트 설정이 이 경로를 include 한다.
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/nginx-jobis-airflow.location.conf" /etc/jobis/nginx-airflow.location.conf
 install -o root -g root -m 0644 \
   "${SOURCE_ROOT}/ops/nginx-jobis-upstream-container.conf" /opt/jobis/nginx-jobis-upstream-container.conf
 install -o root -g root -m 0644 \
@@ -141,6 +146,8 @@ install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/restore-latest-jobis-db-test" /usr/local/sbin/restore-latest-jobis-db-test
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/audit-jobis-server" /usr/local/sbin/audit-jobis-server
+install -o root -g root -m 0755 \
+  "${SOURCE_ROOT}/ops/verify-jobis-release" /usr/local/sbin/verify-jobis-release
 install -o root -g root -m 0755 \
   "${SOURCE_ROOT}/ops/switch-jobis-nginx" /usr/local/sbin/switch-jobis-nginx
 install -o root -g root -m 0755 \
@@ -187,6 +194,7 @@ fi
 asset_paths=(
   /opt/jobis/docker-compose.prod.yml
   /opt/jobis/nginx-jobis-app.location.conf
+  /etc/jobis/nginx-airflow.location.conf
   /opt/jobis/nginx-jobis-upstream-legacy.conf
   /opt/jobis/nginx-jobis-upstream-container.conf
   /opt/jobis/migrate-jobis-legacy-to-v2.sql
@@ -196,6 +204,7 @@ asset_paths=(
   /etc/jobis/jobis-v2.env.example
   /usr/local/sbin/deploy-jobis
   /usr/local/sbin/audit-jobis-server
+  /usr/local/sbin/verify-jobis-release
   /usr/local/sbin/backup-jobis-db
   /usr/local/sbin/backup-jobis-pipeline-db
   /usr/local/sbin/restore-jobis-db-test

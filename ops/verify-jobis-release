@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+# 배포 직후 스택이 "떠 있는지"가 아니라 "동작하는지"를 확인한다.
+#
+# audit-jobis-server 가 파일·권한·설정 같은 정적 상태를 보는 반면, 이 스크립트는
+# 실제 요청을 보내 기능을 확인한다. deploy-jobis 가 롤백 트랩 안에서 호출하므로
+# fail 이 하나라도 나면 이전 릴리스로 되돌아간다.
+#
+# 실패(fail) = 서비스가 깨진 상태. 경고(warn) = 사람이 봐야 하지만 배포를 막지는 않는 상태.
+#
+#   sudo /usr/local/sbin/verify-jobis-release [RELEASE_SHA]
+set -Eeuo pipefail
+
+readonly ENV_FILE="/etc/jobis/jobis-v2.env"
+readonly NGINX_SITE="/etc/nginx/sites-available/jobis"
+readonly COMPOSE_PROJECT="jobis-v2"
+# 워커가 큐를 집어가지 못하면 이 시간이 지나도 QUEUED 로 남는다.
+readonly STUCK_JOB_MINUTES=10
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "verify-jobis-release must run as root." >&2
+  exit 1
+fi
+
+readonly RELEASE_SHA="${1:-}"
+if [[ -n "$RELEASE_SHA" && ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Optional release SHA must be 40 lowercase hexadecimal characters." >&2
+  exit 2
+fi
+
+for command in curl docker grep psql; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
+
+failures=0
+warnings=0
+pass() { printf '  ok   %s\n' "$1"; }
+warn() { printf '  WARN %s\n' "$1"; warnings=$((warnings + 1)); }
+fail() { printf '  FAIL %s\n' "$1"; failures=$((failures + 1)); }
+
+# 값이 로그에 찍히지 않도록 필요한 이름만 읽는다.
+AIRFLOW_ADMIN_USERNAME=""
+if [[ -f "$ENV_FILE" ]]; then
+  AIRFLOW_ADMIN_USERNAME="$(grep -oP '^AIRFLOW_ADMIN_USERNAME=\K.*' "$ENV_FILE" 2>/dev/null || true)"
+fi
+
+# nginx 경유 검사에 쓸 공개 호스트명
+PUBLIC_HOST="$(grep -oP '^\s*server_name\s+\K[^;]+' "$NGINX_SITE" 2>/dev/null | head -1 | awk '{print $1}' || true)"
+
+query() {  # query <db> <sql>
+  sudo -u postgres psql -d "$1" -tAc "$2" 2>/dev/null || true
+}
+
+http_code() {  # http_code <url> [curl 추가인자...]
+  curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$@" 2>/dev/null || echo "000"
+}
+
+echo "== 컨테이너 =="
+for service in backend ai frontend rag-search airflow-scheduler airflow-webserver; do
+  container="jobis-${service}"
+  state="$(docker inspect --format '{{.State.Status}}' "$container" 2>/dev/null || true)"
+  if [[ "$state" != "running" ]]; then
+    fail "컨테이너가 실행 중이 아니다: $container (${state:-없음})"
+    continue
+  fi
+  if [[ -n "$RELEASE_SHA" ]]; then
+    image="$(docker inspect --format '{{.Config.Image}}' "$container" 2>/dev/null || true)"
+    if [[ "$image" == *":${RELEASE_SHA}" ]]; then
+      pass "$container 실행 중 · 이미지 태그 일치"
+    else
+      fail "$container 이미지 태그가 릴리스와 다르다: $image"
+    fi
+  else
+    pass "$container 실행 중"
+  fi
+done
+
+echo "== 애플리케이션 =="
+code="$(http_code http://127.0.0.1:8080/api/health)"
+[[ "$code" == "200" ]] && pass "backend /api/health" || fail "backend /api/health → HTTP $code"
+
+ai_health="$(curl -fsS --max-time 10 http://127.0.0.1:8000/health 2>/dev/null || true)"
+if grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' <<<"$ai_health" &&
+   grep -Eq '"service"[[:space:]]*:[[:space:]]*"jobis-ai-v2bridge"' <<<"$ai_health"; then
+  pass "ai /health (provider=$(grep -oP '"provider"\s*:\s*"\K[^"]+' <<<"$ai_health" || echo '?'))"
+else
+  fail "ai /health 응답이 계약과 다르다"
+fi
+
+code="$(http_code http://127.0.0.1:8088/)"
+[[ "$code" == "200" ]] && pass "frontend /" || fail "frontend / → HTTP $code"
+# 프론트 컨테이너의 nginx 가 backend 로 프록시하는 경로까지 확인한다.
+code="$(http_code http://127.0.0.1:8088/api/auth/csrf)"
+[[ "$code" == "200" ]] && pass "frontend → backend 프록시 (/api/auth/csrf)" \
+  || fail "frontend → backend 프록시 실패 → HTTP $code"
+
+echo "== RAG · 임베딩 =="
+rag_health="$(curl -fsS --max-time 10 http://127.0.0.1:8765/health 2>/dev/null || true)"
+if grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' <<<"$rag_health" &&
+   grep -Eq '"warm"[[:space:]]*:[[:space:]]*true' <<<"$rag_health"; then
+  pass "rag-search /health (embedding=$(grep -oP '"embedding_backend"\s*:\s*"\K[^"]+' <<<"$rag_health" || echo '?'))"
+else
+  fail "rag-search 가 준비되지 않았다(warm=false 또는 응답 없음)"
+fi
+
+corpus="$(grep -oP '"corpus_chunks"\s*:\s*\K[0-9]+' <<<"$rag_health" || echo "")"
+db_chunks="$(query jobrag "SELECT count(*) FROM chunks WHERE embedding IS NOT NULL;")"
+if [[ -z "$corpus" ]]; then
+  warn "corpus_chunks 를 읽지 못했다"
+elif [[ "$corpus" -eq 0 ]]; then
+  warn "RAG 색인이 비어 있다 (corpus_chunks=0 · DB 임베딩 완료 ${db_chunks:-?}건)"
+else
+  pass "RAG 색인 corpus_chunks=$corpus · DB 임베딩 완료 ${db_chunks:-?}건"
+fi
+
+# 질의는 임베딩 모델을 실제로 태우므로 임베딩 경로의 실동작 확인이 된다.
+# 색인이 비어 있어도 200 이 나와야 정상이다(결과가 0건일 뿐).
+code="$(http_code -X POST -H 'Content-Type: application/json' \
+  -d '{"input":"백엔드 개발자","top_k":1,"use_rerank":false}' \
+  http://127.0.0.1:8765/search)"
+[[ "$code" == "200" ]] && pass "임베딩 실동작 (POST /search)" \
+  || fail "임베딩 질의 실패 → HTTP $code"
+
+echo "== Airflow =="
+# base_url 에 /airflow 접두사가 있으므로 헬스 경로도 접두사를 포함한다.
+af_health="$(curl -fsS --max-time 10 http://127.0.0.1:8081/airflow/health 2>/dev/null || true)"
+if grep -Eq '"metadatabase"[[:space:]]*:[[:space:]]*\{[[:space:]]*"status"[[:space:]]*:[[:space:]]*"healthy"' <<<"$af_health"; then
+  pass "airflow metadatabase healthy"
+else
+  fail "airflow /airflow/health 가 healthy 를 보고하지 않는다"
+fi
+if grep -Eq '"scheduler"[^}]*"status"[[:space:]]*:[[:space:]]*"healthy"' <<<"$af_health"; then
+  pass "airflow scheduler heartbeat healthy"
+else
+  warn "airflow scheduler heartbeat 가 healthy 가 아니다"
+fi
+
+import_errors="$(query airflow "SELECT count(*) FROM import_error;")"
+if [[ "${import_errors:-0}" =~ ^[0-9]+$ && "${import_errors:-0}" -eq 0 ]]; then
+  pass "airflow DAG import 오류 없음"
+else
+  fail "airflow DAG import 오류 ${import_errors}건 (DAG 파일 문법·의존성 확인 필요)"
+fi
+
+dag_count="$(query airflow "SELECT count(*) FROM dag WHERE dag_id LIKE 'jobis%';")"
+if [[ "${dag_count:-0}" -ge 5 ]]; then
+  pass "airflow JOBIS DAG ${dag_count}개 등록"
+else
+  warn "airflow JOBIS DAG 이 ${dag_count:-0}개만 보인다 (기대 5개)"
+fi
+
+if [[ -n "$AIRFLOW_ADMIN_USERNAME" ]]; then
+  admin_rows="$(query airflow "SELECT count(*) FROM ab_user WHERE username = '${AIRFLOW_ADMIN_USERNAME//\'/\'\'}';")"
+  if [[ "${admin_rows:-0}" -ge 1 ]]; then
+    pass "airflow 관리자 계정 존재 ($AIRFLOW_ADMIN_USERNAME)"
+  else
+    fail "airflow 관리자 계정이 없다: $AIRFLOW_ADMIN_USERNAME"
+  fi
+  # 계정명을 바꾸고 env 를 안 고치면 다음 배포에 옛 계정이 되살아난다.
+  if [[ "$(query airflow "SELECT count(*) FROM ab_user WHERE username='admin';")" != "0" &&
+        "$AIRFLOW_ADMIN_USERNAME" != "admin" ]]; then
+    warn "기본 계정 admin 이 남아 있다 (AIRFLOW_ADMIN_USERNAME=$AIRFLOW_ADMIN_USERNAME)"
+  fi
+else
+  warn "AIRFLOW_ADMIN_USERNAME 이 설정되지 않았다"
+fi
+
+# 레거시 SQLite 임포트 경로. 없으면 jobis_legacy_import 가 첫 태스크에서 실패한다.
+if docker inspect "jobis-airflow-scheduler" \
+     --format '{{range .Mounts}}{{.Destination}} {{end}}' 2>/dev/null |
+   grep -q '/opt/jobis/imports'; then
+  pass "scheduler 에 /opt/jobis/imports 마운트 존재"
+else
+  warn "scheduler 에 /opt/jobis/imports 마운트가 없다 (레거시 임포트 DAG 실행 불가)"
+fi
+
+echo "== 데이터베이스 =="
+for db in jobiss_v2 jobrag airflow; do
+  [[ "$(query "$db" 'SELECT 1;')" == "1" ]] && pass "postgres 접속: $db" \
+    || fail "postgres 접속 실패: $db"
+done
+
+# 백그라운드 워커가 큐를 집어가지 못하면(예: RLS 정책 누락) 여기서 드러난다.
+stuck_chat="$(query jobiss_v2 "
+  SELECT count(*) FROM chat_reply_jobs j
+  JOIN chat_reply_job_queue q ON q.chat_reply_job_id = j.id
+  WHERE j.status = 'QUEUED' AND q.attempt_count = 0
+    AND j.created_at < now() - interval '${STUCK_JOB_MINUTES} minutes';")"
+stuck_analysis="$(query jobiss_v2 "
+  SELECT count(*) FROM analysis_jobs j
+  JOIN analysis_job_queue q ON q.analysis_job_id = j.id
+  WHERE j.status = 'QUEUED' AND q.attempt_count = 0
+    AND j.created_at < now() - interval '${STUCK_JOB_MINUTES} minutes';")"
+if [[ "${stuck_chat:-0}" == "0" && "${stuck_analysis:-0}" == "0" ]]; then
+  pass "워커 큐 정체 없음 (채팅·분석)"
+else
+  warn "워커가 집어가지 못한 작업: 채팅 ${stuck_chat}건 · 분석 ${stuck_analysis}건 (${STUCK_JOB_MINUTES}분 초과)"
+fi
+
+echo "== 외부 경로 (nginx) =="
+if [[ -z "$PUBLIC_HOST" ]]; then
+  warn "nginx server_name 을 찾지 못해 외부 경로를 확인하지 않았다"
+else
+  code="$(http_code -k -H "Host: $PUBLIC_HOST" https://127.0.0.1/)"
+  [[ "$code" == "200" ]] && pass "https / (프론트)" || fail "https / → HTTP $code"
+  code="$(http_code -k -H "Host: $PUBLIC_HOST" https://127.0.0.1/api/health)"
+  [[ "$code" == "200" ]] && pass "https /api/health (백엔드)" || fail "https /api/health → HTTP $code"
+  # Airflow 는 basic auth 로 막혀 있어야 한다. 200 이면 인증이 풀린 것이다.
+  code="$(http_code -k -H "Host: $PUBLIC_HOST" https://127.0.0.1/airflow/)"
+  case "$code" in
+    401) pass "https /airflow/ basic auth 적용됨" ;;
+    200) fail "https /airflow/ 가 인증 없이 열려 있다" ;;
+    *)   fail "https /airflow/ → HTTP $code" ;;
+  esac
+fi
+
+printf 'release-verify: failures=%d warnings=%d\n' "$failures" "$warnings"
+[[ "$failures" -eq 0 ]]

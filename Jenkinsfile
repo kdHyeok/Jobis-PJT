@@ -179,6 +179,8 @@ SQL
       steps {
         sh '''
           test -x ops/deploy-jobis-container
+          # 실행 비트가 빠지면 배포가 시작 직후 "not executable" 로 멈춘다.
+          test -x ops/verify-jobis-release
           bash -n ops/deploy-jobis-container
           bash -n ops/backup-jobis-db
           bash -n ops/backup-jobis-pipeline-db
@@ -188,6 +190,7 @@ SQL
           bash -n ops/test-v2-database-bootstrap
           bash -n ops/prepare-jobis-server
           bash -n ops/audit-jobis-server
+          bash -n ops/verify-jobis-release
           bash -n ops/switch-jobis-nginx
           bash -n ops/install-jobis-nginx-control
           bash -n ops/bootstrap-jobis-v2-database
@@ -394,6 +397,32 @@ SQL
                  sudo -n /usr/local/sbin/sync-jobis-release-assets '$remote_archive' '$GIT_COMMIT' && \
                  sudo -n /usr/local/sbin/audit-jobis-server '$GIT_COMMIT' predeploy && \
                  sudo -n /usr/local/sbin/deploy-jobis '$GIT_COMMIT'"
+            '''
+          }
+        }
+      }
+    }
+
+    // 배포 스크립트 안에서도 같은 검증을 돌려 실패 시 롤백하지만, 롤백까지 끝난 뒤의
+    // 최종 상태를 파이프라인에서 다시 확인한다. 컨테이너가 떠 있는지가 아니라
+    // 실제로 동작하는지를 본다: 앱 헬스, 프론트→백엔드 프록시, 임베딩 질의,
+    // Airflow 메타DB·스케줄러·DAG import, 워커 큐 정체, nginx 외부 경로.
+    stage('Verify production') {
+      when { branch 'master' }
+      agent any
+      steps {
+        sshagent(credentials: ['jobis-deploy-ssh']) {
+          withCredentials([file(
+            credentialsId: 'jobis-deploy-known-hosts',
+            variable: 'DEPLOY_KNOWN_HOSTS'
+          )]) {
+            sh '''
+              set -euo pipefail
+              test -n "$DEPLOY_HOST" || { echo "DEPLOY_HOST 전역 환경변수가 없습니다."; exit 1; }
+              ssh -o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS" \
+                -o StrictHostKeyChecking=yes \
+                "jobis-deploy@$DEPLOY_HOST" \
+                "sudo -n /usr/local/sbin/verify-jobis-release '$GIT_COMMIT'"
             '''
           }
         }
