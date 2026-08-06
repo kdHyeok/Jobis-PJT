@@ -30,12 +30,18 @@ class PostgresRlsIntegrationTest {
     private static final String APP_USER = "jobiss_app";
     private static final String APP_PASSWORD = "jobiss_app_test";
 
+    private static final String MIGRATOR_USER = "jobiss_migrator";
+    private static final String MIGRATOR_PASSWORD = "jobiss_migrator_test";
+
+    // 컨테이너 부트스트랩 사용자는 슈퍼유저이고 강등할 수 없다. 슈퍼유저는 FORCE ROW LEVEL
+    // SECURITY 까지 우회하므로, 운영과 같은 조건을 만들려면 스키마 소유자를 별도의 일반
+    // 역할(jobiss_migrator)로 두고 그 역할로 마이그레이션해야 한다.
     @Container
     static final PostgreSQLContainer postgres =
             new PostgreSQLContainer("postgres:17-alpine")
                     .withDatabaseName("jobiss")
-                    .withUsername("jobiss_migrator")
-                    .withPassword("jobiss_migrator_test");
+                    .withUsername("jobiss_bootstrap")
+                    .withPassword("jobiss_bootstrap_test");
 
     @BeforeAll
     static void migrate() throws Exception {
@@ -45,18 +51,27 @@ class PostgresRlsIntegrationTest {
                 postgres.getPassword()
         ); Statement statement = connection.createStatement()) {
             statement.execute("""
+                    create role jobiss_migrator
+                    login password '%s'
+                    nosuperuser nocreatedb nocreaterole noinherit nobypassrls
+                    """.formatted(MIGRATOR_PASSWORD));
+            statement.execute("""
                     create role jobiss_app
                     login password 'jobiss_app_test'
                     nosuperuser nocreatedb nocreaterole noinherit nobypassrls
                     """);
-            statement.execute("grant connect on database jobiss to jobiss_app");
+            statement.execute(
+                    "grant connect on database jobiss to jobiss_migrator, jobiss_app"
+            );
+            statement.execute("grant create on database jobiss to jobiss_migrator");
+            statement.execute("alter schema public owner to jobiss_migrator");
         }
 
         Flyway.configure()
                 .dataSource(
                         postgres.getJdbcUrl(),
-                        postgres.getUsername(),
-                        postgres.getPassword()
+                        MIGRATOR_USER,
+                        MIGRATOR_PASSWORD
                 )
                 .locations("classpath:db/migration")
                 .load()
@@ -941,5 +956,147 @@ class PostgresRlsIntegrationTest {
         statement.execute(
                 "select set_config('app.current_user_id', '%s', true)".formatted(userId)
         );
+    }
+
+    // 백그라운드 워커는 특정 사용자로 동작하지 않아 app.current_user_id 가 비어 있다.
+    // chat_reply_jobs / analysis_jobs 는 FORCE ROW LEVEL SECURITY 라서 SECURITY DEFINER
+    // 만으로는 정책을 통과하지 못하고, claim 함수가 항상 0건을 돌려주며 큐가 멈춘다.
+    @Test
+    void workerClaimsChatReplyJobWithoutUserContext() throws Exception {
+        UUID owner = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, owner);
+            seedQueuedChatReplyJob(statement, owner);
+
+            // 워커 세션에는 사용자 컨텍스트가 없다.
+            statement.execute("select set_config('app.current_user_id', '', true)");
+
+            try (ResultSet result = statement.executeQuery(
+                    "select count(*) from claim_chat_reply_job('worker-1')"
+            )) {
+                result.next();
+                assertThat(result.getInt(1)).isEqualTo(1);
+            }
+
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void workerClaimsAnalysisJobWithoutUserContext() throws Exception {
+        UUID owner = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, owner);
+            seedQueuedAnalysisJob(statement, owner);
+
+            statement.execute("select set_config('app.current_user_id', '', true)");
+
+            try (ResultSet result = statement.executeQuery(
+                    "select count(*) from claim_analysis_job('worker-1')"
+            )) {
+                result.next();
+                assertThat(result.getInt(1)).isEqualTo(1);
+            }
+
+            connection.rollback();
+        }
+    }
+
+    // 워커 컨텍스트는 claim 함수 안에서만 켜져야 한다. 함수가 끝난 뒤에도 남아 있으면
+    // 같은 트랜잭션의 이후 질의가 다른 사용자의 행까지 보게 된다.
+    @Test
+    void workerContextDoesNotLeakAfterClaimReturns() throws Exception {
+        UUID owner = UUID.randomUUID();
+
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                APP_USER,
+                APP_PASSWORD
+        ); Statement statement = connection.createStatement()) {
+            connection.setAutoCommit(false);
+            setUser(statement, owner);
+            seedQueuedChatReplyJob(statement, owner);
+
+            statement.execute("select set_config('app.current_user_id', '', true)");
+            statement.execute("select claim_chat_reply_job('worker-1')");
+
+            try (ResultSet result = statement.executeQuery(
+                    "select coalesce(current_setting('app.worker_context', true), '')"
+            )) {
+                result.next();
+                assertThat(result.getString(1)).isEmpty();
+            }
+
+            // 사용자 컨텍스트가 없는 상태에서는 여전히 아무 행도 보이지 않아야 한다.
+            for (String table : List.of("chat_reply_jobs", "analysis_jobs")) {
+                try (ResultSet result = statement.executeQuery(
+                        "select count(*) from " + table
+                )) {
+                    result.next();
+                    assertThat(result.getInt(1)).isZero();
+                }
+            }
+
+            connection.rollback();
+        }
+    }
+
+    private static void seedQueuedChatReplyJob(Statement statement, UUID owner)
+            throws Exception {
+        statement.executeUpdate("""
+                insert into users (id, email, display_name)
+                values ('%s', '%s@example.com', 'Owner')
+                """.formatted(owner, owner));
+        statement.executeUpdate("""
+                with conversation as (
+                    insert into conversations (user_id)
+                    values ('%1$s')
+                    returning id
+                ), message as (
+                    insert into conversation_messages (
+                        user_id, conversation_id, role, content
+                    )
+                    select '%1$s', conversation.id, 'USER', '안녕하세요'
+                    from conversation
+                    returning id, conversation_id
+                )
+                insert into chat_reply_jobs (
+                    user_id, conversation_id, trigger_message_id
+                )
+                select '%1$s', message.conversation_id, message.id
+                from message
+                """.formatted(owner));
+    }
+
+    private static void seedQueuedAnalysisJob(Statement statement, UUID owner)
+            throws Exception {
+        statement.executeUpdate("""
+                insert into users (id, email, display_name)
+                values ('%s', '%s@example.com', 'Owner')
+                """.formatted(owner, owner));
+        statement.executeUpdate("""
+                with posting as (
+                    insert into job_postings (
+                        user_id, source_type, raw_text, content_fingerprint
+                    )
+                    values ('%1$s', 'TEXT', 'Java Spring Boot', '%1$s-fingerprint')
+                    returning id
+                )
+                insert into analysis_jobs (user_id, posting_id, status)
+                select '%1$s', posting.id, 'QUEUED'
+                from posting
+                """.formatted(owner));
     }
 }
