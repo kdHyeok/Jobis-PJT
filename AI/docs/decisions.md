@@ -2680,3 +2680,18 @@ API 직접 호출은 그 오버헤드가 없다. 단일 모델(기존 anthropic 
 **출처**: `config.py::Settings.active_model` · `llm.py::get_llm` · `.env.example`
 
 ---
+
+### D140 (08-07) 팀 표준 LLM 프로바이더를 Anthropic API 직접 호출로 전환한다
+
+**결정**: 통합 브랜치의 실행 표준을 `LLM_PROVIDER=anthropic`(D139 의 3티어:
+sonnet-5 / haiku-4.5 / opus-5)으로 한다. 키는 팀 내부에서 .env 파일로 배포한다.
+`start-ai-agent.ps1` 은 더 이상 codex_cli 를 강제하지 않고 .env 를 존중한다
+(비어 있을 때만 anthropic 기본값).
+
+**왜**: codex_cli 강제는 codex 실행 파일이 있는 PC 를 전제하는데, 실측(08-07)에서
+codex 가 없는 PC 의 전 LLM 호출이 `WinError 2` 로 죽었고 .env 의 anthropic 설정이
+조용히 무시됐다. API 직접 호출은 CLI 기동 오버헤드도 없다.
+
+**출처**: `scripts/start-ai-agent.ps1` · `AI/.env.example`
+
+---

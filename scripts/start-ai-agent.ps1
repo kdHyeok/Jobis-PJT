@@ -47,10 +47,13 @@ else {
     Write-Warning "No AI env file was found. Use -EnvFile <path> or create AI\.env."
 }
 
-# The integration lab intentionally uses Codex CLI for every JOBIS AI LLM
-# call. Keep this assignment after .env import so a stale Claude setting cannot
-# silently switch the runtime back to Claude Code.
-$env:LLM_PROVIDER = "codex_cli"
+# 팀 표준 프로바이더는 Anthropic API 직접 호출이다(D140) — .env 의 LLM_PROVIDER 를
+# 존중하고, 비어 있을 때만 anthropic 으로 기본값을 깐다. (종전에는 codex_cli 를 강제해
+# .env 에 anthropic 을 넣어도 무시됐다 — 실측 2026-08-07: codex 실행 파일이 없는 PC 에서
+# 전 LLM 호출이 WinError 2 로 죽었다.)
+if ([string]::IsNullOrWhiteSpace($env:LLM_PROVIDER)) {
+    $env:LLM_PROVIDER = "anthropic"
+}
 if ([string]::IsNullOrWhiteSpace($env:CODEX_CLI)) {
     $env:CODEX_CLI = "codex"
 }
@@ -116,7 +119,7 @@ if ($Install) {
 Push-Location $aiRoot
 try {
     Write-Host "Capability Graph: $($env:CAPABILITY_GRAPH_URL)" -ForegroundColor DarkCyan
-    Write-Host "Starting unified JOBIS AI with Codex CLI/$($env:CODEX_MODEL) (effort $($env:CODEX_EFFORT))..." -ForegroundColor Cyan
+    Write-Host "Starting unified JOBIS AI (LLM_PROVIDER=$($env:LLM_PROVIDER))..." -ForegroundColor Cyan
     & $python -m uvicorn jobis_ai.v2bridge.app:app --host 127.0.0.1 --port $Port
 }
 finally { Pop-Location }
