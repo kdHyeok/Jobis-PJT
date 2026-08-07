@@ -1,0 +1,301 @@
+# 로컬 Capability Graph 시드 — 백엔드(Java/Spring) 중심 원자 역량.
+# 원본 jobiss-capability-graph-lab 의 seed.v1.yaml 을 대체하는 소규모 재구축본.
+# 노드/엣지 공통 기본값(node_type, verification, confidence 등)은 app.py 의
+# NODE_DEFAULTS / EDGE_DEFAULTS 가 채운다. 확장할 때는 노드·출처·엣지를 함께 추가한다.
+graph_version: "0.1.0-alpha.1"
+
+sources:
+  - source_id: source-dev-java
+    title: "Dev.java — Learn Java"
+    uri: "https://dev.java/learn/"
+    publisher: "Oracle"
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "Java 언어 기초(클래스·컬렉션·예외)의 공식 학습 경로."
+  - source_id: source-spring-boot-docs
+    title: "Spring Boot Reference Documentation"
+    uri: "https://docs.spring.io/spring-boot/index.html"
+    publisher: "Broadcom (Spring)"
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "Spring Boot DI·웹 MVC·데이터 접근의 공식 참조 문서."
+  - source_id: source-mdn-http
+    title: "MDN — HTTP"
+    uri: "https://developer.mozilla.org/en-US/docs/Web/HTTP"
+    publisher: "Mozilla"
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "HTTP 요청/응답 모델과 REST 리소스 설계의 기반 명세 해설."
+  - source_id: source-postgres-docs
+    title: "PostgreSQL Documentation"
+    uri: "https://www.postgresql.org/docs/current/"
+    publisher: "PostgreSQL Global Development Group"
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "SQL 질의·스키마 설계·운영의 공식 문서."
+  - source_id: source-git-scm
+    title: "Pro Git Book"
+    uri: "https://git-scm.com/book/en/v2"
+    publisher: "Software Freedom Conservancy"
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "Git 기본 워크플로와 브랜치 전략의 공식 안내서."
+  - source_id: source-junit-docs
+    title: "JUnit 5 User Guide"
+    uri: "https://junit.org/junit5/docs/current/user-guide/"
+    publisher: "JUnit Team"
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "JUnit 5 단위 테스트 작성의 공식 가이드."
+  - source_id: source-gradle-docs
+    title: "Gradle User Manual"
+    uri: "https://docs.gradle.org/current/userguide/userguide.html"
+    publisher: "Gradle Inc."
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "Gradle 빌드 구성과 의존성 관리의 공식 매뉴얼."
+  - source_id: source-docker-docs
+    title: "Docker Documentation"
+    uri: "https://docs.docker.com/get-started/"
+    publisher: "Docker Inc."
+    source_type: OFFICIAL_DOCUMENTATION
+    retrieved_at: "2026-08-07T00:00:00Z"
+    evidence_summary: "컨테이너 개념과 이미지 빌드·실행의 공식 입문 문서."
+
+nodes:
+  - canonical_key: git.basic-workflow
+    technology_key: tool.git
+    display_name: "Git 기본 워크플로"
+    kind: TOOL
+    objective: "변경을 스테이징·커밋하고 브랜치를 만들어 병합할 수 있다."
+    scope_definition: "add/commit/branch/merge/log 와 원격 push/pull 까지."
+    excluded_scope: ["rebase 전략", "모노레포 운영"]
+    source_ids: [source-git-scm]
+  - canonical_key: http.request-response
+    technology_key: protocol.http
+    display_name: "HTTP 요청·응답 해석"
+    kind: PROTOCOL
+    objective: "메서드·상태 코드·헤더·바디로 구성된 HTTP 왕복을 해석할 수 있다."
+    scope_definition: "요청/응답 구조, 주요 메서드와 상태 코드, 콘텐츠 협상까지."
+    verification_methods: [EXPLAIN, DEBUG]
+    source_ids: [source-mdn-http]
+  - canonical_key: http.rest-resource-design
+    technology_key: protocol.http
+    display_name: "REST 리소스 설계"
+    kind: PROTOCOL
+    objective: "도메인을 리소스·URI·메서드 의미에 맞게 배치한 API 를 설계할 수 있다."
+    scope_definition: "리소스 명명, 메서드/상태 코드 선택, 오류 표현까지."
+    verification_methods: [DOCUMENT, IMPLEMENT]
+    source_ids: [source-mdn-http]
+  - canonical_key: sql.select-and-joins
+    technology_key: lang.sql
+    display_name: "SQL 조회와 조인"
+    kind: DATABASE
+    objective: "여러 테이블을 조인·집계하는 SELECT 질의를 작성할 수 있다."
+    scope_definition: "SELECT/WHERE/JOIN/GROUP BY/ORDER BY 와 서브쿼리까지."
+    source_ids: [source-postgres-docs]
+  - canonical_key: sql.schema-and-constraints
+    technology_key: lang.sql
+    display_name: "스키마와 제약 조건 설계"
+    kind: DATABASE
+    objective: "정합성을 제약 조건으로 보장하는 테이블 스키마를 설계할 수 있다."
+    scope_definition: "PK/FK/UNIQUE/CHECK, 인덱스 기초, 정규화 판단까지."
+    source_ids: [source-postgres-docs]
+  - canonical_key: db.postgresql-operations
+    technology_key: db.postgresql
+    display_name: "PostgreSQL 운용 기초"
+    kind: DATABASE
+    objective: "PostgreSQL 에서 데이터베이스·역할을 만들고 실행 계획을 확인할 수 있다."
+    scope_definition: "psql 사용, 역할/권한, EXPLAIN 읽기까지."
+    verification_methods: [IMPLEMENT, MEASURE]
+    source_ids: [source-postgres-docs]
+  - canonical_key: java.classes-objects
+    technology_key: lang.java
+    display_name: "Java 클래스와 객체 모델링"
+    kind: PROGRAMMING_LANGUAGE
+    objective: "도메인을 클래스·인터페이스·상속으로 모델링해 구현할 수 있다."
+    scope_definition: "클래스/인터페이스/상속/캡슐화와 객체 생명주기까지."
+    source_ids: [source-dev-java]
+  - canonical_key: java.collections-and-generics
+    technology_key: lang.java
+    display_name: "Java 컬렉션과 제네릭"
+    kind: PROGRAMMING_LANGUAGE
+    objective: "컬렉션 자료구조와 제네릭 타입을 목적에 맞게 선택해 사용할 수 있다."
+    scope_definition: "List/Set/Map 선택 기준, 제네릭 선언과 와일드카드까지."
+    source_ids: [source-dev-java]
+  - canonical_key: java.exceptions-and-io
+    technology_key: lang.java
+    display_name: "Java 예외 처리와 입출력"
+    kind: PROGRAMMING_LANGUAGE
+    objective: "예외 계층을 설계하고 자원을 안전하게 여닫는 코드를 작성할 수 있다."
+    scope_definition: "checked/unchecked 구분, try-with-resources, 기본 IO까지."
+    source_ids: [source-dev-java]
+  - canonical_key: build.gradle-project
+    technology_key: tool.gradle
+    display_name: "Gradle 프로젝트 구성"
+    kind: TOOL
+    objective: "의존성과 태스크를 선언해 Java 프로젝트를 빌드·실행할 수 있다."
+    scope_definition: "build.gradle 의존성/플러그인 선언, 테스트·실행 태스크까지."
+    source_ids: [source-gradle-docs]
+  - canonical_key: test.junit-unit-testing
+    technology_key: lib.junit
+    display_name: "JUnit 단위 테스트 작성"
+    kind: LIBRARY
+    objective: "동작을 고정하는 단위 테스트를 JUnit 으로 작성할 수 있다."
+    scope_definition: "라이프사이클/단언/파라미터라이즈, 실패 메시지 설계까지."
+    verification_methods: [TEST]
+    source_ids: [source-junit-docs]
+  - canonical_key: spring.di-and-configuration
+    technology_key: framework.spring-boot
+    display_name: "Spring DI 컨테이너와 구성"
+    kind: FRAMEWORK
+    objective: "빈 등록과 주입, 프로필별 구성으로 애플리케이션을 조립할 수 있다."
+    scope_definition: "컴포넌트 스캔, 생성자 주입, @Configuration/프로필까지."
+    source_ids: [source-spring-boot-docs]
+  - canonical_key: spring.mvc-controller
+    technology_key: framework.spring-boot
+    display_name: "Spring MVC 컨트롤러 구현"
+    kind: FRAMEWORK
+    objective: "요청 매핑·바인딩·응답 직렬화를 갖춘 컨트롤러를 구현할 수 있다."
+    scope_definition: "@RestController, 요청/응답 바인딩, 예외 핸들러까지."
+    source_ids: [source-spring-boot-docs]
+  - canonical_key: spring.rest-api-implementation
+    technology_key: framework.spring-boot
+    display_name: "Spring REST API 구현"
+    kind: FRAMEWORK
+    objective: "설계된 리소스 계약대로 검증·오류 응답을 갖춘 REST API 를 구현할 수 있다."
+    scope_definition: "입력 검증, 오류 envelope, 페이지네이션 관례까지."
+    source_ids: [source-spring-boot-docs]
+  - canonical_key: spring.data-jpa-repositories
+    technology_key: framework.spring-boot
+    display_name: "Spring Data JPA 리포지토리"
+    kind: FRAMEWORK
+    objective: "엔티티 매핑과 리포지토리로 영속 계층을 구현할 수 있다."
+    scope_definition: "엔티티/연관관계 매핑, 파생 쿼리와 @Query 까지."
+    source_ids: [source-spring-boot-docs]
+  - canonical_key: spring.transaction-management
+    technology_key: framework.spring-boot
+    display_name: "Spring 트랜잭션 관리"
+    kind: FRAMEWORK
+    objective: "트랜잭션 경계를 선언하고 전파·롤백 규칙을 다룰 수 있다."
+    scope_definition: "@Transactional 경계/전파/롤백 규칙, 읽기 전용 최적화까지."
+    source_ids: [source-spring-boot-docs]
+  - canonical_key: spring.security-authentication
+    technology_key: framework.spring-boot
+    display_name: "Spring Security 인증 구성"
+    kind: FRAMEWORK
+    objective: "필터 체인 기반 인증과 세션/토큰 전략을 구성할 수 있다."
+    scope_definition: "필터 체인, 인증 공급자, 비밀번호 해시와 CSRF 방어까지."
+    source_ids: [source-spring-boot-docs]
+  - canonical_key: docker.container-basics
+    technology_key: tool.docker
+    display_name: "Docker 컨테이너 기초"
+    kind: INFRASTRUCTURE
+    objective: "애플리케이션을 이미지로 빌드해 컨테이너로 실행할 수 있다."
+    scope_definition: "Dockerfile 작성, 이미지 빌드/실행, 포트·볼륨 매핑까지."
+    source_ids: [source-docker-docs]
+
+edges:
+  - relation_id: rel-java-collections
+    from_capability_key: java.classes-objects
+    to_capability_key: java.collections-and-generics
+    reason: "제네릭 컬렉션은 클래스·타입 모델 위에서 정의된다."
+    source_ids: [source-dev-java]
+  - relation_id: rel-java-exceptions
+    from_capability_key: java.classes-objects
+    to_capability_key: java.exceptions-and-io
+    reason: "예외 계층 설계는 클래스 상속 모델을 전제한다."
+    source_ids: [source-dev-java]
+  - relation_id: rel-java-gradle
+    from_capability_key: java.classes-objects
+    to_capability_key: build.gradle-project
+    reason: "빌드 구성은 컴파일 대상 Java 코드 구조의 이해를 전제한다."
+    source_ids: [source-gradle-docs]
+  - relation_id: rel-java-junit
+    from_capability_key: java.classes-objects
+    to_capability_key: test.junit-unit-testing
+    reason: "테스트 대상 클래스를 다룰 수 있어야 단위 테스트를 작성할 수 있다."
+    source_ids: [source-junit-docs]
+  - relation_id: rel-java-spring-di
+    from_capability_key: java.classes-objects
+    to_capability_key: spring.di-and-configuration
+    reason: "DI 컨테이너는 클래스·인터페이스 기반 조립을 전제한다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-collections-spring-di
+    from_capability_key: java.collections-and-generics
+    to_capability_key: spring.di-and-configuration
+    relation_type: RECOMMENDED_FOUNDATION
+    reason: "구성·빈 목록 다루기에 컬렉션과 제네릭 이해가 도움이 된다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-java-spring
+    from_capability_key: java.classes-objects
+    to_capability_key: spring.mvc-controller
+    reason: "컨트롤러 구현은 Java 객체 모델링을 전제한다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-http-spring
+    from_capability_key: http.request-response
+    to_capability_key: spring.mvc-controller
+    reason: "요청 매핑과 상태 코드 선택은 HTTP 왕복 이해를 전제한다."
+    source_ids: [source-mdn-http]
+  - relation_id: rel-di-mvc
+    from_capability_key: spring.di-and-configuration
+    to_capability_key: spring.mvc-controller
+    reason: "컨트롤러는 DI 컨테이너가 조립하는 빈이다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-http-rest-design
+    from_capability_key: http.request-response
+    to_capability_key: http.rest-resource-design
+    reason: "리소스 설계는 메서드·상태 코드 의미 위에 선다."
+    source_ids: [source-mdn-http]
+  - relation_id: rel-mvc-rest-impl
+    from_capability_key: spring.mvc-controller
+    to_capability_key: spring.rest-api-implementation
+    reason: "REST API 구현은 컨트롤러 구현 능력을 전제한다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-rest-design-impl
+    from_capability_key: http.rest-resource-design
+    to_capability_key: spring.rest-api-implementation
+    reason: "계약대로 구현하려면 리소스 설계가 먼저 있어야 한다."
+    source_ids: [source-mdn-http]
+  - relation_id: rel-sql-schema
+    from_capability_key: sql.select-and-joins
+    to_capability_key: sql.schema-and-constraints
+    reason: "제약 조건 설계는 질의 관점의 데이터 이해를 전제한다."
+    source_ids: [source-postgres-docs]
+  - relation_id: rel-schema-postgres-ops
+    from_capability_key: sql.schema-and-constraints
+    to_capability_key: db.postgresql-operations
+    reason: "운용(권한·실행 계획)은 스키마 구조 이해를 전제한다."
+    source_ids: [source-postgres-docs]
+  - relation_id: rel-di-jpa
+    from_capability_key: spring.di-and-configuration
+    to_capability_key: spring.data-jpa-repositories
+    reason: "리포지토리는 DI 컨테이너로 주입되는 빈이다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-sql-jpa
+    from_capability_key: sql.select-and-joins
+    to_capability_key: spring.data-jpa-repositories
+    reason: "JPA 매핑·쿼리 튜닝은 SQL 조회 능력을 전제한다."
+    source_ids: [source-postgres-docs]
+  - relation_id: rel-jpa-transaction
+    from_capability_key: spring.data-jpa-repositories
+    to_capability_key: spring.transaction-management
+    reason: "트랜잭션 경계는 영속 계층 동작 위에서 의미를 가진다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-mvc-security
+    from_capability_key: spring.mvc-controller
+    to_capability_key: spring.security-authentication
+    reason: "인증 필터 체인은 MVC 요청 처리 흐름을 전제한다."
+    source_ids: [source-spring-boot-docs]
+  - relation_id: rel-gradle-docker
+    from_capability_key: build.gradle-project
+    to_capability_key: docker.container-basics
+    relation_type: RECOMMENDED_FOUNDATION
+    reason: "이미지 빌드는 실행 산출물을 만드는 빌드 이해가 있으면 수월하다."
+    source_ids: [source-docker-docs]
+  - relation_id: rel-git-foundation
+    from_capability_key: git.basic-workflow
+    to_capability_key: build.gradle-project
+    relation_type: RECOMMENDED_FOUNDATION
+    reason: "프로젝트 구성 변경을 추적·공유하는 데 Git 워크플로가 기반이 된다."
+    source_ids: [source-git-scm]
