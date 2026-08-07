@@ -12,6 +12,9 @@ backend/build/
 backend/out/
 # CI(backend/ci/test.sh)가 배포용으로 남기는 실행 JAR. Jenkins가 stash로 넘긴다.
 backend/backend.jar
+# 'CI plan' 이 서비스별 마지막 통과 트리 해시를 남기는 곳. 워크스페이스 로컬이며
+# 없으면 전부 실행하므로(fail-open) 커밋하지 않는다.
+.ci-cache/
 
 ai-server/.venv/
 ai-server/.pytest_cache/

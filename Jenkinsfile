@@ -65,9 +65,66 @@ pipeline {
       }
     }
 
-    stage('Backend: test & package') {
+    // 직전에 통과한 내용과 같은 서비스는 건너뛴다. 이 서버는 Jenkins와 운영이 같은 호스트를
+    // 쓰고(가용 메모리 약 2GB·스왑 0·executor 2) 스테이지 병렬화는 OOM 위험이 있어,
+    // 부하를 줄이는 수단으로 병렬 대신 재실행 생략을 쓴다.
+    //
+    // 안전 규칙 두 가지:
+    //   1) fail-open — 표식이 없거나 읽지 못하면 **실행한다.** 판단이 안 서면 건너뛰지 않는다.
+    //   2) develop·master 에서는 절대 건너뛰지 않는다. 'Master release: verify' 가 보장하는
+    //      "master 트리 == 검증된 develop 트리"는 develop 이 전부 실행됐을 때만 뜻이 있다.
+    // 표식은 스테이지가 **성공한 뒤에만** 쓴다(.ci-cache/, 워크스페이스 로컬·git 무시).
+    stage('CI plan') {
       when { not { branch 'master' } }
       agent any
+      steps {
+        script {
+          boolean cacheable = env.BRANCH_NAME != 'develop'
+          if (!cacheable) {
+            echo '[plan] develop 은 통합 게이트다 — 모든 스테이지를 실행한다.'
+          }
+          [
+            BACKEND : 'backend',
+            AI      : 'AI',
+            FRONTEND: 'frontend',
+            RAG     : 'RAG',
+            INFRA   : 'ops infra compose.yaml .env.production.example'
+          ].each { key, paths ->
+            // Jenkinsfile 을 함께 해싱한다 — 뼈대가 바뀌면 전 서비스를 다시 검증한다.
+            String name = key.toString()
+            String sha = sh(
+              script: "git ls-tree -r HEAD -- ${paths} Jenkinsfile | sha1sum | cut -c1-40",
+              returnStdout: true
+            ).trim()
+            env.setProperty("SHA_${name}".toString(), sha)
+            boolean unchanged = cacheable && sha && sh(
+              script: "test -f .ci-cache/${name}.sha && " +
+                      "[ \"\$(cat .ci-cache/${name}.sha)\" = '${sha}' ]",
+              returnStatus: true
+            ) == 0
+            env.setProperty("SKIP_${name}".toString(), unchanged ? 'true' : 'false')
+            echo unchanged
+              ? "[plan] skip ${key} — 직전 통과 이후 변경 없음 (${sha})"
+              : "[plan] run  ${key}"
+          }
+        }
+      }
+    }
+
+    stage('Backend: test & package') {
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_BACKEND != 'true' }
+        }
+      }
+      agent any
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_BACKEND" > .ci-cache/BACKEND.sha'
+        }
+      }
       steps {
         updateGitlabCommitStatus name: 'jenkins', state: 'running'
         script {
@@ -142,9 +199,20 @@ SQL
     }
 
     stage('AI v2bridge: test') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_AI != 'true' }
+        }
+      }
       agent {
         docker { image 'python:3.11-slim' }
+      }
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_AI" > .ci-cache/AI.sha'
+        }
       }
       steps {
         // 검사 내용은 AI 개발자 소유다(AI/ci/test.sh).
@@ -153,9 +221,20 @@ SQL
     }
 
     stage('Frontend: typecheck & build') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_FRONTEND != 'true' }
+        }
+      }
       agent {
         docker { image 'node:22-alpine' }
+      }
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_FRONTEND" > .ci-cache/FRONTEND.sha'
+        }
       }
       steps {
         // 검사 내용은 프론트엔드 개발자 소유다(frontend/ci/test.sh).
@@ -164,9 +243,20 @@ SQL
     }
 
     stage('RAG: static validation') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_RAG != 'true' }
+        }
+      }
       agent {
         docker { image 'python:3.12-slim' }
+      }
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_RAG" > .ci-cache/RAG.sha'
+        }
       }
       steps {
         // 검사 내용은 RAG 개발자 소유다(RAG/ci/test.sh).
@@ -175,8 +265,19 @@ SQL
     }
 
     stage('Infra: static validation') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_INFRA != 'true' }
+        }
+      }
       agent any
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_INFRA" > .ci-cache/INFRA.sha'
+        }
+      }
       steps {
         sh '''
           test -x ops/deploy-jobis-container
