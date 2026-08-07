@@ -29,6 +29,7 @@
 | 웹·백엔드 연결 계약 | `docs/webbridge.md` · `docs/contracts/` · `docs/ai-backend-handoff.md` |
 | RAG 계약 | `docs/rag-adapter-contract.md` · `docs/rag-team-interface-spec.md` |
 | Git 브랜치·커밋·PR 규칙 (상세) | `docs/git-conventions.md` |
+| CI 소유권·`--frozen`·계약 동기화 (상세) | `docs/ci.md` |
 | 서버 기동 순서 (MySQL → AI → backend) | 리포지토리 루트 `CLAUDE.md` |
 
 **권위**: 코드 > `AGENTS.md` > 그 밖의 문서. 문서끼리 충돌하면
