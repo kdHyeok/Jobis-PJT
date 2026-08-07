@@ -1,3 +1,5 @@
+name: jobis-app
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -9,44 +11,48 @@ services:
       POSTGRES_APP_USER: ${POSTGRES_APP_USER:-jobiss_app}
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD}
     volumes:
-      - jobiss_real_agent_postgres_data:/var/lib/postgresql/data
+      - jobiss_postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_MIGRATOR_USER:-jobiss_migrator} -d ${POSTGRES_DB:-jobiss}",
+          "pg_isready -h 127.0.0.1 -U ${POSTGRES_MIGRATOR_USER:-jobiss_migrator} -d ${POSTGRES_DB:-jobiss}",
         ]
       interval: 5s
       timeout: 3s
       retries: 20
     networks: [jobiss-internal]
 
-  ai-agent:
+  ai:
     build:
       context: ./AI
     restart: unless-stopped
     environment:
       JOBISS_AI_SHARED_SECRET: ${AI_SHARED_SECRET:?Set AI_SHARED_SECRET}
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      GMS_KEY: ${GMS_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
       LLM_MODEL_LIGHT: ${LLM_MODEL_LIGHT:-gpt-4.1-mini}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-4096}
+      GMS_KEY: ${GMS_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+      CODEX_MODEL: ${CODEX_MODEL:-gpt-5.4}
+      CODEX_MODEL_LIGHT: ${CODEX_MODEL_LIGHT:-gpt-5.4}
+      CODEX_MODEL_ROUTER: ${CODEX_MODEL_ROUTER:-}
+      CODEX_REASONING_EFFORT: ${CODEX_REASONING_EFFORT:-medium}
+      CODEX_TIMEOUT_SEC: ${CODEX_TIMEOUT_SEC:-200}
+      CODEX_OAUTH_STATE_DIR: /var/lib/jobis-ai/codex
       RAG_PROVIDER: ${RAG_PROVIDER:-null}
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      RAG_SEARCH_URL: ${RAG_SEARCH_URL:-http://host.docker.internal:8765}
+      SESSION_STORE: sqlite
+      SESSION_DB_PATH: /var/lib/jobis-ai/sessions.sqlite3
+      JOBIS_AUDIT_LOG: /var/lib/jobis-ai/logs/audit.jsonl
+    volumes:
+      - jobiss_ai_state:/var/lib/jobis-ai
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks: [jobiss-internal]
 
   backend:
@@ -56,7 +62,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      ai-agent:
+      ai:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
@@ -66,21 +72,10 @@ services:
       DB_APP_USER: ${POSTGRES_APP_USER:-jobiss_app}
       DB_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
-      AI_SERVER_URL: http://ai-agent:8000
+      AI_SERVER_URL: http://ai:8000
       AI_SHARED_SECRET: ${AI_SHARED_SECRET:?Set AI_SHARED_SECRET}
       AI_HTTP_TIMEOUT_SECONDS: ${AI_HTTP_TIMEOUT_SECONDS:-660}
       AI_MAX_CONCURRENT_ANALYSES: ${AI_MAX_CONCURRENT_ANALYSES:-2}
-      REPOSITORY_TOKEN_ENCRYPTION_KEY: ${REPOSITORY_TOKEN_ENCRYPTION_KEY:?Set REPOSITORY_TOKEN_ENCRYPTION_KEY}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:?Set PUBLIC_APP_URL}
-      PASSWORD_RESET_TOKEN_MINUTES: ${PASSWORD_RESET_TOKEN_MINUTES:-30}
-      PASSWORD_RESET_CONSOLE_DELIVERY: ${PASSWORD_RESET_CONSOLE_DELIVERY:-false}
-      MAIL_HOST: ${MAIL_HOST:?Set MAIL_HOST}
-      MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM}
-      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
-      MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Set ALLOWED_ORIGINS}
       LOGGING_LEVEL_COM_JOBISS: ${JOBISS_LOG_LEVEL:-INFO}
@@ -104,16 +99,22 @@ services:
       args:
         VITE_API_BASE_URL: ""
     restart: unless-stopped
+    environment:
+      NGINX_PORT: "8080"
+      BACKEND_UPSTREAM: http://backend:8080
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "${JOBISS_HTTP_PORT:-8288}:8080"
+      - "${JOBISS_HTTP_PORT:-8088}:8080"
     networks:
       - jobiss-internal
 
 volumes:
-  jobiss_real_agent_postgres_data:
+  jobiss_postgres_data:
+    name: data-airflow_jobiss_postgres_data
+  jobiss_ai_state:
+    name: data-airflow_jobiss_ai_state
 
 networks:
   jobiss-internal:
