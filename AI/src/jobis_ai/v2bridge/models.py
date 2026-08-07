@@ -568,6 +568,9 @@ class StoredPosting(ContractModel):
     source_url: str | None = None
     raw_text: str = Field(min_length=1, max_length=100_000)
     parsed_data: dict[str, Any] | None = None
+    # V3 파이프라인이 근거 ID 체계로 만든 StructuredPosting(jobis.ai.v3alpha1) —
+    # 있으면 채팅 지식의 원천으로 이것을 우선한다(이중 해석 제거).
+    structured_posting: dict[str, Any] | None = None
     created_at: datetime | None = None
 
 
@@ -580,6 +583,12 @@ class CareerSummary(ContractModel):
     preferences: dict[str, list[str]] | None = None
     facts: list[str] = Field(default_factory=list, max_length=200)
     postings: list[StoredPosting] = Field(default_factory=list, max_length=5)
+    # 백엔드가 매 턴 싣는 사용자의 현재 커리어 로드맵 스냅샷
+    # ({roadmapVersion, nodes[], relations[]}) — 에이전트가 DB 상태를 보고 대화한다.
+    roadmap: dict[str, Any] | None = None
+    # 이전 대화들에서 수집해 DB(user_goal_profiles)에 영속된 준비기간·주당 가용시간.
+    preparation_period_weeks: int | None = Field(default=None, ge=1, le=260)
+    available_hours_per_week: int | None = Field(default=None, ge=1, le=168)
     session_state: dict[str, Any] | None = None
     interview: dict[str, Any] | None = None
 
@@ -839,6 +848,7 @@ class CollectedResume(ContractModel):
 
 
 class CollectedOutputs(OmitNullsModel):
+    posting_summary: dict[str, Any] | None = None
     analysis: dict[str, Any] | None = None
     roadmap: list[dict[str, Any]] | None = Field(default=None, max_length=50)
     judgment_summary: dict[str, Any] | None = None
@@ -882,7 +892,9 @@ class ChatResponse(ContractModel):
     degraded_reason: str = Field(default="", max_length=300)
     suggested_actions: list[SuggestedAction] = Field(default_factory=list, max_length=3)
     reply_sources: list[ChatReplySource] = Field(default_factory=list, max_length=12)
-    progress: list[AgentProgress] = Field(default_factory=list, max_length=12)
+    # 조립부(final_steps[:60])와 같은 상한 — 12로 두면 fit+지원계획 같은 다단계 턴(실측
+    # 2026-08-07: 15단계)이 응답 검증에서 통째로 죽는다.
+    progress: list[AgentProgress] = Field(default_factory=list, max_length=60)
     proposed_actions: list[ProposedAgentAction] = Field(default_factory=list, max_length=5)
     pending_confirmation: PendingConfirmation | None = None
     artifact: ChatArtifact | None = None

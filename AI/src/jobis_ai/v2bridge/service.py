@@ -74,6 +74,7 @@ _WORKSPACE_KEYS = frozenset({
 })
 
 _OUTPUT_ASSETS = {
+    "posting_summary": "posting_summary",
     "analysis": "analysis",
     "roadmap": "roadmap",
     "judgment_summary": "judgment_summary",
@@ -1192,7 +1193,12 @@ def _posting_analysis_actions(request: ChatRequest, pasted_attachments: list,
 
     from jobis_ai.v2bridge.models import ProposedAgentAction
 
-    if not {"posting_analysis", "fit_analysis"}.intersection(dispatched):
+    # "공고 기준으로 바로 로드맵 만들어줘" — 로드맵 직접 요청은 담당 에이전트가 안 돌았어도
+    # 세션의 공고로 제안을 만들어 백엔드가 무음 V3(로드맵 재료 적재)를 시작할 수 있게 한다.
+    roadmap_requested = bool(re.search(
+        r"로드맵.{0,16}(생성|만들|시작|진행|해\s*줘|해주세요|부탁)", utterance))
+    if not ({"posting_analysis", "fit_analysis"}.intersection(dispatched)
+            or roadmap_requested):
         return []
     posting = next((
         item for item in pasted_attachments
@@ -1220,7 +1226,7 @@ def _posting_analysis_actions(request: ChatRequest, pasted_attachments: list,
         return []
 
     fingerprint = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()[:16]
-    explicitly_requested = bool(re.search(
+    explicitly_requested = roadmap_requested or bool(re.search(
         r"(분석|적합도|준비도).{0,12}(해\s*줘|해주세요|해봐|보고\s*싶|알려\s*줘)|"
         r"(해\s*줘|해주세요).{0,12}(분석|적합도|준비도)",
         utterance,
@@ -1427,6 +1433,46 @@ def _collected_assets(
     )
 
 
+def _summary_from_structured(structured: dict[str, Any] | None) -> dict[str, Any] | None:
+    """V3 StructuredPosting → 채팅 요약 dict(NormalizedJobPosting 모양). 순수 변환, LLM 없음.
+
+    V3 가 근거 ID 체계로 이미 해석한 공고는 채팅이 다시 해석하지 않고 이 투영을 지식으로
+    쓴다(이중 분석 제거). 없는 사실을 만들지 않는다 — 연차 표기(yearsEvidence)는 공고
+    원문 문구가 아니므로 비워 두고 개월 수만 연 단위로 환산해 넘긴다.
+    """
+
+    if not structured:
+        return None
+    positions = list(structured.get("positions") or [])
+    if not positions:
+        return None
+    position = positions[0] or {}
+    requirements = (list(position.get("requirements") or [])
+                    + list(structured.get("sharedConditions") or []))
+
+    def _texts(obligation: str) -> list[dict[str, str]]:
+        return [{"text": text} for r in requirements
+                if (r or {}).get("obligation") == obligation
+                and (text := str(r.get("atomicText") or r.get("sourceText") or "").strip())]
+
+    experience = position.get("experience") or {}
+    min_months = experience.get("minMonths")
+    max_months = experience.get("maxMonths")
+    return {
+        "companyName": str((structured.get("company") or {}).get("displayName") or ""),
+        "jobTitle": str(structured.get("postingTitle")
+                        or position.get("sourceTitle") or ""),
+        "minYears": min_months // 12 if isinstance(min_months, int) else None,
+        "maxYears": max_months // 12 if isinstance(max_months, int) else None,
+        "yearsEvidence": "",
+        "responsibilities": [text for r in (position.get("responsibilities") or [])
+                             if (text := str((r or {}).get("atomicText")
+                                             or (r or {}).get("sourceText") or "").strip())],
+        "requiredRequirements": _texts("REQUIRED"),
+        "preferredRequirements": _texts("PREFERRED"),
+    }
+
+
 def _seed_session_state(session_id: str, request: ChatRequest) -> None:
     from jobis_ai.orchestrator.session import ASSET_KEYS, get_session_store
 
@@ -1479,10 +1525,17 @@ def chat_events(request: ChatRequest):
     # 현재 발화에 새 공고가 있으면 그것이 이번 턴의 유일한 분석 대상이다. AUTO가
     # 실어 보낸 과거 공고를 첨부로 먼저 적용하면 오케스트레이터가 새 URL 수집을
     # 건너뛰고 이전 공고를 다시 분석한다.
-    attachments = _selected_asset_attachments(
-        request,
-        include_postings=not current_posting_submitted,
-    ) + pasted_attachments
+    # AUTO 모드의 자동 선택 자산은 **새 제출이 아니다** — 세션 블롭·커리어 컨텍스트로
+    # 이미 아는 지식인데 첨부로 재적용하면 매 턴 "받았어요" ack 이 반복되고 분석·파싱
+    # 캐시가 지워진다(실측 2026-08-07: "나 이력서있나?"에 "공고를 받았어요."×3 접두).
+    # 첨부는 사용자가 이번 턴에 준 것과 명시 선택(mode != AUTO)만 취급한다.
+    if request.task.mode == "AUTO":
+        attachments = list(pasted_attachments)
+    else:
+        attachments = _selected_asset_attachments(
+            request,
+            include_postings=not current_posting_submitted,
+        ) + pasted_attachments
     if request.task.mode != "AUTO":
         mode_label = _MODE_LABELS.get(request.task.mode, request.task.mode)
         utterance = f"[사용자가 선택한 작업: {mode_label}]\n{utterance}".strip()
@@ -1501,16 +1554,82 @@ def chat_events(request: ChatRequest):
         if hydrated:
             store.update(session_id, hydrated)
     _seed_session_state(session_id, request)
-    summary_text = _career_summary_text(request)
+    # 백엔드가 매 턴 싣는 사용자 DB 자료 — 에이전트가 저장소 상태를 보고 대화한다.
+    # 원천 우선순위: 대화에 붙여넣은 원문 > DB 이력서 원문 > 확정 커리어 요약(M7).
+    db_resume_text = ""
+    db_resume_title = ""
+    if request.career.resumes:
+        newest = request.career.resumes[0]
+        db_resume_text = (newest.raw_text or "").strip()
+        db_resume_title = (newest.title or "커리어 저장소 이력서").strip()
+        # DB 이력서는 **라이브러리에도** 올린다 — "커리어 저장소 이력서로 판정해줘" 같은
+        # 지목이 라이브러리 라벨·출처로 해석되기 때문이다(실측 2026-08-07 12:17:
+        # 저장소에 올린 직후 "기억하는 목록에서 찾지 못했어요"가 나갔다).
+        from jobis_ai.agents._common import resume_source_hash, upsert_resume_library
+
+        sess_now = store.get(session_id)
+        library = list(sess_now.get("resume_library") or [])
+        known = {r.get("_sourceHash") for r in library}
+        changed = False
+        for stored in request.career.resumes:
+            text = (stored.raw_text or "").strip()
+            if not text:
+                continue
+            asset = {"sourceType": "text", "value": text, "origin": "career_summary",
+                     "_label": (stored.title or "커리어 저장소 이력서")[:200]}
+            src_hash = resume_source_hash(asset)
+            if src_hash in known:
+                continue
+            library = upsert_resume_library(
+                {**sess_now, "resume_library": library},
+                {"_sourceHash": src_hash, "_source": asset, "_sourceText": text,
+                 "_origin": "career_summary", "_label": asset["_label"]})
+            known.add(src_hash)
+            changed = True
+        if changed:
+            store.update(session_id, {"resume_library": library})
+    summary_text = db_resume_text or _career_summary_text(request)
     if summary_text:
-        # 백엔드가 매 요청 실어 보내는 확정 커리어 요약 — 이력 원천으로 갱신해 둔다(무상태 계약).
-        # 단, 사용자가 대화에 붙여넣은 이력서 **원문**이 이미 있으면 덮지 않는다(M7) —
-        # 요약은 원문보다 얇아서, 매 턴 덮으면 방금 준 이력서가 조용히 사라진다.
-        # 원천 우선순위: 붙여넣은 원문 > 확정 요약. 요약끼리는 최신으로 갱신한다(origin 표식).
         existing = store.get(session_id).get("resume") or {}
         if not existing or existing.get("origin") == "career_summary":
-            store.update(session_id, {"resume": {
-                "sourceType": "text", "value": summary_text, "origin": "career_summary"}})
+            resume_asset: dict[str, Any] = {
+                "sourceType": "text", "value": summary_text, "origin": "career_summary"}
+            if db_resume_title and db_resume_text:
+                resume_asset["_label"] = db_resume_title[:200]
+            store.update(session_id, {"resume": resume_asset})
+    if request.career.postings and not store.get(session_id).get("posting_library"):
+        library = []
+        for stored_posting in request.career.postings:
+            entry = _summary_from_structured(stored_posting.structured_posting)
+            if entry is None and stored_posting.parsed_data:
+                entry = dict(stored_posting.parsed_data)
+            if entry is None:
+                continue
+            entry.setdefault("_sourceHash", hashlib.md5(
+                (stored_posting.raw_text or "").encode("utf-8")).hexdigest())
+            library.append(entry)
+        if library:
+            store.update(session_id, {"posting_library": library[:10]})
+    roadmap_nodes = list((request.career.roadmap or {}).get("nodes") or [])
+    if roadmap_nodes and not store.get(session_id).get("roadmap"):
+        store.update(session_id, {"roadmap": roadmap_nodes[:100]})
+    # 이전 대화에서 수집돼 DB 에 영속된 선호·사실·가용시간 — 세션에 없을 때만 되살린다.
+    career_seed_updates: dict[str, Any] = {}
+    session_now = store.get(session_id)
+    if request.career.preferences and not session_now.get("preferences"):
+        career_seed_updates["preferences"] = dict(request.career.preferences)
+    if request.career.facts and not session_now.get("user_facts"):
+        career_seed_updates["user_facts"] = list(request.career.facts)[:200]
+    if (request.career.preparation_period_weeks
+            and not session_now.get("preparationPeriodWeeks")):
+        career_seed_updates["preparationPeriodWeeks"] = (
+            request.career.preparation_period_weeks)
+    if (request.career.available_hours_per_week
+            and not session_now.get("availableHoursPerWeek")):
+        career_seed_updates["availableHoursPerWeek"] = (
+            request.career.available_hours_per_week)
+    if career_seed_updates:
+        store.update(session_id, career_seed_updates)
 
     profile_before = _profile_snapshot(session_id)
     outputs_before = _outputs_snapshot(session_id)
@@ -1591,13 +1710,9 @@ def chat_events(request: ChatRequest):
     public_products = products
     public_artifact = _artifact(request, response, reply)
     if has_posting_review:
-        # 공고 해설 본문, 구조화 artifact, work product, 확인용 review가 같은
-        # 내용을 네 번 반복하지 않게 한다. 원본 agent 산출물과 session asset은
-        # 그대로 유지하고, 채팅에는 짧은 안내와 단일 확인 카드만 투영한다.
-        public_reply = (
-            "공고에서 분석에 필요한 직무·업무·경력·필수·우대 조건을 정리했어요. "
-            "아래 내용을 확인하거나 고친 뒤 분석을 시작해 주세요."
-        )
+        # artifact·work product·확인용 review가 같은 내용을 반복하지 않게 카드류만
+        # 걷어낸다. 채팅 발화(reply)는 에이전트가 만든 원문을 그대로 내보낸다 —
+        # 공고 요약·질문에 대한 답이 여기 실리므로 고정 문구로 교체하면 안 된다.
         public_products = []
         public_artifact = None
     # 사후 타임라인에는 "실행 중…"(start:*) 단계를 싣지 않는다 — progress_steps 와 동일 규약.

@@ -268,8 +268,9 @@ def render_fit_analysis(data: dict[str, Any], session: dict[str, Any]) -> tuple[
 # LLM 이 못 쓸 때만 쓰는 결정론 폴백 문장. 평소 마무리 문장은 맥락을 보고 LLM 이 쓴다 —
 # 같은 문장이 매번 나오면 사용자가 방금 한 말과 어긋난다.
 _POSTING_CLOSING_FALLBACK = (
-    "여기까지 정리해 봤어요 — 충분한가요? 관련 이력서가 있으시면 주실래요? "
-    "주시면 이 요건들과 하나씩 대조해 적합도까지 분석해 드릴 수 있어요."
+    "여기까지 정리해 봤어요. 이 공고 기준으로 바로 준비 로드맵을 만들어 드릴까요, "
+    "아니면 이력서를 대조해 적합도 분석까지 한 뒤에 만들까요? "
+    "이력서를 보내주시거나 커리어 저장소의 이력서를 지정하셔도 좋아요."
 )
 
 
@@ -294,8 +295,11 @@ _POSTING_CLOSING_SYSTEM = """너는 취업 서비스의 대화 상담원이다. 
 
 규칙:
 - 응답은 **질문으로 끝난다** — 사용자가 다음에 무엇을 할지 고를 수 있게 한다.
+- 방금 공고를 처음 정리한 상황이면 **다음 두 갈래를 함께 제시**한다: ① 이 공고 기준으로
+  바로 준비 로드맵 생성 ② 이력서를 대조해 적합도 분석 후 로드맵 생성(hasResume 가 true 면
+  저장된 이력서로 바로 할 수 있다고 알린다).
 - 적합도·합격 가능성·연차 충족 여부를 단정하지 않는다. 그건 분석 기능이 근거를 갖고 하는 일이다.
-- 짧고 자연스럽게, 두 문장 이내."""
+- 짧고 자연스럽게, 세 문장 이내."""
 
 
 def _posting_closing(facts: dict) -> tuple[str, list[dict]]:
@@ -372,22 +376,41 @@ def posting_summary_block(posting: dict, closing: str) -> str:
     company = posting.get("companyName") or ""
     head = " · ".join(p for p in (company, title) if p)
 
-    lines = [f"{head} 공고를 정리했어요." if head else "공고를 정리했어요."]
+    lines = [f"**{head}** 공고를 정리했어요." if head else "공고를 정리했어요."]
 
+    responsibilities = [str(r) for r in (posting.get("responsibilities") or []) if str(r).strip()]
+    required = posting.get("requiredRequirements") or []
+    preferred = posting.get("preferredRequirements") or []
+    conditions = [str(c) for c in (posting.get("conditions") or []) if str(c).strip()]
+    process = [str(p) for p in (posting.get("hiringProcess") or []) if str(p).strip()]
+
+    counts = [f"담당 업무 {len(responsibilities)}개" if responsibilities else "",
+              f"필수 {len(required)}개" if required else "",
+              f"우대 {len(preferred)}개" if preferred else ""]
+    counts_line = " · ".join(c for c in counts if c)
     seniority_line = _seniority_line(posting)
-    if seniority_line:
-        lines.append(f"· {seniority_line}")
-    if posting.get("requiredRequirements"):
-        lines.append(f"· **필수 요건** {len(posting['requiredRequirements'])}건 — "
-                     f"{_fmt_reqs(posting['requiredRequirements'])}")
-    if posting.get("preferredRequirements"):
-        lines.append(f"· **우대 사항** {len(posting['preferredRequirements'])}건 — "
-                     f"{_fmt_reqs(posting['preferredRequirements'])}")
+    if seniority_line or counts_line:
+        lines.append(" · ".join(p for p in (seniority_line, counts_line) if p))
+
+    team_context = str(posting.get("teamContext") or "").strip()
+    if team_context:
+        lines += ["", "**어떤 자리인가**", team_context]
+    if responsibilities:
+        lines += ["", "**주요 업무**"] + [f"· {r}" for r in responsibilities]
+    if required:
+        lines += ["", "**필수 요건**"] + [f"· {str(r.get('text') or '').strip()}"
+                                          for r in required if r.get("text")]
+    if preferred:
+        lines += ["", "**우대 사항**"] + [f"· {str(r.get('text') or '').strip()}"
+                                          for r in preferred if r.get("text")]
     if posting.get("techStack"):
-        lines.append(f"· **요구 기술** {len(posting['techStack'])}개 — "
-                     f"{', '.join(posting['techStack'])}")
+        lines += ["", f"**요구 기술** — {', '.join(posting['techStack'])}"]
     if posting.get("domainKeywords"):
-        lines.append(f"· **도메인** — {', '.join(posting['domainKeywords'])}")
+        lines.append(f"**도메인** — {', '.join(posting['domainKeywords'])}")
+    if conditions:
+        lines += ["", "**채용 조건**"] + [f"· {c}" for c in conditions]
+    if process:
+        lines += ["", f"**전형 절차** — {' → '.join(process)}"]
 
     lines.append("")
     lines.append(closing)
