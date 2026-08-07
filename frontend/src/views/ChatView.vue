@@ -13,6 +13,7 @@ import {
   Globe2,
   LoaderCircle,
   MessageCircleMore,
+  Paperclip,
   Pencil,
   Plus,
   RefreshCw,
@@ -30,6 +31,7 @@ import { api } from "@/api";
 import { productDialog } from "@/product-dialog";
 import AgentExecutionMap from "@/components/AgentExecutionMap.vue";
 import AgentWorkProductCard from "@/components/AgentWorkProductCard.vue";
+import AgentMessageContent from "@/components/AgentMessageContent.vue";
 import AnalysisProgressWheel from "@/components/AnalysisProgressWheel.vue";
 import V3PostingReviewCard from "@/components/V3PostingReviewCard.vue";
 import type {
@@ -76,6 +78,7 @@ const chatJobsById = ref<Record<string, ChatReplyJob>>({});
 const actionJobId = ref<string | null>(null);
 const messageList = ref<HTMLElement | null>(null);
 const composerInput = ref<HTMLTextAreaElement | null>(null);
+const resumeFileInput = ref<HTMLInputElement | null>(null);
 const showNewMessages = ref(false);
 const showAgentContext = ref(false);
 const agentMode = ref<AgentMode>("AUTO");
@@ -881,6 +884,44 @@ async function pollJobs() {
   }
 }
 
+async function attachResumeFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file || sending.value) return;
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = "파일은 5MB 이하만 보낼 수 있습니다.";
+    return;
+  }
+  if (!/\.(docx|txt|md)$/i.test(file.name)) {
+    error.value = "TXT, MD, DOCX 파일만 보낼 수 있습니다.";
+    return;
+  }
+  error.value = "";
+  sending.value = true;
+  let text = "";
+  try {
+    // docx는 서버가 텍스트를 추출한다(커리어 저장소에도 함께 등록됨). txt/md는 브라우저에서 읽는다.
+    text = /\.docx$/i.test(file.name)
+      ? ((await api.uploadCareerSource(
+          file,
+          file.name.replace(/\.[^.]+$/, ""),
+        )).rawText || "").trim()
+      : (await file.text()).trim();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "파일을 읽지 못했습니다.";
+    return;
+  } finally {
+    sending.value = false;
+  }
+  if (text.length < 20) {
+    error.value = "파일에서 읽은 내용이 너무 짧습니다.";
+    return;
+  }
+  message.value = text.slice(0, CHAT_INPUT_MAX_CHARS);
+  await sendText();
+}
+
 async function sendText() {
   const content = message.value.trim();
   if (!content || !conversation.value || sending.value) return;
@@ -1029,6 +1070,25 @@ async function confirmPostingReviewExecution(
   const execution = postingReviewExecution(item, action);
   if (!conversation.value || !execution) return;
   const key = postingReviewKey(item, action);
+  if (execution.analysisJobId) {
+    // 백엔드가 액션 실행 시점에 V3 등록·원문 확인·분석 시작까지 이어 두었다.
+    // 같은 원문을 여기서 다시 등록하지 않고 진행만 지켜본다.
+    actionJobId.value = key;
+    error.value = "";
+    try {
+      analysisById.value[execution.analysisJobId] = await api.analysisJob(
+        execution.analysisJobId,
+      );
+      markPostingReviewHandled(key);
+    } catch (cause) {
+      error.value = cause instanceof Error
+        ? cause.message
+        : "분석 상태를 불러오지 못했습니다.";
+    } finally {
+      actionJobId.value = null;
+    }
+    return;
+  }
   const originalText = typeof execution.result.rawText === "string"
     ? execution.result.rawText.trim()
     : "";
@@ -1065,6 +1125,13 @@ async function confirmPostingReviewExecution(
   } finally {
     actionJobId.value = null;
   }
+}
+
+function visibleProposedActions(item: ConversationMessage) {
+  // 공고 분석은 확인 박스 없이 자동 실행되므로(executeAutomaticActions) 카드를 띄우지 않는다.
+  return (agentResultForMessage(item).proposedActions ?? []).filter(
+    (action) => action.actionType !== "ANALYZE_POSTING",
+  );
 }
 
 async function executeAgentAction(
@@ -1724,7 +1791,12 @@ onBeforeUnmount(() => {
               </div>
             </section>
             <div class="chat-message__body">
-              <p class="chat-message__content">{{ item.content }}</p>
+              <AgentMessageContent
+                v-if="item.role === 'ASSISTANT'"
+                class="chat-message__content"
+                :content="item.content"
+              />
+              <p v-else class="chat-message__content">{{ item.content }}</p>
               <time>{{ formatTime(item.createdAt) }}</time>
             </div>
 
@@ -1841,12 +1913,12 @@ onBeforeUnmount(() => {
             </section>
 
             <section
-              v-if="agentResultForMessage(item).proposedActions?.length"
+              v-if="visibleProposedActions(item).length"
               class="agent-proposals"
             >
               <strong>다음 행동</strong>
               <article
-                v-for="action in agentResultForMessage(item).proposedActions ?? []"
+                v-for="action in visibleProposedActions(item)"
                 :key="action.actionId"
               >
                 <span>{{ action.label }}</span>
@@ -2583,6 +2655,23 @@ onBeforeUnmount(() => {
         </section>
 
         <div class="composer-box">
+          <button
+            class="composer-attach"
+            type="button"
+            :disabled="sending"
+            aria-label="이력서 파일 첨부 (TXT·MD·DOCX)"
+            title="이력서 파일 첨부 (TXT·MD·DOCX)"
+            @click="resumeFileInput?.click()"
+          >
+            <Paperclip :size="18" />
+          </button>
+          <input
+            ref="resumeFileInput"
+            type="file"
+            style="display: none"
+            accept=".docx,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+            @change="attachResumeFile"
+          />
           <textarea
             ref="composerInput"
             v-model="message"

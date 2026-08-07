@@ -776,7 +776,9 @@ textarea:focus-visible {
 
 .app-header {
   position: sticky;
-  z-index: 30;
+  /* 사이드바(z 40)보다 위 — 알림 팝오버가 헤더 스태킹 컨텍스트 안에 있어서
+     헤더가 낮으면 팝오버(z 70)도 사이드바에 가려진다. */
+  z-index: 45;
   top: 0;
   display: grid;
   grid-template-columns: 220px 1fr auto;
@@ -3605,7 +3607,8 @@ select:focus-visible {
   max-width: min(730px, 82%);
 }
 
-.chat-message__body > p {
+.chat-message__body > p,
+.chat-message__body > .agent-rich {
   margin: 0;
   padding: 13px 16px;
   border: 1px solid #dfe5e1;
@@ -4000,7 +4003,7 @@ select:focus-visible {
 
 .composer-box {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: end;
   gap: 9px;
   padding: 9px;
@@ -4024,7 +4027,71 @@ select:focus-visible {
   overflow-y: hidden;
 }
 
-.composer-send {
+/* 에이전트 답변의 구조 렌더링 — 섹션 헤더·불릿을 카드처럼 */
+.agent-rich {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.agent-rich p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.agent-rich h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.agent-rich ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-rich li {
+  padding: 8px 11px;
+  border: 1px solid #e3e9e4;
+  border-radius: 10px;
+  background: #f6f9f6;
+}
+
+.agent-rich--card {
+  gap: 8px;
+}
+
+.agent-rich--card h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed #dde4de;
+}
+
+.agent-rich--card h4::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 3px;
+  background: var(--green);
+}
+
+.agent-rich--card > h4:first-child,
+.agent-rich--card > p:first-child + h4 {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.composer-send,
+.composer-attach {
   display: grid;
   width: 40px;
   height: 40px;
@@ -4032,6 +4099,17 @@ select:focus-visible {
   border: 0;
   border-radius: 12px;
   cursor: pointer;
+}
+
+.composer-attach {
+  color: var(--ink);
+  background: #eef2ef;
+  box-shadow: 0 4px 0 #d1d8d3;
+}
+
+.composer-attach:disabled {
+  color: #9da7a5;
+  cursor: default;
 }
 
 .composer-send {

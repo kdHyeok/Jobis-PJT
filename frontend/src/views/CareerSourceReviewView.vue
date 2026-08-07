@@ -23,6 +23,7 @@ const route = useRoute();
 const router = useRouter();
 const detail = ref<CareerSourceDetail | null>(null);
 const selectedIds = ref<string[]>([]);
+const defaultSelectionApplied = ref(false);
 const loading = ref(true);
 const actionLoading = ref(false);
 const error = ref("");
@@ -67,6 +68,11 @@ async function load() {
       selectedIds.value = detail.value.fragments
         .filter((fragment) => fragment.reviewStatus === "CONFIRMED")
         .map((fragment) => fragment.id);
+    } else if (!defaultSelectionApplied.value && detail.value.fragments.length) {
+      // 기본은 전부 추가 — 사용자는 뺄 조각(스택·프로젝트 등)만 해제한다.
+      // 폴링으로 load 가 반복되므로 최초 도착 때 한 번만 기본값을 깐다.
+      selectedIds.value = detail.value.fragments.map((fragment) => fragment.id);
+      defaultSelectionApplied.value = true;
     }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "자료를 불러오지 못했습니다.";
