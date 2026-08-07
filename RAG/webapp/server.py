@@ -15,28 +15,40 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pgvector.psycopg import register_vector
+from psycopg_pool import ConnectionPool
 
-from eval import harness
 from jobrag.generate import generate_answer
 from jobrag.query_parser import load_region_vocab, parse_query
 from jobrag.search import hybrid_search
-from jobrag.store import connect
+from jobrag.store import get_dsn
 from jobrag.tracing import new_trace_id, node_span
 
 STATIC_DIR = Path(__file__).resolve().parent
 USE_RERANK = "--no-rerank" not in sys.argv
 DISPLAY_K = 8  # 사용자에게 보여주고 GMS에 넘기는 최종 개수
 
-_conn = None
+_pool: ConnectionPool | None = None
 _vocab = None
 
 
-def _ensure_ready():
-    global _conn, _vocab
-    if _conn is None:
-        _conn = connect()
-        register_vector(_conn)
-        _vocab = load_region_vocab(_conn)
+def _init_pool():
+    """커넥션 풀을 기동 시점에 한 번만 생성한다.
+
+    커넥션마다 register_vector를 자동 호출하고, autocommit=True로
+    트랜잭션 오염(한 스레드 실패 → 전체 연쇄 500)을 원천 차단한다.
+    """
+    global _pool, _vocab
+    if _pool is not None:
+        return
+    _pool = ConnectionPool(
+        get_dsn(),
+        min_size=2,
+        max_size=10,
+        configure=register_vector,
+        kwargs={"autocommit": True},
+    )
+    with _pool.connection() as conn:
+        _vocab = load_region_vocab(conn)
 
 
 def _hit_to_json(h) -> dict:
@@ -72,26 +84,28 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(html)
             return
         if self.path == "/api/eval":
-            if not harness.OUT.exists():
+            from eval.run import REPORT_PATH
+            if not REPORT_PATH.exists():
                 self._send_json(404, {"error": "아직 실행 안 됨 — '다시 계산' 버튼을 눌러줘"})
                 return
-            self._send_json(200, json.loads(harness.OUT.read_text(encoding="utf-8")))
+            self._send_json(200, json.loads(REPORT_PATH.read_text(encoding="utf-8")))
             return
         self._send_json(404, {"error": "not found"})
 
     def do_POST(self):
         if self.path == "/api/eval/run":
             try:
-                _ensure_ready()
-                report = {
-                    "generated_at": __import__("datetime").datetime.now().isoformat(),
-                    "search": harness.eval_search(_conn, _vocab),
-                    "discrimination": harness.eval_discrimination(_conn, _vocab),
-                    "parsing": harness.eval_parsing(_vocab),
-                    "latency": harness.eval_latency(),
-                    "chunking": harness.eval_chunking(_conn),
-                }
-                harness.OUT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                from eval.run import POOL_PATH, check_gates, measure
+                if not POOL_PATH.exists():
+                    self._send_json(409, {"error": "eval/pool.json 없음 — 먼저 평가 풀을 생성해야 합니다"})
+                    return
+                pool_data = json.loads(POOL_PATH.read_text(encoding="utf-8"))
+                failed = [gate for gate in check_gates(pool_data) if not gate["passed"]]
+                if failed:
+                    self._send_json(409, {"error": "평가 게이트 실패", "gates": failed})
+                    return
+                with _pool.connection() as conn:
+                    report = measure(conn, pool_data)
                 self._send_json(200, report)
             except Exception:
                 self._send_json(500, {"error": traceback.format_exc()})
@@ -107,7 +121,6 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "query is required"})
                 return
 
-            _ensure_ready()
             trace = new_trace_id()
             t0 = time.perf_counter()
 
@@ -115,9 +128,10 @@ class Handler(BaseHTTPRequestHandler):
                 spec = parse_query(query, _vocab)
                 span.output_summary = spec.summary()
 
-            with node_span(trace, "hybrid_search", "query", query) as span:
-                result = hybrid_search(_conn, spec, top_k=DISPLAY_K, use_rerank=USE_RERANK)
-                span.metrics = result.metrics()
+            with _pool.connection() as conn:
+                with node_span(trace, "hybrid_search", "query", query) as span:
+                    result = hybrid_search(conn, spec, top_k=DISPLAY_K, use_rerank=USE_RERANK)
+                    span.metrics = result.metrics()
 
             answer, gen_error = "", None
             with node_span(trace, "generate", "query", query) as span:
@@ -156,7 +170,7 @@ def main():
     port = 8766
     if "--port" in sys.argv:
         port = int(sys.argv[sys.argv.index("--port") + 1])
-    _ensure_ready()
+    _init_pool()
     _warmup_models()
     print(f"jobrag webapp: http://127.0.0.1:{port}  (rerank={'ON' if USE_RERANK else 'OFF'})")
     ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

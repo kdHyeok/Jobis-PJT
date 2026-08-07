@@ -25,6 +25,6 @@ MySQL/Hibernate 자동 스키마, 옛 WebSocket 실행법을 현행 계약으로
 - 커밋, push, 브랜치 변경은 사용자가 명시적으로 요청할 때만 한다(AGENTS.md "작업 원칙").
 - 검증하지 않은 것을 통과했다고 적지 않는다. Docker가 없어 Testcontainers가 건너뛰어졌다면
   "통합 검증 통과"가 아니다. 실행한 명령과 결과를 그대로 보고한다.
-- 서비스 CI를 확인할 때는 CI와 **같은 명령**을 쓴다 — `bash <서비스>/ci/test.sh`.
+- 서비스 CI를 확인할 때는 CI와 **같은 명령**을 쓴다 — `sh <서비스>/ci/test.sh`.
   이 스크립트들은 Linux 컨테이너 기준이라 Windows 셸에서 그대로 돌지 않을 수 있다.
   그럴 때는 안쪽 명령(`./gradlew ...`, `npm run build`)을 직접 실행하고 그 사실을 밝힌다.

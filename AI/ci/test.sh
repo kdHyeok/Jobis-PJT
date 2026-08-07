@@ -1,13 +1,13 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # JOBIS AI CI — AI 개발자 소유.
 #
 # 호출: Jenkinsfile 'AI: test' 스테이지가 workspace 루트에서
-#       `bash AI/ci/test.sh` 로 실행한다. 컨테이너 이미지는 Jenkinsfile이 고른다.
+#       `sh AI/ci/test.sh` 로 실행한다. 컨테이너 이미지는 Jenkinsfile이 고른다.
 #
 # `--frozen` 은 uv.lock 이 pyproject.toml 과 어긋나면 실패한다. 의존성을 바꿨다면
 # 락파일을 같은 커밋에서 갱신한다 — CI에서 새로 풀라고 `--frozen` 을 떼지 않는다.
 # 그러면 CI가 검증한 의존성과 배포되는 의존성이 달라진다.
-set -euo pipefail
+set -eu
 
 export PYTHONUTF8=1
 export UV_CACHE_DIR=/tmp/jobis-uv-cache

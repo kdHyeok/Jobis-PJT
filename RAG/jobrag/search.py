@@ -27,7 +27,7 @@ from .query_parser import QuerySpec
 
 RRF_K = 60          # RRF 상수 (표준값)
 CANDIDATE_K = 30    # 축별 후보 수
-RERANK_TOP_N = 15   # 재순위 대상 상한 — 크로스인코더는 후보 30개 전부에 걸 정도로 싸지 않다
+RERANK_TOP_N = 30   # 재순위 대상 상한 — 평가 v2 스윕에서 30이 고원(15: 0.840 → 30: 0.851, eval/RESULTS_v2.md)
 RELAX_ORDER = ("region", "exp")   # 완화 순서 — 지역이 가장 자주 과도하게 좁힌다
 
 _TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣]+")
@@ -138,7 +138,13 @@ def _load_bm25_index(conn) -> dict:
         rows = cur.fetchall()
     chunks = [(uid, chunk_id) for uid, chunk_id, _ in rows]
     corpus = [_tokenize(text) for _, _, text in rows]
-    _bm25_cache = {"bm25": BM25Okapi(corpus or [[]]), "chunks": chunks}
+    # rank_bm25 divides by the vocabulary size while constructing the index.
+    # An empty jobrag database (or rows containing no searchable tokens) has no
+    # vocabulary, so creating BM25Okapi would crash the whole RAG API at startup.
+    # Keep the cache shape stable and let the lexical axis return no candidates
+    # until Airflow has ingested searchable chunks.
+    bm25 = BM25Okapi(corpus) if corpus and any(corpus) else None
+    _bm25_cache = {"bm25": bm25, "chunks": chunks}
     return _bm25_cache
 
 
@@ -153,6 +159,8 @@ def _bm25_axis(conn, spec, relaxed) -> list[tuple[str, str, float]]:
     if not query_tokens:
         return []
     index = _load_bm25_index(conn)
+    if index["bm25"] is None:
+        return []
     scores = index["bm25"].get_scores(query_tokens)
 
     where, fp = _filters(spec, relaxed)
@@ -318,8 +326,11 @@ def hybrid_search(conn, spec: QuerySpec, top_k: int = 10,
     result = _search_once(conn, vec, spec, (), CANDIDATE_K)
 
     if allow_relax and len(result.hits) < min_results:
-        exact = result.hits                   # 엄격 검색 결과 — 전부 정확 매치
-        seen = {h.posting_uid for h in exact}
+        # 직전 라운드까지의 누적 결과를 기준으로 병합한다 — 엄격 결과(exact)만 기준으로
+        # 삼으면, 2차 완화 라운드에서 1차 완화가 찾은 공고가 seen에는 있으면서
+        # merged에는 못 들어가 통째로 유실된다(완화할수록 결과가 줄어드는 역설).
+        merged = result.hits                  # 엄격 검색 결과 — 전부 정확 매치
+        seen = {h.posting_uid for h in merged}
         for i in range(1, len(RELAX_ORDER) + 1):
             axes = RELAX_ORDER[:i]
             # 애초에 걸리지 않은 축만 푸는 시도는 결과가 같으므로 건너뛴다
@@ -327,8 +338,9 @@ def hybrid_search(conn, spec: QuerySpec, top_k: int = 10,
             if not any(active[a] for a in axes):
                 continue
             extra = _search_once(conn, vec, spec, axes, CANDIDATE_K)
-            merged = exact + [h for h in extra.hits if h.posting_uid not in seen]
-            seen |= {h.posting_uid for h in extra.hits}
+            new_hits = [h for h in extra.hits if h.posting_uid not in seen]
+            seen |= {h.posting_uid for h in new_hits}
+            merged = merged + new_hits
             merged.sort(key=lambda h: (not h.exact, -h.rrf, h.posting_uid))
             result = SearchResult(spec=spec, hits=merged, relaxed=list(axes),
                                   dense_candidates=extra.dense_candidates,

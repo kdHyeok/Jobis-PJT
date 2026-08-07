@@ -188,7 +188,7 @@ SQL
               ]) {
               // 무엇을 검사하는가는 backend 개발자 소유다(backend/ci/test.sh).
               // 이 스테이지는 실행 환경(이미지·DB 컨테이너·DB_* 환경변수)만 책임진다.
-              sh 'bash backend/ci/test.sh'
+              sh 'sh backend/ci/test.sh'
               }
             }
           }
@@ -216,7 +216,7 @@ SQL
       }
       steps {
         // 검사 내용은 AI 개발자 소유다(AI/ci/test.sh).
-        sh 'bash AI/ci/test.sh'
+        sh 'sh AI/ci/test.sh'
       }
     }
 
@@ -238,7 +238,7 @@ SQL
       }
       steps {
         // 검사 내용은 프론트엔드 개발자 소유다(frontend/ci/test.sh).
-        sh 'bash frontend/ci/test.sh'
+        sh 'sh frontend/ci/test.sh'
       }
     }
 
@@ -260,7 +260,7 @@ SQL
       }
       steps {
         // 검사 내용은 RAG 개발자 소유다(RAG/ci/test.sh).
-        sh 'bash RAG/ci/test.sh'
+        sh 'sh RAG/ci/test.sh'
       }
     }
 
