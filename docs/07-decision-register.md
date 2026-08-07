@@ -900,6 +900,43 @@
   PostgreSQL `6 passed`(skip 0), Capability Graph `24 passed`, 프론트 단위 테스트와 production build,
   Playwright E2E `2 passed`, fixture corpus `40/40`을 확인했다.
 
+## D048 · 메인 로드맵을 프로젝트 중심 사용자 커리어 그래프로 투영한다
+
+- 날짜: `2026-08-07`
+- 상태: `IMPLEMENTED · LIVE_ACCEPTANCE_PENDING`
+- 결정: 메인 로드맵은 공고의 기술과 프로젝트 과제를 펼친 목록이 아니라 공통·직무 학습 챕터,
+  회사 맞춤 프로젝트, 회사 기회, 관련 취업, 실제 경력 구간과 다음 경력 기회를 하나로 조립한 사용자
+  커리어 그래프로 만든다. 프로젝트 과제와 원자 역량은 프로젝트 상세에서 제공하고 메인 경로의
+  독립 노드로 반복하지 않는다.
+- 직접 원인: 현재 `_section_memberships()`가 direct `capabilityKey` 일치뿐 아니라 공유
+  `requirementId`까지 과제 membership으로 인정하고, 프론트 어댑터가 이 과제명을 메인 챕터로
+  투영해 같은 역량 묶음을 여러 과제에 반복한다. 실제 roadmap relation은 최신 어댑터까지 전달되므로
+  관계 전체 소실이 아니라 membership 의미와 화면 투영 단위가 현재 핵심 결함이다.
+- 합성 규칙: 같은 canonical capability와 사용자 진행 상태는 재사용한다. 같은 직무의 적절한 신입·
+  경력무관 기회는 병렬 진입점이 될 수 있고, 관련 취업과 검증된 경력 구간을 거쳐 경력직 회사
+  프로젝트와 기회로 연결한다. 같은 경력 수준이라는 이유만으로 다른 직무를 같은 분기에 놓지 않는다.
+- 경력 규칙: 최소·최대 기간, 관련 직무 범위와 증거를 모두 보존한다. 이스트게임즈는 네이버웹툰의
+  필수 선행 회사가 아니라 관련 백엔드 경력을 시작할 수 있는 여러 기회 중 하나다.
+- 공용 그래프 규칙: AI는 회사 프로젝트와 직접 역량을 제안하고 Capability Graph는 선수관계를
+  제공한다. 결정적 코드는 closure, 중복 제거, 진행 재사용, 직무·경력 배치와 화면용 journey
+  projection을 담당한다. AI는 좌표를 만들지 않고 프론트는 경력 의미를 추측하지 않는다.
+- 버전 규칙: 기존 published roadmap과 검증 증거는 자동 변경하거나 초기화하지 않는다. 새 분석은
+  차이 proposal을 만들며 Capability Graph 버전을 고정한다.
+- 상세 계획: `docs/25-project-centered-career-journey.md`.
+- 수용 기준: `contract-fixtures/scenarios/d048-estgames-naver-career-journey.json`.
+- 영향받는 코드·테스트: project planning 계약과 prompt, roadmap membership과 chaptering,
+  Capability Graph additive seed, `V3RoadmapCompiler`, journey projection, project task progress와 RLS,
+  `v3-adapter.ts`, `journey.ts`, `JourneyMap.vue`, `CareerMapView.vue`, AI·Spring·frontend 수용 테스트.
+- 구현 결과: 과제 DAG, 직접 역량 membership, 안정적인 챕터, 명시적인 직무·경력 단계, 회사 기회→
+  관련 취업→경력 구간→경력직 기회 합성, 프로젝트 과제 진행·증거 RLS와 프로젝트 상세 화면을
+  구현했다. `seed.v2`는 기존 그래프를 보존하는 additive 버전이다.
+- 검증: 통합 AI `983 passed`, fixture corpus `40/40`, Capability Graph `26 passed`, 프론트 단위
+  테스트와 production build, Playwright E2E `3 passed`, Spring 전체 테스트와 격리 PostgreSQL
+  마이그레이션·RLS 테스트가 모두 통과했다. 라이브 LLM 공고 2건 수용 검사는 별도다.
+- 구현 기록: `docs/26-d048-project-centered-career-journey-implementation.md`.
+- 이전 결정: D031의 project-first 생성, D039·D042의 하나의 커리어 그래프와 문맥별 공유 역량,
+  D044의 수정 순서, D045의 분야·챕터 배치와 D047의 단일 AI를 구체적인 구현 계약으로 보완한다.
+
 새 결정을 추가할 때 다음 형식을 사용한다.
 
 ```text

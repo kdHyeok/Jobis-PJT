@@ -614,6 +614,28 @@ export const api = {
     });
   },
 
+  updateV3ProjectTaskState(
+    projectNodeId: string,
+    taskKey: string,
+    state: "NOT_STARTED" | "CLAIMED",
+  ) {
+    return request(`/api/v3/roadmap/projects/${encodeURIComponent(projectNodeId)}/tasks/${encodeURIComponent(taskKey)}/state`, {
+      method: "POST",
+      body: JSON.stringify({ state }),
+    });
+  },
+
+  addV3ProjectTaskEvidence(
+    projectNodeId: string,
+    taskKey: string,
+    payload: { title: string; evidenceUrl: string; description: string },
+  ) {
+    return request(`/api/v3/roadmap/projects/${encodeURIComponent(projectNodeId)}/tasks/${encodeURIComponent(taskKey)}/evidence`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   v3EmploymentRecords(): Promise<V3EmploymentRecord[]> {
     return request("/api/v3/employment");
   },

@@ -14,13 +14,19 @@ import java.util.UUID;
 public class V3ProjectProgressService {
 
     private final ObjectMapper objectMapper;
+    private final V3ProjectTaskProgressService taskProgressService;
 
-    public V3ProjectProgressService(ObjectMapper objectMapper) {
+    public V3ProjectProgressService(
+            ObjectMapper objectMapper,
+            V3ProjectTaskProgressService taskProgressService
+    ) {
         this.objectMapper = objectMapper;
+        this.taskProgressService = taskProgressService;
     }
 
     public JsonNode synchronizeAndOverlay(JdbcClient jdbc, UUID userId, JsonNode snapshot) {
         synchronize(jdbc, userId, snapshot);
+        taskProgressService.synchronize(jdbc, userId, snapshot);
         return overlay(jdbc, snapshot);
     }
 
@@ -84,7 +90,7 @@ public class V3ProjectProgressService {
                 node.put("progressState", "NOT_STARTED");
             }
         }
-        return result;
+        return taskProgressService.overlay(jdbc, result);
     }
 
     /**
@@ -215,7 +221,7 @@ public class V3ProjectProgressService {
         return text.toString();
     }
 
-    private static String projectKey(JsonNode node) {
+    static String projectKey(JsonNode node) {
         String target = node.path("targetRef").stringValue(node.path("nodeId").stringValue(""));
         return clip("v3.project:" + target.replaceFirst("^project:", ""), 160);
     }

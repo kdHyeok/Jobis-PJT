@@ -7,7 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $python = Join-Path $GraphRoot ".venv\Scripts\python.exe"
-$dataset = Join-Path $GraphRoot "data\seed.v1.yaml"
+$dataset = Join-Path $GraphRoot "data\seed.v2.yaml"
 
 if (-not (Test-Path -LiteralPath $GraphRoot)) {
     throw "Capability Graph workspace is missing: $GraphRoot"

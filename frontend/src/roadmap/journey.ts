@@ -63,14 +63,21 @@ function isLegacyExperienceGate(node: RoadmapNode) {
   );
 }
 
-function chapterForRank(
-  rank: number,
+function chapterForNode(
+  node: RoadmapNode,
   experienceGates: RoadmapNode[],
 ) {
+  if (node.journeyStageRef && node.journeyStageRef !== "stage.entry") {
+    const explicit = experienceGates.find(
+      (gate) => gate.journeyStageRef === node.journeyStageRef,
+    );
+    if (explicit) return explicit;
+  }
+  if (node.journeyStageRef === "stage.entry") return null;
   return (
     [...experienceGates]
       .reverse()
-      .find((gate) => gate.rank < rank) ?? null
+      .find((gate) => gate.rank < node.rank) ?? null
   );
 }
 
@@ -100,7 +107,7 @@ function branchesForChapter(
   return opportunities
     .filter(
       (opportunity) =>
-        chapterForRank(opportunity.rank, experienceGates)?.id ===
+        chapterForNode(opportunity, experienceGates)?.id ===
         chapterGate?.id,
     )
     .map((opportunity) => ({
@@ -174,7 +181,7 @@ export function buildJourneyModel(
     );
 
     const entryQuestNodes = questNodes.filter(
-      (node) => chapterForRank(node.rank, experienceGates) === null,
+      (node) => chapterForNode(node, experienceGates) === null,
     );
     const entryGroups = relationAwareGroups(
       entryQuestNodes,
@@ -200,7 +207,7 @@ export function buildJourneyModel(
       (gate, index): JourneyChapter => {
         const chapterQuestNodes = questNodes.filter(
           (node) =>
-            chapterForRank(node.rank, experienceGates)?.id === gate.id,
+            chapterForNode(node, experienceGates)?.id === gate.id,
         );
         return {
           id: `${domain}:experience:${gate.id}`,

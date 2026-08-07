@@ -45,9 +45,10 @@ from jobis_ai.career_pipeline.contracts.posting import PostingStatus
 from jobis_ai.career_pipeline.llm import JsonProviderError, JsonProviderNotConfigured, StructuredGenerator
 
 from .draft import RoadmapContentDraft
+from .chaptering import career_stage_ref, chapter_for
 
 
-COMPOSER_VERSION = "roadmap-composer-3.1.0"
+COMPOSER_VERSION = "roadmap-composer-3.2.0"
 MAX_PROMPT_CHARS = 48_000
 
 
@@ -190,9 +191,18 @@ class RoadmapDraftService:
                 section_memberships=_section_memberships(
                     draft,
                     role_section,
-                    request.opportunity.opportunity_id,
+                    career_stage_ref(
+                        minimum_months=_minimum_experience_months(
+                            position.experience,
+                            request.fit_assessment.selected_experience_track,
+                        ),
+                        maximum_months=_maximum_experience_months(
+                            position.experience,
+                            request.fit_assessment.selected_experience_track,
+                        ),
+                    ),
                     capability_key=node.canonical_key,
-                    requirement_ids=req_ids,
+                    capability_kind=node.kind,
                 ),
                 reason=(
                     "Existing user capability node is reused without changing its progress."
@@ -232,9 +242,18 @@ class RoadmapDraftService:
                 section_memberships=_section_memberships(
                     draft,
                     role_section,
-                    request.opportunity.opportunity_id,
+                    career_stage_ref(
+                        minimum_months=_minimum_experience_months(
+                            position.experience,
+                            request.fit_assessment.selected_experience_track,
+                        ),
+                        maximum_months=_maximum_experience_months(
+                            position.experience,
+                            request.fit_assessment.selected_experience_track,
+                        ),
+                    ),
                     capability_key=None,
-                    requirement_ids=[requirement_id],
+                    capability_kind=None,
                 ),
                 reason=(
                     "Existing provisional capability is reused while catalog review remains pending."
@@ -678,37 +697,29 @@ def _minimum_experience_months(experience, selected_track) -> int | None:
 def _section_memberships(
     blueprint,
     section_key: str,
-    opportunity_id: str,
+    stage_ref: str,
     *,
     capability_key: str | None,
-    requirement_ids: list[str],
+    capability_kind,
 ) -> list[SectionMembership]:
-    requirement_set = set(requirement_ids)
     matched = [
         task
         for task in blueprint.tasks
-        if (
-            capability_key is not None and capability_key in task.capability_keys
-        ) or requirement_set.intersection(task.requirement_ids)
+        if capability_key is not None and capability_key in task.capability_keys
     ]
-    if not matched:
-        return [SectionMembership(
-            section_key=section_key,
-            chapter_key=f"chapter.foundation:{opportunity_id}",
-            chapter_title="직무 기반 역량",
-            target_ref=opportunity_id,
-            reason="회사 맞춤 프로젝트에 필요한 선수 또는 미분류 원자 역량입니다.",
-        )]
-    return [
-        SectionMembership(
-            section_key=section_key,
-            chapter_key=f"chapter.task:{task.task_key}",
-            chapter_title=task.title,
-            target_ref=opportunity_id,
-            reason=f"{task.title} 과제를 수행하는 데 필요한 원자 역량입니다.",
-        )
-        for task in matched
-    ]
+    chapter = chapter_for(
+        section_key=section_key,
+        capability_kind=capability_kind,
+        provisional=capability_key is None,
+    )
+    relation = "직접 필요한" if matched else "선수 관계로 포함된"
+    return [SectionMembership(
+        section_key=section_key,
+        chapter_key=f"chapter.{chapter.key}",
+        chapter_title=chapter.title,
+        target_ref=stage_ref,
+        reason=f"회사 맞춤 프로젝트에 {relation} 역량입니다. {chapter.reason}",
+    )]
 
 
 def _maximum_experience_months(experience, selected_track) -> int | None:

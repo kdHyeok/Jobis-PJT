@@ -3,6 +3,8 @@ package com.jobiss.db;
 import com.jobiss.common.ApiException;
 import com.jobiss.config.JobissProperties;
 import com.jobiss.analysis.v3.V3CareerProgressOverlay;
+import com.jobiss.analysis.v3.V3ProjectProgressService;
+import com.jobiss.analysis.v3.V3ProjectTaskProgressService;
 import com.jobiss.security.RefreshTokenService;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
@@ -243,6 +245,64 @@ class LocalPostgresIntegrationTest {
             assertThat(definition).contains("UNIFIED");
             assertThat(definition).doesNotContain("'V3'");
         }
+    }
+
+    @Test
+    void projectTasksAreSynchronizedAndRemainPrivateToTheirRlsOwner() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        insertUser(ownerId, "project-task-owner@example.com");
+        insertUser(otherId, "project-task-other@example.com");
+        try (Connection connection = DriverManager.getConnection(url, "jobiss_migrator", migratorPassword);
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    insert into career_graphs (user_id) values ('%s'), ('%s')
+                    """.formatted(ownerId, otherId));
+        }
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        V3ProjectTaskProgressService taskService = new V3ProjectTaskProgressService(
+                rlsExecutor(), objectMapper
+        );
+        V3ProjectProgressService projectService = new V3ProjectProgressService(
+                objectMapper, taskService
+        );
+        JsonNode snapshot = objectMapper.readTree("""
+                {"roadmapVersion":1,"nodes":[{
+                  "nodeId":"project:estgames-backend","nodeKind":"TARGET_PROJECT",
+                  "targetRef":"estgames-backend","title":"게임 구매 API 프로젝트",
+                  "sectionKey":"BACKEND","displayRank":10,"projectSpec":{
+                    "objective":"구매 정합성을 구현하고 검증한다.",
+                    "requiredCapabilityKeys":[],
+                    "tasks":[
+                      {"taskKey":"task.domain-model","necessity":"REQUIRED",
+                       "title":"구매 상태 모델링","objective":"상태 전이를 정의한다.",
+                       "acceptanceCriteria":["허용 전이를 문서화한다.","잘못된 전이를 테스트한다."],
+                       "capabilityKeys":["backend.state-transition"],"dependsOnTaskKeys":[]},
+                      {"taskKey":"task.purchase-api","necessity":"REQUIRED",
+                       "title":"구매 API 구현","objective":"원자적인 구매를 구현한다.",
+                       "acceptanceCriteria":["원자성 테스트가 통과한다.","중복 요청 테스트가 통과한다."],
+                       "capabilityKeys":["backend.transaction-atomicity"],
+                       "dependsOnTaskKeys":["task.domain-model"]}
+                    ]
+                  }
+                }],"relations":[]}
+                """);
+
+        JsonNode overlaid = rlsExecutor().write(
+                ownerId,
+                jdbc -> projectService.synchronizeAndOverlay(jdbc, ownerId, snapshot)
+        );
+        UUID projectNodeId = UUID.fromString(
+                overlaid.path("nodes").get(0).path("careerNodeId").stringValue()
+        );
+
+        assertThat(taskService.tasks(ownerId, projectNodeId))
+                .extracting(V3ProjectTaskProgressService.TaskView::taskKey)
+                .containsExactly("task.domain-model", "task.purchase-api");
+        assertThat(taskService.tasks(ownerId, projectNodeId).get(1).dependsOnTaskKeys().get(0).stringValue())
+                .isEqualTo("task.domain-model");
+        assertThat(taskService.tasks(otherId, projectNodeId)).isEmpty();
     }
 
     private static RefreshTokenService refreshTokenService() {

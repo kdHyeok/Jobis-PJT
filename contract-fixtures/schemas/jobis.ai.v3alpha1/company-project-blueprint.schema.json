@@ -41,6 +41,15 @@
           "title": "Capabilitykeys",
           "type": "array"
         },
+        "dependsOnTaskKeys": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Dependsontaskkeys",
+          "type": "array"
+        },
         "requirementIds": {
           "items": {
             "minLength": 3,
@@ -125,46 +134,95 @@
           "type": "array"
         },
         "providerDurationMs": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Providerdurationms",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Providerdurationms"
         },
         "providerApiDurationMs": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Providerapidurationms",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Providerapidurationms"
         },
         "inputTokens": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Inputtokens",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputtokens"
         },
         "outputTokens": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Outputtokens",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outputtokens"
         },
         "cacheCreationInputTokens": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Cachecreationinputtokens",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cachecreationinputtokens"
         },
         "cacheReadInputTokens": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Cachereadinputtokens",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cachereadinputtokens"
         },
         "totalCostUsd": {
-          "default": 0,
-          "minimum": 0,
-          "title": "Totalcostusd",
-          "type": "number"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Totalcostusd"
         },
         "providerSessionIds": {
           "items": {

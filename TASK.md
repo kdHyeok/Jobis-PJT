@@ -1,8 +1,8 @@
 # JOBIS 단일 AI 통합 작업 상태
 
-- 마지막 갱신: `2026-08-06`
-- 상태: `SINGLE_AI_INTEGRATION_COMPLETE`
-- 영구 결정: `docs/07-decision-register.md`의 `D047`
+- 마지막 갱신: `2026-08-07`
+- 상태: `PROJECT_CENTERED_CAREER_JOURNEY_IMPLEMENTED_LIVE_ACCEPTANCE_PENDING`
+- 영구 결정: `docs/07-decision-register.md`의 `D047`, `D048`
 
 ## Goal
 
@@ -74,9 +74,19 @@
 
 ### 완료 후 다음 단계
 
-- 단일 AI 통합 구현과 자동 검증은 완료됐다. 사용자가 실제 공고로 수동 수용 테스트를 진행한다.
+- 단일 AI 통합 구현과 자동 검증은 완료됐다.
+- D048 프로젝트 중심 사용자 커리어 그래프 구현과 전체 자동 검증을 완료했다.
+- 프로젝트 과제는 메인 챕터에서 제거하고 회사 프로젝트 상세의 DAG로 제공한다.
+- 이스트게임즈 진입 기회와 네이버웹툰 경력 기회를 관련 취업·경력 2~4년 구간을 통해 하나의
+  커리어 그래프에 합성하는 fixture·Spring·frontend E2E를 고정했다.
+- 프로젝트 과제 상태·증거 저장, 사용자별 RLS, 직접 역량과 선수 역량 상세 표시를 구현했다.
+- Capability Graph `seed.v2`를 additive로 추가하고 일반 백엔드 역량과 게임 결제 도메인 적용을
+  분리했다.
+- 다음 단계는 사용자 환경에서 실제 이스트게임즈→네이버웹툰 연속 분석 결과를 확인하는 라이브
+  수용 검사다. 실패하면 저장된 경계 JSON을 기준으로 AI 생성 품질과 결정적 합성을 구분해 진단한다.
 - `AI-v3` 비교 폴더의 삭제나 내부 `V3*` 호환 이름의 대규모 리팩터링은 별도 요청으로 진행한다.
-- 이 작업공간을 Git 저장소로 옮기거나 팀 브랜치에 반영하는 작업은 사용자의 별도 지시를 기다린다.
+- `C:\JOBIS` 기준선은 원격 `feat/be/JOBIS-service` 브랜치의 `74ea9db`에 보존했다. D048 문서와
+  이후 구현을 추가 Push하는 작업은 사용자의 별도 지시를 기다린다.
 
 ## Decisions
 
@@ -86,6 +96,12 @@
 - 채팅은 보조 UI가 아니라 에이전트 실행의 주 작업 공간이다. (`D047`)
 - 공고 구조화, 사용자 확인, 적합도 분석, 프로젝트 설계와 로드맵은 같은 실행 상태를 공유한다.
 - SVG는 설명 자료이며 정본은 결정 문서, 데이터 계약, 불변 규칙과 자동 테스트다.
+- 메인 지도는 학습 챕터·회사 프로젝트·회사 기회·취업·경력 구간을 보여 주고 프로젝트 과제와
+  원자 역량은 상세에서 제공한다. (`D048`)
+- 이스트게임즈는 네이버웹툰의 필수 선행 회사가 아니라 관련 경력을 시작할 수 있는 여러 진입 기회
+  중 하나다. (`D048`)
+- AI는 프로젝트와 직접 역량을 제안하고, 결정적 코드는 선수 closure·중복 제거·경력 배치와
+  journey projection을 담당한다. (`D048`)
 - 작업 상태의 정본은 대화 기억이 아니라 실제 파일·테스트·Git 상태다.
 - 기준선 감사와 회귀 fixture 고정이 끝났으며 최신 코어 기준화부터 구현한다. (`D047`)
 
@@ -107,10 +123,13 @@
 - `C:\JOBIS\.codex\hooks\session-start.ps1`
 - `C:\JOBIS\docs\23-d047-latest-baseline-audit.md`
 - `C:\JOBIS\docs\24-d047-single-ai-file-plan.md`
+- `C:\JOBIS\docs\25-project-centered-career-journey.md`
+- `C:\JOBIS\docs\26-d048-project-centered-career-journey-implementation.md`
 - `C:\JOBIS\contract-fixtures\README.md`
 - `C:\JOBIS\contract-fixtures\d047\multi-role-analysis-baseline.json`
 - `C:\JOBIS\contract-fixtures\d047\career-journey-acceptance.json`
 - `C:\JOBIS\contract-fixtures\d047\README.md`
+- `C:\JOBIS\contract-fixtures\scenarios\d048-estgames-naver-career-journey.json`
 - `C:\JOBIS\AI\tests\test_d047_unified_baseline_fixture.py`
 - `C:\JOBIS\AI-v3\tests\test_d047_unified_baseline_fixture.py`
 - `C:\JOBIS\backend\src\test\java\com\jobiss\analysis\D047CareerJourneyFixtureTest.java`
@@ -124,6 +143,10 @@
 - `C:\JOBIS\frontend\src\roadmap\v3-adapter.ts`
 - `C:\JOBIS\scripts\start-all.ps1`
 - `C:\JOBIS\scripts\stop-all.ps1`
+- `C:\JOBIS\backend\src\main\resources\db\migration\V63__project_task_progress.sql`
+- `C:\JOBIS\backend\src\main\java\com\jobiss\analysis\v3\V3ProjectTaskProgressService.java`
+- `C:\JOBIS\frontend\tests\e2e\estgames-naver-journey.spec.ts`
+- `C:\jobiss-capability-graph-lab\data\seed.v2.yaml`
 - 비교 원본: `C:\S15P11C202`, `C:\jobiss-service-v3-integration-lab`
 
 ## Verification
@@ -163,15 +186,21 @@
   현재 8600 서버의 health/catalog(`0.1.0-alpha.1`)을 확인했다.
 - 같은 장애가 다시 발생해도 환경변수 이름을 사용자에게 노출하지 않고 역량 지식 그래프 연결
   안내로 변환하는 회귀 테스트를 추가했다.
+- D048 전체 통합 검사를 다시 실행했다. 통합 AI `983 passed`, fixture corpus `40/40`, Capability
+  Graph `26 passed`, 프론트 node `8 passed`·Vitest `1 passed`·production build·Playwright E2E
+  `3 passed`, Spring 전체 테스트와 격리 PostgreSQL 마이그레이션·RLS 테스트가 성공했다.
 
 ## Resume
 
-1. 이 문서와 `D047`, `docs/24-d047-single-ai-file-plan.md`를 읽는다.
-2. 단일 AI 서버 이식과 실행 경로 전환은 완료됐다. 대화 요약보다 실제 파일과 테스트를 우선한다.
-3. 계약 버전명·테이블명·클래스명에 남은 v3는 호환 식별자이므로 무작정 바꾸지 않는다.
-4. 수동 검증은 `JOBIS-START.cmd`로 네 개의 로그 창을 연 뒤 복수 직무 공고→질문→분석→
-   로드맵 미리보기→적용→새로고침 복원→취소 시나리오 순으로 진행한다.
-5. `AI-v3` 비교 폴더 삭제는 별도 사용자 확인 후 진행한다.
+1. 이 문서와 `D048`, `docs/25-project-centered-career-journey.md`, 구현 기록 `docs/26-...md`를 읽는다.
+2. `powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-all.ps1`로 서비스를 시작한다.
+3. 새 계정 또는 사용자가 허용한 테스트 계정에서 이스트게임즈 신입 백엔드 공고를 분석·적용한다.
+4. 네이버웹툰 경력 2~4년 백엔드 공고를 추가해 하나의 지도에 취업·경력 구간 뒤로 연결되는지
+   확인한다.
+5. 프로젝트 상세에서 과제, 직접 역량, 선수 역량과 진행·증거 저장을 확인한다.
+6. 라이브 결과가 다르면 proposal JSON, 저장 snapshot, API 응답, adapter 결과 순서로 관계 소실
+   지점을 추적한다. 자동 테스트를 먼저 바꾸지 않는다.
+7. `AI-v3` 비교 폴더 삭제와 Git 추가 Push는 별도 사용자 확인 후 진행한다.
 
 ## Risks / blockers
 
@@ -180,7 +209,7 @@
   파일 내용과 테스트 결과를 우선한다.
 - 라이브 Codex CLI를 사용한 실제 공고 의미 품질·응답 시간 수용 테스트는 사용자의 로컬 인증과 공고로
   별도 확인해야 한다. 자동 테스트는 공급자의 실시간 품질을 보장하지 않는다.
-- 일반 Spring 테스트에서 PostgreSQL 환경형 테스트 19개가 skip되지만, 별도 격리 PostgreSQL 테스트
-  6개는 실제 DB에서 통과했다. 두 결과를 구분한다.
+- 일반 Spring 테스트와 별도로 격리 PostgreSQL에서 전체 마이그레이션과 7개 통합 시나리오를
+  통과했다. 사용자 개발 DB의 기존 데이터는 초기화하지 않았다.
 - 내부 클래스·API·테이블 일부에는 호환성을 위한 `V3` 이름이 남아 있다. 사용자가 보는 공급자 이름과
   현재 DB 실행값은 `UNIFIED`이며, 내부 이름의 대규모 변경은 기능 검증 뒤 별도 리팩터링으로 다룬다.

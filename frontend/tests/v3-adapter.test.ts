@@ -18,6 +18,10 @@ const careerJourneyFixture = JSON.parse(readFileSync(
   new URL("../../contract-fixtures/d047/career-journey-acceptance.json", import.meta.url),
   "utf8",
 ));
+const d048Fixture = JSON.parse(readFileSync(
+  new URL("../../contract-fixtures/scenarios/d048-estgames-naver-career-journey.json", import.meta.url),
+  "utf8",
+));
 
 function capability(
   nodeId: string,
@@ -290,4 +294,48 @@ test("커리어 그래프 수용 fixture의 경력 범위와 보안 섹션을 �
   assert.equal(backend.expectedJourney.experienceGate.maximumMonths, 48);
   assert.equal(security.expectedJourney.sectionKey, "section.security_engineering");
   assert.equal(security.expectedJourney.projectBeforeOpportunity, true);
+});
+
+test("프로젝트 과제 이름은 메인 학습 챕터 제목으로 사용하지 않는다", () => {
+  const snapshot = securitySnapshot();
+  snapshot.nodes[0].sectionMemberships = [{
+    sectionKey: "section.security",
+    chapterKey: "chapter.task:task.game-purchase",
+    chapterTitle: "게임 구매 REST API 개발",
+    targetRef: "stage.entry",
+    reason: "프로젝트 과제에 필요합니다.",
+  }];
+
+  const adapted = adaptV3Snapshot(snapshot);
+
+  assert.equal(adapted.nodes.some((node) => node.title === "게임 구매 REST API 개발"), false);
+  assert.equal(adapted.nodes.some((node) => node.title === "직무 핵심 역량"), true);
+  assert.equal(d048Fixture.expectedJourneyProjection.projectTasksRenderedOnOverview, false);
+});
+
+test("같은 원자 역량은 같은 직무 레인에서 가장 이른 경력 챕터에 한 번만 표시한다", () => {
+  const snapshot = securitySnapshot();
+  const docker = snapshot.nodes.find((node) => node.nodeId === "node-docker")!;
+  docker.sectionMemberships = [
+    {
+      sectionKey: "section.security",
+      chapterKey: "chapter.quality-delivery",
+      chapterTitle: "테스트 · 품질 · 전달",
+      targetRef: "stage.entry",
+      reason: "신입 프로젝트에 필요합니다.",
+    },
+    {
+      sectionKey: "section.security",
+      chapterKey: "chapter.operations",
+      chapterTitle: "운영 · 확장 · 메시징",
+      targetRef: "stage.experience-48-plus",
+      reason: "경력직 프로젝트에서도 재사용합니다.",
+    },
+  ];
+
+  const adapted = adaptV3Snapshot(snapshot);
+  const occurrences = adapted.nodes.flatMap((node) => node.competencies)
+    .filter((competency) => competency.canonicalKey === "docker.container-basics");
+  assert.equal(occurrences.length, 1);
+  assert.equal(d048Fixture.sharedProgress.canonicalCapabilityStateCountPerUser, 1);
 });

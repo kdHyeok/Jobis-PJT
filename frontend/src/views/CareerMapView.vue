@@ -53,6 +53,7 @@ import type {
   RoadmapWorkspace,
   V3AtomicAssessment,
   V3RoadmapNode,
+  V3ProjectTask,
   V3RoadmapVersion,
   V3RoadmapWorkspace,
 } from "@/types";
@@ -152,6 +153,10 @@ const v3OpenAssessmentTurn = computed(() =>
 const evidenceTitle = ref("");
 const evidenceUrl = ref("");
 const evidenceDescription = ref("");
+const taskEvidenceKey = ref<string | null>(null);
+const taskEvidenceTitle = ref("");
+const taskEvidenceUrl = ref("");
+const taskEvidenceDescription = ref("");
 const employmentEmployer = ref("");
 const employmentRoleTitle = ref("");
 const employmentStartedOn = ref("");
@@ -1008,6 +1013,121 @@ async function reloadV3Workspace(canonicalKey?: string) {
     evidenceCompetency.value = refreshed.competencies.find(
       (item) => item.canonicalKey === canonicalKey,
     ) ?? null;
+  }
+}
+
+function projectTaskStateLabel(task: V3ProjectTask) {
+  if (task.progressState === "VERIFIED") return "검증 완료";
+  if (task.progressState === "EVIDENCED") return `근거 제출${task.evidenceCount ? ` ${task.evidenceCount}건` : ""}`;
+  if (task.progressState === "CLAIMED") return "진행 중";
+  return "시작 전";
+}
+
+function projectTaskDependencyTitles(task: V3ProjectTask) {
+  const tasks = selectedNode.value?.project?.tasks ?? [];
+  return (task.dependsOnTaskKeys ?? []).map((key) =>
+    tasks.find((item) => item.taskKey === key)?.title ?? key,
+  );
+}
+
+function projectTaskDirectCapabilities(task: V3ProjectTask) {
+  const nodes = activeV3Snapshot.value?.nodes ?? [];
+  return task.capabilityKeys.map((key) => {
+    const node = nodes.find((item) => item.nodeKind === "CAPABILITY" && item.canonicalKey === key);
+    return {
+      key,
+      title: node?.title ?? key,
+      scope: node?.scopeDefinition ?? node?.objective ?? "",
+    };
+  });
+}
+
+function projectTaskPrerequisiteCapabilities(task: V3ProjectTask) {
+  const raw = activeV3Snapshot.value;
+  if (!raw) return [];
+  const directKeys = new Set(task.capabilityKeys);
+  const nodesById = new Map(raw.nodes.map((node) => [node.nodeId, node]));
+  const targetIds = raw.nodes
+    .filter((node) => node.nodeKind === "CAPABILITY" && node.canonicalKey && directKeys.has(node.canonicalKey))
+    .map((node) => node.nodeId);
+  const prerequisiteTypes = new Set([
+    "HARD_PREREQUISITE",
+    "RECOMMENDED_FOUNDATION",
+    "CONDITIONAL_PREREQUISITE",
+  ]);
+  const incoming = new Map<string, string[]>();
+  for (const relation of raw.relations) {
+    if (!prerequisiteTypes.has(relation.relationType)) continue;
+    const values = incoming.get(relation.toNodeId) ?? [];
+    values.push(relation.fromNodeId);
+    incoming.set(relation.toNodeId, values);
+  }
+  const pending = [...targetIds];
+  const visited = new Set(targetIds);
+  const result = new Map<string, { key: string; title: string; scope: string }>();
+  while (pending.length) {
+    const targetId = pending.shift()!;
+    for (const sourceId of incoming.get(targetId) ?? []) {
+      if (visited.has(sourceId)) continue;
+      visited.add(sourceId);
+      pending.push(sourceId);
+      const node = nodesById.get(sourceId);
+      if (!node || node.nodeKind !== "CAPABILITY" || !node.canonicalKey || directKeys.has(node.canonicalKey)) continue;
+      result.set(node.canonicalKey, {
+        key: node.canonicalKey,
+        title: node.title,
+        scope: node.scopeDefinition ?? node.objective ?? "",
+      });
+    }
+  }
+  return [...result.values()].sort((left, right) => left.title.localeCompare(right.title, "ko"));
+}
+
+async function reloadSelectedV3Project(nodeId: string) {
+  v3Workspace.value = await api.v3Roadmap();
+  workspace.value = adaptV3Workspace(v3Workspace.value);
+  selectedNode.value = snapshot.value?.nodes.find((node) => node.id === nodeId) ?? null;
+}
+
+async function setProjectTaskState(task: V3ProjectTask, state: "NOT_STARTED" | "CLAIMED") {
+  if (!selectedNode.value?.careerNodeId || previewDraft.value) return;
+  const nodeId = selectedNode.value.id;
+  actionLoading.value = true;
+  error.value = "";
+  try {
+    await api.updateV3ProjectTaskState(selectedNode.value.careerNodeId, task.taskKey, state);
+    await reloadSelectedV3Project(nodeId);
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "프로젝트 과제 상태를 바꾸지 못했습니다.";
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+function openProjectTaskEvidence(task: V3ProjectTask) {
+  taskEvidenceKey.value = taskEvidenceKey.value === task.taskKey ? null : task.taskKey;
+  taskEvidenceTitle.value = task.title;
+  taskEvidenceUrl.value = "";
+  taskEvidenceDescription.value = "";
+}
+
+async function submitProjectTaskEvidence(task: V3ProjectTask) {
+  if (!selectedNode.value?.careerNodeId || previewDraft.value) return;
+  const nodeId = selectedNode.value.id;
+  actionLoading.value = true;
+  error.value = "";
+  try {
+    await api.addV3ProjectTaskEvidence(selectedNode.value.careerNodeId, task.taskKey, {
+      title: taskEvidenceTitle.value.trim(),
+      evidenceUrl: taskEvidenceUrl.value.trim(),
+      description: taskEvidenceDescription.value.trim(),
+    });
+    taskEvidenceKey.value = null;
+    await reloadSelectedV3Project(nodeId);
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "프로젝트 과제 근거를 저장하지 못했습니다.";
+  } finally {
+    actionLoading.value = false;
   }
 }
 
@@ -2442,14 +2562,82 @@ onBeforeUnmount(() => {
           >
             <header>
               <span>{{ index + 1 }}</span>
-              <div><small>{{ task.necessity }}</small><h4>{{ task.title }}</h4></div>
+              <div>
+                <small>{{ task.necessity }} · {{ projectTaskStateLabel(task) }}</small>
+                <h4>{{ task.title }}</h4>
+              </div>
             </header>
             <p>{{ task.objective }}</p>
+            <p v-if="projectTaskDependencyTitles(task).length" class="v3-project-task__dependencies">
+              먼저 완료: {{ projectTaskDependencyTitles(task).join(" · ") }}
+            </p>
+            <div v-if="projectTaskDirectCapabilities(task).length" class="v3-project-task__capability-group">
+              <small>이 과제에서 직접 사용하는 역량</small>
+              <div class="v3-project-task__capability-list">
+                <span
+                  v-for="capability in projectTaskDirectCapabilities(task)"
+                  :key="capability.key"
+                  :title="capability.scope"
+                  class="v3-project-task__capability"
+                >
+                  {{ capability.title }}
+                </span>
+              </div>
+            </div>
+            <details
+              v-if="projectTaskPrerequisiteCapabilities(task).length"
+              class="v3-project-task__prerequisites"
+            >
+              <summary>선수 역량 {{ projectTaskPrerequisiteCapabilities(task).length }}개</summary>
+              <div class="v3-project-task__capability-list">
+                <span
+                  v-for="capability in projectTaskPrerequisiteCapabilities(task)"
+                  :key="capability.key"
+                  :title="capability.scope"
+                  class="v3-project-task__capability v3-project-task__capability--prerequisite"
+                >
+                  {{ capability.title }}
+                </span>
+              </div>
+            </details>
             <ul>
               <li v-for="criterion in task.acceptanceCriteria" :key="criterion">
                 {{ criterion }}
               </li>
             </ul>
+            <div
+              v-if="selectedNode.source === 'UNIFIED' && selectedNode.careerNodeId && !previewDraft"
+              class="v3-project-task__actions"
+            >
+              <button
+                class="press-button press-button--ghost"
+                type="button"
+                :disabled="actionLoading || task.progressState === 'VERIFIED'"
+                @click="setProjectTaskState(task, task.progressState === 'CLAIMED' ? 'NOT_STARTED' : 'CLAIMED')"
+              >
+                {{ task.progressState === "CLAIMED" ? "시작 전으로" : "과제 시작" }}
+              </button>
+              <button
+                class="press-button press-button--primary"
+                type="button"
+                :disabled="actionLoading || task.progressState === 'VERIFIED'"
+                @click="openProjectTaskEvidence(task)"
+              >
+                근거 연결
+              </button>
+            </div>
+            <form
+              v-if="taskEvidenceKey === task.taskKey"
+              class="v3-project-task__evidence"
+              @submit.prevent="submitProjectTaskEvidence(task)"
+            >
+              <input v-model="taskEvidenceTitle" required maxlength="240" placeholder="근거 제목" />
+              <input v-model="taskEvidenceUrl" required type="url" placeholder="https://github.com/owner/repository" />
+              <textarea v-model="taskEvidenceDescription" required rows="3" placeholder="이 과제를 충족한 구현과 검증 결과" />
+              <button class="press-button press-button--primary" type="submit" :disabled="actionLoading">
+                근거 저장
+              </button>
+            </form>
           </article>
         </section>
         <section class="roadmap-drawer-section">

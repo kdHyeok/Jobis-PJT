@@ -1032,6 +1032,19 @@ textarea::placeholder { color: #999; }
 .v3-project-task small { color: #1687c4; font-weight: 900; }
 .v3-project-task > p { margin: 11px 0; color: #526875; line-height: 1.55; }
 .v3-project-task ul { margin: 0; padding-left: 20px; color: #526875; line-height: 1.6; }
+.v3-project-task__dependencies { padding: 9px 11px; border-radius: 11px; color: #315466 !important; background: #eef9ff; font-size: .8rem; font-weight: 800; }
+.v3-project-task__capability-group { display: grid; gap: 7px; margin: 12px 0; }
+.v3-project-task__capability-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.v3-project-task__capability { padding: 6px 9px; border: 1px solid #b8e5fb; border-radius: 999px; color: #146c9b; background: #e9f8ff; font-size: .74rem; font-weight: 850; }
+.v3-project-task__capability--prerequisite { border-color: #d9e4ea; color: #526875; background: #f6f8f9; }
+.v3-project-task__prerequisites { margin: 10px 0 12px; color: #526875; }
+.v3-project-task__prerequisites summary { cursor: pointer; color: #315466; font-size: .8rem; font-weight: 900; }
+.v3-project-task__prerequisites[open] summary { margin-bottom: 8px; }
+.v3-project-task__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.v3-project-task__actions .press-button { min-height: 38px; padding: 8px 12px; font-size: .78rem; }
+.v3-project-task__evidence { display: grid; gap: 9px; margin-top: 12px; padding-top: 12px; border-top: 2px solid #e5e5e5; }
+.v3-project-task__evidence input,
+.v3-project-task__evidence textarea { width: 100%; border: 2px solid #d9e4ea; border-radius: 12px; padding: 10px 12px; color: #263b47; background: #fff; font: inherit; box-sizing: border-box; }
 .v3-project-task__capabilities { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .v3-project-task__capabilities span { padding: 5px 8px; border-radius: 999px; color: #146c9b; background: #e5f6ff; font-size: .72rem; font-weight: 800; }
 .evaluation-banner--v3 { background: linear-gradient(120deg, #153b56, #1b6a9a); }

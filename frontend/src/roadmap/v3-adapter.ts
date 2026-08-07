@@ -32,6 +32,40 @@ function membershipsOf(node: V3RoadmapNode): CapabilityMembership[] {
   }];
 }
 
+function normalizedMembership(value: CapabilityMembership): CapabilityMembership {
+  if (!value.chapterKey.startsWith("chapter.task:")) return value;
+  return {
+    ...value,
+    chapterKey: "chapter.legacy-core",
+    chapterTitle: "직무 핵심 역량",
+    reason: "이전 지도에서 프로젝트 과제로 묶였던 역량을 안정적인 학습 챕터로 표시합니다.",
+  };
+}
+
+function stagePriority(targetRef: string) {
+  if (targetRef === "stage.entry") return 0;
+  const match = targetRef.match(/^stage\.experience-(\d+)-/);
+  if (match) return Number(match[1]);
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function experienceStageRef(minimumMonths: number, maximumMonths: number | null) {
+  return `stage.experience-${minimumMonths}-${maximumMonths ?? "plus"}`;
+}
+
+function opportunityStageRef(node: V3RoadmapNode) {
+  const spec = node.opportunitySpec as Record<string, unknown> | undefined;
+  const minimumMonths = typeof spec?.minimumExperienceMonths === "number"
+    ? spec.minimumExperienceMonths
+    : 0;
+  const maximumMonths = typeof spec?.maximumExperienceMonths === "number"
+    ? spec.maximumExperienceMonths
+    : null;
+  return minimumMonths > 0
+    ? experienceStageRef(minimumMonths, maximumMonths)
+    : "stage.entry";
+}
+
 function provisionalRef(candidateId: string) {
   return `provisional.${candidateId}`;
 }
@@ -79,7 +113,7 @@ function competencyOf(node: V3RoadmapNode): RoadmapCompetency {
   };
 }
 
-function projectNode(node: V3RoadmapNode, postingId: string): RoadmapNode {
+function projectNode(node: V3RoadmapNode, postingId: string, journeyStageRef: string): RoadmapNode {
   const spec = node.projectSpec;
   return {
     id: node.nodeId,
@@ -88,6 +122,7 @@ function projectNode(node: V3RoadmapNode, postingId: string): RoadmapNode {
     subtitle: node.scopeDefinition ?? spec?.objective ?? null,
     domain: domainOf(node.sectionKey),
     stage: "PROJECT",
+    journeyStageRef,
     rank: node.displayRank,
     optional: false,
     postingIds: [postingId],
@@ -133,6 +168,7 @@ function opportunityNode(node: V3RoadmapNode, postingId: string): RoadmapNode {
     subtitle: typeof spec?.postingTitle === "string" ? spec.postingTitle : null,
     domain: domainOf(node.sectionKey),
     stage: "OPPORTUNITY",
+    journeyStageRef: opportunityStageRef(node),
     rank: node.displayRank,
     optional: false,
     postingIds: [postingId],
@@ -167,6 +203,9 @@ function gateNode(node: V3RoadmapNode, postingIds: string[]): RoadmapNode {
       : node.scopeDefinition ?? null,
     domain: domainOf(node.sectionKey),
     stage: gateType,
+    journeyStageRef: requiredMonths
+      ? experienceStageRef(requiredMonths, maximumMonths)
+      : "stage.entry",
     rank: node.displayRank,
     optional: false,
     postingIds,
@@ -211,6 +250,11 @@ function careerEvidenceNode(node: V3RoadmapNode): RoadmapNode {
         : `확인된 관련 경력 ${accruedMonths}개월`,
     domain: domainOf(node.sectionKey),
     stage: isEmployment ? "EMPLOYMENT" : "EXPERIENCE",
+    journeyStageRef: isEmployment
+      ? "stage.entry"
+      : minimumMonths
+        ? experienceStageRef(minimumMonths, maximumMonths)
+        : "stage.entry",
     rank: node.displayRank,
     optional: false,
     postingIds: [],
@@ -348,7 +392,19 @@ export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
     nodes: V3RoadmapNode[];
   }>();
   for (const node of snapshot.nodes.filter((item) => item.nodeKind === "CAPABILITY")) {
-    for (const membership of membershipsOf(node)) {
+    const memberships = membershipsOf(node).map(normalizedMembership);
+    const selectedByDomain = new Map<string, CapabilityMembership>();
+    for (const membership of memberships) {
+      const domain = domainOf(membership.sectionKey);
+      const current = selectedByDomain.get(domain);
+      if (!current
+        || stagePriority(membership.targetRef) < stagePriority(current.targetRef)
+        || (stagePriority(membership.targetRef) === stagePriority(current.targetRef)
+          && membership.chapterKey.localeCompare(current.chapterKey) < 0)) {
+        selectedByDomain.set(domain, membership);
+      }
+    }
+    for (const membership of selectedByDomain.values()) {
       const domain = domainOf(membership.sectionKey);
       // The primary COMMON node is already rendered as a foundation. Explicit
       // role memberships may still project the same canonical capability into
@@ -389,6 +445,7 @@ export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
         subtitle: `${bucket.membership.reason} · ${competencies.length}개 원자 역량`,
         domain: bucket.domain,
         stage: "SKILL",
+        journeyStageRef: bucket.membership.targetRef,
         rank: Math.min(...bucket.nodes.map((node) => node.displayRank)),
         optional: Boolean(postingIds.length) && Object.values(requirementKinds).every((value) => value === "PREFERRED"),
         postingIds,
@@ -403,8 +460,16 @@ export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
       bucket.nodes.forEach((node) => addDisplayProjection(node.nodeId, groupId));
     });
 
+  const opportunityStageByPostingId = new Map(
+    opportunities.map((node) => [postingIdOf(node), opportunityStageRef(node)]),
+  );
   for (const project of projects) {
-    const node = projectNode(project, projectPostingIds.get(project.nodeId)!);
+    const postingId = projectPostingIds.get(project.nodeId)!;
+    const node = projectNode(
+      project,
+      postingId,
+      opportunityStageByPostingId.get(postingId) ?? "stage.entry",
+    );
     result.push(node);
     addDisplayProjection(project.nodeId, node.id);
   }
@@ -439,7 +504,25 @@ export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
       const to = result.find((node) => node.id === toId);
       return from && to && from.domain === to.domain;
     });
-    const selected = sameDomain.length ? sameDomain : candidates.slice(0, 1);
+    const pool = sameDomain.length ? sameDomain : candidates;
+    const selected = [...pool]
+      .sort((left, right) => {
+        const leftFrom = result.find((node) => node.id === left.fromId);
+        const leftTo = result.find((node) => node.id === left.toId);
+        const rightFrom = result.find((node) => node.id === right.fromId);
+        const rightTo = result.find((node) => node.id === right.toId);
+        return (leftFrom?.domain ?? "").localeCompare(rightFrom?.domain ?? "")
+          || (leftFrom?.rank ?? 0) - (rightFrom?.rank ?? 0)
+          || (leftTo?.rank ?? 0) - (rightTo?.rank ?? 0)
+          || `${left.fromId}:${left.toId}`.localeCompare(`${right.fromId}:${right.toId}`);
+      })
+      .filter((candidate, index, values) => {
+        const domain = result.find((node) => node.id === candidate.fromId)?.domain ?? "";
+        return values.findIndex((item) =>
+          (result.find((node) => node.id === item.fromId)?.domain ?? "") === domain,
+        ) === index;
+      })
+      .slice(0, sameDomain.length ? undefined : 1);
     return selected.flatMap(({ fromId, toId }) => {
       if (fromId === toId) return [];
       const key = `${fromId}|${toId}|${kind}`;

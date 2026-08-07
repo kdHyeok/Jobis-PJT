@@ -427,6 +427,30 @@ def test_one_branch_contains_capabilities_project_and_company_opportunity(struct
     assert opportunity.opportunity_spec.goal_mode is OpportunityGoalMode.REFERENCE_TARGET
 
 
+def test_atomic_capabilities_use_stable_learning_chapters_not_project_task_titles(
+    structured_posting,
+) -> None:
+    proposal = service().compose(request(structured_posting))
+    capabilities = [
+        item for item in proposal.operations
+        if item.node_kind is RoadmapNodeKind.CAPABILITY
+    ]
+
+    assert capabilities
+    assert all(
+        membership.chapter_title != "Java service core"
+        for item in capabilities
+        for membership in item.section_memberships
+    )
+    java = next(item for item in capabilities if item.canonical_key == "java.classes-objects")
+    control_flow = next(item for item in capabilities if item.canonical_key == "java.control-flow")
+    assert java.section_memberships[0].chapter_key == "chapter.language-framework"
+    assert control_flow.section_memberships[0].chapter_key == "chapter.foundation"
+    assert java.section_memberships[0].target_ref == "stage.entry"
+    assert "직접 필요한" in java.section_memberships[0].reason
+    assert "선수 관계로 포함된" in control_flow.section_memberships[0].reason
+
+
 @pytest.mark.parametrize(
     ("posting_status", "goal_mode"),
     [
@@ -727,5 +751,3 @@ def test_new_graduate_track_does_not_inherit_the_experienced_gate(structured_pos
         item.node_kind is RoadmapNodeKind.CAREER_GATE
         for item in proposal.operations
     )
-
-

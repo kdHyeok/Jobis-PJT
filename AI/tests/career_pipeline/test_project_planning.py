@@ -86,6 +86,7 @@ def payload(*, keys=None, unresolved=None, include_task=True) -> dict:
         "objective": "Build a runnable backend slice for the target company.",
         "domainContext": "Game backend",
         "tasks": ([{
+            "taskKey": "task.domain-core",
             "title": "Implement the Java domain core",
             "objective": "Represent the domain with Java control flow and collaborating objects.",
             "acceptanceCriteria": [
@@ -94,6 +95,7 @@ def payload(*, keys=None, unresolved=None, include_task=True) -> dict:
             ],
             "capabilityKeys": capability_keys,
             "requirementIds": ["req-java"],
+            "dependsOnTaskKeys": [],
         }] if include_task else []),
         "unresolvedRequirementIds": unresolved or [],
     }
@@ -145,6 +147,7 @@ def test_responsibility_only_task_is_allowed_when_it_uses_approved_capabilities(
     posting = StructuredPosting.model_validate(posting_payload)
     draft = payload()
     draft["tasks"].append({
+        "taskKey": "task.review-workflow",
         "title": "Run a code review workflow",
         "objective": "Review changes to the Java domain core before integration.",
         "acceptanceCriteria": [
@@ -153,12 +156,39 @@ def test_responsibility_only_task_is_allowed_when_it_uses_approved_capabilities(
         ],
         "capabilityKeys": ["java.classes-objects"],
         "requirementIds": ["resp-review"],
+        "dependsOnTaskKeys": ["task.domain-core"],
     })
 
     result = service(draft).plan(request(posting))
 
     assert result.tasks[1].requirement_ids == ["resp-review"]
     assert result.tasks[1].necessity is ProjectNecessity.REQUIRED
+    assert result.tasks[1].depends_on_task_keys == [result.tasks[0].task_key]
+
+
+def test_project_task_dependencies_must_reference_known_tasks(structured_posting) -> None:
+    draft = payload()
+    draft["tasks"][0]["dependsOnTaskKeys"] = ["task.missing"]
+
+    with pytest.raises(ProjectPlanningFailure, match="unknown task keys"):
+        service(draft).plan(request(structured_posting))
+
+
+def test_project_task_dependencies_must_be_acyclic(structured_posting) -> None:
+    draft = payload()
+    draft["tasks"].append({
+        "taskKey": "task.delivery",
+        "title": "Deliver the service",
+        "objective": "Package the completed service for review.",
+        "acceptanceCriteria": ["The service starts", "The runbook is complete"],
+        "capabilityKeys": ["java.classes-objects"],
+        "requirementIds": ["req-java"],
+        "dependsOnTaskKeys": ["task.domain-core"],
+    })
+    draft["tasks"][0]["dependsOnTaskKeys"] = ["task.delivery"]
+
+    with pytest.raises(ProjectPlanningFailure, match="acyclic"):
+        service(draft).plan(request(structured_posting))
 
 
 def test_unknown_atomic_key_is_rejected_instead_of_guessed(structured_posting) -> None:

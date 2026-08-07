@@ -27,7 +27,7 @@ from jobis_ai.career_pipeline.llm import (
 from .draft import CompanyProjectBlueprintDraft
 
 
-PLANNER_VERSION = "company-project-planner-3.3.0"
+PLANNER_VERSION = "company-project-planner-3.4.0"
 MAX_PROMPT_CHARS = 96_000
 LEARNING_CATEGORIES = {
     RequirementCategory.TECHNOLOGY,
@@ -49,6 +49,7 @@ SYSTEM_PROMPT = """You design one company-target portfolio project and then map 
 
 Rules:
 1. First design one coherent project with 2-8 meaningful tasks from the posting's actual responsibilities and domain. Do not reshape or omit a valid task merely because the capability catalog lacks an entry.
+1a. Give every task a short unique taskKey such as task.domain-model and express task order only through dependsOnTaskKeys. Dependencies must form a DAG.
 2. After the tasks are defined, use only canonicalKey values supplied in atomicCapabilities. Never invent or alter a capability key.
 3. A broad posting term such as Java, Spring, Kafka, testing, or SQL may require several atomic capabilities. Select only the smallest set actually demonstrated by the task.
 4. Every selected capability must be demonstrated by the task objective or acceptance criteria.
@@ -62,7 +63,9 @@ Rules:
 12. Acceptance criteria must be observable outputs, tests, measurements, or documents. Avoid vague criteria such as 'understands well'.
 13. If the approved graph lacks a suitable atomic capability, keep the task and list the learnable requirementId as unresolved instead of choosing a similar-looking key.
 14. Do not assign skill levels or invent prerequisite order. The graph service owns learning order.
-15. Return only the requested structured draft and do not reveal hidden reasoning.
+15. Required tasks must never depend on an EXTENSION task. Keep optional extensions downstream of the required project path.
+16. For a backend-target project, frontend technologies are REQUIRED only when the selected position itself requires frontend delivery. A demo screen added only for presentation convenience must be RECOMMENDED, EXTENSION, or omitted.
+17. Return only the requested structured draft and do not reveal hidden reasoning.
 """
 
 
@@ -323,6 +326,29 @@ def _compile_draft(request, requirements, draft):
         if requirement_id in learning_ids
     ]
 
+    draft_task_keys = [item.task_key for item in draft.tasks]
+    if len(set(draft_task_keys)) != len(draft_task_keys):
+        raise ValueError("project task keys must be unique")
+    unknown_dependencies = {
+        dependency
+        for item in draft.tasks
+        for dependency in item.depends_on_task_keys
+        if dependency not in set(draft_task_keys)
+    }
+    if unknown_dependencies:
+        raise ValueError(
+            f"project task depends on unknown task keys: {sorted(unknown_dependencies)}"
+        )
+    canonical_task_keys = {
+        item.task_key: _stable_key(
+            request.common_analysis_id,
+            request.selected_position_id,
+            item.task_key,
+            item.title,
+        )
+        for item in draft.tasks
+    }
+
     tasks = []
     covered_learning: set[str] = set()
     for index, item in enumerate(draft.tasks, start=1):
@@ -341,12 +367,7 @@ def _compile_draft(request, requirements, draft):
         necessity = _necessity(
             [requirements[requirement_id] for requirement_id in item.requirement_ids]
         )
-        task_key = _stable_key(
-            request.common_analysis_id,
-            request.selected_position_id,
-            str(index),
-            item.title,
-        )
+        task_key = canonical_task_keys[item.task_key]
         tasks.append(PlannedProjectTask(
             task_key=task_key,
             necessity=necessity,
@@ -355,6 +376,9 @@ def _compile_draft(request, requirements, draft):
             acceptance_criteria=item.acceptance_criteria,
             capability_keys=list(dict.fromkeys(item.capability_keys)),
             requirement_ids=list(dict.fromkeys(item.requirement_ids)),
+            depends_on_task_keys=[
+                canonical_task_keys[key] for key in item.depends_on_task_keys
+            ],
         ))
 
     missing = learning_ids - covered_learning - set(unresolved)
@@ -363,7 +387,40 @@ def _compile_draft(request, requirements, draft):
             "project planner omitted learnable requirements without marking them unresolved: "
             f"{sorted(missing)}"
         )
+    _validate_task_dependencies(tasks)
     return tasks, unresolved, ignored_context_ids
+
+
+def _validate_task_dependencies(tasks: list[PlannedProjectTask]) -> None:
+    by_key = {task.task_key: task for task in tasks}
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(task_key: str) -> None:
+        if task_key in visited:
+            return
+        if task_key in visiting:
+            raise ValueError("project task dependencies must form an acyclic graph")
+        visiting.add(task_key)
+        task = by_key[task_key]
+        if task.necessity is ProjectNecessity.REQUIRED:
+            extensions = [
+                dependency
+                for dependency in task.depends_on_task_keys
+                if by_key[dependency].necessity is ProjectNecessity.EXTENSION
+            ]
+            if extensions:
+                raise ValueError(
+                    "required project task cannot depend on extension tasks: "
+                    f"{sorted(extensions)}"
+                )
+        for dependency in task.depends_on_task_keys:
+            visit(dependency)
+        visiting.remove(task_key)
+        visited.add(task_key)
+
+    for key in by_key:
+        visit(key)
 
 
 def _necessity(requirements) -> ProjectNecessity:

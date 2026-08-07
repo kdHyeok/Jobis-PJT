@@ -35,3 +35,13 @@ Phase 1의 Pydantic 계약과 JSON Schema 테스트가 준비되면 같은 corpu
 `d047/multi-role-analysis-baseline.json`은 최신 팀 AI와 AI-v3 통합 전에 복수 직무 질문과
 분석 진행 이벤트 경계를 고정한다. 현재 AI와 AI-v3 테스트가 같은 fixture를 각자의 Pydantic
 계약으로 검증한다. 상세 불변식과 실행 명령은 `d047/README.md`를 따른다.
+
+## D048 프로젝트 중심 커리어 여정
+
+`scenarios/d048-estgames-naver-career-journey.json`은 프로젝트 과제를 메인 지도에 펼치지 않고
+회사 맞춤 프로젝트 상세로 유지하는 기준과, 이스트게임즈 신입 기회에서 관련 백엔드 취업·경력
+2~4년을 거쳐 네이버웹툰 경력 기회로 이어지는 하나의 사용자 커리어 그래프를 고정한다.
+
+이 fixture는 D048 구현의 수용 입력이자 자동 회귀 기준이다. AI 원본 proposal, Spring 저장·합성
+결과, API journey projection과 프론트 렌더링 모델이 같은 불변식을 만족하는지 AI·Spring·frontend
+테스트에서 검증한다. 실제 LLM 공고 두 건의 라이브 품질 확인은 별도 수용 검사로 남긴다.

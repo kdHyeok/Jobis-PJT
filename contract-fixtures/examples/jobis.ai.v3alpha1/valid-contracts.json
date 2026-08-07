@@ -565,6 +565,7 @@
         "capabilityKeys": [
           "java.classes-objects"
         ],
+        "dependsOnTaskKeys": [],
         "requirementIds": [
           "req-java"
         ]
@@ -572,7 +573,7 @@
     ],
     "unresolvedRequirementIds": [],
     "audit": {
-      "plannerVersion": "company-project-planner-3.2.0",
+      "plannerVersion": "company-project-planner-3.4.0",
       "graphVersion": "0.1.0-alpha.1",
       "graphContentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "provider": "fixture",

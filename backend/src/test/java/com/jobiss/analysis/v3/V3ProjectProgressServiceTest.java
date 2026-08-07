@@ -3,13 +3,17 @@ package com.jobiss.analysis.v3;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import static org.mockito.Mockito.mock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class V3ProjectProgressServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final V3ProjectProgressService service = new V3ProjectProgressService(objectMapper);
+    private final V3ProjectProgressService service = new V3ProjectProgressService(
+            objectMapper,
+            mock(V3ProjectTaskProgressService.class)
+    );
 
     @Test
     void removesBackendCareerNodeIdsFromAiContractSnapshotWithoutLosingProgress() {

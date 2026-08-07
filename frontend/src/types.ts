@@ -293,6 +293,9 @@ export type V3ProjectTask = {
   acceptanceCriteria: string[];
   capabilityKeys: string[];
   requirementIds: string[];
+  dependsOnTaskKeys?: string[];
+  progressState?: "NOT_STARTED" | "CLAIMED" | "EVIDENCED" | "VERIFIED";
+  evidenceCount?: number;
 };
 
 export type V3ProjectSpec = {
@@ -570,6 +573,7 @@ export type RoadmapNode = {
   subtitle: string | null;
   domain: string;
   stage: string;
+  journeyStageRef?: string;
   rank: number;
   optional: boolean;
   postingIds: string[];

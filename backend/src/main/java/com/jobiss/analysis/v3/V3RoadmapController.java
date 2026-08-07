@@ -2,6 +2,7 @@ package com.jobiss.analysis.v3;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,9 +19,14 @@ import java.util.List;
 public class V3RoadmapController {
 
     private final V3RoadmapService service;
+    private final V3ProjectTaskProgressService taskProgressService;
 
-    public V3RoadmapController(V3RoadmapService service) {
+    public V3RoadmapController(
+            V3RoadmapService service,
+            V3ProjectTaskProgressService taskProgressService
+    ) {
         this.service = service;
+        this.taskProgressService = taskProgressService;
     }
 
     @GetMapping
@@ -87,6 +93,47 @@ public class V3RoadmapController {
         return service.restoreVersion(userId, versionId);
     }
 
+    @GetMapping("/projects/{projectNodeId}/tasks")
+    List<V3ProjectTaskProgressService.TaskView> projectTasks(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID projectNodeId
+    ) {
+        return taskProgressService.tasks(userId, projectNodeId);
+    }
+
+    @PostMapping("/projects/{projectNodeId}/tasks/{taskKey}/state")
+    V3ProjectTaskProgressService.TaskView updateProjectTaskState(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID projectNodeId,
+            @PathVariable String taskKey,
+            @Valid @RequestBody TaskStateRequest request
+    ) {
+        return taskProgressService.updateState(userId, projectNodeId, taskKey, request.state());
+    }
+
+    @PostMapping("/projects/{projectNodeId}/tasks/{taskKey}/evidence")
+    V3ProjectTaskProgressService.TaskView addProjectTaskEvidence(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID projectNodeId,
+            @PathVariable String taskKey,
+            @Valid @RequestBody TaskEvidenceRequest request
+    ) {
+        return taskProgressService.addEvidence(
+                userId, projectNodeId, taskKey,
+                request.title(), request.evidenceUrl(), request.description()
+        );
+    }
+
     public record ApplyRequest(@Min(0) long expectedRoadmapVersion) {
+    }
+
+    public record TaskStateRequest(@NotBlank String state) {
+    }
+
+    public record TaskEvidenceRequest(
+            @NotBlank String title,
+            @NotBlank String evidenceUrl,
+            @NotBlank String description
+    ) {
     }
 }
