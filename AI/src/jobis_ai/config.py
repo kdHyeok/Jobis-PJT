@@ -33,7 +33,9 @@ class Settings:
 
     llm_provider: str          # openai | anthropic | claude_code | codex(OAuth) | codex_cli(호환)
     anthropic_api_key: str
-    anthropic_model: str
+    anthropic_model: str          # anthropic 고급 티어 모델 (API 직접 호출)
+    anthropic_model_light: str    # anthropic 경량 티어 모델 (빈 값이면 고급 티어)
+    anthropic_model_router: str   # anthropic 라우터 티어 모델 (빈 값이면 고급 티어, D74)
     claude_cli: str            # Claude Code CLI 명령 (기본 "claude", 예: "wsl claude")
     claude_code_model: str        # claude_code 고급 티어 모델 별칭 (sonnet 등)
     claude_code_model_light: str  # claude_code 경량 티어 모델 별칭 (haiku 등)
@@ -87,7 +89,12 @@ class Settings:
             if tier == "router" and self.codex_model_router:
                 return self.codex_model_router
             return self.codex_model_light if tier == "light" else self.codex_model
-        return self.anthropic_model      # anthropic 경로는 아직 티어 미분리
+        # anthropic — claude_code 와 같은 3티어 구성 (API 직접 호출)
+        if tier == "router" and self.anthropic_model_router:
+            return self.anthropic_model_router
+        if tier == "light" and self.anthropic_model_light:
+            return self.anthropic_model_light
+        return self.anthropic_model
 
     @property
     def has_llm_key(self) -> bool:
@@ -118,6 +125,8 @@ def get_settings() -> Settings:
         llm_provider=os.getenv("LLM_PROVIDER", "codex_cli"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
         anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+        anthropic_model_light=os.getenv("ANTHROPIC_MODEL_LIGHT", ""),
+        anthropic_model_router=os.getenv("ANTHROPIC_MODEL_ROUTER", ""),
         claude_cli=os.getenv("CLAUDE_CLI", "claude"),
         claude_code_model=os.getenv("CLAUDE_CODE_MODEL", "sonnet"),
         claude_code_model_light=os.getenv("CLAUDE_CODE_MODEL_LIGHT", "haiku"),

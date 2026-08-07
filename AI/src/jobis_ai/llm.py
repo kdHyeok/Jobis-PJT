@@ -97,7 +97,7 @@ def get_llm(tier: str = "default") -> Any:
     if settings.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        # anthropic 경로는 아직 티어 미분리 — 필요 시 ANTHROPIC_MODEL_LIGHT 를 추가한다.
+        # 티어별 모델은 ANTHROPIC_MODEL / _LIGHT / _ROUTER 로 지정 (active_model 이 분기).
         kwargs = dict(
             model=settings.active_model(tier),
             api_key=settings.anthropic_api_key,
@@ -106,10 +106,8 @@ def get_llm(tier: str = "default") -> Any:
             # 3회 × 클라이언트 2회 = 최악 9회 네트워크 시도로 실패 시 지연이 폭주한다.
             max_retries=0,
         )
-        # 일부 최신 모델(opus-4-8 등)은 temperature 파라미터를 받지 않는다.
-        # 명시적으로 설정된 경우에만 전달한다.
-        if settings.temperature is not None:
-            kwargs["temperature"] = settings.temperature
+        # 최신 Claude 모델(sonnet-5, opus-5, opus-4-7+)은 temperature 를 400 으로 거부한다.
+        # LLM_TEMPERATURE 는 GMS(openai) 경로 전용 — anthropic 경로에는 전달하지 않는다.
         if settings.max_output_tokens:
             kwargs["max_tokens"] = settings.max_output_tokens
         return ChatAnthropic(**kwargs)

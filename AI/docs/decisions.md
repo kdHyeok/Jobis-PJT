@@ -2662,3 +2662,21 @@ Codex에서 공고 본문 `JOB_POSTING(0.99)`, 본문 없는 요청 `QUESTION_ON
 `orchestrator/chat.py::planner_message_asset_update` · `evals/planner_dataset.json`
 
 ---
+
+### D139 (08-07) anthropic 직접 호출 경로에 3티어 모델 분리를 추가한다
+
+**결정**: `anthropic` 프로바이더(Claude Console API 직접 호출)도 claude_code 와 같은
+default/light/router 3티어를 지원한다. `ANTHROPIC_MODEL` / `ANTHROPIC_MODEL_LIGHT` /
+`ANTHROPIC_MODEL_ROUTER` 로 지정하며, light/router 미지정 시 고급 티어로 폴백한다.
+`.env` 에 키 자리만 만들어 두고 기본 프로바이더는 claude_code 를 유지한다 — 키를 채우고
+`LLM_PROVIDER=anthropic` 으로 바꾸면 전환된다.
+
+**왜**: claude_code(CLI)는 무과금이지만 호출마다 CLI 프로세스 기동 오버헤드가 있어 느리다.
+API 직접 호출은 그 오버헤드가 없다. 단일 모델(기존 anthropic 경로)로 전환하면 라우터에
+최상급 모델을 쓰는 D74 구성이 깨지므로 티어를 분리했다.
+
+**검증**: legacy AI 전체 회귀 988건 통과 (2026-08-07).
+
+**출처**: `config.py::Settings.active_model` · `llm.py::get_llm` · `.env.example`
+
+---
