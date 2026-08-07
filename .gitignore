@@ -10,6 +10,8 @@ frontend/.vite/
 backend/.gradle/
 backend/build/
 backend/out/
+# CI(backend/ci/test.sh)가 배포용으로 남기는 실행 JAR. Jenkins가 stash로 넘긴다.
+backend/backend.jar
 
 ai-server/.venv/
 ai-server/.pytest_cache/

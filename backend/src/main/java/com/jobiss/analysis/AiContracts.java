@@ -305,6 +305,29 @@ public final class AiContracts {
             Integer preparationPeriodWeeks,
             Integer availableHoursPerWeek
     ) {
+        // 확정 항목만 있고 수집 자산·선호·기간이 아직 없는 요약. ChatRequest와 같은 방식으로
+        // 좁은 생성자를 함께 둬서, 계약이 넓어질 때 이 형태를 쓰는 호출부가 깨지지 않게 한다.
+        // 없는 값은 빈 목록과 null로 명시한다 — 지어낸 기본값을 채우지 않는다.
+        public CareerSummary(
+                List<String> completedNodes,
+                List<String> activeGoals,
+                List<String> recentPostings,
+                List<String> savedEvidence
+        ) {
+            this(
+                    completedNodes,
+                    activeGoals,
+                    recentPostings,
+                    savedEvidence,
+                    List.of(),
+                    List.of(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
     }
 
     public record StoredResume(

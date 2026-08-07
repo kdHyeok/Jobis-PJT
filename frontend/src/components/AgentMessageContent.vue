@@ -39,12 +39,14 @@ const structured = computed(
   () => blocks.value.filter((block) => block.type === "heading").length >= 2,
 );
 
+// tsconfig의 lib이 ES2020으로 고정돼 있어 replaceAll(ES2021)을 쓸 수 없다.
+// 정규식 전역 치환은 같은 결과를 내면서 lib 경계를 넘지 않는다.
 function escapeHtml(text: string): string {
   return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function inline(text: string): string {

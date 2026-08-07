@@ -25,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.Savepoint;
 import java.sql.Statement;
 import java.util.List;
 import java.util.UUID;
@@ -72,6 +73,29 @@ class PostgresRlsIntegrationTest {
                 .locations("classpath:db/migration")
                 .load()
                 .migrate();
+    }
+
+    /**
+     * analysis_job_queue 는 jobiss_app 에 권한을 주지 않는다(V1). 큐는 SECURITY DEFINER
+     * 함수로만 다루며, 앱 역할로 직접 조회하면 permission denied 다. 큐 상태를 확인하는
+     * 단언은 이 권한 있는 연결로 센다 — 확인을 위해 앱 역할에 권한을 넓히지 않는다.
+     */
+    private static int queuedRowCount(UUID analysisJobId) {
+        try (Connection connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(),
+                postgres.getUsername(),
+                postgres.getPassword()
+        ); Statement statement = connection.createStatement()) {
+            try (ResultSet rows = statement.executeQuery("""
+                    select count(*) from analysis_job_queue
+                    where analysis_job_id = '%s'::uuid
+                    """.formatted(analysisJobId))) {
+                rows.next();
+                return rows.getInt(1);
+            }
+        } catch (Exception exception) {
+            throw new IllegalStateException("큐 행 수를 조회하지 못했다", exception);
+        }
     }
 
     @Test
@@ -124,9 +148,12 @@ class PostgresRlsIntegrationTest {
                     insert into users (id, email, display_name)
                     values ('%s', 'logout-owner@example.com', 'Logout owner')
                     """.formatted(userId));
-            statement.executeUpdate("""
-                    insert into auth_identities (user_id, email, password_hash)
-                    values ('%s', 'logout-owner@example.com', 'test-only-hash')
+            // auth_identities 는 앱 역할이 직접 쓸 수 없다. 비밀번호 해시는 SECURITY DEFINER
+            // 함수로만 들어간다(V1). 프로덕션 AuthService 와 같은 경로로 만든다.
+            statement.execute("""
+                    select create_auth_identity(
+                        '%s'::uuid, 'logout-owner@example.com'::citext, 'test-only-hash'
+                    )
                     """.formatted(userId));
 
             try (ResultSet before = statement.executeQuery(
@@ -1228,8 +1255,14 @@ class PostgresRlsIntegrationTest {
                     values ('%s', '%s@example.com', 'Question Test')
                     """.formatted(userId, userId));
             statement.executeUpdate("""
-                    insert into job_postings (id, user_id, source_type, raw_text)
-                    values ('%s', '%s', 'TEXT', 'Backend posting')
+                    insert into job_postings (
+                        id, user_id, source_type, raw_text, content_fingerprint
+                    )
+                    values (
+                        '%s', '%s', 'TEXT',
+                        'Backend posting for RLS isolation test',
+                        md5('Backend posting for RLS isolation test')
+                    )
                     """.formatted(postingId, userId));
             statement.executeUpdate("""
                     insert into analysis_jobs (
@@ -1256,31 +1289,37 @@ class PostgresRlsIntegrationTest {
                     insert into analysis_questions (
                         user_id, analysis_job_id, question_key, question_text,
                         reason, input_type, options, related_requirement_ids,
-                        absence_scope, status, answer_value, answer_status, ordinal
+                        absence_scope, status, answer_value, answer_status,
+                        answered_at, ordinal
                     )
                     values (
                         '%s', '%s', 'database_evidence', 'DB 경험이 있나요?',
                         '요구조건을 확인합니다.', 'TEXT', '[]', '["req-db"]',
                         'REQUIREMENTS', 'ANSWERED', '없습니다.',
-                        'CONFIRMED_ABSENT', 2
+                        'CONFIRMED_ABSENT', now(), 2
                     )
                     """.formatted(userId, jobId));
             assertThat(confirmedAbsence).isEqualTo(1);
 
+            // 제약 위반은 트랜잭션을 중단시킨다. savepoint 로 되돌리지 않으면 다음 문장이
+            // 자기 제약이 아니라 "current transaction is aborted" 로 실패한다.
+            Savepoint beforeAbsenceScopeViolation = connection.setSavepoint();
             assertThatThrownBy(() -> statement.executeUpdate("""
                     insert into analysis_questions (
                         user_id, analysis_job_id, question_key, question_text,
                         reason, input_type, options, absence_scope,
-                        status, answer_value, answer_status, ordinal
+                        status, answer_value, answer_status, answered_at, ordinal
                     )
                     values (
                         '%s', '%s', 'invalid_absence', '경험이 있나요?',
                         '확인합니다.', 'TEXT', '[]', 'NONE',
-                        'ANSWERED', '없습니다.', 'CONFIRMED_ABSENT', 3
+                        'ANSWERED', '없습니다.', 'CONFIRMED_ABSENT', now(), 3
                     )
                     """.formatted(userId, jobId)))
                     .hasMessageContaining("analysis_question_confirmed_absence_scope_check");
+            connection.rollback(beforeAbsenceScopeViolation);
 
+            Savepoint beforeOptionsViolation = connection.setSavepoint();
             assertThatThrownBy(() -> statement.executeUpdate("""
                     insert into analysis_questions (
                         user_id, analysis_job_id, question_key, question_text,
@@ -1292,6 +1331,7 @@ class PostgresRlsIntegrationTest {
                     )
                     """.formatted(userId, jobId)))
                     .hasMessageContaining("analysis_question_options_check");
+            connection.rollback(beforeOptionsViolation);
             connection.rollback();
         }
     }
@@ -1331,11 +1371,13 @@ class PostgresRlsIntegrationTest {
                     .update();
             jdbc.sql("""
                             insert into job_postings (
-                                id, user_id, source_type, raw_text
+                                id, user_id, source_type, raw_text,
+                                content_fingerprint
                             )
                             values (
                                 :postingId, :userId, 'TEXT',
-                                'Java Spring backend cancellation test posting'
+                                'Java Spring backend cancellation test posting',
+                                md5('Java Spring backend cancellation test posting')
                             )
                             """)
                     .param("postingId", postingId)
@@ -1370,14 +1412,7 @@ class PostgresRlsIntegrationTest {
                     .param("jobId", jobId)
                     .query(String.class)
                     .single()).isEqualTo("CANCELLED");
-            assertThat(jdbc.sql("""
-                            select count(*)
-                            from analysis_job_queue
-                            where analysis_job_id = :jobId
-                            """)
-                    .param("jobId", jobId)
-                    .query(Integer.class)
-                    .single()).isZero();
+            assertThat(queuedRowCount(jobId)).isZero();
             return null;
         });
 
@@ -1391,14 +1426,7 @@ class PostgresRlsIntegrationTest {
                     .param("jobId", jobId)
                     .query(String.class)
                     .single()).isEqualTo("QUEUED");
-            assertThat(jdbc.sql("""
-                            select count(*)
-                            from analysis_job_queue
-                            where analysis_job_id = :jobId
-                            """)
-                    .param("jobId", jobId)
-                    .query(Integer.class)
-                    .single()).isEqualTo(1);
+            assertThat(queuedRowCount(jobId)).isEqualTo(1);
             return null;
         });
     }
@@ -1438,11 +1466,13 @@ class PostgresRlsIntegrationTest {
                     .update();
             jdbc.sql("""
                             insert into job_postings (
-                                id, user_id, source_type, raw_text
+                                id, user_id, source_type, raw_text,
+                                content_fingerprint
                             )
                             values (
                                 :postingId, :userId, 'TEXT',
-                                'Java Spring backend posting review test'
+                                'Java Spring backend posting review test',
+                                md5('Java Spring backend posting review test')
                             )
                             """)
                     .param("postingId", postingId)
@@ -1513,14 +1543,7 @@ class PostgresRlsIntegrationTest {
                     .param("questionId", questionId)
                     .query(String.class)
                     .single()).isEqualTo("CANCEL");
-            assertThat(jdbc.sql("""
-                            select count(*)
-                            from analysis_job_queue
-                            where analysis_job_id = :jobId
-                            """)
-                    .param("jobId", jobId)
-                    .query(Integer.class)
-                    .single()).isZero();
+            assertThat(queuedRowCount(jobId)).isZero();
             return null;
         });
     }
@@ -1539,6 +1562,7 @@ class PostgresRlsIntegrationTest {
                     user_id,
                     source_type,
                     raw_text,
+                    content_fingerprint,
                     company_name,
                     role_title,
                     parsed_data
@@ -1548,6 +1572,7 @@ class PostgresRlsIntegrationTest {
                     '%s',
                     'TEXT',
                     'Java backend posting',
+                    md5('Java backend posting'),
                     '%s',
                     'Backend developer',
                     '{"domain":"BACKEND"}'

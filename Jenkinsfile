@@ -4,6 +4,18 @@
 //   develop             : CI 통과 후 여섯 SHA 이미지 build/push
 //   master 병합         : develop에서 검증한 동일 트리와 이미지를 승격한 뒤 자동 배포
 //
+// ── 소유권 경계 ────────────────────────────────────────────────────────────
+// 이 파일은 CI/CD 뼈대다. Infra 담당이 소유하고, 기능 개발자는 원칙적으로 고치지 않는다.
+//   이 파일이 정하는 것 : 스테이지 구성과 순서, 브랜치 게이트(when), 실행 컨테이너 이미지,
+//                        서비스 컨테이너(PostgreSQL 등), 자격증명, 이미지 승격, 배포
+//   서비스가 정하는 것  : 무엇을 검사하는가 — backend/ci/test.sh, AI/ci/test.sh,
+//                        frontend/ci/test.sh, RAG/ci/test.sh
+//
+// 기능을 추가·수정할 때 개발자가 고칠 파일은 자기 서비스의 ci/test.sh 와 테스트 코드다.
+// 새 인프라 의존성(Redis 등)이나 게이트 정책 변경이 필요하면 이 파일을 바꾸는 MR을 올리고
+// Infra 리뷰를 받는다(.gitlab/CODEOWNERS). 자세한 규칙은 루트 AGENTS.md "CI/CD 소유권".
+// ──────────────────────────────────────────────────────────────────────────
+//
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
 // 필요 플러그인: Docker Pipeline, SSH Agent, JUnit, GitLab
 // 필요 Jenkins 설정: DEPLOY_HOST 전역 환경변수, 'jobis-deploy-ssh' SSH 자격증명,
@@ -117,14 +129,9 @@ SQL
                 'AI_WORKER_ENABLED=false',
                 'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
               ]) {
-              sh '''
-                cd backend
-                chmod +x gradlew
-                ./gradlew clean test bootJar --no-daemon
-                jar="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
-                test -n "$jar" || { echo "실행 가능한 JAR 없음"; exit 1; }
-                cp "$jar" backend.jar
-              '''
+              // 무엇을 검사하는가는 backend 개발자 소유다(backend/ci/test.sh).
+              // 이 스테이지는 실행 환경(이미지·DB 컨테이너·DB_* 환경변수)만 책임진다.
+              sh 'bash backend/ci/test.sh'
               }
             }
           }
@@ -140,22 +147,8 @@ SQL
         docker { image 'python:3.11-slim' }
       }
       steps {
-        sh '''
-          export PYTHONUTF8=1
-          export UV_CACHE_DIR=/tmp/jobis-uv-cache
-          export UV_PROJECT_ENVIRONMENT=/tmp/jobis-ai-venv
-
-          python -m venv /tmp/jobis-uv-bootstrap
-          /tmp/jobis-uv-bootstrap/bin/python -m pip install \
-            --disable-pip-version-check --no-cache-dir uv==0.11.32
-
-          cd AI
-          /tmp/jobis-uv-bootstrap/bin/uv run \
-            --frozen --extra dev --extra prototype pytest -q
-          /tmp/jobis-uv-bootstrap/bin/uv run \
-            --frozen --extra prototype python -m jobis_ai.explain \
-            > /tmp/jobis-ai-explain.txt
-        '''
+        // 검사 내용은 AI 개발자 소유다(AI/ci/test.sh).
+        sh 'bash AI/ci/test.sh'
       }
     }
 
@@ -165,11 +158,8 @@ SQL
         docker { image 'node:22-alpine' }
       }
       steps {
-        sh '''
-          cd frontend
-          npm ci --ignore-scripts
-          npm run build
-        '''
+        // 검사 내용은 프론트엔드 개발자 소유다(frontend/ci/test.sh).
+        sh 'bash frontend/ci/test.sh'
       }
     }
 
@@ -179,15 +169,8 @@ SQL
         docker { image 'python:3.12-slim' }
       }
       steps {
-        sh '''
-          python -m venv /tmp/jobis-rag-venv
-          /tmp/jobis-rag-venv/bin/python -m pip install \
-            --disable-pip-version-check --no-cache-dir \
-            numpy==2.2.6 rank_bm25==0.2.2 \
-            'psycopg[binary]==3.2.9' python-dotenv==1.1.1
-          /tmp/jobis-rag-venv/bin/python -m compileall -q RAG
-          /tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v
-        '''
+        // 검사 내용은 RAG 개발자 소유다(RAG/ci/test.sh).
+        sh 'bash RAG/ci/test.sh'
       }
     }
 

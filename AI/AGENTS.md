@@ -93,3 +93,25 @@ python -m jobis_ai.eval.planner_harness evals/planner_dataset.json --runs 3   # 
 python -m jobis_ai.eval.consistency --runs 3                                   # 풀턴 궤적
 python -m jobis_ai.eval.loop_consistency --runs 5                               # 자기 루프 궤적
 ```
+
+---
+
+## §5 CI 소유권
+
+루트 [../AGENTS.md](../AGENTS.md)의 "CI/CD 소유권"이 상위 규칙이다. AI 쪽 요지만 적는다.
+
+- **고칠 파일**: [ci/test.sh](ci/test.sh) — AI에서 무엇을 검사하는가.
+- **고치지 않을 파일**: 루트 `Jenkinsfile` — 실행 이미지와 스테이지 배치는 Infra 소유다.
+  변경이 필요하면 MR + Infra 리뷰(`.gitlab/CODEOWNERS`).
+
+규칙:
+
+1. **`--frozen`을 떼지 않는다.** `uv.lock`이 `pyproject.toml`과 어긋나면 CI가 실패하는데,
+   그건 버그가 아니라 설계다. 의존성을 바꿨으면 락파일을 **같은 커밋에서** 갱신한다.
+   CI에서 새로 풀게 만들면 검증한 의존성과 배포되는 의존성이 갈라진다.
+2. CI는 **실 LLM 없이** 도는 것만 싣는다(§4의 `pytest`, `explain`). 평가 하네스는 크레딧을
+   쓰므로 CI에 넣지 않는다 — 큰 분기에서 사람이 돌리고 결과를 MR에 적는다.
+3. 백엔드와의 HTTP 계약(`v2bridge/models.py`)을 바꾸면 `backend/`의 대응 record도 같은 MR에서
+   맞춘다. `ContractModel`은 `extra="forbid"`라 한쪽만 넓히면 상대가 **런타임 422**로 죽는다.
+   이건 타입 검사로 안 잡히므로 계약 테스트로 잡는다.
+4. CI 실패는 원인을 만든 사람이 고친다. 자기 기능을 통과시키려고 게이트를 느슨하게 만들지 않는다.
