@@ -266,13 +266,23 @@ public class ConversationService {
             if (command.posting() == null) {
                 metadata.set("agentContext", objectMapper.valueToTree(agentContext));
             }
+            // 공고 첨부는 발화 뒤에 원문(또는 URL)을 이어 붙여 에이전트가 읽게 한다 —
+            // kind 를 TEXT 로 두어야 채팅 이력 조회(kind='TEXT')에 실린다.
+            String content = command.content().trim();
+            PostingAttachment attachment = command.posting();
+            if (attachment != null) {
+                String body = attachment.sourceUrl() != null && !attachment.sourceUrl().isBlank()
+                        ? attachment.sourceUrl().trim()
+                        : attachment.rawText();
+                content = (content + "\n\n" + (body == null ? "" : body.trim())).trim();
+            }
             return insertMessage(
                     jdbc,
                     userId,
                     conversationId,
                     "USER",
-                    command.posting() == null ? "TEXT" : "POSTING",
-                    command.content().trim(),
+                    "TEXT",
+                    content,
                     null,
                     null,
                     command.clientMessageId(),
@@ -280,54 +290,9 @@ public class ConversationService {
             );
         });
 
-        if (command.posting() != null) {
-            PostingAttachment attachment = command.posting();
-            JobPostingService.CreatedPosting created = postingService.create(
-                    userId,
-                    new JobPostingService.CreatePosting(
-                            attachment.sourceType(),
-                            attachment.sourceUrl(),
-                            attachment.rawText(),
-                            conversationId
-                    )
-            );
-            MessageView assistant = rls.write(userId, jdbc -> {
-                jdbc.sql("""
-                                update conversation_messages
-                                set posting_id = :postingId, analysis_job_id = :analysisJobId
-                                where id = :messageId
-                                """)
-                        .param("postingId", created.postingId())
-                        .param("analysisJobId", created.analysisJobId())
-                        .param("messageId", userMessage.id())
-                        .update();
-                var metadata = objectMapper.createObjectNode();
-                metadata.put("analysisJobId", created.analysisJobId().toString());
-                metadata.put("postingId", created.postingId().toString());
-                metadata.put("status", created.status());
-                metadata.put("reusedAnalysis", created.reusedAnalysis());
-                return insertMessage(
-                        jdbc,
-                        userId,
-                        conversationId,
-                        "ASSISTANT",
-                        "ANALYSIS_STATUS",
-                        created.reusedAnalysis() ? created.reuseMessage() :
-                        "공고를 저장했고 백그라운드 분석을 시작했어요. 다른 대화를 계속해도 완료되면 알려드릴게요.",
-                        created.postingId(),
-                        created.analysisJobId(),
-                        null,
-                        metadata
-                );
-            });
-            return new SendResult(
-                    userMessage,
-                    assistant,
-                    created.analysisJobId(),
-                    null,
-                    true
-            );
-        }
+        // 공고 첨부라고 해서 에이전트를 우회하지 않는다 — 대화를 받아 말하는 주체는 언제나
+        // 에이전트다. 종전에는 여기서 자체 분석을 시작하고 조립 문구를 ASSISTANT 로 넣었다.
+        // 공고 원문이 있으면 발화에 이어 붙여 일반 채팅 파이프라인(붙여넣기 공고 승격)을 태운다.
 
         UUID chatReplyJobId = chatReplyJobs.enqueue(
                 userId,

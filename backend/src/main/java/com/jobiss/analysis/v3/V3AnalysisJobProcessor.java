@@ -755,7 +755,7 @@ public class V3AnalysisJobProcessor {
                             values (
                                 :userId,
                                 'ANALYSIS_COMPLETED',
-                                '공고 분석이 완료됐어요',
+                                '준비 로드맵이 완성됐어요',
                                 :body,
                                 jsonb_build_object(
                                     'analysisJobId', cast(:jobId as text),
@@ -766,7 +766,8 @@ public class V3AnalysisJobProcessor {
                             )
                             """)
                     .param("userId", userId)
-                    .param("body", companyName + " " + roleTitle + " 분석 결과를 확인해 보세요.")
+                    .param("body", companyName + " " + roleTitle
+                            + " 기준 준비 로드맵 초안이 만들어졌어요. 커리어지도에서 확인하고 반영해 보세요.")
                     .param("jobId", context.jobId())
                     .param("postingId", context.postingId())
                     .param("proposalId", proposalId)

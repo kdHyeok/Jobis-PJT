@@ -31,17 +31,84 @@ public class ChatReplyJobService {
     private final AiUsageLimitService usageLimit;
     private final ObjectMapper objectMapper;
     private final ChatReplyTaskRegistry taskRegistry;
+    private final com.jobiss.analysis.v3.V3SourceService v3SourceService;
+    private final com.jobiss.security.SensitiveTextCipher sensitiveText;
 
     public ChatReplyJobService(
             RlsTransactionExecutor rls,
             AiUsageLimitService usageLimit,
             ObjectMapper objectMapper,
-            ChatReplyTaskRegistry taskRegistry
+            ChatReplyTaskRegistry taskRegistry,
+            com.jobiss.analysis.v3.V3SourceService v3SourceService,
+            com.jobiss.security.SensitiveTextCipher sensitiveText
     ) {
         this.rls = rls;
         this.usageLimit = usageLimit;
         this.objectMapper = objectMapper;
         this.taskRegistry = taskRegistry;
+        this.v3SourceService = v3SourceService;
+        this.sensitiveText = sensitiveText;
+    }
+
+    /**
+     * 적합도 판정(collected.outputs.analysis)이 적재된 턴에 로드맵용 V3 분석을 무음으로
+     * 잇는다 — 대화·UI 에는 아무것도 남기지 않고 DB 적재만 한다. 공고가 들어온 즉시가
+     * 아니라 이력서 대조가 끝난 뒤에 로드맵 재료를 만드는 순서를 코드로 고정한다.
+     */
+    public void startRoadmapAnalysisAfterFit(UUID userId, AiContracts.ChatResponse response) {
+        JsonNode collected = response.collected();
+        if (collected == null || !collected.path("outputs").path("analysis").isObject()) {
+            return;
+        }
+        String rawText = firstUsablePostingText(
+                collected.path("outputs").path("sessionState")
+                        .path("job_posting").path("value").asString(""),
+                collected.path("posting").path("rawText").asString(""),
+                latestStoredPostingText(userId)
+        );
+        if (rawText.length() < 20) {
+            return;
+        }
+        var acquired = v3SourceService.acquire(
+                userId,
+                new com.jobiss.analysis.v3.V3SourceService.AcquireCommand(
+                        "TEXT", "CHAT", 1, null, rawText, null, null, null, null
+                )
+        );
+        String verifiedText = acquired.sourceDocument().path("rawText").asString(rawText);
+        v3SourceService.verify(
+                userId,
+                acquired.id(),
+                new com.jobiss.analysis.v3.V3SourceService.VerifyCommand(
+                        verifiedText, objectMapper.createArrayNode(), "USER", null
+                )
+        );
+        v3SourceService.startAnalysis(userId, acquired.id(), null);
+    }
+
+    private static String firstUsablePostingText(String... candidates) {
+        for (String candidate : candidates) {
+            String text = candidate == null ? "" : candidate.trim();
+            // 순수 URL 은 공고 본문이 아니다 — 다음 후보(수집된 원문)로 넘어간다.
+            if (text.length() >= 20 && !text.matches("(?is)https?://\\S+")) {
+                return text;
+            }
+        }
+        return "";
+    }
+
+    private String latestStoredPostingText(UUID userId) {
+        return rls.read(userId, jdbc -> jdbc.sql("""
+                        select raw_text
+                        from job_postings
+                        where archived_at is null
+                        order by created_at desc
+                        limit 1
+                        """)
+                .query(String.class)
+                .optional()
+                .map(sensitiveText::decrypt)
+                .orElse(""));
     }
 
     public UUID enqueue(UUID userId, UUID conversationId, UUID triggerMessageId) {
@@ -522,6 +589,32 @@ public class ChatReplyJobService {
             String actionId,
             ChatAgentActionValidator.PostingAnalysisAction action
     ) {
+        // 에이전트가 정리한 공고로 V3 소스 등록 → 원문 확인 → 분석 시작까지 서버가 잇는다.
+        // 종전에는 여기서 ID 없이 카드만 돌려주고 프론트가 같은 원문을 처음부터 재등록해
+        // 이중 경로가 생겼다. 확인 게이트는 꺼져 있어 분석이 곧장 끝까지 진행된다.
+        // V3 는 무음 배경 작업이다 — 대화에는 아무 행도 남기지 않고(DB 적재만),
+        // 채팅 UI 는 에이전트 발화만 보여준다. 그래서 conversationId 를 넘기지 않는다.
+        var acquired = v3SourceService.acquire(
+                userId,
+                new com.jobiss.analysis.v3.V3SourceService.AcquireCommand(
+                        "TEXT", "CHAT", 1, null,
+                        action.rawText(), null, null, null, null
+                )
+        );
+        // 원문을 그대로 확인 처리한다 — 사용자가 고친 게 없는데 에이전트 정리본을
+        // 사용자 확인본으로 기록하면 안 되고, 계약상 원문과 다른 verifiedText 는
+        // corrections 없이는 거부된다(SourceVerificationRequest.validate_verification).
+        String verifiedText = acquired.sourceDocument().path("rawText")
+                .asString(action.rawText());
+        v3SourceService.verify(
+                userId,
+                acquired.id(),
+                new com.jobiss.analysis.v3.V3SourceService.VerifyCommand(
+                        verifiedText, objectMapper.createArrayNode(), "USER", null
+                )
+        );
+        var started = v3SourceService.startAnalysis(userId, acquired.id(), null);
+
         ObjectNode detail = objectMapper.createObjectNode();
         detail.put("sourceType", action.sourceType());
         if (action.sourceUrl() == null) {
@@ -531,11 +624,16 @@ public class ChatReplyJobService {
         }
         detail.put("rawText", action.rawText());
         detail.put("reviewText", action.reviewText());
+        detail.put("sourceId", acquired.id().toString());
         return new AgentActionExecution(
                 actionId, "SUCCEEDED", "ANALYZE_POSTING",
-                "POSTING_REVIEW", null,
-                null, null,
-                false, "정리한 공고 내용을 확인해 주세요.", detail
+                "POSTING_REVIEW", acquired.id(),
+                started.postingId(), started.analysisJobId(),
+                started.reusedAnalysis(),
+                started.reusedAnalysis() && started.reuseMessage() != null
+                        ? started.reuseMessage()
+                        : "정리한 공고로 분석을 시작했어요.",
+                detail
         );
     }
 

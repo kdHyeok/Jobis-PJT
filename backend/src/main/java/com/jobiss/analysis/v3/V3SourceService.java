@@ -508,28 +508,9 @@ public class V3SourceService {
         if (conversationId == null) {
             return;
         }
-        jdbc.sql("""
-                        insert into conversation_messages (
-                            user_id, conversation_id, role, kind, content,
-                            posting_id, analysis_job_id, metadata
-                        )
-                        values (
-                            :userId, :conversationId, 'USER', 'POSTING', :content,
-                            :postingId, :analysisJobId,
-                            jsonb_build_object(
-                                'provider', 'UNIFIED',
-                                'sourceId', cast(:sourceId as text),
-                                'sourceVerified', true
-                            )
-                        )
-                        """)
-                .param("userId", userId)
-                .param("conversationId", conversationId)
-                .param("content", postingRequestMessage(source))
-                .param("postingId", created.postingId())
-                .param("analysisJobId", created.analysisJobId())
-                .param("sourceId", source.id())
-                .update();
+        // 대화에는 조립 발화를 넣지 않는다 — 발화 주체는 에이전트뿐이다. 이 행은 채팅에서
+        // 분석 진행 휠이 붙을 앵커(analysis_job_id)이고, content 는 공고 데이터(제목 줄)만 싣는다.
+        // 종전의 가짜 USER 발화("확인한 공고를 분석해 주세요")는 다음 턴 AI 입력을 오염시켜 제거했다.
         jdbc.sql("""
                         insert into conversation_messages (
                             user_id, conversation_id, role, kind, content,
@@ -537,10 +518,11 @@ public class V3SourceService {
                         )
                         values (
                             :userId, :conversationId, 'ASSISTANT', 'ANALYSIS_STATUS',
-                            '확인한 공고를 저장했고 JOBIS 분석을 시작했어요.',
+                            :content,
                             :postingId, :analysisJobId,
                             jsonb_build_object(
                                 'provider', 'UNIFIED',
+                                'sourceId', cast(:sourceId as text),
                                 'analysisJobId', cast(:analysisJobId as text),
                                 'postingId', cast(:postingId as text),
                                 'status', 'QUEUED'
@@ -549,9 +531,23 @@ public class V3SourceService {
                         """)
                 .param("userId", userId)
                 .param("conversationId", conversationId)
+                .param("content", postingTitleLine(source))
                 .param("postingId", created.postingId())
                 .param("analysisJobId", created.analysisJobId())
+                .param("sourceId", source.id())
                 .update();
+    }
+
+    private static String postingTitleLine(StartableSource source) {
+        if (present(source.canonicalUrl())) {
+            return source.canonicalUrl();
+        }
+        String firstLine = source.verifiedText().lines()
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .findFirst()
+                .orElse("채용 공고");
+        return firstLine.length() > 160 ? firstLine.substring(0, 160) + "…" : firstLine;
     }
 
     private void requireMatchingPayload(String inputType, AcquireCommand command) {
@@ -589,21 +585,6 @@ public class V3SourceService {
 
     private static boolean present(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private static String postingRequestMessage(StartableSource source) {
-        if (present(source.canonicalUrl())) {
-            return source.canonicalUrl() + "\n\n확인한 공고를 분석해 주세요.";
-        }
-        String firstLine = source.verifiedText().lines()
-                .map(String::trim)
-                .filter(line -> !line.isBlank())
-                .findFirst()
-                .orElse("채용 공고");
-        if (firstLine.length() > 160) {
-            firstLine = firstLine.substring(0, 160) + "…";
-        }
-        return firstLine + "\n\n확인한 공고를 분석해 주세요.";
     }
 
     private static void putIfPresent(ObjectNode node, String field, String value) {

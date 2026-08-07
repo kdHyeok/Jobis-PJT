@@ -174,7 +174,9 @@ public class V3AnalysisRequestFactory {
             );
         }
         request.set("clarificationAnswers", clarificationAnswers(jdbc, analysisJobId));
-        request.put("requirePostingConfirmation", true);
+        // 대화 흐름에서 공고 내용을 이미 에이전트가 정리·확인하므로 파이프라인의
+        // 별도 원문 확인 게이트(AWAITING_POSTING_CONFIRMATION)는 걸지 않는다.
+        request.put("requirePostingConfirmation", false);
         String confirmedReviewId = confirmedPostingReviewId(jdbc, analysisJobId);
         if (confirmedReviewId != null) {
             request.put("confirmedPostingReviewId", confirmedReviewId);
