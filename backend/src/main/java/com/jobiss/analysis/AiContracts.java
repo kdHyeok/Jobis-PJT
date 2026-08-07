@@ -296,7 +296,34 @@ public final class AiContracts {
             List<String> completedNodes,
             List<String> activeGoals,
             List<String> recentPostings,
-            List<String> savedEvidence
+            List<String> savedEvidence,
+            List<StoredResume> resumes,
+            List<StoredPosting> postings,
+            JsonNode roadmap,
+            JsonNode preferences,
+            JsonNode facts,
+            Integer preparationPeriodWeeks,
+            Integer availableHoursPerWeek
+    ) {
+    }
+
+    public record StoredResume(
+            UUID id,
+            String title,
+            String sourceType,
+            String rawText,
+            OffsetDateTime createdAt
+    ) {
+    }
+
+    public record StoredPosting(
+            UUID id,
+            String sourceType,
+            String sourceUrl,
+            String rawText,
+            JsonNode parsedData,
+            JsonNode structuredPosting,
+            OffsetDateTime createdAt
     ) {
     }
 
@@ -353,7 +380,8 @@ public final class AiContracts {
             List<ChatAgentWorkProduct> workProducts,
             List<ChatAgentWarning> warnings,
             List<ChatReplyAttribution> replyAttributions,
-            JsonNode workspaceState
+            JsonNode workspaceState,
+            JsonNode collected
     ) {
     }
 

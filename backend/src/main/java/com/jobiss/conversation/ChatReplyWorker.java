@@ -41,6 +41,7 @@ public class ChatReplyWorker {
     private final ChatReplyJobService chatReplyJobService;
     private final ChatReplyTaskRegistry taskRegistry;
     private final SensitiveTextCipher sensitiveText;
+    private final com.jobiss.analysis.v3.V3AnalysisRequestFactory roadmapFactory;
     private final String workerId;
     private final ExecutorService executor;
     private final AtomicBoolean active = new AtomicBoolean();
@@ -52,7 +53,8 @@ public class ChatReplyWorker {
             ObjectMapper objectMapper,
             ChatReplyJobService chatReplyJobService,
             ChatReplyTaskRegistry taskRegistry,
-            SensitiveTextCipher sensitiveText
+            SensitiveTextCipher sensitiveText,
+            com.jobiss.analysis.v3.V3AnalysisRequestFactory roadmapFactory
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
@@ -61,6 +63,7 @@ public class ChatReplyWorker {
         this.chatReplyJobService = chatReplyJobService;
         this.taskRegistry = taskRegistry;
         this.sensitiveText = sensitiveText;
+        this.roadmapFactory = roadmapFactory;
         this.workerId = hostName() + "-chat-" + UUID.randomUUID();
         this.executor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable);
@@ -105,12 +108,16 @@ public class ChatReplyWorker {
             }
             complete(job, response);
             try {
+                // 로드맵 재료(V3)는 두 경우에만, 무음(UI 노출 없음, DB 적재만)으로 만든다:
+                // ① 적합도 판정이 적재된 턴 ② 사용자가 공고 기준 로드맵을 직접 청한 턴
+                //    (requiresConsent=false 인 ANALYZE_POSTING 제안).
+                chatReplyJobService.startRoadmapAnalysisAfterFit(job.userId(), response);
                 chatReplyJobService.executeUserInitiatedAutomaticActions(
                         job.userId(), job.id(), response.proposedActions()
                 );
             } catch (RuntimeException actionException) {
                 log.warn(
-                        "Automatic action for chat reply job {} failed: {}",
+                        "Silent roadmap analysis for chat reply job {} failed: {}",
                         job.id(), actionException.getMessage()
                 );
             }
@@ -166,6 +173,8 @@ public class ChatReplyWorker {
     }
 
     private AiContracts.ChatRequest loadRequest(ClaimedJob job) {
+        // 에이전트가 사용자의 서비스 상태(로드맵)를 보고 대화하도록 매 턴 싣는다.
+        JsonNode roadmap = roadmapFactory.currentRoadmap(job.userId());
         return rls.write(job.userId(), jdbc -> {
             Trigger trigger = jdbc.sql("""
                             select
@@ -304,6 +313,75 @@ public class ChatReplyWorker {
                     .query(String.class)
                     .list();
 
+            // 사용자 DB의 이력서·공고 원문을 요약이 아니라 원문으로 싣는다 — 에이전트가
+            // "저장된 이력서로 분석할까요?" 를 실제 자료를 보고 판단·수행할 수 있게.
+            List<AiContracts.StoredResume> resumes = jdbc.sql("""
+                            select id, title, source_type, raw_text, created_at
+                            from career_sources
+                            where status = 'CONFIRMED'
+                              and archived_at is null
+                            order by created_at desc
+                            limit 5
+                            """)
+                    .query((rs, rowNum) -> new AiContracts.StoredResume(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("title"),
+                            rs.getString("source_type"),
+                            clip(sensitiveText.decrypt(rs.getString("raw_text")), 20_000),
+                            rs.getObject("created_at", OffsetDateTime.class)
+                    ))
+                    .list();
+            List<AiContracts.StoredPosting> storedPostings = jdbc.sql("""
+                            select p.id, p.source_type, p.source_url, p.raw_text,
+                                   p.parsed_data::text as parsed_data, p.created_at,
+                                   (
+                                       select cache.structured_posting::text
+                                       from analysis_jobs job
+                                       join ai_v3_verified_posting_snapshots snap
+                                         on snap.id = job.v3_snapshot_id
+                                       join ai_v3_posting_structure_cache cache
+                                         on cache.snapshot_hash = snap.snapshot_hash
+                                        and cache.invalidated_at is null
+                                       where job.posting_id = p.id
+                                       order by job.created_at desc
+                                       limit 1
+                                   ) as structured_posting
+                            from job_postings p
+                            where p.archived_at is null
+                            order by p.created_at desc
+                            limit 5
+                            """)
+                    .query((rs, rowNum) -> new AiContracts.StoredPosting(
+                            rs.getObject("id", UUID.class),
+                            rs.getString("source_type"),
+                            rs.getString("source_url"),
+                            clip(sensitiveText.decrypt(rs.getString("raw_text")), 20_000),
+                            rs.getString("parsed_data") == null
+                                    ? null : objectMapper.readTree(rs.getString("parsed_data")),
+                            rs.getString("structured_posting") == null
+                                    ? null : objectMapper.readTree(rs.getString("structured_posting")),
+                            rs.getObject("created_at", OffsetDateTime.class)
+                    ))
+                    .list();
+
+            GoalProfileRow goalProfile = jdbc.sql("""
+                            select chat_preferences::text as chat_preferences,
+                                   chat_facts::text as chat_facts,
+                                   preparation_period_weeks,
+                                   available_hours_per_week
+                            from user_goal_profiles
+                            where user_id = :userId
+                            """)
+                    .param("userId", job.userId())
+                    .query((rs, rowNum) -> new GoalProfileRow(
+                            rs.getString("chat_preferences"),
+                            rs.getString("chat_facts"),
+                            rs.getObject("preparation_period_weeks", Integer.class),
+                            rs.getObject("available_hours_per_week", Integer.class)
+                    ))
+                    .optional()
+                    .orElse(new GoalProfileRow(null, null, null, null));
+
             List<AiContracts.ChatPostingAsset> postingAssets = loadPostingAssets(
                     jdbc,
                     selection.postingIds()
@@ -357,7 +435,18 @@ public class ChatReplyWorker {
                             completedNodes,
                             activeGoals,
                             recentPostings,
-                            savedEvidence
+                            savedEvidence,
+                            resumes,
+                            storedPostings,
+                            roadmap,
+                            goalProfile.preferences() == null
+                                    ? null : objectMapper.readTree(goalProfile.preferences()),
+                            // AI 계약의 facts 는 null 을 받지 않는 list — 없으면 빈 배열로.
+                            goalProfile.facts() == null
+                                    ? objectMapper.createArrayNode()
+                                    : objectMapper.readTree(goalProfile.facts()),
+                            goalProfile.preparationPeriodWeeks(),
+                            goalProfile.availableHoursPerWeek()
                     ),
                     new AiContracts.ChatTaskContext(
                             selection.mode(),
@@ -541,47 +630,6 @@ public class ChatReplyWorker {
         }
     }
 
-    private String agentId(String mode) {
-        return switch (mode) {
-            case "POSTING_QA" -> "posting_reader";
-            case "RESUME_DIAGNOSIS" -> "resume_diagnostician";
-            case "POSTING_COMPARE", "RESUME_COMPARE" -> "asset_comparator";
-            case "INTERVIEW_PREP" -> "interview_coach";
-            case "COVER_LETTER" -> "cover_letter_writer";
-            case "APPLICATION_PLAN" -> "application_planner";
-            case "JOB_DISCOVERY" -> "job_discovery_planner";
-            default -> "career_companion";
-        };
-    }
-
-    private String agentLabel(String mode) {
-        return switch (mode) {
-            case "POSTING_QA" -> "공고 해설";
-            case "RESUME_DIAGNOSIS" -> "이력서 진단";
-            case "POSTING_COMPARE" -> "공고 비교";
-            case "RESUME_COMPARE" -> "이력서 비교";
-            case "INTERVIEW_PREP" -> "면접 코칭";
-            case "COVER_LETTER" -> "자소서 작성";
-            case "APPLICATION_PLAN" -> "지원 계획";
-            case "JOB_DISCOVERY" -> "공고 탐색";
-            default -> "커리어 대화";
-        };
-    }
-
-    private String agentMessage(String mode) {
-        return switch (mode) {
-            case "POSTING_QA" -> "선택한 공고의 요구사항을 근거와 함께 읽고 있어요";
-            case "RESUME_DIAGNOSIS" -> "선택한 커리어 자료의 강점과 공백을 진단하고 있어요";
-            case "POSTING_COMPARE" -> "공고별 요구사항과 지원 조건을 같은 기준으로 비교하고 있어요";
-            case "RESUME_COMPARE" -> "커리어 자료별 차이와 활용도를 비교하고 있어요";
-            case "INTERVIEW_PREP" -> "공고와 실제 경험을 연결한 면접 질문을 준비하고 있어요";
-            case "COVER_LETTER" -> "확인된 경험만 사용해 회사 맞춤 초안을 작성하고 있어요";
-            case "APPLICATION_PLAN" -> "필수 조건과 마감을 기준으로 지원 순서를 정리하고 있어요";
-            case "JOB_DISCOVERY" -> "목표와 조건에 맞는 공고 탐색 기준을 만들고 있어요";
-            default -> "JOBIS가 답변을 정리하고 있어요";
-        };
-    }
-
     private String clip(String value, int limit) {
         if (value == null || value.length() <= limit) {
             return value == null ? "" : value;
@@ -736,9 +784,152 @@ public class ChatReplyWorker {
                     .update();
             persistWorkspaceState(jdbc, job, conversationId, response.workspaceState());
             persistWorkProducts(jdbc, job, conversationId, response);
+            persistCollectedAssets(jdbc, job, conversationId, response.collected());
             finish(jdbc, job);
             return null;
         });
+    }
+
+    /**
+     * AI가 대화 턴에서 수집한 자산(collected)을 도메인 테이블로 투영한다.
+     * persistence_map.py 계약: 대화에 붙인 공고 → job_postings, 이력서 → career_sources.
+     * 이력서는 기본 상태(QUEUED)로 넣어 CareerExtractionWorker가 조각 추출까지 잇는다.
+     */
+    private void persistCollectedAssets(
+            JdbcClient jdbc,
+            ClaimedJob job,
+            UUID conversationId,
+            JsonNode collected
+    ) {
+        if (collected == null || !collected.isObject()) {
+            return;
+        }
+        JsonNode posting = collected.path("posting");
+        String postingText = posting.path("rawText").asString("").trim();
+        if (!postingText.isEmpty()) {
+            String fingerprint = sensitiveText.fingerprint(
+                    postingText.replaceAll("\\s+", " ").toLowerCase(java.util.Locale.ROOT)
+            );
+            JsonNode parsed = collected.path("outputs").path("postingSummary");
+            UUID existing = jdbc.sql("""
+                            select id
+                            from job_postings
+                            where content_fingerprint = :fingerprint
+                              and archived_at is null
+                            limit 1
+                            """)
+                    .param("fingerprint", fingerprint)
+                    .query(UUID.class)
+                    .optional()
+                    .orElse(null);
+            if (existing == null) {
+                jdbc.sql("""
+                                insert into job_postings (
+                                    user_id, source_type, source_url, raw_text,
+                                    conversation_id, content_fingerprint,
+                                    company_name, role_title, parsed_data
+                                )
+                                values (
+                                    :userId, cast(:sourceType as posting_source), :sourceUrl,
+                                    :rawText, :conversationId, :fingerprint,
+                                    :companyName, :roleTitle, cast(:parsedData as jsonb)
+                                )
+                                """)
+                        .param("userId", job.userId())
+                        .param("sourceType", posting.path("sourceType").asString("TEXT"))
+                        .param("sourceUrl", posting.path("sourceUrl").asString(null))
+                        .param("rawText", sensitiveText.encrypt(postingText))
+                        .param("conversationId", conversationId)
+                        .param("fingerprint", fingerprint)
+                        .param("companyName", parsed.path("companyName").asString(null))
+                        .param("roleTitle", parsed.path("jobTitle").asString(null))
+                        .param("parsedData", parsed.isObject()
+                                ? objectMapper.writeValueAsString(parsed) : null)
+                        .update();
+            } else if (parsed.isObject()) {
+                jdbc.sql("""
+                                update job_postings
+                                set parsed_data = cast(:parsedData as jsonb),
+                                    company_name = coalesce(company_name, :companyName),
+                                    role_title = coalesce(role_title, :roleTitle),
+                                    updated_at = now()
+                                where id = :id
+                                """)
+                        .param("parsedData", objectMapper.writeValueAsString(parsed))
+                        .param("companyName", parsed.path("companyName").asString(null))
+                        .param("roleTitle", parsed.path("jobTitle").asString(null))
+                        .param("id", existing)
+                        .update();
+            }
+            // 대화방 제목은 사용자가 가장 최근에 낸 공고의 회사명을 따른다.
+            String companyName = parsed.path("companyName").asString("").trim();
+            if (!companyName.isEmpty()) {
+                jdbc.sql("""
+                                update conversations
+                                set title = :title
+                                where id = :conversationId
+                                """)
+                        .param("title", clip(companyName, 80))
+                        .param("conversationId", conversationId)
+                        .update();
+            }
+        }
+        JsonNode resume = collected.path("resume");
+        String resumeText = resume.path("rawText").asString("").trim();
+        if (!resumeText.isEmpty()) {
+            jdbc.sql("""
+                            insert into career_sources (
+                                user_id, source_type, title, raw_text
+                            )
+                            values (:userId, 'TEXT', :title, :rawText)
+                            """)
+                    .param("userId", job.userId())
+                    .param("title", resume.path("title").asString("대화로 받은 이력서"))
+                    .param("rawText", sensitiveText.encrypt(resumeText))
+                    .update();
+        }
+        JsonNode preferences = collected.path("preferences");
+        JsonNode facts = collected.path("facts");
+        JsonNode outputs = collected.path("outputs");
+        Integer prepWeeks = outputs.path("preparationPeriodWeeks").isNumber()
+                ? outputs.path("preparationPeriodWeeks").asInt() : null;
+        Integer hoursPerWeek = outputs.path("availableHoursPerWeek").isNumber()
+                ? outputs.path("availableHoursPerWeek").asInt() : null;
+        if (preferences.isObject() || facts.isArray()
+                || prepWeeks != null || hoursPerWeek != null) {
+            jdbc.sql("""
+                            insert into user_goal_profiles (
+                                user_id, chat_preferences, chat_facts,
+                                preparation_period_weeks, available_hours_per_week
+                            )
+                            values (
+                                :userId, cast(:preferences as jsonb), cast(:facts as jsonb),
+                                :prepWeeks, :hoursPerWeek
+                            )
+                            on conflict (user_id) do update set
+                                chat_preferences = coalesce(
+                                        excluded.chat_preferences,
+                                        user_goal_profiles.chat_preferences),
+                                chat_facts = coalesce(
+                                        excluded.chat_facts,
+                                        user_goal_profiles.chat_facts),
+                                preparation_period_weeks = coalesce(
+                                        excluded.preparation_period_weeks,
+                                        user_goal_profiles.preparation_period_weeks),
+                                available_hours_per_week = coalesce(
+                                        excluded.available_hours_per_week,
+                                        user_goal_profiles.available_hours_per_week),
+                                updated_at = now()
+                            """)
+                    .param("userId", job.userId())
+                    .param("preferences", preferences.isObject()
+                            ? objectMapper.writeValueAsString(preferences) : null)
+                    .param("facts", facts.isArray()
+                            ? objectMapper.writeValueAsString(facts) : null)
+                    .param("prepWeeks", prepWeeks)
+                    .param("hoursPerWeek", hoursPerWeek)
+                    .update();
+        }
     }
 
     private void persistWorkspaceState(
@@ -1066,6 +1257,14 @@ public class ChatReplyWorker {
             String mode,
             List<UUID> postingIds,
             List<UUID> careerSourceIds
+    ) {
+    }
+
+    private record GoalProfileRow(
+            String preferences,
+            String facts,
+            Integer preparationPeriodWeeks,
+            Integer availableHoursPerWeek
     ) {
     }
 
