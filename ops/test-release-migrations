@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# 릴리스 마이그레이션을 **운영의 현재 상태**에 적용해보는 사전 검사.
+#
+# 왜 필요한가 (실측: master #9, 2026-08-08)
+#   서비스 CI 는 항상 빈 PostgreSQL 에서 마이그레이션을 검증한다. 빈 DB 에는 적용 이력이
+#   없으므로 "이미 적용된 버전과 어긋난다"는 종류의 결함은 구조적으로 걸리지 않는다.
+#   실제로 통합 브랜치가 운영에 이미 적용된 V20~V28 을 삭제·재번호했는데 develop CI 는
+#   끝까지 초록이었고, 배포 시점에 backend 가 기동하지 못해 롤백됐다.
+#
+# 운영 DB 는 읽지도 쓰지도 않는다. 덤프 파일만 읽고 격리된 컨테이너에서만 작업한다.
+#
+# 덤프 접근은 **전부 형제 컨테이너 안에서** 한다. 덤프는 root 소유 0600 이고, Jenkins 는
+# 컨테이너 안에서 비-root 로 도는 데다 백업 디렉터리가 마운트돼 있지도 않다. 호스트 경로를
+# `-v` 로 넘기면 Docker 데몬이 호스트에서 해석하므로 두 실행 경로에서 똑같이 동작한다.
+#
+# usage: test-release-migrations [<migration dir>]
+#   JOBIS_BACKUP_DIR        덤프가 쌓이는 호스트 경로 (필수, 없으면 env 파일에서 읽는다)
+#   JOBIS_JENKINS_CONTAINER Jenkins 컨테이너 이름/ID. 주면 마이그레이션 디렉터리를
+#                           --volumes-from 으로 공유한다(워크스페이스는 호스트에 없다).
+#   JOBIS_WORKSPACE         그때의 워크스페이스 절대 경로.
+set -Eeuo pipefail
+
+readonly ENV_FILE="${JOBIS_ENV_FILE:-/etc/jobis/jobis-v2.env}"
+readonly FLYWAY_IMAGE="${JOBIS_FLYWAY_IMAGE:-flyway/flyway:11-alpine}"
+readonly POSTGRES_IMAGE="${JOBIS_POSTGRES_IMAGE:-postgres:17-alpine}"
+readonly PGPASS='migration-drill-only'
+
+# JOBIS_BACKUP_DIR 를 직접 받으면 운영 env 파일을 읽지 않는다(Jenkins 경로).
+if [[ -z "${JOBIS_BACKUP_DIR:-}" ]]; then
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "JOBIS_BACKUP_DIR 도 없고 환경 파일도 없다: $ENV_FILE" >&2
+    exit 1
+  fi
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+readonly BACKUP_DIR="${JOBIS_BACKUP_DIR:-/var/backups/jobis/service-db}"
+
+# 마이그레이션 디렉터리를 Flyway 컨테이너에 넘기는 방법은 실행 위치에 따라 다르다.
+migration_arg="${1:-backend/src/main/resources/db/migration}"
+if [[ -n "${JOBIS_JENKINS_CONTAINER:-}" ]]; then
+  # Jenkins 컨테이너 안. 워크스페이스는 호스트에 없으므로 Jenkins 볼륨을 그대로 공유한다.
+  : "${JOBIS_WORKSPACE:?JOBIS_JENKINS_CONTAINER 를 줄 때는 JOBIS_WORKSPACE 도 필요하다}"
+  if [[ ! -d "$migration_arg" ]]; then
+    echo "Migration directory is missing: $migration_arg" >&2
+    exit 2
+  fi
+  flyway_mount=(--volumes-from "${JOBIS_JENKINS_CONTAINER}:ro")
+  flyway_locations="filesystem:${JOBIS_WORKSPACE}/${migration_arg}"
+else
+  # 호스트에서 직접 실행. 절대 경로로 바인드 마운트한다.
+  if [[ ! -d "$migration_arg" ]]; then
+    echo "Migration directory is missing: $migration_arg" >&2
+    exit 2
+  fi
+  migration_dir="$(cd -- "$migration_arg" && pwd)"
+  flyway_mount=(-v "${migration_dir}:/flyway/sql:ro")
+  flyway_locations="filesystem:/flyway/sql"
+fi
+
+container="jobis-release-migration-test-$$"
+cleanup() {
+  docker rm -f "$container" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker run -d \
+  --name "$container" \
+  --network none \
+  -e POSTGRES_PASSWORD="$PGPASS" \
+  "$POSTGRES_IMAGE" >/dev/null
+
+ready=false
+for _ in {1..30}; do
+  if docker exec "$container" \
+    pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" != true ]]; then
+  echo "Disposable PostgreSQL did not become ready." >&2
+  exit 1
+fi
+
+# 최신 덤프 선택 + 체크섬 검증 + 복원을 한 컨테이너 안에서 끝낸다. 이 컨테이너만 백업
+# 디렉터리를 읽고, 위 PostgreSQL 의 네트워크 네임스페이스를 공유해 127.0.0.1 로 붙는다.
+docker run --rm \
+  -v "${BACKUP_DIR}:/dumps:ro" \
+  --network "container:${container}" \
+  -e PGPASSWORD="$PGPASS" \
+  "$POSTGRES_IMAGE" \
+  sh -ec '
+    latest=""
+    for candidate in /dumps/*.dump; do
+      [ -e "$candidate" ] || continue
+      if [ -z "$latest" ] || [ "$candidate" -nt "$latest" ]; then
+        latest="$candidate"
+      fi
+    done
+    if [ -z "$latest" ]; then
+      echo "No service DB dump is available." >&2
+      exit 1
+    fi
+    echo "[release-migrations] dump=$(basename "$latest")"
+    if [ ! -f "${latest}.sha256" ]; then
+      echo "Checksum file is missing: ${latest}.sha256" >&2
+      exit 2
+    fi
+    cd /dumps && sha256sum -c "$(basename "$latest").sha256"
+    pg_restore -h 127.0.0.1 -U postgres -d postgres \
+      --no-owner --no-privileges --exit-on-error "$latest"
+  '
+
+applied_before="$(docker exec "$container" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c \
+  "select count(*) from flyway_schema_history where success")"
+echo "[release-migrations] restored history entries: ${applied_before}"
+
+# Flyway 는 migrate 전에 validate 한다 — 이미 적용된 버전과 로컬 파일(버전·설명·체크섬)이
+# 어긋나면 여기서 멈춘다. 이번 사고가 걸리는 지점이다.
+migration_status=0
+docker run --rm \
+  "${flyway_mount[@]}" \
+  --network "container:${container}" \
+  "$FLYWAY_IMAGE" \
+  -url=jdbc:postgresql://127.0.0.1:5432/postgres \
+  -user=postgres \
+  -password="$PGPASS" \
+  -locations="$flyway_locations" \
+  -connectRetries=10 \
+  migrate || migration_status=$?
+
+if [[ "$migration_status" -ne 0 ]]; then
+  echo >&2
+  echo "release-migrations FAILED: 이 릴리스는 운영의 현재 스키마에 적용되지 않는다." >&2
+  echo "배포하면 backend 가 기동하지 못하고 롤백된다. 마이그레이션을 먼저 조정할 것." >&2
+  exit 1
+fi
+
+applied_after="$(docker exec "$container" psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c \
+  "select count(*) from flyway_schema_history where success")"
+
+echo "[release-migrations] status=completed applied=${applied_before}->${applied_after}"

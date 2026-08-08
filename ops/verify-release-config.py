@@ -49,6 +49,7 @@ def main() -> None:
         "ops/prepare-jobis-v2-release",
         "ops/sync-jobis-release-assets",
         "ops/test-legacy-data-migration",
+        "ops/test-release-migrations",
         "ops/jobis-deploy.sudoers",
         "ops/nginx-jobis-app.location.conf",
         "ops/nginx-jobis-upstream-legacy.conf",
@@ -141,6 +142,9 @@ def main() -> None:
         "Frontend: typecheck & build",
         "RAG: static validation",
         "Infra: static validation",
+        # 운영 스냅샷에 릴리스 마이그레이션을 적용해보는 통합 관문. 서비스 CI 는 빈 DB 에서만
+        # 검증하므로 이 단계가 없으면 이력 불일치가 배포에서야 드러난다. 이미지 빌드 앞에 둔다.
+        "Release migration gate",
         "Docker images: build",
         "Docker images: promote",
         "Deploy production",
