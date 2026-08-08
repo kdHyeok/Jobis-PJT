@@ -453,5 +453,3 @@ def test_pipeline_rejects_checkpoint_from_another_snapshot(
 
     with pytest.raises(ValueError, match="different verified snapshot"):
         AnalysisPipelineRequest.model_validate(payload)
-
-

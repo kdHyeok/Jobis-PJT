@@ -42,4 +42,3 @@ finally {
 }
 
 Write-Host "JOBIS AI v3 Phase 8 AI-side integration core checks passed. Spring, DB, and UI integration remain gated."
-

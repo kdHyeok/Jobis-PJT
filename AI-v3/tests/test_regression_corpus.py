@@ -29,4 +29,3 @@ def test_p0_cases_are_explicitly_marked() -> None:
 
     p0_ids = {case["id"] for case in corpus["cases"] if case["priority"] == "P0"}
     assert {"ROLE-001", "EXP-001", "SRC-001", "REQ-001", "FIT-001", "MAP-001"} <= p0_ids
-

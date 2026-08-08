@@ -29,4 +29,3 @@ python C:\jobiss-service-ai-v3-lab\scripts\validate-fixtures.py
 
 Phase 1의 Pydantic 계약과 JSON Schema 테스트가 준비되면 같은 corpus를 실제 계약과
 각 단계 evaluator에 연결한다.
-

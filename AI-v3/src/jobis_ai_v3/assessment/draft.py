@@ -27,4 +27,3 @@ class CapabilityGradeDraft(ContractModel):
         if len(indexes) != len(set(indexes)):
             raise ValueError("criterion grade indexes must be unique")
         return self
-

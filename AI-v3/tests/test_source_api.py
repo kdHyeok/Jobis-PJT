@@ -65,4 +65,3 @@ def test_verify_rejects_mismatched_path_id_with_error_envelope() -> None:
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "CONTRACT_VALIDATION_FAILED"
-
