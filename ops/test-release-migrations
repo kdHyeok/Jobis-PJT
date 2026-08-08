@@ -110,7 +110,19 @@ docker run --rm \
       echo "Checksum file is missing: ${latest}.sha256" >&2
       exit 2
     fi
-    cd /dumps && sha256sum -c "$(basename "$latest").sha256"
+    # `sha256sum -c` 를 쓰지 않는다. 체크섬 파일에는 백업을 만든 **호스트의 절대 경로**가
+    # 적혀 있는데(예: /mnt/jobis-backups/service-db/...dump), 이 컨테이너에서 같은 파일은
+    # /dumps 아래에 있어 그 경로를 열지 못한다(실측: develop #38 이 여기서 실패했다).
+    # 경로에 의존하지 않도록 해시 값만 비교한다.
+    expected="$(awk "{print \$1; exit}" "${latest}.sha256")"
+    actual="$(sha256sum "$latest" | awk "{print \$1}")"
+    if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+      echo "Dump checksum mismatch: $(basename "$latest")" >&2
+      echo "  expected=${expected}" >&2
+      echo "  actual  =${actual}" >&2
+      exit 2
+    fi
+    echo "[release-migrations] checksum ok"
     pg_restore -h 127.0.0.1 -U postgres -d postgres \
       --no-owner --no-privileges --exit-on-error "$latest"
   '
