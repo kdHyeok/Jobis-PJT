@@ -1,0 +1,25 @@
+-- 두 계보가 같은 이름의 테이블을 **서로 다른 모양**으로 만든다. 통합 설계를 정본으로 삼고
+-- 옛 테이블을 비운다.
+--
+-- 배경
+--   V23(agent_assets_and_session_state)는 대화 중심 설계다 — conversation_id 로 묶고
+--   plan/state 만 담는다. 운영에는 이 모양이 적용돼 있다.
+--   통합본(현재 V32)은 에이전트 산출물 중심으로 다시 설계했다 — 모든 산출물이
+--   agent_work_products 한 곳에서 나오고, 각 파생 테이블이 source_work_product_id 로
+--   그 출처를 가리킨다(NOT NULL·UNIQUE·FK). 어느 에이전트의 어느 턴이 만든 것인지
+--   추적할 수 있게 하려는 것이다.
+--
+-- 왜 ALTER 가 아니라 DROP 인가
+--   source_work_product_id 는 NOT NULL 이면서 agent_work_products 를 참조한다. 그런데
+--   기존 행들은 그 개념이 없던 시절에 만들어졌으므로 가리킬 산출물이 존재하지 않는다.
+--   행을 살리려면 agent_work_products 레코드를 지어내야 하고(대화 ID·작업 ID·에이전트
+--   이름), 그러면 없는 출처를 만들어 낸 셈이 된다. 이 저장소는 그런 값을 만들지 않는다.
+--
+-- 무엇을 잃는가 (2026-08-08 운영 실측)
+--   interview_sessions  0행 — 잃는 것 없음
+--   application_plans   1행 — 통합 작업 중(08-06) 공고 연결 없이 생긴 지원 계획 1건
+--   두 테이블 모두 서비스 DB 정기 덤프에 그대로 남아 있으므로 필요하면 복구할 수 있다.
+--
+-- 이 마이그레이션은 통합본이 두 테이블을 다시 만들기 **직전**에 놓여야 한다.
+DROP TABLE IF EXISTS application_plans;
+DROP TABLE IF EXISTS interview_sessions;
