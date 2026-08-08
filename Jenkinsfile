@@ -302,7 +302,22 @@ SQL
           bash -n ops/prepare-jobis-v2-release
           bash -n ops/sync-jobis-release-assets
           bash -n ops/test-legacy-data-migration
-          git diff --check HEAD^ HEAD
+          # 공백 오류는 병합 시점이 아니라 브랜치에서 잡는다.
+          #
+          # `HEAD^ HEAD` 만 보면 검사 범위가 커밋 위상에 따라 달라진다 — 기능 브랜치에서는
+          # 마지막 커밋 하나뿐이고, develop 에서는 HEAD 가 병합 커밋이라 통합분 전체다.
+          # 그래서 브랜치 CI 가 초록이어도 병합 순간 처음 보는 오류가 쏟아진다(실측:
+          # develop #34 에서 39건). 브랜치가 develop 에 더하는 전체 범위를 본다.
+          #
+          # develop 에서는 merge-base 가 HEAD 자신이라 비교 대상이 없으므로 HEAD^(병합 전
+          # develop)로 되돌린다. origin/develop 을 못 찾을 때도 같은 폴백을 쓴다 —
+          # 판단이 안 서면 덜 보지 않는다.
+          whitespace_base="$(git merge-base origin/develop HEAD 2>/dev/null || true)"
+          if [ -z "$whitespace_base" ] || [ "$whitespace_base" = "$(git rev-parse HEAD)" ]; then
+            whitespace_base="$(git rev-parse HEAD^)"
+          fi
+          echo "[whitespace] ${whitespace_base}..HEAD"
+          git diff --check "$whitespace_base" HEAD
 
           # Multibranch workspaces survive branch changes. Git removes deleted tracked
           # files, but ignored and ordinary untracked artifacts under retired services
