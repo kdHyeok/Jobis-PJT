@@ -408,7 +408,12 @@ SQL
             echo "JOBIS_BACKUP_DIR 전역 환경변수가 없습니다." >&2
             exit 1
           }
-          bash ops/test-release-migrations backend/src/main/resources/db/migration
+          # 덤프는 root 소유 0600 이고 백업 디렉터리는 Jenkins 컨테이너에 없다. 스크립트가
+          # 형제 컨테이너로만 접근하며, 워크스페이스는 Jenkins 볼륨을 공유해서 넘긴다
+          # (Infra 스테이지의 --volumes-from 과 같은 이유).
+          JOBIS_JENKINS_CONTAINER="$(cat /etc/hostname)" \
+          JOBIS_WORKSPACE="$WORKSPACE" \
+            bash ops/test-release-migrations backend/src/main/resources/db/migration
         '''
       }
     }
