@@ -74,24 +74,52 @@ def main():
         conn.close()
         return
 
-    vectors: list[list[float] | None] = []
-    B = model_settings.ingest_window_size
-    for i in range(0, len(todo), B):
-        vecs, _ = embed_texts(
-            [c.text for c in todo[i:i + B]],
-            batch_size=model_settings.embed_batch_size,
-        )
-        vectors.extend(vecs)
-        print(f"  임베딩 {min(i + B, len(todo))}/{len(todo)}", flush=True)
-    by_id = dict(zip((c.chunk_id for c in todo), vectors))
-    embeddings = [by_id.get(c.chunk_id) for c in all_chunks]
+    # 창 단위 커밋은 upsert_chunks 안의 트랜잭션 락을 매번 새로 잡는다. 실행 전체를
+    # 감싸는 세션 락으로 두 적재가 섞이지 않게 한다(대기 대신 즉시 실패시켜
+    # 무한 대기를 만들지 않는다).
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_try_advisory_lock(hashtext(%s))", ("jobrag-ingest-run",))
+        if not cur.fetchone()[0]:
+            conn.close()
+            raise SystemExit("다른 적재가 진행 중이다 — 끝난 뒤 다시 실행한다.")
 
+    # 청크가 공고를 참조하므로 공고를 먼저 반영한다.
     # 핵심: deactivate_missing=False — 기존 활성 공고를 건드리지 않는다
     ps = upsert_postings(conn, postings, raw_by_uid, deactivate_missing=False)
     print("[store_postings]", json.dumps(ps, ensure_ascii=False))
-    cs = upsert_chunks(conn, all_chunks, embeddings)
-    print("[store_chunks]", json.dumps(cs, ensure_ascii=False))
     conn.commit()
+
+    # 창 단위로 임베딩 → 저장 → 커밋한다.
+    #
+    # 예전에는 전체 벡터를 메모리에 모은 뒤 마지막에 한 번 커밋했다. 1만 청크 규모에서
+    # 7.1GB 까지 자라 호스트 메모리를 소진시켰고(2026-08-06 SSH 접속 불가 장애),
+    # 중간에 죽으면 계산한 결과가 전부 사라졌다. 창마다 커밋하면 상주 메모리가
+    # 창 하나분으로 유지되고, 실패해도 저장된 창은 남아 재실행 시 해시가 같은 청크를
+    # 건너뛰므로 이어서 진행된다.
+    todo_ids = {c.chunk_id for c in todo}
+    B = model_settings.ingest_window_size
+    embedded = 0
+    written = 0
+    reused = 0
+    for i in range(0, len(all_chunks), B):
+        window = all_chunks[i:i + B]
+        pending = [c for c in window if c.chunk_id in todo_ids]
+        by_id: dict[str, list[float]] = {}
+        if pending:
+            vecs, _ = embed_texts(
+                [c.text for c in pending],
+                batch_size=model_settings.embed_batch_size,
+            )
+            by_id = dict(zip((c.chunk_id for c in pending), vecs))
+            embedded += len(pending)
+        cs = upsert_chunks(conn, window, [by_id.get(c.chunk_id) for c in window])
+        conn.commit()
+        written += cs.get("written", 0)
+        reused += cs.get("skipped_no_embed", 0)
+        if pending:
+            print(f"  임베딩 {embedded}/{len(todo)} · 저장 {written}", flush=True)
+    print("[store_chunks]", json.dumps(
+        {"written": written, "skipped_no_embed": reused}, ensure_ascii=False))
 
     act1, ch1 = _counts(conn)
     print(f"[after] 활성 공고 {act1} (+{act1 - act0}) · 청크 {ch1} (+{ch1 - ch0})")
