@@ -17,9 +17,10 @@ class JwtServiceTest {
         ));
         UUID userId = UUID.randomUUID();
 
-        String token = service.createAccessToken(userId);
+        String token = service.createAccessToken(userId, 3);
 
-        assertThat(service.parseUserId(token)).isEqualTo(userId);
+        assertThat(service.parsePrincipal(token).userId()).isEqualTo(userId);
+        assertThat(service.parsePrincipal(token).authVersion()).isEqualTo(3);
     }
 
     @Test
@@ -31,7 +32,7 @@ class JwtServiceTest {
 
     private JobissProperties properties(String secret) {
         return new JobissProperties(
-                new JobissProperties.Auth(secret, 3600, false),
+                new JobissProperties.Auth(secret, 3600, 1209600, 2592000, false),
                 new JobissProperties.Ai(
                         "http://localhost:8000",
                         "test-secret",

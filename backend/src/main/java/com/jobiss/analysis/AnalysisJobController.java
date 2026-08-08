@@ -61,6 +61,15 @@ public class AnalysisJobController {
         return ResponseEntity.accepted().build();
     }
 
+    @PostMapping("/{jobId}/cancel")
+    ResponseEntity<Void> cancel(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID jobId
+    ) {
+        service.cancel(userId, jobId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{jobId}/questions/{questionId}/answer")
     ResponseEntity<Void> answerQuestion(
             @AuthenticationPrincipal UUID userId,
@@ -68,7 +77,13 @@ public class AnalysisJobController {
             @PathVariable UUID questionId,
             @Valid @RequestBody AnswerQuestionRequest request
     ) {
-        service.answerQuestion(userId, jobId, questionId, request.value());
+        service.answerQuestion(
+                userId,
+                jobId,
+                questionId,
+                request.value(),
+                request.answerStatus()
+        );
         return ResponseEntity.accepted().build();
     }
 
@@ -90,7 +105,8 @@ public class AnalysisJobController {
     }
 
     record AnswerQuestionRequest(
-            @NotBlank @Size(max = 120) String value
+            @NotBlank @Size(max = 2000) String value,
+            String answerStatus
     ) {
     }
 }

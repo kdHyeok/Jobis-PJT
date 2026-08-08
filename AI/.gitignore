@@ -22,7 +22,6 @@ env/
 
 # 로컬 산출물/캐시
 *.log
-logs/
 .vectorstore/
 data/local/
 

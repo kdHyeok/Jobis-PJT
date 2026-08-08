@@ -170,6 +170,9 @@ public class PostingRecommendationService {
                                       lower(coalesce(:roleTitle, ''))
                               )
                             group by catalog.id
+                            having count(requirement.id) filter (
+                                where requirement.relation_kind = 'REQUIRED'
+                            ) > 0
                             order by
                                 (
                                     case
@@ -238,7 +241,7 @@ public class PostingRecommendationService {
 
     private AlternativePosting toView(CandidateRow row, int experienceMonths) {
         double requiredCoverage = row.requiredTotal() == 0
-                ? 1
+                ? 0
                 : (double) row.requiredMet() / row.requiredTotal();
         double preferredCoverage = row.preferredTotal() == 0
                 ? 1

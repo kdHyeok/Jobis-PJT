@@ -3,6 +3,7 @@ package com.jobiss.evidence;
 import com.jobiss.common.ApiException;
 import com.jobiss.db.RlsTransactionExecutor;
 import com.jobiss.analysis.AiUsageLimitService;
+import com.jobiss.repository.RepositoryEvidenceCollector;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -18,39 +19,48 @@ public class EvidenceService {
     private final RlsTransactionExecutor rls;
     private final ObjectMapper objectMapper;
     private final AiUsageLimitService usageLimit;
+    private final RepositoryEvidenceCollector repositoryCollector;
 
     public EvidenceService(
             RlsTransactionExecutor rls,
             ObjectMapper objectMapper,
-            AiUsageLimitService usageLimit
+            AiUsageLimitService usageLimit,
+            RepositoryEvidenceCollector repositoryCollector
     ) {
         this.rls = rls;
         this.objectMapper = objectMapper;
         this.usageLimit = usageLimit;
+        this.repositoryCollector = repositoryCollector;
     }
 
     public EvidenceView submit(UUID userId, UUID nodeId, SubmitEvidence command) {
-        usageLimit.consume(userId, AiUsageLimitService.Kind.EVIDENCE);
-        return rls.write(userId, jdbc -> {
-            boolean verifiable = jdbc.sql("""
-                            select exists (
-                                select 1
-                                from career_nodes
-                                where id = :nodeId
-                                  and kind in ('PROJECT', 'CREDENTIAL', 'EXPERIENCE')
-                                  and archived_at is null
-                            )
+        String nodeKind = rls.read(userId, jdbc -> jdbc.sql("""
+                            select kind
+                            from career_nodes
+                            where id = :nodeId
+                              and kind in ('PROJECT', 'CREDENTIAL', 'EXPERIENCE')
+                              and archived_at is null
                             """)
                     .param("nodeId", nodeId)
-                    .query(Boolean.class)
-                    .single();
-            if (!verifiable) {
-                throw new ApiException(
-                        HttpStatus.BAD_REQUEST,
-                        "NODE_NOT_EVIDENCE_VERIFIABLE",
-                        "기술 역량은 AI 문제로 검증하고, 프로젝트·자격·경력 단계에만 결과물 증거를 제출할 수 있습니다."
-                );
-            }
+                    .query(String.class)
+                    .optional()
+                    .orElse(null));
+        if (nodeKind == null) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "NODE_NOT_EVIDENCE_VERIFIABLE",
+                    "기술 역량은 AI 문제로 검증하고, 프로젝트·자격·경력 단계에만 결과물 증거를 제출할 수 있습니다."
+            );
+        }
+        if ("PROJECT".equals(nodeKind) && !repositoryCollector.supports(command.sourceUrl())) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "REPOSITORY_URL_REQUIRED",
+                    "프로젝트 검증에는 GitHub 또는 설정된 GitLab 저장소 URL이 필요합니다."
+            );
+        }
+        usageLimit.consume(userId, AiUsageLimitService.Kind.EVIDENCE);
+        return rls.write(userId, jdbc -> {
             UUID id = jdbc.sql("""
                             insert into evidence (
                                 user_id,

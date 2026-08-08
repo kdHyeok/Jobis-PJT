@@ -139,6 +139,7 @@ def test_dataset_runs_without_crashing():
     # 46 + 혼합 제출 2건(D71·D72/M8) + **승격 케이스 4건**(D97): 공고 기준 학습·프로젝트
     # 제안(이력서 있음 / 분석결과까지 있음 — 이 둘이 승격을 실제로 잰다) + 파싱 밖 항목
     # 질문 · 공고가 있어도 강점만 짚기(둘은 판별력 없는 회귀 고정 — 데이터셋 note 참고).
-    assert summary["cases"] == len(results) == 52
+    # 최신 52건에 통합판의 "공고 분석 요청이지만 공고 원천이 없음" 회귀 1건을 보존한다.
+    assert summary["cases"] == len(results) == 53
     assert summary["llm_failed"] == len(results)     # LLM 미설정 — 전 케이스 플래너 실패
     assert 0.0 <= summary["sequence_accuracy"] <= 1.0

@@ -5,15 +5,16 @@ import com.jobiss.db.RlsTransactionExecutor;
 import com.jobiss.analysis.AiContracts;
 import com.jobiss.analysis.AnalysisClarificationNormalizer;
 import com.jobiss.analysis.AiUsageLimitService;
+import com.jobiss.security.SensitiveTextCipher;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.OffsetDateTime;
-import java.util.HexFormat;
+import java.sql.Array;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -35,42 +36,71 @@ public class JobPostingService {
 
     private final RlsTransactionExecutor rls;
     private final AiUsageLimitService usageLimit;
+    private final SensitiveTextCipher sensitiveText;
 
-    public JobPostingService(RlsTransactionExecutor rls, AiUsageLimitService usageLimit) {
+    public JobPostingService(
+            RlsTransactionExecutor rls,
+            AiUsageLimitService usageLimit,
+            SensitiveTextCipher sensitiveText
+    ) {
         this.rls = rls;
         this.usageLimit = usageLimit;
+        this.sensitiveText = sensitiveText;
     }
 
     public CreatedPosting create(UUID userId, CreatePosting command) {
-        return rls.write(userId, jdbc -> {
-            PostingIdentity identity = postingIdentity(
-                    command.sourceUrl(),
-                    command.rawText()
-            );
-            ActiveAnalysis active = findActiveAnalysis(
-                    jdbc,
-                    userId,
-                    identity.contentFingerprint(),
-                    command.conversationId()
-            );
-            if (active != null) {
-                return new CreatedPosting(
-                        active.postingId(),
-                        active.jobId(),
-                        active.status(),
-                        true,
-                        "같은 공고의 분석이 이미 진행 중이라 기존 작업을 이어서 보여드립니다."
-                );
-            }
+        return rls.write(userId, jdbc -> createInTransaction(jdbc, userId, command));
+    }
 
-            usageLimit.consume(jdbc, userId, AiUsageLimitService.Kind.ANALYSIS);
-            ReusableAnalysis reusable = findReusableAnalysis(
-                    jdbc,
-                    userId,
-                    identity.contentFingerprint()
+    public CreatedPosting createInTransaction(
+            JdbcClient jdbc,
+            UUID userId,
+            CreatePosting command
+    ) {
+        return createInTransaction(jdbc, userId, command, true);
+    }
+
+    public CreatedPosting createInTransaction(
+            JdbcClient jdbc,
+            UUID userId,
+            CreatePosting command,
+            boolean allowLegacyReuse
+    ) {
+        if ("URL".equals(command.sourceType())) {
+            PostingContentQuality.requireSufficient(command.rawText());
+        }
+        PostingIdentity identity = postingIdentity(
+                command.sourceUrl(),
+                command.rawText()
+        );
+        ActiveAnalysis active = allowLegacyReuse
+                ? findActiveAnalysis(
+                        jdbc,
+                        userId,
+                        identity.contentFingerprint(),
+                        command.conversationId()
+                )
+                : null;
+        if (active != null) {
+            return new CreatedPosting(
+                    active.postingId(),
+                    active.jobId(),
+                    active.status(),
+                    true,
+                    "같은 공고의 분석이 이미 진행 중이라 기존 작업을 이어서 보여드립니다."
             );
-            UUID canonicalPostingId = findExactCanonical(jdbc, identity);
-            UUID postingId = jdbc.sql("""
+        }
+
+        usageLimit.consume(jdbc, userId, AiUsageLimitService.Kind.ANALYSIS);
+        ReusableAnalysis reusable = allowLegacyReuse
+                ? findReusableAnalysis(
+                        jdbc,
+                        userId,
+                        identity.contentFingerprint()
+                )
+                : null;
+        UUID canonicalPostingId = findExactCanonical(jdbc, identity);
+        UUID postingId = jdbc.sql("""
                             insert into job_postings (
                                 user_id,
                                 source_type,
@@ -98,7 +128,7 @@ public class JobPostingService {
                     .param("userId", userId)
                     .param("sourceType", command.sourceType())
                     .param("sourceUrl", command.sourceUrl())
-                    .param("rawText", command.rawText().trim())
+                    .param("rawText", sensitiveText.encrypt(command.rawText().trim()))
                     .param("conversationId", command.conversationId())
                     .param("sourcePlatform", identity.platform())
                     .param("sourcePostingKey", identity.postingKey())
@@ -107,7 +137,7 @@ public class JobPostingService {
                     .query(UUID.class)
                     .single();
 
-            UUID analysisJobId = jdbc.sql("""
+        UUID analysisJobId = jdbc.sql("""
                             insert into analysis_jobs (user_id, posting_id)
                             values (:userId, :postingId)
                             returning id
@@ -117,23 +147,88 @@ public class JobPostingService {
                     .query(UUID.class)
                     .single();
 
-            boolean reusedAnalysis = prepareReuse(
-                    jdbc,
-                    userId,
-                    analysisJobId,
-                    reusable
-            );
+        boolean reusedAnalysis = prepareReuse(
+                jdbc,
+                userId,
+                analysisJobId,
+                reusable
+        );
 
-            return new CreatedPosting(
-                    postingId,
-                    analysisJobId,
-                    "QUEUED",
-                    reusedAnalysis,
-                    reusedAnalysis
-                            ? "같은 공고의 기존 분석을 재사용해 현재 준비도만 다시 계산합니다."
-                            : null
+        return new CreatedPosting(
+                postingId,
+                analysisJobId,
+                "QUEUED",
+                reusedAnalysis,
+                reusedAnalysis
+                        ? "같은 공고의 기존 분석을 재사용해 현재 준비도만 다시 계산합니다."
+                        : null
+        );
+    }
+
+    /**
+     * Creates a new V3 analysis attempt for an existing user posting after the
+     * user verified a newer source snapshot.  The caller must first prove that
+     * an analysis for that exact snapshot does not already exist; quota is
+     * therefore consumed only for a genuinely new attempt.
+     */
+    public CreatedPosting createV3AnalysisInTransaction(
+            JdbcClient jdbc,
+            UUID userId,
+            UUID postingId,
+            String sourceUrl,
+            String verifiedText
+    ) {
+        if (verifiedText == null || verifiedText.isBlank()) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "POSTING_TEXT_REQUIRED",
+                    "확인한 공고 원문을 입력해 주세요."
             );
-        });
+        }
+        if (sourceUrl != null && !sourceUrl.isBlank()) {
+            PostingContentQuality.requireSufficient(verifiedText);
+        }
+        PostingIdentity identity = postingIdentity(sourceUrl, verifiedText);
+        UUID canonicalPostingId = findExactCanonical(jdbc, identity);
+        int updated = jdbc.sql("""
+                        update job_postings
+                        set
+                            source_url = :sourceUrl,
+                            raw_text = :rawText,
+                            source_platform = :sourcePlatform,
+                            source_posting_key = :sourcePostingKey,
+                            content_fingerprint = :contentFingerprint,
+                            canonical_posting_id = :canonicalPostingId,
+                            company_name = null,
+                            role_title = null,
+                            employment_type = null,
+                            experience_text = null,
+                            closes_at = null,
+                            lifecycle_status = 'UNKNOWN',
+                            parsed_data = null,
+                            updated_by_user_at = now()
+                        where id = :postingId
+                        """)
+                .param("sourceUrl", sourceUrl)
+                .param("rawText", sensitiveText.encrypt(verifiedText.trim()))
+                .param("sourcePlatform", identity.platform())
+                .param("sourcePostingKey", identity.postingKey())
+                .param("contentFingerprint", identity.contentFingerprint())
+                .param("canonicalPostingId", canonicalPostingId)
+                .param("postingId", postingId)
+                .update();
+        if (updated == 0) {
+            throw notFound();
+        }
+        usageLimit.consume(jdbc, userId, AiUsageLimitService.Kind.ANALYSIS);
+        UUID analysisJobId = createAnalysisJob(jdbc, userId, postingId);
+        return new CreatedPosting(
+                postingId,
+                analysisJobId,
+                "QUEUED",
+                false,
+                null
+        );
     }
 
     public List<PostingSummary> list(UUID userId) {
@@ -211,7 +306,6 @@ public class JobPostingService {
                             ilike '%' || :query || '%'
                         or coalesce(catalog.role_title, p.role_title, '')
                             ilike '%' || :query || '%'
-                        or p.raw_text ilike '%' || :query || '%'
                       )
                       and (:status = '' or coalesce(j.status::text, 'QUEUED') = :status)
                     """;
@@ -285,7 +379,7 @@ public class JobPostingService {
                         rs.getObject("id", UUID.class),
                         rs.getString("source_type"),
                         rs.getString("source_url"),
-                        rs.getString("raw_text"),
+                        sensitiveText.decrypt(rs.getString("raw_text")),
                         rs.getString("company_name"),
                         rs.getString("role_title"),
                         rs.getString("employment_type"),
@@ -305,6 +399,9 @@ public class JobPostingService {
 
     public CreatedPosting update(UUID userId, UUID postingId, String sourceUrl, String rawText) {
         return rls.write(userId, jdbc -> {
+            if (sourceUrl != null && !sourceUrl.isBlank()) {
+                PostingContentQuality.requireSufficient(rawText);
+            }
             usageLimit.consume(jdbc, userId, AiUsageLimitService.Kind.ANALYSIS);
             PostingIdentity identity = postingIdentity(sourceUrl, rawText);
             ReusableAnalysis reusable = findReusableAnalysis(
@@ -334,7 +431,7 @@ public class JobPostingService {
                               and archived_at is null
                             """)
                     .param("sourceUrl", sourceUrl)
-                    .param("rawText", rawText.trim())
+                    .param("rawText", sensitiveText.encrypt(rawText.trim()))
                     .param("sourcePlatform", identity.platform())
                     .param("sourcePostingKey", identity.postingKey())
                     .param("contentFingerprint", identity.contentFingerprint())
@@ -390,23 +487,41 @@ public class JobPostingService {
 
     public void delete(UUID userId, UUID postingId) {
         rls.write(userId, jdbc -> {
-            boolean approved = jdbc.sql("""
+            boolean usedByCurrentRoadmap = jdbc.sql("""
                             select exists (
                                 select 1
-                                from graph_change_sets c
-                                join analysis_jobs a on a.id = c.analysis_job_id
-                                where a.posting_id = :postingId
-                                  and c.status = 'APPROVED'
+                                from roadmap_targets target
+                                where target.posting_id = :postingId
+                                  and target.active
+                                union all
+                                select 1
+                                from roadmap_versions version
+                                cross join lateral jsonb_array_elements(
+                                    coalesce(version.snapshot -> 'targets', '[]'::jsonb)
+                                ) target_json
+                                where version.status = 'PUBLISHED'
+                                  and target_json ->> 'postingId' = cast(:postingId as text)
+                                union all
+                                select 1
+                                from ai_v3_roadmap_versions version
+                                where version.status = 'PUBLISHED'
+                                  and version.snapshot::text like '%' || cast(:postingId as text) || '%'
+                                union all
+                                select 1
+                                from ai_v3_roadmap_proposals proposal
+                                join analysis_jobs job on job.id = proposal.analysis_job_id
+                                where proposal.status = 'DRAFT'
+                                  and job.posting_id = :postingId
                             )
                             """)
                     .param("postingId", postingId)
                     .query(Boolean.class)
                     .single();
-            if (approved) {
+            if (usedByCurrentRoadmap) {
                 throw new ApiException(
                         HttpStatus.CONFLICT,
-                        "POSTING_ALREADY_MERGED",
-                        "지도에 반영된 공고는 삭제 대신 보관할 수 있습니다."
+                        "POSTING_USED_BY_CURRENT_ROADMAP",
+                        "현재 지도 또는 적용 대기 중인 초안에 연결된 공고입니다. 먼저 지도에서 목표를 제거하거나 초안을 취소해 주세요."
                 );
             }
             int deleted = jdbc.sql("delete from job_postings where id = :postingId")
@@ -451,12 +566,6 @@ public class JobPostingService {
                           and posting.content_fingerprint = :contentFingerprint
                         """ + conversationPredicate + """
                           and job.status in ('QUEUED', 'RUNNING', 'WAITING_FOR_INPUT')
-                          -- 락이 만료된 RUNNING 은 "진행 중"이 아니라 버려진 작업이다.
-                          -- 그걸 진행 중으로 세면 새 요청이 좀비에 붙어 영원히 "분석 중"이
-                          -- 된다(실측 08-04). 회수는 claim_analysis_job(V25)이 하고, 여기서는
-                          -- 붙이지 않는 것만 한다.
-                          -- 락이 없는 RUNNING 도 버려진 것으로 본다(V25 의 회수 조건과 같다).
-                          and (job.status <> 'RUNNING' or job.locked_until >= now())
                         order by job.created_at desc
                         limit 1
                         """;
@@ -507,6 +616,15 @@ public class JobPostingService {
                             question_key,
                             question_text,
                             reason,
+                            input_type,
+                            answer_status,
+                            coalesce(
+                                array(
+                                    select jsonb_array_elements_text(related_requirement_ids)
+                                ),
+                                array[]::text[]
+                            ) as related_requirement_ids,
+                            absence_scope,
                             options::text,
                             answer_value,
                             coalesce(
@@ -529,6 +647,10 @@ public class JobPostingService {
                         rs.getString("question_key"),
                         rs.getString("question_text"),
                         rs.getString("reason"),
+                        rs.getString("input_type"),
+                        rs.getString("answer_status"),
+                        sqlTextArray(rs.getArray("related_requirement_ids")),
+                        rs.getString("absence_scope"),
                         rs.getString("options"),
                         rs.getString("answer_value"),
                         rs.getString("answer_label"),
@@ -555,7 +677,11 @@ public class JobPostingService {
                                 answer.questionKey(),
                                 answer.questionText(),
                                 answer.answerValue(),
-                                answer.answerLabel()
+                                answer.answerLabel(),
+                                answer.inputType(),
+                                answer.answerStatus(),
+                                answer.relatedRequirementIds(),
+                                answer.absenceScope()
                         )
                 ))
                 .toList();
@@ -592,7 +718,9 @@ public class JobPostingService {
                         )
                         do update set
                             normalized_analysis = excluded.normalized_analysis,
-                            last_used_at = now()
+                            last_used_at = now(),
+                            invalidated_at = null,
+                            invalid_reason = null
                         """)
                 .param("clarificationFingerprint", clarificationFingerprint)
                 .param("sourceJobId", reusable.sourceJobId())
@@ -617,7 +745,11 @@ public class JobPostingService {
                                 question_key,
                                 question_text,
                                 reason,
+                                input_type,
                                 options,
+                                answer_status,
+                                related_requirement_ids,
+                                absence_scope,
                                 status,
                                 answer_value,
                                 answered_at,
@@ -629,7 +761,11 @@ public class JobPostingService {
                                 :questionKey,
                                 :questionText,
                                 :reason,
+                                :inputType,
                                 cast(:options as jsonb),
+                                :answerStatus,
+                                cast(:relatedRequirementIds as jsonb),
+                                :absenceScope,
                                 'ANSWERED',
                                 :answerValue,
                                 now(),
@@ -641,7 +777,14 @@ public class JobPostingService {
                     .param("questionKey", normalized.questionKey())
                     .param("questionText", source.questionText())
                     .param("reason", source.reason())
+                    .param("inputType", source.inputType())
                     .param("options", source.optionsJson())
+                    .param("answerStatus", normalized.answerStatus())
+                    .param(
+                            "relatedRequirementIds",
+                            toJsonStringArray(normalized.relatedRequirementIds())
+                    )
+                    .param("absenceScope", normalized.absenceScope())
                     .param("answerValue", normalized.answerValue())
                     .param("ordinal", ordinal)
                     .update();
@@ -650,7 +793,7 @@ public class JobPostingService {
                         update analysis_jobs
                         set
                             question_count = :questionCount,
-                            stage_message = '기존 공고 분석을 재사용할 준비가 되었어요'
+                            stage_message = '기존 공고 요건을 재사용해 적합도를 계산할 준비가 되었어요'
                         where id = :jobId
                         """)
                 .param("questionCount", ordinal)
@@ -735,22 +878,8 @@ public class JobPostingService {
         return new PostingIdentity(
                 platform,
                 postingKey,
-                sha256(normalizedBody)
+                sensitiveText.fingerprint(normalizedBody)
         );
-    }
-
-    private String sha256(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(
-                    digest.digest(value.getBytes(StandardCharsets.UTF_8))
-            );
-        } catch (Exception exception) {
-            throw new IllegalStateException(
-                    "Could not fingerprint posting",
-                    exception
-            );
-        }
     }
 
     private ApiException notFound() {
@@ -864,10 +993,42 @@ public class JobPostingService {
             String questionKey,
             String questionText,
             String reason,
+            String inputType,
+            String answerStatus,
+            List<String> relatedRequirementIds,
+            String absenceScope,
             String optionsJson,
             String answerValue,
             String answerLabel,
             int ordinal
     ) {
+    }
+
+    private static List<String> sqlTextArray(Array value) throws SQLException {
+        if (value == null) {
+            return List.of();
+        }
+        Object raw = value.getArray();
+        if (!(raw instanceof Object[] values)) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (Object item : values) {
+            if (item != null && !item.toString().isBlank()) {
+                result.add(item.toString());
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String toJsonStringArray(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "[]";
+        }
+        return values.stream()
+                .map(value -> "\"" + value
+                        .replace("\\", "\\\\")
+                        .replace("\"", "\\\"") + "\"")
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
     }
 }

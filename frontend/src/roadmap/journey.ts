@@ -42,6 +42,8 @@ const TRACK_LABELS: Record<string, string> = {
   SECURITY: "보안",
   GAME: "게임",
   MOBILE: "모바일",
+  QA: "QA·테스트 자동화",
+  EMBEDDED: "임베디드·펌웨어",
   DOMAIN: "도메인",
   CAREER: "커리어",
 };
@@ -51,21 +53,31 @@ function domainOf(node: RoadmapNode) {
 }
 
 function isExperienceGate(node: RoadmapNode) {
+  return node.stage === "EXPERIENCE" && node.type === "EXPERIENCE";
+}
+
+function isLegacyExperienceGate(node: RoadmapNode) {
   return (
-    node.type === "MILESTONE" &&
-    node.stage === "EXPERIENCE" &&
-    node.id.startsWith("career:")
+    node.stage === "EXPERIENCE"
+    && (node.type === "GATE" || node.type === "MILESTONE")
   );
 }
 
-function chapterForRank(
-  rank: number,
+function chapterForNode(
+  node: RoadmapNode,
   experienceGates: RoadmapNode[],
 ) {
+  if (node.journeyStageRef && node.journeyStageRef !== "stage.entry") {
+    const explicit = experienceGates.find(
+      (gate) => gate.journeyStageRef === node.journeyStageRef,
+    );
+    if (explicit) return explicit;
+  }
+  if (node.journeyStageRef === "stage.entry") return null;
   return (
     [...experienceGates]
       .reverse()
-      .find((gate) => gate.rank < rank) ?? null
+      .find((gate) => gate.rank < node.rank) ?? null
   );
 }
 
@@ -95,7 +107,7 @@ function branchesForChapter(
   return opportunities
     .filter(
       (opportunity) =>
-        chapterForRank(opportunity.rank, experienceGates)?.id ===
+        chapterForNode(opportunity, experienceGates)?.id ===
         chapterGate?.id,
     )
     .map((opportunity) => ({
@@ -127,7 +139,12 @@ export function buildJourneyModel(
     nodes
       .map(domainOf)
       .filter((domain) => domain !== "COMMON"),
-  )];
+  )].sort((left, right) =>
+    (TRACK_LABELS[left] ?? left).localeCompare(
+      TRACK_LABELS[right] ?? right,
+      "ko",
+    ),
+  );
 
   const tracks = domains.map((domain): JourneyTrack => {
     const trackNodes = ordered(
@@ -136,15 +153,20 @@ export function buildJourneyModel(
     const employmentGate =
       trackNodes.find(
         (node) =>
-          node.type === "GATE" && node.stage === "EMPLOYMENT",
+          (node.type === "EMPLOYMENT" || node.type === "GATE")
+          && node.stage === "EMPLOYMENT",
       ) ?? null;
+    const explicitExperienceIntervals = trackNodes.filter(isExperienceGate);
     const experienceGates = ordered(
-      trackNodes.filter(isExperienceGate),
+      explicitExperienceIntervals.length
+        ? explicitExperienceIntervals
+        : trackNodes.filter(isLegacyExperienceGate),
     );
     const questNodes = trackNodes.filter(
       (node) =>
         node.type === "MILESTONE" &&
-        !isExperienceGate(node),
+        !isExperienceGate(node) &&
+        !isLegacyExperienceGate(node),
     );
     const opportunities = trackNodes.filter(
       (node) => node.type === "OPPORTUNITY",
@@ -159,7 +181,7 @@ export function buildJourneyModel(
     );
 
     const entryQuestNodes = questNodes.filter(
-      (node) => chapterForRank(node.rank, experienceGates) === null,
+      (node) => chapterForNode(node, experienceGates) === null,
     );
     const entryGroups = relationAwareGroups(
       entryQuestNodes,
@@ -185,7 +207,7 @@ export function buildJourneyModel(
       (gate, index): JourneyChapter => {
         const chapterQuestNodes = questNodes.filter(
           (node) =>
-            chapterForRank(node.rank, experienceGates)?.id === gate.id,
+            chapterForNode(node, experienceGates)?.id === gate.id,
         );
         return {
           id: `${domain}:experience:${gate.id}`,

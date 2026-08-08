@@ -1,0 +1,474 @@
+{
+  "$defs": {
+    "AssessmentBasis": {
+      "enum": [
+        "VERIFIED_COMPETENCY",
+        "VERIFIED_FORMAL_FACT",
+        "VERIFIED_PARTIAL",
+        "CAREER_EVIDENCE",
+        "USER_CLAIM",
+        "EXPLICIT_ABSENCE",
+        "VERIFIED_INSUFFICIENCY",
+        "NO_INFORMATION",
+        "POLICY_NOT_APPLICABLE"
+      ],
+      "title": "AssessmentBasis",
+      "type": "string"
+    },
+    "ExperienceTrack": {
+      "enum": [
+        "NEW_GRADUATE",
+        "EXPERIENCED"
+      ],
+      "title": "ExperienceTrack",
+      "type": "string"
+    },
+    "FitAudit": {
+      "additionalProperties": false,
+      "properties": {
+        "matcherVersion": {
+          "minLength": 1,
+          "title": "Matcherversion",
+          "type": "string"
+        },
+        "policyVersion": {
+          "minLength": 1,
+          "title": "Policyversion",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "generationAttempts": {
+          "minimum": 1,
+          "title": "Generationattempts",
+          "type": "integer"
+        },
+        "generationDurationMs": {
+          "minimum": 0,
+          "title": "Generationdurationms",
+          "type": "integer"
+        },
+        "evaluatedRequirementIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evaluatedrequirementids",
+          "type": "array"
+        },
+        "usedUserEvidenceRefs": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Useduserevidencerefs",
+          "type": "array"
+        },
+        "ignoredUserEvidenceRefs": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Ignoreduserevidencerefs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "matcherVersion",
+        "policyVersion",
+        "provider",
+        "model",
+        "generationAttempts",
+        "generationDurationMs",
+        "evaluatedRequirementIds"
+      ],
+      "title": "FitAudit",
+      "type": "object"
+    },
+    "FitMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "requiredTotal": {
+          "minimum": 0,
+          "title": "Requiredtotal",
+          "type": "integer"
+        },
+        "requiredKnown": {
+          "minimum": 0,
+          "title": "Requiredknown",
+          "type": "integer"
+        },
+        "requiredVerifiedMet": {
+          "minimum": 0,
+          "title": "Requiredverifiedmet",
+          "type": "integer"
+        },
+        "preferredTotal": {
+          "minimum": 0,
+          "title": "Preferredtotal",
+          "type": "integer"
+        },
+        "claimedReadinessPercent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claimedreadinesspercent"
+        },
+        "evidencedReadinessPercent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidencedreadinesspercent"
+        },
+        "verifiedReadinessPercent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verifiedreadinesspercent"
+        },
+        "capabilityReadinessPercent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capabilityreadinesspercent"
+        },
+        "readinessUnavailableReason": {
+          "anyOf": [
+            {
+              "enum": [
+                "NO_REQUIRED_REQUIREMENTS",
+                "REQUIRED_EVIDENCE_UNKNOWN"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Readinessunavailablereason"
+        }
+      },
+      "required": [
+        "requiredTotal",
+        "requiredKnown",
+        "requiredVerifiedMet",
+        "preferredTotal"
+      ],
+      "title": "FitMetrics",
+      "type": "object"
+    },
+    "RequirementAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "requirementId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Requirementid",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/RequirementStatus"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "includedInDenominator": {
+          "title": "Includedindenominator",
+          "type": "boolean"
+        },
+        "basis": {
+          "$ref": "#/$defs/AssessmentBasis"
+        },
+        "matchedCompetencies": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$",
+            "type": "string"
+          },
+          "title": "Matchedcompetencies",
+          "type": "array"
+        },
+        "matchedFormalFacts": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Matchedformalfacts",
+          "type": "array"
+        },
+        "userEvidenceRefs": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Userevidencerefs",
+          "type": "array"
+        },
+        "postingEvidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Postingevidenceids",
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "requirementId",
+        "status",
+        "required",
+        "includedInDenominator",
+        "basis",
+        "postingEvidenceIds",
+        "reason",
+        "confidence"
+      ],
+      "title": "RequirementAssessment",
+      "type": "object"
+    },
+    "RequirementStatus": {
+      "enum": [
+        "VERIFIED_MET",
+        "EVIDENCED",
+        "CLAIMED_ONLY",
+        "PARTIAL",
+        "NOT_MET",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ],
+      "title": "RequirementStatus",
+      "type": "string"
+    },
+    "VerdictProposal": {
+      "enum": [
+        "APPLY_NOW",
+        "STRENGTHEN_THEN_APPLY",
+        "ALTERNATIVE_PATH",
+        "UNKNOWN"
+      ],
+      "title": "VerdictProposal",
+      "type": "string"
+    },
+    "WarningItem": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/WarningSeverity",
+          "default": "WARNING"
+        },
+        "evidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evidenceids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WarningItem",
+      "type": "object"
+    },
+    "WarningSeverity": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
+      "title": "WarningSeverity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "default": "jobis.ai.v3alpha1",
+      "title": "Contractversion",
+      "type": "string"
+    },
+    "fitAssessmentId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Fitassessmentid",
+      "type": "string"
+    },
+    "commonAnalysisId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Commonanalysisid",
+      "type": "string"
+    },
+    "selectedPositionId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Selectedpositionid",
+      "type": "string"
+    },
+    "selectedExperienceTrack": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExperienceTrack"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "userEvidenceSetId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Userevidencesetid",
+      "type": "string"
+    },
+    "userEvidenceRevision": {
+      "minimum": 0,
+      "title": "Userevidencerevision",
+      "type": "integer"
+    },
+    "policyVersion": {
+      "minLength": 1,
+      "title": "Policyversion",
+      "type": "string"
+    },
+    "formalEligibility": {
+      "$ref": "#/$defs/RequirementStatus"
+    },
+    "requirementAssessments": {
+      "items": {
+        "$ref": "#/$defs/RequirementAssessment"
+      },
+      "title": "Requirementassessments",
+      "type": "array"
+    },
+    "metrics": {
+      "$ref": "#/$defs/FitMetrics"
+    },
+    "strengths": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Strengths",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "uncertainties": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Uncertainties",
+      "type": "array"
+    },
+    "verdictProposal": {
+      "$ref": "#/$defs/VerdictProposal"
+    },
+    "audit": {
+      "$ref": "#/$defs/FitAudit"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WarningItem"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "fitAssessmentId",
+    "commonAnalysisId",
+    "selectedPositionId",
+    "userEvidenceSetId",
+    "userEvidenceRevision",
+    "policyVersion",
+    "formalEligibility",
+    "requirementAssessments",
+    "metrics",
+    "verdictProposal",
+    "audit"
+  ],
+  "title": "FitAssessment",
+  "type": "object"
+}

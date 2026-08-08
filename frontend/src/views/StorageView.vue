@@ -5,6 +5,8 @@ import {
   Boxes,
   BriefcaseBusiness,
   Check,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   GraduationCap,
   Link2,
@@ -26,13 +28,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import { api } from "@/api";
+import { productDialog } from "@/product-dialog";
 import CareerFragmentBody from "@/components/CareerFragmentBody.vue";
-import {
-  RESUME_ACCEPT,
-  RESUME_MIN_CHARS,
-  readResumeFile,
-  titleFromFileName,
-} from "@/resumeFile";
 import type {
   CareerFragment,
   CareerFragmentKind,
@@ -43,6 +40,8 @@ const fragments = ref<CareerFragment[]>([]);
 const route = useRoute();
 const sources = ref<CareerSourceSummary[]>([]);
 const total = ref(0);
+const page = ref(0);
+const pageSize = 24;
 const loading = ref(true);
 const actionLoading = ref(false);
 const error = ref("");
@@ -58,14 +57,13 @@ const sourceTitle = ref("");
 const sourceUrl = ref("");
 const sourceText = ref("");
 const fileName = ref("");
-// docx 원문은 서버가 푼다 — 그동안 sourceText 는 빈 채로 남는다(등록 가드가 이걸 함께 본다).
-const fileBase64 = ref("");
+const selectedFile = ref<File | null>(null);
 const editing = ref<CareerFragment | null>(null);
 const merging = ref(false);
 const editKind = ref<CareerFragmentKind>("SKILL");
 const editTitle = ref("");
 const editDescription = ref("");
-const editCanonicalKey = ref("");
+const lastMergeUndoId = ref<string | null>(null);
 let pollTimer: number | null = null;
 
 const kindMeta: Record<
@@ -88,6 +86,7 @@ const activeSourceJobs = computed(() =>
 const selectedFragments = computed(() =>
   fragments.value.filter((fragment) => selectedIds.value.includes(fragment.id)),
 );
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -104,92 +103,104 @@ function sourceStatus(source: CareerSourceSummary) {
     REVIEW_READY: "검토 필요",
     CONFIRMED: "저장 완료",
     FAILED: "분석 실패",
+    CANCELLED: "분석 취소",
   };
   return labels[source.status];
 }
 
-async function load() {
-  loading.value = true;
-  error.value = "";
+async function loadFragments(showSpinner = true) {
+  if (showSpinner) loading.value = true;
   try {
-    const [fragmentPage, sourceItems] = await Promise.all([
-      api.careerFragments({
-        query: query.value.trim(),
-        kind: kind.value,
-        status: "CONFIRMED",
-        sort: sort.value,
-        direction: direction.value,
-        archived: archived.value,
-        size: 100,
-      }),
-      api.careerSources(false),
-    ]);
+    const fragmentPage = await api.careerFragments({
+      query: query.value.trim(),
+      kind: kind.value,
+      status: "CONFIRMED",
+      sort: sort.value,
+      direction: direction.value,
+      archived: archived.value,
+      page: page.value,
+      size: pageSize,
+    });
     fragments.value = fragmentPage.items;
     total.value = fragmentPage.total;
-    sources.value = sourceItems;
     selectedIds.value = selectedIds.value.filter((id) =>
       fragmentPage.items.some((fragment) => fragment.id === id),
     );
-    schedulePoll();
   } catch (cause) {
     error.value =
-      cause instanceof Error ? cause.message : "커리어 저장소를 불러오지 못했습니다.";
+      cause instanceof Error ? cause.message : "커리어 조각을 불러오지 못했습니다.";
   } finally {
-    loading.value = false;
+    if (showSpinner) loading.value = false;
   }
+}
+
+async function refreshSources() {
+  try {
+    sources.value = await api.careerSources(false);
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "원본 자료 상태를 불러오지 못했습니다.";
+  } finally {
+    schedulePoll();
+  }
+}
+
+async function load(resetPage = false) {
+  if (resetPage) page.value = 0;
+  error.value = "";
+  await Promise.allSettled([loadFragments(true), refreshSources()]);
 }
 
 function schedulePoll() {
   if (pollTimer) window.clearTimeout(pollTimer);
   if (!activeSourceJobs.value.length) return;
-  pollTimer = window.setTimeout(() => void load(), 3000);
+  pollTimer = window.setTimeout(() => void refreshSources(), 3000);
 }
 
 async function readFile(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
-  error.value = "";
-  try {
-    const payload = await readResumeFile(file);
-    sourceType.value = "FILE";
-    fileName.value = payload.fileName;
-    sourceTitle.value ||= titleFromFileName(payload.fileName);
-    sourceText.value = payload.rawText;
-    fileBase64.value = payload.fileBase64 ?? "";
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "파일을 읽지 못했습니다.";
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = "파일은 5MB 이하만 등록할 수 있습니다.";
     input.value = "";
+    return;
   }
+  if (!/\.(docx|txt|md)$/i.test(file.name)) {
+    error.value = "DOCX, TXT, MD 파일만 등록할 수 있습니다.";
+    input.value = "";
+    return;
+  }
+  sourceType.value = "FILE";
+  fileName.value = file.name;
+  selectedFile.value = file;
+  sourceTitle.value ||= file.name.replace(/\.[^.]+$/, "");
 }
 
-// docx 는 원문이 서버에서 나오므로 길이로 막을 수 없다 — 파일이 있으면 통과시킨다.
-const canCreateSource = computed(
-  () =>
-    !!sourceTitle.value.trim() &&
-    (sourceText.value.trim().length >= RESUME_MIN_CHARS || !!fileBase64.value),
-);
-
 async function createSource() {
-  if (actionLoading.value || !canCreateSource.value) return;
+  if (
+    actionLoading.value ||
+    !sourceTitle.value.trim() ||
+    (sourceType.value === "FILE"
+      ? !selectedFile.value
+      : sourceText.value.trim().length < 20)
+  ) return;
   actionLoading.value = true;
   error.value = "";
   try {
-    const created = await api.createCareerSource({
-      sourceType: sourceType.value,
-      title: sourceTitle.value.trim(),
-      sourceUrl: sourceType.value === "URL" ? sourceUrl.value.trim() : null,
-      rawText: sourceText.value.trim(),
-      ...(fileBase64.value
-        ? { fileBase64: fileBase64.value, fileName: fileName.value }
-        : {}),
-    });
+    const created = sourceType.value === "FILE" && selectedFile.value
+      ? await api.uploadCareerSource(selectedFile.value, sourceTitle.value.trim())
+      : await api.createCareerSource({
+          sourceType: sourceType.value,
+          title: sourceTitle.value.trim(),
+          sourceUrl: sourceType.value === "URL" ? sourceUrl.value.trim() : null,
+          rawText: sourceText.value.trim(),
+        });
     showSourceModal.value = false;
     sourceTitle.value = "";
     sourceUrl.value = "";
     sourceText.value = "";
     fileName.value = "";
-    fileBase64.value = "";
+    selectedFile.value = null;
     await load();
     sources.value = [
       created.source,
@@ -215,18 +226,45 @@ async function retrySource(source: CareerSourceSummary) {
   }
 }
 
+async function removeSource(source: CareerSourceSummary) {
+  if (!await productDialog.confirm({ title: "원본 자료 영구 삭제", message: `“${source.title}” 원본과 여기서 추출된 조각을 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다.`, confirmLabel: "영구 삭제", danger: true })) {
+    return;
+  }
+  actionLoading.value = true;
+  error.value = "";
+  try {
+    await api.deleteCareerSource(source.id);
+    await Promise.allSettled([loadFragments(false), refreshSources()]);
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "원본 자료를 삭제하지 못했습니다.";
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
 function beginEdit(fragment: CareerFragment) {
   merging.value = false;
   editing.value = fragment;
   editKind.value = fragment.kind;
   editTitle.value = fragment.title;
   editDescription.value = fragment.description;
-  editCanonicalKey.value = fragment.canonicalKey ?? "";
 }
 
-function beginMerge() {
+async function beginMerge() {
   const first = selectedFragments.value[0];
   if (!first || selectedFragments.value.length < 2) return;
+  if (selectedFragments.value.some((fragment) => fragment.kind !== first.kind)) {
+    error.value = "같은 종류의 커리어 조각만 병합할 수 있습니다.";
+    return;
+  }
+  const preview = await api.previewCareerFragmentMerge(selectedIds.value);
+  if (!preview.compatible) {
+    error.value = preview.reason;
+    return;
+  }
+  if (!await productDialog.confirm({ title: "커리어 조각 병합", message: `${selectedFragments.value.length}개 조각을 하나로 합칩니다.\n${preview.reason}`, confirmLabel: "병합" })) {
+    return;
+  }
   merging.value = true;
   editing.value = first;
   editKind.value = first.kind;
@@ -235,7 +273,6 @@ function beginMerge() {
     .map((fragment) => fragment.description)
     .filter(Boolean)
     .join("\n");
-  editCanonicalKey.value = first.canonicalKey ?? "";
 }
 
 async function saveFragment() {
@@ -246,12 +283,13 @@ async function saveFragment() {
     kind: editKind.value,
     title: editTitle.value.trim(),
     description: editDescription.value.trim(),
-    canonicalKey: editCanonicalKey.value.trim() || null,
+    canonicalKey: editing.value.canonicalKey,
     detail: editing.value.detail ?? {},
   };
   try {
     if (merging.value) {
-      await api.mergeCareerFragments(selectedIds.value, payload);
+      const merged = await api.mergeCareerFragments(selectedIds.value, payload);
+      lastMergeUndoId.value = merged.undoId;
       selectedIds.value = [];
     } else {
       await api.updateCareerFragment(editing.value.id, payload);
@@ -281,7 +319,7 @@ async function toggleArchive(fragment: CareerFragment) {
 }
 
 async function removeFragment(fragment: CareerFragment) {
-  if (!window.confirm(`“${fragment.title}” 조각을 영구 삭제할까요?`)) return;
+  if (!await productDialog.confirm({ title: "커리어 조각 영구 삭제", message: `“${fragment.title}” 조각을 영구 삭제할까요?`, confirmLabel: "영구 삭제", danger: true })) return;
   actionLoading.value = true;
   error.value = "";
   try {
@@ -289,6 +327,21 @@ async function removeFragment(fragment: CareerFragment) {
     await load();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "조각을 삭제하지 못했습니다.";
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function undoLastMerge() {
+  if (!lastMergeUndoId.value || actionLoading.value) return;
+  actionLoading.value = true;
+  error.value = "";
+  try {
+    await api.undoCareerFragmentMerge(lastMergeUndoId.value);
+    lastMergeUndoId.value = null;
+    await load();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "병합을 되돌리지 못했습니다.";
   } finally {
     actionLoading.value = false;
   }
@@ -327,6 +380,11 @@ onBeforeUnmount(() => {
       </button>
     </section>
 
+    <section v-if="lastMergeUndoId" class="inline-notice inline-notice--success" role="status">
+      <span>커리어 조각을 병합했습니다. 원본 조각은 안전하게 보관되어 있습니다.</span>
+      <button class="text-button" type="button" :disabled="actionLoading" @click="undoLastMerge">병합 되돌리기</button>
+    </section>
+
     <section v-if="sources.length" class="source-rail">
       <header>
         <div>
@@ -355,26 +413,51 @@ onBeforeUnmount(() => {
             <strong>{{ source.title }}</strong>
             <p>{{ source.stageMessage }}</p>
           </div>
-          <RouterLink
-            v-if="['REVIEW_READY', 'CONFIRMED'].includes(source.status)"
-            class="text-action"
-            :to="{ name: 'career-source-review', params: { sourceId: source.id } }"
+          <div
+            v-if="!['QUEUED', 'RUNNING'].includes(source.status)"
+            class="source-card__actions"
           >
-            {{ source.status === "REVIEW_READY" ? "조각 검토" : "확인" }}
-          </RouterLink>
-          <button
-            v-else-if="source.status === 'FAILED' && source.attemptCount < 3"
-            class="text-action"
-            type="button"
-            @click="retrySource(source)"
-          >
-            <RefreshCw :size="14" /> 재시도
-          </button>
+            <RouterLink
+              v-if="['REVIEW_READY', 'CONFIRMED'].includes(source.status)"
+              class="text-action"
+              :to="{ name: 'career-source-review', params: { sourceId: source.id } }"
+            >
+              {{ source.status === "REVIEW_READY" ? "조각 검토" : "확인" }}
+            </RouterLink>
+            <RouterLink
+              v-if="source.status === 'CONFIRMED'"
+              class="text-action"
+              :to="{
+                name: 'chat',
+                query: { mode: 'RESUME_DIAGNOSIS', source: source.id },
+              }"
+            >
+              <Sparkles :size="14" /> AI 진단
+            </RouterLink>
+            <button
+              v-if="source.status === 'FAILED' && source.attemptCount < 3"
+              class="text-action"
+              type="button"
+              @click="retrySource(source)"
+            >
+              <RefreshCw :size="14" /> 재시도
+            </button>
+            <button
+              class="text-action text-action--danger"
+              type="button"
+              :disabled="actionLoading"
+              :aria-label="`${source.title} 원본 삭제`"
+              title="원본과 파생 조각 삭제"
+              @click="removeSource(source)"
+            >
+              원본 삭제
+            </button>
+          </div>
         </article>
       </div>
     </section>
 
-    <form class="storage-toolbar repository-toolbar" @submit.prevent="load">
+    <form class="storage-toolbar repository-toolbar" @submit.prevent="load(true)">
       <label class="storage-search">
         <Search :size="18" />
         <input
@@ -383,28 +466,28 @@ onBeforeUnmount(() => {
           placeholder="기술, 프로젝트, 교육, 자격 검색"
         />
       </label>
-      <select v-model="kind" aria-label="조각 종류" @change="load">
+      <select v-model="kind" aria-label="조각 종류" @change="load(true)">
         <option value="">모든 종류</option>
         <option v-for="(meta, value) in kindMeta" :key="value" :value="value">
           {{ meta.label }}
         </option>
       </select>
-      <select v-model="sort" aria-label="정렬 기준" @change="load">
+      <select v-model="sort" aria-label="정렬 기준" @change="load(true)">
         <option value="updatedAt">최근 수정</option>
         <option value="createdAt">등록일</option>
         <option value="title">이름</option>
         <option value="kind">종류</option>
       </select>
-      <select v-model="direction" aria-label="정렬 방향" @change="load">
+      <select v-model="direction" aria-label="정렬 방향" @change="load(true)">
         <option value="desc">내림차순</option>
         <option value="asc">오름차순</option>
       </select>
       <label class="archive-toggle">
-        <input v-model="archived" type="checkbox" @change="load" />
+        <input v-model="archived" type="checkbox" @change="load(true)" />
         보관함
       </label>
-      <button class="icon-button" type="submit" aria-label="검색">
-        <Search :size="18" />
+      <button class="press-button press-button--secondary storage-search-submit" type="submit">
+        <Search :size="17" /> 검색
       </button>
     </form>
 
@@ -428,13 +511,14 @@ onBeforeUnmount(() => {
       <LoaderCircle class="spin" :size="24" />
       저장한 커리어 조각을 불러오는 중입니다.
     </div>
-    <section v-else-if="fragments.length" class="fragment-grid">
-      <article
-        v-for="fragment in fragments"
-        :key="fragment.id"
-        class="fragment-card"
-        :class="{ selected: selectedIds.includes(fragment.id) }"
-      >
+    <template v-else-if="fragments.length">
+      <section class="fragment-grid">
+        <article
+          v-for="fragment in fragments"
+          :key="fragment.id"
+          class="fragment-card"
+          :class="{ selected: selectedIds.includes(fragment.id) }"
+        >
         <label class="fragment-select">
           <input v-model="selectedIds" type="checkbox" :value="fragment.id" />
           <span>선택</span>
@@ -463,13 +547,47 @@ onBeforeUnmount(() => {
             <Trash2 :size="14" /> 삭제
           </button>
         </footer>
-      </article>
-    </section>
+        </article>
+      </section>
+      <nav v-if="total > pageSize" class="pagination" aria-label="커리어 조각 페이지">
+        <button
+          class="icon-button"
+          type="button"
+          :disabled="page === 0"
+          aria-label="이전 페이지"
+          @click="page -= 1; loadFragments()"
+        >
+          <ChevronLeft :size="19" />
+        </button>
+        <span>{{ page + 1 }} / {{ pageCount }} · 총 {{ total }}개</span>
+        <button
+          class="icon-button"
+          type="button"
+          :disabled="page + 1 >= pageCount"
+          aria-label="다음 페이지"
+          @click="page += 1; loadFragments()"
+        >
+          <ChevronRight :size="19" />
+        </button>
+      </nav>
+    </template>
     <section v-else class="empty-storage">
       <div><BriefcaseBusiness :size="28" /></div>
-      <h2>{{ total ? "검색 조건에 맞는 조각이 없습니다" : "저장된 커리어 조각이 없습니다" }}</h2>
-      <p>이력서나 프로젝트 설명을 추가하면 AI가 검토할 조각으로 나눕니다.</p>
+      <h2>
+        {{
+          query.trim() || kind || archived
+            ? "검색 조건에 맞는 조각이 없습니다"
+            : sources.length
+              ? "확정된 커리어 조각이 없습니다"
+              : "저장된 커리어 조각이 없습니다"
+        }}
+      </h2>
+      <p v-if="sources.length">
+        분석 결과를 검토하고 저장할 조각을 확정하면 이곳에 표시됩니다.
+      </p>
+      <p v-else>이력서나 프로젝트 설명을 추가하면 AI가 검토할 조각으로 나눕니다.</p>
       <button
+        v-if="!sources.length"
         class="press-button press-button--primary"
         type="button"
         @click="showSourceModal = true"
@@ -485,12 +603,20 @@ onBeforeUnmount(() => {
       aria-label="자료 추가 닫기"
       @click="showSourceModal = false"
     />
-    <section v-if="showSourceModal" class="posting-modal source-modal">
+    <section
+      v-if="showSourceModal"
+      v-dialog-focus="{ onEscape: () => showSourceModal = false }"
+      class="posting-modal source-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="storage-source-dialog-title"
+      tabindex="-1"
+    >
       <header>
         <div class="modal-icon"><Upload :size="22" /></div>
         <div>
           <p class="eyebrow">ADD CAREER SOURCE</p>
-          <h2>커리어 자료 추가</h2>
+          <h2 id="storage-source-dialog-title">커리어 자료 추가</h2>
         </div>
         <button class="icon-button" type="button" @click="showSourceModal = false">
           <X :size="20" />
@@ -509,7 +635,7 @@ onBeforeUnmount(() => {
           :class="{ active: sourceType === 'FILE' }"
           @click="sourceType = 'FILE'"
         >
-          텍스트 파일
+          파일 업로드
         </button>
         <button
           type="button"
@@ -533,33 +659,35 @@ onBeforeUnmount(() => {
       </label>
       <label v-if="sourceType === 'FILE'" class="file-drop">
         <Upload :size="22" />
-        <strong>{{ fileName || "이력서 파일 선택" }}</strong>
-        <span>DOCX, TXT, MD · 최대 2MB</span>
-        <input type="file" :accept="RESUME_ACCEPT" @change="readFile" />
+        <strong>{{ fileName || "이력서·경력 파일 선택" }}</strong>
+        <span>DOCX, TXT, MD · 최대 5MB</span>
+        <input
+          type="file"
+          accept=".docx,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+          @change="readFile"
+        />
       </label>
-      <label>
+      <label v-if="sourceType !== 'FILE'">
         분석할 원문
         <textarea
           v-model="sourceText"
           minlength="20"
           maxlength="100000"
-          :placeholder="
-            fileBase64
-              ? 'docx 원문은 등록할 때 서버가 읽습니다 — 비워 두어도 됩니다.'
-              : '이력서, 경력기술서, 프로젝트에서 맡은 역할과 결과를 붙여넣어 주세요.'
-          "
+          placeholder="이력서, 경력기술서, 프로젝트에서 맡은 역할과 결과를 붙여넣어 주세요."
         />
         <small>{{ sourceText.length.toLocaleString() }} / 100,000자</small>
       </label>
       <p class="form-hint">
         AI가 자동 저장하지 않습니다. 추출이 끝난 뒤 선택한 조각만 저장됩니다.
       </p>
+      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       <button
         class="press-button press-button--primary modal-submit"
         type="button"
         :disabled="
           actionLoading ||
-          !canCreateSource ||
+          !sourceTitle.trim() ||
+          (sourceType === 'FILE' ? !selectedFile : sourceText.trim().length < 20) ||
           (sourceType === 'URL' && !sourceUrl.trim())
         "
         @click="createSource"
@@ -606,14 +734,10 @@ onBeforeUnmount(() => {
           설명
           <textarea v-model="editDescription" maxlength="4000" />
         </label>
-        <label>
-          정규화 키
-          <input
-            v-model="editCanonicalKey"
-            maxlength="160"
-            placeholder="명확한 기술·자격일 때만 사용"
-          />
-        </label>
+        <p v-if="merging" class="form-hint">
+          같은 종류의 조각만 병합되며 기술 식별 정보는 시스템이 유지합니다.
+        </p>
+        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
         <button
           class="press-button press-button--primary"
           type="submit"

@@ -3,7 +3,9 @@ package com.jobiss.career.repository;
 import com.jobiss.analysis.AiUsageLimitService;
 import com.jobiss.common.ApiException;
 import com.jobiss.db.RlsTransactionExecutor;
+import com.jobiss.security.SensitiveTextCipher;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -18,15 +20,18 @@ public class CareerRepositoryService {
     private final RlsTransactionExecutor rls;
     private final ObjectMapper objectMapper;
     private final AiUsageLimitService usageLimit;
+    private final SensitiveTextCipher sensitiveText;
 
     public CareerRepositoryService(
             RlsTransactionExecutor rls,
             ObjectMapper objectMapper,
-            AiUsageLimitService usageLimit
+            AiUsageLimitService usageLimit,
+            SensitiveTextCipher sensitiveText
     ) {
         this.rls = rls;
         this.objectMapper = objectMapper;
         this.usageLimit = usageLimit;
+        this.sensitiveText = sensitiveText;
     }
 
     public SourceDetail create(UUID userId, CreateSource command) {
@@ -53,7 +58,7 @@ public class CareerRepositoryService {
                     .param("sourceType", command.sourceType())
                     .param("title", command.title().trim())
                     .param("sourceUrl", blankToNull(command.sourceUrl()))
-                    .param("rawText", command.rawText().trim())
+                    .param("rawText", sensitiveText.encrypt(command.rawText().trim()))
                     .query(UUID.class)
                     .single();
             return loadSource(jdbc, id);
@@ -116,7 +121,7 @@ public class CareerRepositoryService {
                                 error_message = null,
                                 completed_at = null
                             where id = :sourceId
-                              and status = 'FAILED'
+                              and status in ('FAILED', 'CANCELLED')
                               and attempt_count < 3
                             """)
                     .param("sourceId", sourceId)
@@ -129,6 +134,33 @@ public class CareerRepositoryService {
                 );
             }
             jdbc.sql("select requeue_career_source(:sourceId, :userId)")
+                    .param("sourceId", sourceId)
+                    .param("userId", userId)
+                    .query(Object.class)
+                    .optional();
+            return null;
+        });
+    }
+
+    public void cancelSource(UUID userId, UUID sourceId) {
+        rls.write(userId, jdbc -> {
+            int updated = jdbc.sql("""
+                            update career_sources
+                            set status = 'CANCELLED',
+                                stage = 'CANCELLED',
+                                stage_message = '자료 분석을 취소했어요',
+                                completed_at = now(),
+                                locked_until = null,
+                                worker_id = null
+                            where id = :sourceId
+                              and status in ('QUEUED', 'RUNNING')
+                            """)
+                    .param("sourceId", sourceId)
+                    .update();
+            if (updated == 0) {
+                throw new ApiException(HttpStatus.CONFLICT, "CAREER_SOURCE_NOT_CANCELLABLE", "진행 중인 자료만 취소할 수 있습니다.");
+            }
+            jdbc.sql("select finish_career_source(:sourceId, :userId)")
                     .param("sourceId", sourceId)
                     .param("userId", userId)
                     .query(Object.class)
@@ -292,6 +324,20 @@ public class CareerRepositoryService {
             UpdateFragment command
     ) {
         return rls.write(userId, jdbc -> {
+            FragmentView existing = loadFragment(jdbc, fragmentId);
+            JsonNode requestedDetail = command.detail() == null
+                    ? objectMapper.createObjectNode()
+                    : command.detail();
+            if ("CONFIRMED".equals(existing.reviewStatus())
+                    && (!existing.kind().equals(command.kind())
+                    || !java.util.Objects.equals(existing.canonicalKey(), blankToNull(command.canonicalKey()))
+                    || !existing.detail().equals(requestedDetail))) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "CAREER_FRAGMENT_IDENTITY_IMMUTABLE",
+                        "확정된 조각의 종류·역량 식별자·검증 범위는 직접 바꿀 수 없습니다. 제목과 설명만 수정하거나 새 자료로 다시 분석해 주세요."
+                );
+            }
             int updated = jdbc.sql("""
                             update career_fragments
                             set
@@ -307,7 +353,7 @@ public class CareerRepositoryService {
                     .param("title", command.title().trim())
                     .param("description", command.description().trim())
                     .param("canonicalKey", blankToNull(command.canonicalKey()))
-                    .param("detail", objectMapper.writeValueAsString(command.detail()))
+                    .param("detail", objectMapper.writeValueAsString(requestedDetail))
                     .param("fragmentId", fragmentId)
                     .update();
             if (updated == 0) {
@@ -317,7 +363,78 @@ public class CareerRepositoryService {
         });
     }
 
-    public FragmentView mergeFragments(
+    public FragmentView addSuggestedFragment(
+            UUID userId,
+            UUID sourceId,
+            UpdateFragment command
+    ) {
+        return rls.write(userId, jdbc -> {
+            boolean reviewable = jdbc.sql("""
+                            select exists (
+                                select 1
+                                from career_sources
+                                where id = :sourceId
+                                  and status = 'REVIEW_READY'
+                                  and archived_at is null
+                            )
+                            """)
+                    .param("sourceId", sourceId)
+                    .query(Boolean.class)
+                    .single();
+            if (!reviewable) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "CAREER_SOURCE_NOT_REVIEWABLE",
+                        "검토 중인 자료에만 조각을 직접 추가할 수 있습니다."
+                );
+            }
+            UUID fragmentId = jdbc.sql("""
+                            insert into career_fragments (
+                                user_id,
+                                source_id,
+                                kind,
+                                title,
+                                description,
+                                canonical_key,
+                                detail,
+                                review_status
+                            )
+                            values (
+                                :userId,
+                                :sourceId,
+                                :kind,
+                                :title,
+                                :description,
+                                null,
+                                cast(:detail as jsonb),
+                                'SUGGESTED'
+                            )
+                            returning id
+                            """)
+                    .param("userId", userId)
+                    .param("sourceId", sourceId)
+                    .param("kind", command.kind())
+                    .param("title", command.title().trim())
+                    .param("description", command.description().trim())
+                    .param(
+                            "detail",
+                            objectMapper.writeValueAsString(
+                                    command.detail() == null
+                                            ? objectMapper.createObjectNode()
+                                            : command.detail()
+                            )
+                    )
+                    .query(UUID.class)
+                    .single();
+            return loadFragment(jdbc, fragmentId);
+        });
+    }
+
+    public MergePreview previewMerge(UUID userId, List<UUID> fragmentIds) {
+        return rls.read(userId, jdbc -> inspectMerge(jdbc, fragmentIds));
+    }
+
+    public MergeResult mergeFragments(
             UUID userId,
             List<UUID> fragmentIds,
             UpdateFragment command
@@ -330,47 +447,176 @@ public class CareerRepositoryService {
             );
         }
         return rls.write(userId, jdbc -> {
-            long owned = jdbc.sql("""
-                            select count(*)
-                            from career_fragments
-                            where id in (:fragmentIds)
-                              and archived_at is null
-                            """)
-                    .param("fragmentIds", fragmentIds)
-                    .query(Long.class)
-                    .single();
-            if (owned != fragmentIds.size()) {
-                throw fragmentNotFound();
+            MergePreview preview = inspectMerge(jdbc, fragmentIds);
+            if (!preview.compatible()) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "CAREER_FRAGMENT_MERGE_INCOMPATIBLE",
+                        preview.reason()
+                );
             }
             UUID targetId = fragmentIds.get(0);
+            FragmentView target = loadFragment(jdbc, targetId);
+            if (!target.kind().equals(command.kind())
+                    || !java.util.Objects.equals(target.canonicalKey(), blankToNull(command.canonicalKey()))
+                    || !target.detail().equals(command.detail() == null ? objectMapper.createObjectNode() : command.detail())) {
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "CAREER_FRAGMENT_MERGE_IDENTITY_CHANGED",
+                        "병합 과정에서는 조각의 종류·역량 식별자·검증 범위를 바꿀 수 없습니다."
+                );
+            }
+            UUID mergeEventId = jdbc.sql("""
+                            insert into career_fragment_merge_events (
+                                user_id, target_fragment_id, fragment_ids, before_snapshot
+                            )
+                            select
+                                :userId,
+                                :targetId,
+                                array_agg(fragment.id order by fragment.created_at),
+                                jsonb_agg(to_jsonb(fragment) order by fragment.created_at)
+                            from career_fragments fragment
+                            where fragment.id in (:fragmentIds)
+                            returning id
+                            """)
+                    .param("userId", userId)
+                    .param("targetId", targetId)
+                    .param("fragmentIds", fragmentIds)
+                    .query(UUID.class)
+                    .single();
             jdbc.sql("""
                             update career_fragments
                             set
-                                kind = :kind,
                                 title = :title,
                                 description = :description,
-                                canonical_key = :canonicalKey,
-                                detail = cast(:detail as jsonb),
                                 review_status = 'CONFIRMED'
                             where id = :targetId
                             """)
-                    .param("kind", command.kind())
                     .param("title", command.title().trim())
                     .param("description", command.description().trim())
-                    .param("canonicalKey", blankToNull(command.canonicalKey()))
-                    .param("detail", objectMapper.writeValueAsString(command.detail()))
                     .param("targetId", targetId)
                     .update();
             jdbc.sql("""
-                            delete from career_fragments
+                            update career_fragments
+                            set archived_at = now()
                             where id in (:fragmentIds)
                               and id <> :targetId
                             """)
                     .param("fragmentIds", fragmentIds)
                     .param("targetId", targetId)
                     .update();
-            return loadFragment(jdbc, targetId);
+            return new MergeResult(loadFragment(jdbc, targetId), mergeEventId);
         });
+    }
+
+    public FragmentView undoMerge(UUID userId, UUID mergeEventId) {
+        return rls.write(userId, jdbc -> {
+            MergeEvent event = jdbc.sql("""
+                            select target_fragment_id, before_snapshot::text
+                            from career_fragment_merge_events
+                            where id = :eventId
+                              and undone_at is null
+                            for update
+                            """)
+                    .param("eventId", mergeEventId)
+                    .query((rs, rowNum) -> new MergeEvent(
+                            rs.getObject("target_fragment_id", UUID.class),
+                            rs.getString("before_snapshot")
+                    ))
+                    .optional()
+                    .orElseThrow(() -> new ApiException(
+                            HttpStatus.CONFLICT,
+                            "CAREER_FRAGMENT_MERGE_NOT_UNDOABLE",
+                            "이미 되돌렸거나 찾을 수 없는 병합입니다."
+                    ));
+            jdbc.sql("""
+                            update career_fragments fragment
+                            set
+                                source_id = snapshot.source_id,
+                                kind = snapshot.kind,
+                                title = snapshot.title,
+                                description = snapshot.description,
+                                canonical_key = snapshot.canonical_key,
+                                detail = snapshot.detail,
+                                review_status = snapshot.review_status,
+                                archived_at = snapshot.archived_at,
+                                updated_at = snapshot.updated_at
+                            from jsonb_to_recordset(cast(:snapshot as jsonb)) as snapshot(
+                                id uuid,
+                                source_id uuid,
+                                kind varchar,
+                                title varchar,
+                                description text,
+                                canonical_key varchar,
+                                detail jsonb,
+                                review_status varchar,
+                                archived_at timestamptz,
+                                updated_at timestamptz
+                            )
+                            where fragment.id = snapshot.id
+                            """)
+                    .param("snapshot", event.beforeSnapshot())
+                    .update();
+            jdbc.sql("""
+                            update career_fragment_merge_events
+                            set undone_at = now()
+                            where id = :eventId
+                            """)
+                    .param("eventId", mergeEventId)
+                    .update();
+            return loadFragment(jdbc, event.targetFragmentId());
+        });
+    }
+
+    private MergePreview inspectMerge(JdbcClient jdbc, List<UUID> fragmentIds) {
+        if (fragmentIds == null || fragmentIds.size() < 2) {
+            return new MergePreview(false, "병합할 조각을 두 개 이상 선택해 주세요.", null, null, 0);
+        }
+        MergeFacts facts = jdbc.sql("""
+                        select
+                            count(*) as fragment_count,
+                            count(distinct kind) as kind_count,
+                            min(kind) as kind,
+                            count(distinct canonical_key) filter (where canonical_key is not null) as canonical_count,
+                            count(*) filter (where canonical_key is null) as canonical_missing_count,
+                            min(canonical_key) filter (where canonical_key is not null) as canonical_key,
+                            count(distinct detail) as detail_count,
+                            count(*) filter (where review_status <> 'CONFIRMED') as unconfirmed_count
+                        from career_fragments
+                        where id in (:fragmentIds)
+                          and archived_at is null
+                        """)
+                .param("fragmentIds", fragmentIds)
+                .query((rs, rowNum) -> new MergeFacts(
+                        rs.getInt("fragment_count"),
+                        rs.getInt("kind_count"),
+                        rs.getString("kind"),
+                        rs.getInt("canonical_count"),
+                        rs.getInt("canonical_missing_count"),
+                        rs.getString("canonical_key"),
+                        rs.getInt("detail_count"),
+                        rs.getInt("unconfirmed_count")
+                ))
+                .single();
+        if (facts.fragmentCount() != fragmentIds.size()) {
+            return new MergePreview(false, "보관되었거나 존재하지 않는 조각이 포함되어 있습니다.", null, null, facts.fragmentCount());
+        }
+        if (facts.unconfirmedCount() > 0) {
+            return new MergePreview(false, "검토가 끝난 확정 조각만 병합할 수 있습니다.", facts.kind(), facts.canonicalKey(), facts.fragmentCount());
+        }
+        if (facts.kindCount() != 1) {
+            return new MergePreview(false, "같은 종류의 커리어 조각만 병합할 수 있습니다.", null, null, facts.fragmentCount());
+        }
+        if (facts.canonicalCount() > 1) {
+            return new MergePreview(false, "서로 다른 원자 역량으로 확인된 조각은 하나로 병합할 수 없습니다.", facts.kind(), null, facts.fragmentCount());
+        }
+        if ("SKILL".equals(facts.kind()) && facts.canonicalMissingCount() > 0) {
+            return new MergePreview(false, "아직 원자 역량 식별자가 없는 기술 조각은 먼저 범위를 확인해야 합니다.", facts.kind(), null, facts.fragmentCount());
+        }
+        if ("SKILL".equals(facts.kind()) && facts.detailCount() > 1) {
+            return new MergePreview(false, "같은 기술명이어도 검증 범위가 다른 조각은 병합할 수 없습니다.", facts.kind(), facts.canonicalKey(), facts.fragmentCount());
+        }
+        return new MergePreview(true, "병합할 수 있습니다. 원본은 보관되며 한 번 되돌릴 수 있습니다.", facts.kind(), facts.canonicalKey(), facts.fragmentCount());
     }
 
     public void archiveFragment(UUID userId, UUID fragmentId, boolean archived) {
@@ -490,7 +736,7 @@ public class CareerRepositoryService {
                 .param("sourceId", sourceId)
                 .query((rs, rowNum) -> mapFragment(rs))
                 .list();
-        return new SourceDetail(source, rawText, fragments);
+        return new SourceDetail(source, sensitiveText.decrypt(rawText), fragments);
     }
 
     private FragmentView loadFragment(
@@ -649,5 +895,17 @@ public class CareerRepositoryService {
             int size,
             long total
     ) {
+    }
+
+    public record MergePreview(boolean compatible, String reason, String kind, String canonicalKey, int fragmentCount) {
+    }
+
+    public record MergeResult(FragmentView fragment, UUID undoId) {
+    }
+
+    private record MergeFacts(int fragmentCount, int kindCount, String kind, int canonicalCount, int canonicalMissingCount, String canonicalKey, int detailCount, int unconfirmedCount) {
+    }
+
+    private record MergeEvent(UUID targetFragmentId, String beforeSnapshot) {
     }
 }

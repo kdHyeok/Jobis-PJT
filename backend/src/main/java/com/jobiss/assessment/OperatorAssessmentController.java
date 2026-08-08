@@ -35,6 +35,14 @@ public class OperatorAssessmentController {
         return service.operatorReviews(operatorId, status);
     }
 
+    @GetMapping("/{sessionId}")
+    CompetencyAssessmentService.AssessmentView detail(
+            @AuthenticationPrincipal UUID operatorId,
+            @PathVariable UUID sessionId
+    ) {
+        return service.operatorReview(operatorId, sessionId);
+    }
+
     @PostMapping("/{sessionId}/resolve")
     ResponseEntity<Void> resolve(
             @AuthenticationPrincipal UUID operatorId,

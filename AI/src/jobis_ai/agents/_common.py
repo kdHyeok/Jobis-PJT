@@ -291,7 +291,12 @@ def match_resume(name: str, library: list[dict]) -> dict | None:
     for entry in library:
         label = str(entry.get("_label") or "")
         origin = str(entry.get("_origin") or "")
-        if (label and (key in label or label in key)) or (origin and origin in key.lower()):
+        # 사용자는 출처를 한국어로 부른다("커리어 저장소 이력서로 분석해줘") — origin 키
+        # (career_summary)만 비교하면 절대 맞지 않는다(실측 2026-08-07 13:22).
+        origin_ko = _RESUME_ORIGIN_KO.get(origin, "")
+        if ((label and (key in label or label in key))
+                or (origin and origin in key.lower())
+                or (origin_ko and (origin_ko in key or key in origin_ko))):
             return entry
     return None
 

@@ -4,6 +4,8 @@ import com.jobiss.analysis.AiAnalysisClient;
 import com.jobiss.analysis.AiContracts;
 import com.jobiss.analysis.AiServiceException;
 import com.jobiss.db.RlsTransactionExecutor;
+import com.jobiss.security.SensitiveTextCipher;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,6 +16,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.net.InetAddress;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @ConditionalOnProperty(name = "jobiss.ai.worker-enabled", havingValue = "true")
@@ -25,27 +30,52 @@ public class CareerExtractionWorker {
     private final RlsTransactionExecutor rls;
     private final AiAnalysisClient aiClient;
     private final ObjectMapper objectMapper;
+    private final SensitiveTextCipher sensitiveText;
     private final String workerId;
+    private final ExecutorService executor;
+    private final AtomicBoolean active = new AtomicBoolean();
 
     public CareerExtractionWorker(
             JdbcClient jdbcClient,
             RlsTransactionExecutor rls,
             AiAnalysisClient aiClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            SensitiveTextCipher sensitiveText
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
+        this.sensitiveText = sensitiveText;
         this.workerId = hostName() + "-career-" + UUID.randomUUID();
+        this.executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName("jobiss-career-worker");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     @Scheduled(fixedDelayString = "${jobiss.ai.poll-delay-ms:3000}")
     public void processOne() {
-        ClaimedSource claimed = claim();
-        if (claimed == null) {
+        if (!active.compareAndSet(false, true)) {
             return;
         }
+        ClaimedSource claimed = claim();
+        if (claimed == null) {
+            active.set(false);
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                process(claimed);
+            } finally {
+                active.set(false);
+            }
+        });
+    }
+
+    private void process(ClaimedSource claimed) {
         try {
             AiContracts.CareerExtractionRequest request = loadRequest(claimed);
             AiContracts.CareerExtractionResponse response = aiClient.extractCareer(request);
@@ -56,6 +86,23 @@ public class CareerExtractionWorker {
         } catch (Exception exception) {
             log.warn("Career extraction {} failed: {}", claimed.id(), exception.getMessage());
             fail(claimed, exception);
+        }
+    }
+
+    @PreDestroy
+    void shutdown() {
+        interruptActiveJob();
+        executor.shutdownNow();
+    }
+
+    private void interruptActiveJob() {
+        try {
+            jdbcClient.sql("select interrupt_auxiliary_ai_jobs(:workerId)")
+                    .param("workerId", workerId)
+                    .query(Integer.class)
+                    .single();
+        } catch (RuntimeException exception) {
+            log.warn("Could not release active career job during shutdown: {}", exception.getMessage());
         }
     }
 
@@ -76,7 +123,7 @@ public class CareerExtractionWorker {
 
     private AiContracts.CareerExtractionRequest loadRequest(ClaimedSource claimed) {
         return rls.write(claimed.userId(), jdbc -> {
-            jdbc.sql("""
+            int updated = jdbc.sql("""
                             update career_sources
                             set
                                 status = 'RUNNING',
@@ -88,11 +135,15 @@ public class CareerExtractionWorker {
                                 error_code = null,
                                 error_message = null
                             where id = :sourceId
+                              and status = 'QUEUED'
                             """)
                     .param("workerId", workerId)
                     .param("attemptCount", claimed.attemptCount())
                     .param("sourceId", claimed.id())
                     .update();
+            if (updated == 0) {
+                throw new IllegalStateException("career source is no longer queued");
+            }
             return jdbc.sql("""
                             select id, source_type, title, source_url, raw_text
                             from career_sources
@@ -104,7 +155,7 @@ public class CareerExtractionWorker {
                             rs.getString("source_type"),
                             rs.getString("title"),
                             rs.getString("source_url"),
-                            rs.getString("raw_text")
+                            sensitiveText.decrypt(rs.getString("raw_text"))
                     ))
                     .single();
         });
@@ -115,6 +166,19 @@ public class CareerExtractionWorker {
             AiContracts.CareerExtractionResponse response
     ) {
         rls.write(claimed.userId(), jdbc -> {
+            boolean active = jdbc.sql("""
+                            select exists (
+                                select 1 from career_sources
+                                where id = :sourceId and status = 'RUNNING'
+                            )
+                            """)
+                    .param("sourceId", claimed.id())
+                    .query(Boolean.class)
+                    .single();
+            if (!active) {
+                finish(jdbc, claimed);
+                return null;
+            }
             jdbc.sql("""
                             update career_sources
                             set
@@ -213,6 +277,7 @@ public class CareerExtractionWorker {
                                 completed_at = now(),
                                 locked_until = null
                             where id = :sourceId
+                              and status = 'RUNNING'
                             """)
                     .param("errorCode", classify(exception))
                     .param("errorMessage", safeMessage(exception))

@@ -100,8 +100,8 @@ def completed_analysis() -> AnalysisResponse:
 # ---------------------------------------------------------------------------
 # 인증
 # ---------------------------------------------------------------------------
-def test_missing_secret_header_is_422():
-    assert client.post("/v1/analyses", json=analysis_request()).status_code == 422
+def test_missing_secret_header_is_401():
+    assert client.post("/v1/analyses", json=analysis_request()).status_code == 401
 
 
 def test_wrong_secret_is_401():
@@ -569,7 +569,7 @@ def test_posting_body_lines_are_not_mistaken_for_a_request():
 # 세션 상태 조회 (D128 — 프로토타입 2.0.0 GET /session 이식)
 # ---------------------------------------------------------------------------
 def test_session_state_requires_secret():
-    assert client.get("/v1/sessions/abc").status_code == 422
+    assert client.get("/v1/sessions/abc").status_code == 401
     assert client.get("/v1/sessions/abc",
                       headers={"X-JOBISS-AI-SECRET": "wrong"}).status_code == 401
 

@@ -1,0 +1,351 @@
+{
+  "$defs": {
+    "CorrectionReason": {
+      "enum": [
+        "OCR_CORRECTION",
+        "STRUCTURE_CORRECTION",
+        "MISSING_TEXT",
+        "DUPLICATE_TEXT",
+        "OTHER"
+      ],
+      "title": "CorrectionReason",
+      "type": "string"
+    },
+    "ExtractionMethod": {
+      "enum": [
+        "DIRECT_TEXT",
+        "HTML",
+        "IFRAME",
+        "OCR",
+        "VLM",
+        "USER_PASTE"
+      ],
+      "title": "ExtractionMethod",
+      "type": "string"
+    },
+    "ExtractionSegment": {
+      "additionalProperties": false,
+      "properties": {
+        "segmentId": {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Segmentid",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "method": {
+          "$ref": "#/$defs/ExtractionMethod"
+        },
+        "sourceLocator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "overlapGroup": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Overlapgroup"
+        },
+        "warnings": {
+          "items": {
+            "$ref": "#/$defs/WarningItem"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "segmentId",
+        "text",
+        "method"
+      ],
+      "title": "ExtractionSegment",
+      "type": "object"
+    },
+    "PostingCorrection": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "minLength": 1,
+          "title": "Field",
+          "type": "string"
+        },
+        "before": {
+          "title": "Before",
+          "type": "string"
+        },
+        "after": {
+          "minLength": 1,
+          "title": "After",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/CorrectionReason"
+        }
+      },
+      "required": [
+        "field",
+        "before",
+        "after",
+        "reason"
+      ],
+      "title": "PostingCorrection",
+      "type": "object"
+    },
+    "SourceLocator": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "imageIndex": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Imageindex"
+        },
+        "boundingBox": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Boundingbox"
+        },
+        "charStart": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Charstart"
+        },
+        "charEnd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Charend"
+        }
+      },
+      "title": "SourceLocator",
+      "type": "object"
+    },
+    "VerifiedBy": {
+      "enum": [
+        "USER",
+        "OPERATOR",
+        "TRUSTED_DIRECT_SOURCE"
+      ],
+      "title": "VerifiedBy",
+      "type": "string"
+    },
+    "WarningItem": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/WarningSeverity",
+          "default": "WARNING"
+        },
+        "evidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evidenceids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WarningItem",
+      "type": "object"
+    },
+    "WarningSeverity": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
+      "title": "WarningSeverity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "default": "jobis.ai.v3alpha1",
+      "title": "Contractversion",
+      "type": "string"
+    },
+    "verifiedSnapshotId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Verifiedsnapshotid",
+      "type": "string"
+    },
+    "sourceDocumentId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Sourcedocumentid",
+      "type": "string"
+    },
+    "sourceRevision": {
+      "minimum": 1,
+      "title": "Sourcerevision",
+      "type": "integer"
+    },
+    "previousSnapshotId": {
+      "anyOf": [
+        {
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Previoussnapshotid"
+    },
+    "verifiedText": {
+      "minLength": 1,
+      "title": "Verifiedtext",
+      "type": "string"
+    },
+    "evidenceSegments": {
+      "items": {
+        "$ref": "#/$defs/ExtractionSegment"
+      },
+      "minItems": 1,
+      "title": "Evidencesegments",
+      "type": "array"
+    },
+    "corrections": {
+      "items": {
+        "$ref": "#/$defs/PostingCorrection"
+      },
+      "title": "Corrections",
+      "type": "array"
+    },
+    "verifiedBy": {
+      "$ref": "#/$defs/VerifiedBy"
+    },
+    "verifiedAt": {
+      "format": "date-time",
+      "title": "Verifiedat",
+      "type": "string"
+    },
+    "snapshotHash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Snapshothash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "verifiedSnapshotId",
+    "sourceDocumentId",
+    "sourceRevision",
+    "verifiedText",
+    "evidenceSegments",
+    "verifiedBy",
+    "verifiedAt",
+    "snapshotHash"
+  ],
+  "title": "VerifiedPostingSnapshot",
+  "type": "object"
+}

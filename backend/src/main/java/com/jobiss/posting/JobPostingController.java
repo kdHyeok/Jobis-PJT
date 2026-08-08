@@ -1,5 +1,7 @@
 package com.jobiss.posting;
 
+import com.jobiss.common.WebUrls;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -25,9 +27,21 @@ import java.util.UUID;
 public class JobPostingController {
 
     private final JobPostingService service;
+    private final AgentPostingUrlImportService urlImportService;
 
-    public JobPostingController(JobPostingService service) {
+    public JobPostingController(
+            JobPostingService service,
+            AgentPostingUrlImportService urlImportService
+    ) {
         this.service = service;
+        this.urlImportService = urlImportService;
+    }
+
+    @PostMapping("/import-url")
+    AgentPostingUrlImportService.ImportedPosting importUrl(
+            @Valid @RequestBody ImportUrlRequest request
+    ) {
+        return urlImportService.importUrl(request.sourceUrl());
     }
 
     @PostMapping
@@ -124,11 +138,27 @@ public class JobPostingController {
         public boolean isSourceConsistent() {
             return !"URL".equals(sourceType) || (sourceUrl != null && !sourceUrl.isBlank());
         }
+
+        @AssertTrue(message = "공고 URL은 http 또는 https 주소여야 합니다.")
+        public boolean isSourceUrlSafe() {
+            return WebUrls.isBlankOrHttpUrl(sourceUrl);
+        }
+    }
+
+    public record ImportUrlRequest(@NotBlank @Size(max = 2_000) String sourceUrl) {
+        @AssertTrue(message = "공고 URL은 http 또는 https 주소여야 합니다.")
+        public boolean isSourceUrlSafe() {
+            return WebUrls.isHttpUrl(sourceUrl);
+        }
     }
 
     public record UpdatePostingRequest(
             @Size(max = 2000) String sourceUrl,
             @NotBlank @Size(max = 100_000) String rawText
     ) {
+        @AssertTrue(message = "공고 URL은 http 또는 https 주소여야 합니다.")
+        public boolean isSourceUrlSafe() {
+            return WebUrls.isBlankOrHttpUrl(sourceUrl);
+        }
     }
 }

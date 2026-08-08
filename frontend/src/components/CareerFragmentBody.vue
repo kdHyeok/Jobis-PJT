@@ -6,10 +6,7 @@ const props = defineProps<{
   detail?: Record<string, unknown> | null;
 }>();
 
-// 조각의 정형 칸 → 화면 라벨. **여기 없는 키는 보여주지 않는다** — detail 은 AI 가 채우는
-// 자유 jsonb 라서, 화이트리스트가 없으면 내부 키·근거 원문이 그대로 화면으로 샌다.
-// achievements 는 description 본문에 이미 줄로 들어 있어 칩으로 또 세지 않는다.
-const LABELS: Record<string, string> = {
+const labels: Record<string, string> = {
   period: "기간",
   teamSize: "팀 규모",
   role: "담당",
@@ -18,15 +15,17 @@ const LABELS: Record<string, string> = {
   techStack: "기술",
 };
 
-function format(value: unknown): string {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+function format(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  }
   return value == null ? "" : String(value).trim();
 }
 
 const chips = computed(() =>
-  Object.entries(LABELS)
+  Object.entries(labels)
     .map(([key, label]) => ({ label, value: format(props.detail?.[key]) }))
-    .filter((chip) => chip.value),
+    .filter((item) => item.value),
 );
 </script>
 
@@ -39,8 +38,7 @@ const chips = computed(() =>
   </ul>
 </template>
 
-<style>
-/* 서술은 여러 줄로 들어온다(요약 + 성과 문장). 줄바꿈을 살려야 성과가 한 덩어리로 뭉치지 않는다. */
+<style scoped>
 .fragment-body {
   white-space: pre-line;
 }

@@ -834,13 +834,20 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # **아직 묻고 있는 중이면 비우지 않는다**(D158: 부분 실행 턴) — 이 턴에 가벼운 담당만
     # 돌았고 무거운 것은 여전히 대기다. 여기서 비우면 아래에서 다시 심어야 한다.
     if session.get("pendingConsent") and not dispatch.ask:
-        # 승인은 감사 대상이다 — 물은 것만 남기고 **승인을 안 남기면** "몇 번 물어 몇 번
-        # 진행됐나"의 분모만 있고 분자가 없다(위임 거부에서 겪은 것과 같은 실수).
-        trace.emit("consent_granted", "동의 소진 — 무거운 작업 실행", {
-            "granted": list(session.get("pendingConsent") or []),
-            "agents": list(dispatch.agents),
-        })
-        _stage({"pendingConsent": []})
+        # **동의한 에이전트가 실제로 실행될 때만 소진한다.** 플래너가 동의 응답 턴에 빈
+        # 플랜을 내면 폴백(대화)이 도는데, 그때도 소진하면 동의가 증발해 사용자가 같은
+        # 질문을 다시 받는다(실측 2026-08-07 12:13: granted=[fit_analysis],
+        # agents=[career_chat] — 분석은 안 돌고 통과권만 사라졌다).
+        granted = [n for n in (session.get("pendingConsent") or [])
+                   if n in dispatch.agents]
+        if granted:
+            # 승인은 감사 대상이다 — 물은 것만 남기고 **승인을 안 남기면** "몇 번 물어 몇 번
+            # 진행됐나"의 분모만 있고 분자가 없다(위임 거부에서 겪은 것과 같은 실수).
+            trace.emit("consent_granted", "동의 소진 — 무거운 작업 실행", {
+                "granted": granted,
+                "agents": list(dispatch.agents),
+            })
+            _stage({"pendingConsent": []})
 
     # 검증기가 계획을 바꿨는지 — 아래 로그와 계획 설명 문장이 함께 쓴다.
     plan_changed = plan is not None and tuple(plan.agents) != tuple(dispatch.agents)

@@ -60,10 +60,16 @@ def main() -> None:
         "ops/jobis-db-restore-drill.timer",
         "ops/DEPLOYMENT.md",
         "ops/SERVER_BASELINE.md",
-        "backend/src/main/resources/db/migration/V27__legacy_import_audit.sql",
         ".gitlab/merge_request_templates/Release.md",
     ):
         require((ROOT / required).is_file(), f"required file missing: {required}")
+
+    # 마이그레이션 번호는 중복 정리·리베이스로 바뀐다(실측: V27 -> V63). 파일명을 고정하면
+    # 번호가 바뀔 때마다 릴리스 검증이 깨지므로, 있어야 하는 것은 "그 마이그레이션"이지
+    # "그 번호"가 아니다.
+    require(
+        any(ROOT.glob("backend/src/main/resources/db/migration/V*__legacy_import_audit.sql")),
+        "required migration missing: V*__legacy_import_audit.sql")
 
     local_compose = text("compose.yaml")
     require("context: ./AI" in local_compose, "local Compose does not build AI/")
@@ -127,6 +133,9 @@ def main() -> None:
     stages = re.findall(r"stage\('([^']+)'\)", pipeline)
     expected = [
         "Master release: verify",
+        # 서비스별 트리 해시를 직전 통과분과 비교해 재실행을 생략할지 정한다.
+        # Jenkins 와 운영이 같은 호스트라 병렬화 대신 이 방식을 쓴다.
+        "CI plan",
         "Backend: test & package",
         "AI v2bridge: test",
         "Frontend: typecheck & build",
@@ -147,8 +156,11 @@ def main() -> None:
     require("stage('Docker images: build')" in pipeline and
             "when { branch 'develop' }" in pipeline,
             "develop image build gate is missing")
-    require(pipeline.count("when { not { branch 'master' } }") == 5,
-            "master must skip the five CI stages already passed by develop")
+    # 게이트는 형태가 아니라 개수로 본다. 재실행 생략 조건이 붙으면서 일부 스테이지가
+    # `when { allOf { not { branch 'master' } ... } }` 로 바뀌었으므로 한 줄 형태만 세면
+    # 안 된다. master 에서 건너뛰어야 하는 스테이지는 'CI plan' + CI 5개 = 6개다.
+    require(pipeline.count("not { branch 'master' }") == 6,
+            "master must skip the CI plan and the five CI stages already passed by develop")
     require("stage('Master release: verify')" in pipeline and
             "git diff --quiet \"$GIT_COMMIT\" \"$tested_develop_sha\"" in pipeline and
             "git merge-base --is-ancestor \"$tested_develop_sha\" origin/develop" in pipeline,
@@ -162,11 +174,18 @@ def main() -> None:
             "master does not promote tested develop images for both registry modes")
     require(pipeline.count("when { branch 'master' }") >= 3,
             "master release, promotion, or deploy gate is missing")
-    require("python -m venv /tmp/jobis-rag-venv" in pipeline and
-            "rank_bm25==0.2.2" in pipeline and
-            "psycopg[binary]==3.2.9" in pipeline and
-            "numpy==2.2.6" in pipeline and
-            "/tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v" in pipeline,
+    # 서비스별 "무엇을 검사하는가"는 <서비스>/ci/test.sh 가 소유하고, Jenkinsfile 은 그것을
+    # 호출하는 뼈대만 갖는다. 불변식은 둘로 나뉘므로 양쪽을 함께 본다 — 호출이 사라져도,
+    # 스크립트 안의 게이트가 느슨해져도 릴리스를 막아야 한다.
+    for service in ("backend", "AI", "frontend", "RAG"):
+        require(f"sh {service}/ci/test.sh" in pipeline,
+                f"pipeline does not run the service CI script: {service}/ci/test.sh")
+
+    rag_ci = text("RAG/ci/test.sh")
+    require("rank_bm25==0.2.2" in rag_ci and
+            "psycopg[binary]==3.2.9" in rag_ci and
+            "numpy==2.2.6" in rag_ci and
+            "-m unittest discover -s RAG/tests -v" in rag_ci,
             "RAG CI dependency or strict test gate is missing")
     require("docker { image 'node:22-alpine' }" in pipeline,
             "frontend CI Node image does not match the Docker build")

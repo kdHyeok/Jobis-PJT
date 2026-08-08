@@ -1,0 +1,747 @@
+{
+  "source-document": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "sourceDocumentId": "src-example",
+    "inputType": "URL",
+    "originalInput": "https://example.invalid/posting/1",
+    "canonicalUrl": "https://example.invalid/posting/1",
+    "capturedAt": "2026-08-04T03:00:00Z",
+    "extractionRevision": 1,
+    "extractorVersion": "source-extractor-3.0.0",
+    "canonicalInputHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "rawText": "예시회사 백엔드 개발자. 신입. Java 경험 필수.",
+    "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "segments": [
+      {
+        "segmentId": "seg-company",
+        "text": "예시회사",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.99,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-title",
+        "text": "백엔드 개발자",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.99,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-role",
+        "text": "백엔드 개발",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.97,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-exp",
+        "text": "신입",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.99,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-req",
+        "text": "Java 경험 필수",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.98,
+        "overlapGroup": null,
+        "warnings": []
+      }
+    ],
+    "warnings": [],
+    "status": "AWAITING_VERIFICATION"
+  },
+  "source-acquisition-request": {
+    "inputType": "TEXT",
+    "entryPoint": "CHAT",
+    "extractionRevision": 1,
+    "text": "백엔드 개발자. 신입. Java 경험 필수.",
+    "url": null,
+    "imageBase64": null,
+    "imageMediaType": null,
+    "originalFilename": null
+  },
+  "source-verification-request": {
+    "sourceDocument": {
+      "contractVersion": "jobis.ai.v3alpha1",
+      "sourceDocumentId": "src-example",
+      "inputType": "URL",
+      "originalInput": "https://example.invalid/posting/1",
+      "canonicalUrl": "https://example.invalid/posting/1",
+      "capturedAt": "2026-08-04T03:00:00Z",
+      "extractionRevision": 1,
+      "extractorVersion": "source-extractor-3.0.0",
+      "canonicalInputHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "rawText": "예시회사 백엔드 개발자. 신입. Java 경험 필수.",
+      "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "segmentId": "seg-company",
+          "text": "예시회사",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-title",
+          "text": "백엔드 개발자",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-role",
+          "text": "백엔드 개발",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.97,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-exp",
+          "text": "신입",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-req",
+          "text": "Java 경험 필수",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.98,
+          "overlapGroup": null,
+          "warnings": []
+        }
+      ],
+      "warnings": [],
+      "status": "AWAITING_VERIFICATION"
+    },
+    "verifiedText": "예시회사 백엔드 개발자. 신입. Java 경험 필수.",
+    "corrections": [],
+    "verifiedBy": "USER",
+    "previousSnapshotId": null
+  },
+  "source-verification-result": {
+    "sourceDocument": {
+      "contractVersion": "jobis.ai.v3alpha1",
+      "sourceDocumentId": "src-example",
+      "inputType": "URL",
+      "originalInput": "https://example.invalid/posting/1",
+      "canonicalUrl": "https://example.invalid/posting/1",
+      "capturedAt": "2026-08-04T03:00:00Z",
+      "extractionRevision": 1,
+      "extractorVersion": "source-extractor-3.0.0",
+      "canonicalInputHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "rawText": "예시회사 백엔드 개발자. 신입. Java 경험 필수.",
+      "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "segments": [
+        {
+          "segmentId": "seg-company",
+          "text": "예시회사",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-title",
+          "text": "백엔드 개발자",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-role",
+          "text": "백엔드 개발",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.97,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-exp",
+          "text": "신입",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-req",
+          "text": "Java 경험 필수",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.98,
+          "overlapGroup": null,
+          "warnings": []
+        }
+      ],
+      "warnings": [],
+      "status": "VERIFIED"
+    },
+    "verifiedSnapshot": {
+      "contractVersion": "jobis.ai.v3alpha1",
+      "verifiedSnapshotId": "snapshot-example",
+      "sourceDocumentId": "src-example",
+      "sourceRevision": 1,
+      "previousSnapshotId": null,
+      "verifiedText": "예시회사 백엔드 개발자. 신입. Java 경험 필수.",
+      "evidenceSegments": [
+        {
+          "segmentId": "seg-company",
+          "text": "예시회사",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-title",
+          "text": "백엔드 개발자",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-role",
+          "text": "백엔드 개발",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.97,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-exp",
+          "text": "신입",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.99,
+          "overlapGroup": null,
+          "warnings": []
+        },
+        {
+          "segmentId": "seg-req",
+          "text": "Java 경험 필수",
+          "method": "HTML",
+          "sourceLocator": null,
+          "confidence": 0.98,
+          "overlapGroup": null,
+          "warnings": []
+        }
+      ],
+      "corrections": [],
+      "verifiedBy": "USER",
+      "verifiedAt": "2026-08-04T03:05:00Z",
+      "snapshotHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "verified-posting-snapshot": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "verifiedSnapshotId": "snapshot-example",
+    "sourceDocumentId": "src-example",
+    "sourceRevision": 1,
+    "previousSnapshotId": null,
+    "verifiedText": "예시회사 백엔드 개발자. 신입. Java 경험 필수.",
+    "evidenceSegments": [
+      {
+        "segmentId": "seg-company",
+        "text": "예시회사",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.99,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-title",
+        "text": "백엔드 개발자",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.99,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-role",
+        "text": "백엔드 개발",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.97,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-exp",
+        "text": "신입",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.99,
+        "overlapGroup": null,
+        "warnings": []
+      },
+      {
+        "segmentId": "seg-req",
+        "text": "Java 경험 필수",
+        "method": "HTML",
+        "sourceLocator": null,
+        "confidence": 0.98,
+        "overlapGroup": null,
+        "warnings": []
+      }
+    ],
+    "corrections": [],
+    "verifiedBy": "USER",
+    "verifiedAt": "2026-08-04T03:05:00Z",
+    "snapshotHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "posting-interpretation-request": {
+    "sourceDocument": {
+      "contractVersion": "jobis.ai.v3alpha1",
+      "sourceDocumentId": "src-interpret",
+      "inputType": "TEXT",
+      "originalInput": "백엔드 개발자 모집. 신입. Java 경험 필수.",
+      "canonicalUrl": null,
+      "capturedAt": "2026-08-04T03:00:00Z",
+      "extractionRevision": 1,
+      "extractorVersion": "source-extractor-3.0.0",
+      "canonicalInputHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "rawText": "백엔드 개발자 모집. 신입. Java 경험 필수.",
+      "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "segments": [
+        {
+          "segmentId": "seg-all",
+          "text": "백엔드 개발자 모집. 신입. Java 경험 필수.",
+          "method": "USER_PASTE",
+          "sourceLocator": {
+            "page": null,
+            "imageIndex": null,
+            "boundingBox": null,
+            "charStart": 0,
+            "charEnd": 29
+          },
+          "confidence": 1.0,
+          "overlapGroup": null,
+          "warnings": []
+        }
+      ],
+      "warnings": [],
+      "status": "VERIFIED"
+    },
+    "verifiedSnapshot": {
+      "contractVersion": "jobis.ai.v3alpha1",
+      "verifiedSnapshotId": "snapshot-interpret",
+      "sourceDocumentId": "src-interpret",
+      "sourceRevision": 1,
+      "previousSnapshotId": null,
+      "verifiedText": "백엔드 개발자 모집. 신입. Java 경험 필수.",
+      "evidenceSegments": [
+        {
+          "segmentId": "seg-all",
+          "text": "백엔드 개발자 모집. 신입. Java 경험 필수.",
+          "method": "USER_PASTE",
+          "sourceLocator": {
+            "page": null,
+            "imageIndex": null,
+            "boundingBox": null,
+            "charStart": 0,
+            "charEnd": 29
+          },
+          "confidence": 1.0,
+          "overlapGroup": null,
+          "warnings": []
+        }
+      ],
+      "corrections": [],
+      "verifiedBy": "USER",
+      "verifiedAt": "2026-08-04T03:05:00Z",
+      "snapshotHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "asOfDate": "2026-08-04",
+    "approvedRoleCatalog": []
+  },
+  "structured-posting": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "analysisVersion": "posting-interpreter-3.0.0",
+    "verifiedSnapshotId": "snapshot-example",
+    "company": {
+      "displayName": "예시회사",
+      "canonicalCompanyId": null,
+      "evidenceIds": [
+        "seg-company"
+      ],
+      "confidence": 0.99
+    },
+    "postingTitle": "백엔드 개발자",
+    "postingTitleEvidenceIds": [
+      "seg-title"
+    ],
+    "positions": [
+      {
+        "positionId": "pos-backend",
+        "sourceTitle": "백엔드 개발자",
+        "role": {
+          "family": "SOFTWARE_ENGINEERING",
+          "specialization": "WEB_BACKEND",
+          "canonicalRoleId": "role.web_backend",
+          "status": "CANDIDATE",
+          "confidence": 0.97,
+          "evidenceIds": [
+            "seg-role"
+          ]
+        },
+        "experience": {
+          "kind": "NEW_GRADUATE",
+          "minMonths": null,
+          "maxMonths": null,
+          "experiencedMinMonths": null,
+          "confidence": 0.99,
+          "evidenceIds": [
+            "seg-exp"
+          ]
+        },
+        "responsibilities": [],
+        "requirements": [
+          {
+            "requirementId": "req-java",
+            "sourceText": "Java 경험 필수",
+            "atomicText": "Java 개발 경험",
+            "obligation": "REQUIRED",
+            "category": "TECHNOLOGY",
+            "appliesToPositionIds": [
+              "pos-backend"
+            ],
+            "evidenceIds": [
+              "seg-req"
+            ],
+            "confidence": 0.98,
+            "normalizationStatus": "PENDING",
+            "warnings": []
+          }
+        ],
+        "warnings": []
+      }
+    ],
+    "sharedConditions": [],
+    "applicationDeadline": null,
+    "applicationDeadlineEvidenceIds": [],
+    "postingStatus": "UNKNOWN",
+    "ambiguities": [],
+    "warnings": []
+  },
+  "user-competency-evidence": {
+    "competencyId": "lang.java",
+    "displayName": "Java",
+    "scopeDefinition": "Java 문법과 표준 라이브러리를 사용해 일반적인 프로그램을 구현하는 범위",
+    "claimState": "CLAIMED",
+    "evidenceState": "NO_EVIDENCE",
+    "verificationState": "NOT_VERIFIED",
+    "claimedLevel": 2,
+    "verifiedLevel": 0,
+    "evidenceRefs": [],
+    "confidence": 0.7
+  },
+  "requirement-assessment": {
+    "requirementId": "req-java",
+    "status": "CLAIMED_ONLY",
+    "required": true,
+    "includedInDenominator": true,
+    "basis": "USER_CLAIM",
+    "matchedCompetencies": [
+      "lang.java"
+    ],
+    "matchedFormalFacts": [],
+    "userEvidenceRefs": [],
+    "postingEvidenceIds": [
+      "seg-req"
+    ],
+    "reason": "기술명은 확인했지만 프로젝트나 검증 근거가 없습니다.",
+    "confidence": 0.7
+  },
+  "fit-assessment": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "fitAssessmentId": "fit-example",
+    "commonAnalysisId": "analysis-example",
+    "selectedPositionId": "pos-backend",
+    "selectedExperienceTrack": "NEW_GRADUATE",
+    "userEvidenceSetId": "evidence-set-example",
+    "userEvidenceRevision": 1,
+    "policyVersion": "fit-policy-0.1",
+    "formalEligibility": "UNKNOWN",
+    "requirementAssessments": [
+      {
+        "requirementId": "req-java",
+        "status": "CLAIMED_ONLY",
+        "required": true,
+        "includedInDenominator": true,
+        "basis": "USER_CLAIM",
+        "matchedCompetencies": [
+          "lang.java"
+        ],
+        "matchedFormalFacts": [],
+        "userEvidenceRefs": [],
+        "postingEvidenceIds": [
+          "seg-req"
+        ],
+        "reason": "기술명은 확인했지만 프로젝트나 검증 근거가 없습니다.",
+        "confidence": 0.7
+      }
+    ],
+    "metrics": {
+      "requiredTotal": 1,
+      "requiredKnown": 1,
+      "requiredVerifiedMet": 0,
+      "preferredTotal": 0,
+      "claimedReadinessPercent": 100.0,
+      "capabilityReadinessPercent": null,
+      "evidencedReadinessPercent": 0.0,
+      "verifiedReadinessPercent": 0.0,
+      "readinessUnavailableReason": null
+    },
+    "strengths": [],
+    "gaps": [
+      "Java 경험 근거와 수준 검증이 필요합니다."
+    ],
+    "uncertainties": [],
+    "verdictProposal": "STRENGTHEN_THEN_APPLY",
+    "audit": {
+      "matcherVersion": "fit-matcher-3.0.0",
+      "policyVersion": "fit-policy-0.1",
+      "provider": "fixture",
+      "model": "fixture-model",
+      "generationAttempts": 1,
+      "generationDurationMs": 10,
+      "evaluatedRequirementIds": [
+        "req-java"
+      ],
+      "usedUserEvidenceRefs": [],
+      "ignoredUserEvidenceRefs": []
+    },
+    "warnings": []
+  },
+  "company-project-blueprint": {
+    "blueprintId": "project-blueprint-example",
+    "commonAnalysisId": "analysis-example",
+    "selectedPositionId": "pos-backend",
+    "title": "Example Games backend readiness project",
+    "objective": "Build a runnable backend slice for the target company.",
+    "domainContext": "Game backend service",
+    "tasks": [
+      {
+        "taskKey": "task.draft.java-service",
+        "necessity": "REQUIRED",
+        "title": "Implement the Java domain core",
+        "objective": "Represent the service domain with collaborating Java objects.",
+        "acceptanceCriteria": [
+          "The service runs",
+          "Automated tests pass"
+        ],
+        "capabilityKeys": [
+          "java.classes-objects"
+        ],
+        "dependsOnTaskKeys": [],
+        "requirementIds": [
+          "req-java"
+        ]
+      }
+    ],
+    "unresolvedRequirementIds": [],
+    "audit": {
+      "plannerVersion": "company-project-planner-3.4.0",
+      "graphVersion": "0.1.0-alpha.1",
+      "graphContentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "provider": "fixture",
+      "model": "fixture-model",
+      "generationAttempts": 1,
+      "generationDurationMs": 10,
+      "generationEffort": "medium",
+      "generationEffortHistory": [
+        "medium"
+      ],
+      "providerDurationMs": 9,
+      "providerApiDurationMs": 8,
+      "inputTokens": 120,
+      "outputTokens": 45,
+      "cacheCreationInputTokens": 0,
+      "cacheReadInputTokens": 0,
+      "totalCostUsd": 0.001,
+      "providerSessionIds": [
+        "session-fixture-project"
+      ]
+    },
+    "warnings": []
+  },
+  "roadmap-proposal": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "proposalId": "proposal-example",
+    "basedOnAnalysisId": "analysis-example",
+    "basedOnFitAssessmentId": "fit-example",
+    "basedOnNormalizationId": "normalization-example",
+    "basedOnRoadmapVersion": 0,
+    "selectedPositionId": "pos-backend",
+    "capabilityGraphVersion": "graph-example-1",
+    "operations": [
+      {
+        "operationId": "op-java",
+        "action": "CREATE_NODE",
+        "nodeKind": "CAPABILITY",
+        "canonicalKey": "lang.java",
+        "technologyKey": "lang.java",
+        "graphNodeVersion": 1,
+        "verificationMethods": [
+          "IMPLEMENT",
+          "EXPLAIN"
+        ],
+        "objective": "Java 객체와 컬렉션으로 서버 로직을 구현할 수 있다.",
+        "excludedScope": [
+          "Spring 트랜잭션"
+        ],
+        "completionPolicy": "ASSESSMENT",
+        "provisionalCandidateId": null,
+        "existingNodeId": null,
+        "targetRef": null,
+        "title": "Java",
+        "scopeDefinition": "객체지향 문법과 컬렉션을 사용해 일반적인 서버 로직을 구현하는 범위",
+        "sectionKey": "section.backend",
+        "initialProgressState": "NOT_STARTED",
+        "progressEvidenceSetId": null,
+        "preserveExistingProgress": true,
+        "requirementIds": [
+          "req-java"
+        ],
+        "requiredFor": [
+          "opportunity-example"
+        ],
+        "preferredFor": [],
+        "sectionMemberships": [],
+        "projectSpec": null,
+        "gateSpec": null,
+        "opportunitySpec": null,
+        "reason": "공고 필수 역량"
+      }
+    ],
+    "relations": [],
+    "removeTargetRefs": [],
+    "excludedRequirements": [],
+    "audit": {
+      "composerVersion": "roadmap-composer-3.0.0",
+      "provider": "fixture",
+      "model": "fixture-model",
+      "generationAttempts": 1,
+      "generationDurationMs": 10,
+      "graphContentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "preservedExistingNodeIds": []
+    },
+    "warnings": [],
+    "status": "DRAFT"
+  },
+  "atomic-capability-assessment-question": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "questionId": "atomic-question:example-1",
+    "sessionId": "session-example-1",
+    "capabilityKey": "java.exceptions",
+    "ordinal": 1,
+    "method": "IMPLEMENT",
+    "prompt": "잘못된 포트 문자열을 명시적인 Java 예외로 전달하는 메서드를 작성하세요.",
+    "starterCode": "static int readPort(String value) { /* TODO */ }",
+    "answerInstructions": "코드와 예외 선택 이유를 함께 작성하세요.",
+    "coreCriteria": [
+      "잘못된 입력을 명시적인 예외로 표현한다.",
+      "호출자가 실패를 구분할 수 있게 예외를 전달한다."
+    ],
+    "futureExtensions": [
+      "Spring 전역 예외 처리와 연결해 볼 수 있다."
+    ],
+    "audit": {
+      "generatorVersion": "atomic-capability-assessment-3.0.0",
+      "provider": "fixture",
+      "model": "fixture-model",
+      "attempts": 1,
+      "durationMs": 10
+    }
+  },
+  "atomic-capability-assessment-grade": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "questionId": "atomic-question:example-1",
+    "criterionGrades": [
+      {
+        "criterionIndex": 0,
+        "score": 80,
+        "feedback": "실패 조건을 예외로 표현했습니다."
+      },
+      {
+        "criterionIndex": 1,
+        "score": 70,
+        "feedback": "호출자가 실패를 구분할 수 있습니다."
+      }
+    ],
+    "score": 75,
+    "passed": true,
+    "strengths": [
+      "예외를 삼키지 않았습니다."
+    ],
+    "gaps": [
+      "원인 예외 보존을 더 설명할 수 있습니다."
+    ],
+    "feedback": "원자 범위의 핵심 기준을 충족했습니다.",
+    "scopeViolationDetected": false,
+    "audit": {
+      "generatorVersion": "atomic-capability-assessment-3.0.0",
+      "provider": "fixture",
+      "model": "fixture-model",
+      "attempts": 1,
+      "durationMs": 8
+    }
+  },
+  "progress-event": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "eventId": "event-1",
+    "jobId": "job-1",
+    "sequence": 1,
+    "stage": "POSTING_STRUCTURE",
+    "status": "RUNNING",
+    "label": "모집 직무와 조건을 정리하고 있어요",
+    "detail": "공고 원문 근거를 연결하는 중",
+    "occurredAt": "2026-08-04T03:10:00Z",
+    "elapsedMs": 8100,
+    "stageDurationMs": 2400,
+    "partialResult": null,
+    "warnings": []
+  },
+  "error-envelope": {
+    "contractVersion": "jobis.ai.v3alpha1",
+    "error": {
+      "code": "SOURCE_NOT_VERIFIED",
+      "message": "공고 원문을 먼저 확인해주세요.",
+      "retryable": false,
+      "requestId": "request-1",
+      "traceId": "trace-1"
+    }
+  }
+}

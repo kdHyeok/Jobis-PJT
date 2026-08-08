@@ -19,19 +19,23 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
+import { notificationDestination } from "@/notification-routing";
 import { session } from "@/session";
-import type { NotificationItem } from "@/types";
+import type { ActivityJob, NotificationItem } from "@/types";
 
 const router = useRouter();
 const route = useRoute();
 const initial = computed(() => session.user.value?.displayName.slice(0, 1) ?? "J");
 const notifications = ref<NotificationItem[]>([]);
+const activeJobs = ref<ActivityJob[]>([]);
 const unreadCount = ref(0);
 const showNotifications = ref(false);
 const sidebarCollapsed = ref(
   window.localStorage.getItem("jobiss:sidebar-collapsed") === "1",
 );
 const headerError = ref("");
+const notificationError = ref("");
+const notificationWrap = ref<HTMLElement | null>(null);
 let notificationTimer: number | null = null;
 
 function sectionActive(section: string) {
@@ -52,55 +56,59 @@ async function loadNotifications() {
     const result = await api.notifications();
     notifications.value = result.items;
     unreadCount.value = result.unreadCount;
+    notificationError.value = "";
+  } catch (cause) {
+    if (showNotifications.value) {
+      notificationError.value = cause instanceof Error ? cause.message : "알림을 불러오지 못했습니다.";
+    }
+  }
+}
+
+async function loadActiveJobs() {
+  try {
+    activeJobs.value = await api.activityJobs();
   } catch {
-    // 알림 폴링 실패가 주요 작업을 막지 않도록 다음 주기에 재시도한다.
+    // 전역 상태 표시는 보조 정보다. 개별 화면의 오류 처리를 가리지 않는다.
   }
 }
 
 async function openNotification(item: NotificationItem) {
-  if (!item.readAt) {
-    await api.readNotification(item.id);
-    item.readAt = new Date().toISOString();
-    unreadCount.value = Math.max(0, unreadCount.value - 1);
-  }
-  showNotifications.value = false;
-  const analysisJobId =
-    typeof item.payload.analysisJobId === "string" ? item.payload.analysisJobId : null;
-  const postingId =
-    typeof item.payload.postingId === "string" ? item.payload.postingId : null;
-  const careerSourceId =
-    typeof item.payload.careerSourceId === "string"
-      ? item.payload.careerSourceId
-      : null;
-  if (careerSourceId) {
-    await router.push({
-      name: "career-source-review",
-      params: { sourceId: careerSourceId },
-    });
-  } else if (
-    ["ANALYSIS_COMPLETED", "ANALYSIS_INPUT_REQUIRED"].includes(item.type) &&
-    postingId
-  ) {
-    await router.push({
-      name: "posting-detail",
-      params: { postingId },
-    });
-  } else if (item.type === "ANALYSIS_COMPLETED" && analysisJobId) {
-    await router.push({ name: "chat", query: { analysisJobId } });
-  } else if (item.type === "CAREER_MAP_UPDATED" || item.type === "EVIDENCE_VERIFIED") {
-    await router.push({ name: "map" });
-  } else {
-    await router.push({ name: "activity" });
+  notificationError.value = "";
+  try {
+    if (!item.readAt) {
+      await api.readNotification(item.id);
+      item.readAt = new Date().toISOString();
+      unreadCount.value = Math.max(0, unreadCount.value - 1);
+    }
+    showNotifications.value = false;
+    await router.push(notificationDestination(item));
+  } catch (cause) {
+    notificationError.value = cause instanceof Error ? cause.message : "알림을 열지 못했습니다.";
   }
 }
 
 async function readAll() {
-  await api.readAllNotifications();
-  notifications.value = notifications.value.map((item) => ({
-    ...item,
-    readAt: item.readAt ?? new Date().toISOString(),
-  }));
-  unreadCount.value = 0;
+  notificationError.value = "";
+  try {
+    await api.readAllNotifications();
+    notifications.value = notifications.value.map((item) => ({
+      ...item,
+      readAt: item.readAt ?? new Date().toISOString(),
+    }));
+    unreadCount.value = 0;
+  } catch (cause) {
+    notificationError.value = cause instanceof Error ? cause.message : "알림을 읽음 처리하지 못했습니다.";
+  }
+}
+
+function handleDocumentPointer(event: PointerEvent) {
+  if (showNotifications.value && !notificationWrap.value?.contains(event.target as Node)) {
+    showNotifications.value = false;
+  }
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape") showNotifications.value = false;
 }
 
 async function newConversation() {
@@ -135,13 +143,21 @@ function handleUnauthorized() {
 onMounted(() => {
   document.body.classList.add("app-body-locked");
   window.addEventListener("jobiss:unauthorized", handleUnauthorized);
+  document.addEventListener("pointerdown", handleDocumentPointer);
+  document.addEventListener("keydown", handleDocumentKeydown);
   void loadNotifications();
-  notificationTimer = window.setInterval(loadNotifications, 15000);
+  void loadActiveJobs();
+  notificationTimer = window.setInterval(() => {
+    void loadNotifications();
+    void loadActiveJobs();
+  }, 5000);
 });
 
 onBeforeUnmount(() => {
   document.body.classList.remove("app-body-locked");
   window.removeEventListener("jobiss:unauthorized", handleUnauthorized);
+  document.removeEventListener("pointerdown", handleDocumentPointer);
+  document.removeEventListener("keydown", handleDocumentKeydown);
   if (notificationTimer) window.clearInterval(notificationTimer);
 });
 </script>
@@ -152,20 +168,22 @@ onBeforeUnmount(() => {
     :class="{ 'app-shell--sidebar-collapsed': sidebarCollapsed }"
   >
     <aside class="app-sidebar">
-      <RouterLink class="brand app-sidebar__brand" :to="{ name: 'home' }">
-        <span class="brand-mark">J</span>
-        <span class="sidebar-label">JOBISS</span>
-      </RouterLink>
-      <button
-        class="sidebar-collapse-button"
-        type="button"
-        :aria-label="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
-        :title="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
-        @click="toggleSidebar"
-      >
-        <PanelLeftOpen v-if="sidebarCollapsed" :size="18" />
-        <PanelLeftClose v-else :size="18" />
-      </button>
+      <div class="app-sidebar__top">
+        <RouterLink class="brand app-sidebar__brand" :to="{ name: 'home' }">
+          <span class="brand-mark">J</span>
+          <span class="sidebar-label">JOBIS</span>
+        </RouterLink>
+        <button
+          class="sidebar-collapse-button"
+          type="button"
+          :aria-label="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
+          :title="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
+          @click="toggleSidebar"
+        >
+          <PanelLeftOpen v-if="sidebarCollapsed" :size="18" />
+          <PanelLeftClose v-else :size="18" />
+        </button>
+      </div>
 
       <nav class="main-nav app-sidebar__nav" aria-label="주요 메뉴">
         <RouterLink
@@ -248,14 +266,14 @@ onBeforeUnmount(() => {
     <header class="app-header app-topbar">
       <RouterLink class="brand app-topbar__brand" :to="{ name: 'home' }">
         <span class="brand-mark">J</span>
-        <span>JOBISS</span>
+        <span>JOBIS</span>
       </RouterLink>
-      <span class="app-topbar__status">
+      <RouterLink v-if="activeJobs.length" class="app-topbar__status" :to="{ name: 'activity' }">
         <i />
-        AI 작업은 다른 화면에서도 계속됩니다
-      </span>
+        JOBIS 작업 {{ activeJobs.length }}개 진행 중
+      </RouterLink>
       <div class="header-actions">
-        <div class="notification-wrap">
+        <div ref="notificationWrap" class="notification-wrap">
           <button
             class="icon-button notification-button"
             type="button"
@@ -266,7 +284,7 @@ onBeforeUnmount(() => {
             <Bell :size="19" />
             <b v-if="unreadCount">{{ unreadCount > 99 ? "99+" : unreadCount }}</b>
           </button>
-          <section v-if="showNotifications" class="notification-popover">
+          <section v-if="showNotifications" class="notification-popover" aria-label="알림 목록">
             <header>
               <div>
                 <p class="eyebrow">NOTIFICATIONS</p>
@@ -276,6 +294,7 @@ onBeforeUnmount(() => {
                 <Check :size="14" /> 모두 읽음
               </button>
             </header>
+            <p v-if="notificationError" class="inline-error" role="alert">{{ notificationError }}</p>
             <div v-if="notifications.length" class="notification-list">
               <button
                 v-for="item in notifications"
@@ -307,7 +326,7 @@ onBeforeUnmount(() => {
         </RouterLink>
       </div>
     </header>
-    <p v-if="headerError" class="header-error">{{ headerError }}</p>
+    <p v-if="headerError" class="header-error" role="alert">{{ headerError }}</p>
 
     <div
       class="app-route"

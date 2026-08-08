@@ -1,0 +1,42 @@
+# JOBIS 코드 소유자
+#
+# 목적은 변경 권한을 막는 것이 아니라 **리뷰 책임자를 명시**하는 것이다.
+# 누구나 어떤 파일이든 MR을 올릴 수 있다. 다만 아래 경로는 해당 소유자의 리뷰 없이
+# merge하지 않는다. GitLab에서 이 파일이 동작하려면 대상 브랜치를 protected로 두고
+# "Require approval from code owners"를 켜야 한다.
+#
+# ⚠️ 아래 핸들은 자리표시자다. 실제 GitLab 사용자명(@로 시작)이나 그룹으로 바꾼 뒤 사용한다.
+# 미치환 상태로는 승인자가 해석되지 않아 규칙이 조용히 무시된다.
+
+# ── CI/CD 뼈대와 배포 정책 ────────────────────────────────────────────────
+# 게이트 구성, 브랜치 정책, 실행 이미지, 자격증명, 이미지 승격, 프로덕션 배포.
+# 특정 기능 개발자가 단독으로 바꾸지 않는다.
+/Jenkinsfile                    @infra-owner
+/compose.yaml                   @infra-owner
+/ops/                           @infra-owner
+/infra/                         @infra-owner
+/.gitlab/                       @infra-owner
+**/Dockerfile                   @infra-owner @backend-owner
+
+# ── 서비스별 CI 검사 내용 ─────────────────────────────────────────────────
+# 각 서비스가 "무엇을 검사하는가"를 정하는 파일. 해당 서비스 담당이 소유한다.
+/backend/ci/                    @backend-owner
+/AI/ci/                         @ai-owner
+/frontend/ci/                   @frontend-owner
+/RAG/ci/                        @rag-owner
+
+# ── 서비스 코드 ───────────────────────────────────────────────────────────
+/backend/                       @backend-owner
+/AI/                            @ai-owner
+/AI-v3/                         @ai-owner
+/frontend/                      @frontend-owner
+/RAG/                           @rag-owner
+
+# ── DB 스키마 ─────────────────────────────────────────────────────────────
+# 마이그레이션은 롤백 비용이 가장 큰 변경이다. 번호 충돌과 순서 의존을
+# 작성자 외 한 명이 더 본다.
+/backend/src/main/resources/db/migration/   @backend-owner @infra-owner
+
+# ── 규약 문서 ─────────────────────────────────────────────────────────────
+/AGENTS.md                      @infra-owner
+/CLAUDE.md                      @infra-owner

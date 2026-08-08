@@ -101,6 +101,70 @@ class AiAnalysisClientTest {
     }
 
     @Test
+    void streamsChatAgentTransitionsBeforeReturningReply() throws Exception {
+        String rawResponseBody = """
+                {"type":"PROGRESS","sequence":1,
+                 "occurredAt":"2026-08-03T10:00:00Z",
+                 "agentId":"agent_planner","label":"요청 분류",
+                 "status":"RUNNING","message":"담당자를 선택합니다.",
+                 "result":null,"errorCode":null,"errorMessage":null}
+                {"type":"RESULT","sequence":2,
+                 "occurredAt":"2026-08-03T10:00:01Z",
+                 "agentId":null,"label":null,"status":null,"message":null,
+                 "result":{"message":"자동으로 담당자를 선택했습니다.",
+                 "intent":"GENERAL_CAREER","shouldRequestPosting":false,
+                 "suggestedActions":[],"replySources":[],"progress":[],
+                 "proposedActions":[],"pendingConfirmation":null,"artifact":null},
+                 "errorCode":null,"errorMessage":null}
+                """;
+        byte[] responseBody = java.util.Arrays
+                .stream(rawResponseBody.strip().split(
+                        "\\R\\s*(?=\\{\"type\")"
+                ))
+                .map(part -> part.replaceAll("\\R\\s*", " "))
+                .collect(java.util.stream.Collectors.joining("\n"))
+                .getBytes(StandardCharsets.UTF_8);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1/chat/stream", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            exchange.getResponseHeaders().set(
+                    "Content-Type",
+                    "application/x-ndjson"
+            );
+            exchange.sendResponseHeaders(200, responseBody.length);
+            exchange.getResponseBody().write(responseBody);
+            exchange.close();
+        });
+        server.start();
+        try {
+            AiAnalysisClient httpClient = client(
+                    "http://127.0.0.1:" + server.getAddress().getPort()
+            );
+            List<AiContracts.ChatStreamEvent> events = new ArrayList<>();
+            AiContracts.ChatResponse response = httpClient.chat(
+                    new AiContracts.ChatRequest(
+                            UUID.randomUUID(),
+                            "Tester",
+                            List.of(new AiContracts.ChatMessage("USER", "hello")),
+                            new AiContracts.CareerSummary(
+                                    List.of(),
+                                    List.of(),
+                                    List.of(),
+                                    List.of()
+                            )
+                    ),
+                    events::add
+            );
+
+            assertThat(events).hasSize(2);
+            assertThat(events.get(0).agentId()).isEqualTo("agent_planner");
+            assertThat(response.message()).isEqualTo("자동으로 담당자를 선택했습니다.");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void restClientReadsOctetStreamBeforeContractValidation() throws Exception {
         byte[] responseBody = """
                 {
@@ -132,8 +196,10 @@ class AiAnalysisClientTest {
                             "Tester",
                             List.of(new AiContracts.ChatMessage("USER", "hello")),
                             new AiContracts.CareerSummary(
-                                    List.of(), List.of(), List.of(), List.of(),
-                                    List.of(), null, List.of(), List.of(), null, null
+                                    List.of(),
+                                    List.of(),
+                                    List.of(),
+                                    List.of()
                             )
                     )
             );
@@ -182,7 +248,7 @@ class AiAnalysisClientTest {
     private static AiAnalysisClient client(String baseUrl) {
         return new AiAnalysisClient(
                 new JobissProperties(
-                        new JobissProperties.Auth("test-secret", 3600, false),
+                        new JobissProperties.Auth("test-secret", 3600, 1209600, 2592000, false),
                         new JobissProperties.Ai(
                                 baseUrl,
                                 "local-ai-secret",
@@ -221,79 +287,5 @@ class AiAnalysisClientTest {
                 List.of(),
                 null
         );
-    }
-
-    @Test
-    void parsesCollectedAssetsFromChatResponse() throws Exception {
-        // AI 가 대화로 확보한 자산을 실어 보낸다(D141). 이 칸이 어긋나면 Jackson 이 null 로
-        // 읽고 적재가 조용히 사라진다 — 그 침묵을 막는 계약 테스트다.
-        byte[] responseBody = """
-                {
-                  "message": "공고를 정리했어요.",
-                  "intent": "POSTING_ANALYSIS",
-                  "shouldRequestPosting": false,
-                  "suggestedActions": [],
-                  "collected": {
-                    "posting": {
-                      "sourceType": "URL",
-                      "sourceUrl": "https://example.test/jobs/1",
-                      "rawText": "가나테크 백엔드 자격요건 Java 3년 이상"
-                    },
-                    "resume": {
-                      "sourceType": "TEXT",
-                      "title": "대화로 받은 이력서",
-                      "rawText": "저는 백엔드 개발자입니다."
-                    },
-                    "preferences": {"roles": ["백엔드"]},
-                    "facts": ["백엔드 개발자로 취업이 목표"]
-                  }
-                }
-                """.getBytes(StandardCharsets.UTF_8);
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/v1/chat", exchange -> {
-            exchange.getRequestBody().readAllBytes();
-            exchange.getResponseHeaders().set(
-                    "Content-Type",
-                    MediaType.APPLICATION_JSON_VALUE
-            );
-            exchange.sendResponseHeaders(200, responseBody.length);
-            exchange.getResponseBody().write(responseBody);
-            exchange.close();
-        });
-        server.start();
-        try {
-            AiContracts.ChatResponse response = client(
-                    "http://127.0.0.1:" + server.getAddress().getPort()
-            ).chat(new AiContracts.ChatRequest(
-                    UUID.randomUUID(),
-                    "Tester",
-                    List.of(new AiContracts.ChatMessage("USER", "이 공고 봐줘")),
-                    new AiContracts.CareerSummary(List.of(), List.of(), List.of(), List.of(),
-                    List.of(), null, List.of(), List.of(), null, null)
-            ));
-
-            AiContracts.CollectedAssets collected = response.collected();
-            assertThat(collected).isNotNull();
-            // 공고는 첨부 경로와 같은 CreatePosting 으로 넘어간다 — 원문이 주소가 아니어야 한다.
-            assertThat(collected.posting().sourceType()).isEqualTo("URL");
-            assertThat(collected.posting().sourceUrl()).isEqualTo("https://example.test/jobs/1");
-            assertThat(collected.posting().rawText()).contains("자격요건");
-            assertThat(collected.resume().rawText()).startsWith("저는 백엔드");
-            assertThat(collected.preferences().get("roles").get(0).stringValue())
-                    .isEqualTo("백엔드");
-            assertThat(collected.facts()).containsExactly("백엔드 개발자로 취업이 목표");
-        } finally {
-            server.stop(0);
-        }
-    }
-
-    @Test
-    void chatResponseWithoutCollectedStaysNull() {
-        // 자산을 확보하지 않은 턴 — 적재를 돌리지 않는다.
-        AiContracts.ChatResponse response = new ObjectMapper().readValue("""
-                {"message":"무엇을 도와드릴까요?","intent":"GENERAL_CAREER",
-                 "shouldRequestPosting":false}
-                """, AiContracts.ChatResponse.class);
-        assertThat(response.collected()).isNull();
     }
 }

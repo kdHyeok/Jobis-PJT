@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from enum import StrEnum
+
+from .common import ContractModel, EntityId, NonBlank
+
+
+class ErrorCode(StrEnum):
+    SOURCE_FETCH_FAILED = "SOURCE_FETCH_FAILED"
+    SOURCE_EXTRACTION_LOW_CONFIDENCE = "SOURCE_EXTRACTION_LOW_CONFIDENCE"
+    SOURCE_NOT_VERIFIED = "SOURCE_NOT_VERIFIED"
+    POSTING_STRUCTURE_INVALID = "POSTING_STRUCTURE_INVALID"
+    AMBIGUITY_UNRESOLVED = "AMBIGUITY_UNRESOLVED"
+    AI_PROVIDER_NOT_CONFIGURED = "AI_PROVIDER_NOT_CONFIGURED"
+    AI_TIMEOUT = "AI_TIMEOUT"
+    AI_PROVIDER_UNAVAILABLE = "AI_PROVIDER_UNAVAILABLE"
+    CONTRACT_VALIDATION_FAILED = "CONTRACT_VALIDATION_FAILED"
+    ANALYSIS_CANCELLED = "ANALYSIS_CANCELLED"
+    ANALYSIS_STALE_RESULT = "ANALYSIS_STALE_RESULT"
+    UNAUTHORIZED_AI_CLIENT = "UNAUTHORIZED_AI_CLIENT"
+    CAPABILITY_NOT_AVAILABLE = "CAPABILITY_NOT_AVAILABLE"
+    UNSUPPORTED_CONTRACT_VERSION = "UNSUPPORTED_CONTRACT_VERSION"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+class ErrorDetail(ContractModel):
+    code: ErrorCode
+    message: NonBlank
+    retryable: bool
+    request_id: EntityId | None = None
+    trace_id: EntityId | None = None
+
+
+class ErrorEnvelope(ContractModel):
+    contract_version: str = "jobis.ai.v3alpha1"
+    error: ErrorDetail

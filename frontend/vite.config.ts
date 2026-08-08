@@ -11,10 +11,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    host: "127.0.0.1",
+    port: 5473,
     proxy: {
       "/api": {
-        target: process.env.VITE_BACKEND_PROXY_TARGET ?? "http://localhost:8080",
+        target: process.env.VITE_BACKEND_PROXY_TARGET ?? "http://localhost:8380",
         changeOrigin: true,
       },
     },

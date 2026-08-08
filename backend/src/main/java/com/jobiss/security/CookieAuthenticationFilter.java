@@ -20,11 +20,17 @@ import java.util.UUID;
 public class CookieAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String ACCESS_COOKIE = "jobiss_access";
+    public static final String REFRESH_COOKIE = "jobiss_refresh";
 
     private final JwtService jwtService;
+    private final AuthTokenVersionService tokenVersions;
 
-    public CookieAuthenticationFilter(JwtService jwtService) {
+    public CookieAuthenticationFilter(
+            JwtService jwtService,
+            AuthTokenVersionService tokenVersions
+    ) {
         this.jwtService = jwtService;
+        this.tokenVersions = tokenVersions;
     }
 
     @Override
@@ -36,9 +42,12 @@ public class CookieAuthenticationFilter extends OncePerRequestFilter {
         String token = findCookie(request, ACCESS_COOKIE);
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UUID userId = jwtService.parseUserId(token);
+                JwtService.TokenPrincipal principal = jwtService.parsePrincipal(token);
+                if (!tokenVersions.isCurrent(principal.userId(), principal.authVersion())) {
+                    throw new JwtException("Access token was invalidated");
+                }
                 var authentication = UsernamePasswordAuthenticationToken.authenticated(
-                        userId,
+                        principal.userId(),
                         null,
                         AuthorityUtils.createAuthorityList("ROLE_USER")
                 );
@@ -50,7 +59,7 @@ public class CookieAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private String findCookie(HttpServletRequest request, String name) {
+    public static String findCookie(HttpServletRequest request, String name) {
         if (request.getCookies() == null) {
             return null;
         }

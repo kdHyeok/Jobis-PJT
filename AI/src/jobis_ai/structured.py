@@ -232,6 +232,23 @@ def run_structured(
 _STREAM_FLUSH_CHARS = 16
 
 
+def _content_text(content: object) -> str:
+    """LangChain 메시지 content 에서 사용자향 텍스트만 뽑는다.
+
+    anthropic 직접 호출(thinking 켜진 모델)은 content 가 문자열이 아니라
+    [{"type": "thinking", ...}, {"type": "text", ...}] 블록 리스트로 온다.
+    str() 폴백은 thinking 시그니처 repr 을 섞어 JSON 파싱을 오염시킨다.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            b.get("text", "") for b in content
+            if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return str(content or "")
+
+
 def run_streaming_text(
     system_prompt: str,
     user_content: str,
@@ -284,7 +301,7 @@ def run_streaming_text(
             if streamable:
                 for chunk in llm.stream(messages):
                     usage = getattr(chunk, "usage_metadata", None) or usage
-                    piece = chunk.content if isinstance(chunk.content, str) else str(chunk.content or "")
+                    piece = _content_text(chunk.content)
                     if not piece:
                         continue
                     parts.append(piece)
@@ -297,7 +314,7 @@ def run_streaming_text(
             else:
                 result = llm.invoke(messages)
                 usage = getattr(result, "usage_metadata", None)
-                whole = result.content if isinstance(result.content, str) else str(result.content or "")
+                whole = _content_text(result.content)
                 parts.append(whole)
                 if whole:
                     trace.emit("token", node, {"node": node, "text": whole})

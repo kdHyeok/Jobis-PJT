@@ -2,12 +2,10 @@ package com.jobiss.conversation;
 
 import com.jobiss.analysis.AiAnalysisClient;
 import com.jobiss.analysis.AiContracts;
-import com.jobiss.analysis.AnalysisClarificationNormalizer;
 import com.jobiss.analysis.AiServiceException;
 import com.jobiss.db.RlsTransactionExecutor;
-import com.jobiss.posting.JobPostingService;
-import com.jobiss.roadmap.RoadmapService;
-import tools.jackson.databind.JsonNode;
+import com.jobiss.security.SensitiveTextCipher;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,90 +14,123 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
 
 import java.net.InetAddress;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 @ConditionalOnProperty(name = "jobiss.ai.worker-enabled", havingValue = "true")
 public class ChatReplyWorker {
 
     private static final Logger log = LoggerFactory.getLogger(ChatReplyWorker.class);
-
-    /** 큐의 재시도 상한과 같은 값이다(claim_chat_reply_job 의 {@code attempt_count < 3}). */
     private static final int MAX_ATTEMPTS = 3;
-
-    /** 재시도까지 기다리는 시간 — 서버 재시작이 끝날 만큼(실측 공백 12초). */
     private static final int RETRY_DELAY_SECONDS = 15;
 
     private final JdbcClient jdbcClient;
     private final RlsTransactionExecutor rls;
     private final AiAnalysisClient aiClient;
     private final ObjectMapper objectMapper;
-    private final JobPostingService postingService;
-    private final RoadmapService roadmapService;
+    private final ChatReplyJobService chatReplyJobService;
+    private final ChatReplyTaskRegistry taskRegistry;
+    private final SensitiveTextCipher sensitiveText;
+    private final com.jobiss.analysis.v3.V3AnalysisRequestFactory roadmapFactory;
     private final String workerId;
+    private final ExecutorService executor;
+    private final AtomicBoolean active = new AtomicBoolean();
 
     public ChatReplyWorker(
             JdbcClient jdbcClient,
             RlsTransactionExecutor rls,
             AiAnalysisClient aiClient,
             ObjectMapper objectMapper,
-            JobPostingService postingService,
-            RoadmapService roadmapService
+            ChatReplyJobService chatReplyJobService,
+            ChatReplyTaskRegistry taskRegistry,
+            SensitiveTextCipher sensitiveText,
+            com.jobiss.analysis.v3.V3AnalysisRequestFactory roadmapFactory
     ) {
         this.jdbcClient = jdbcClient;
         this.rls = rls;
         this.aiClient = aiClient;
         this.objectMapper = objectMapper;
-        this.postingService = postingService;
-        this.roadmapService = roadmapService;
+        this.chatReplyJobService = chatReplyJobService;
+        this.taskRegistry = taskRegistry;
+        this.sensitiveText = sensitiveText;
+        this.roadmapFactory = roadmapFactory;
         this.workerId = hostName() + "-chat-" + UUID.randomUUID();
+        this.executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName("jobiss-chat-worker");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     @Scheduled(fixedDelayString = "${jobiss.ai.poll-delay-ms:3000}")
     public void processOne() {
-        ClaimedJob job = claim();
-        if (job == null) {
+        if (!active.compareAndSet(false, true)) {
             return;
         }
+        ClaimedJob job = claim();
+        if (job == null) {
+            active.set(false);
+            return;
+        }
+        FutureTask<Void> task = new FutureTask<>(() -> {
+            try {
+                process(job);
+            } finally {
+                taskRegistry.complete(job.id());
+                active.set(false);
+            }
+            return null;
+        });
+        taskRegistry.register(job.id(), task);
+        executor.execute(task);
+    }
+
+    private void process(ClaimedJob job) {
         try {
             AiContracts.ChatRequest request = loadRequest(job);
             AiContracts.ChatResponse response = aiClient.chat(
                     request,
-                    step -> recordChatProgress(job, step)
+                    event -> persistProgress(job, event)
             );
             if (response == null || response.message() == null || response.message().isBlank()) {
                 throw new IllegalStateException("AI response did not include a message");
             }
-            // 스트림을 지원하지 않는 AI 서버로 폴백한 턴은 진행 단계가 실시간으로 오지
-            // 않는다 — 최종 응답에 같은 단계가 담겨 오므로 여기서 되메운다. 실시간이
-            // 아닐 뿐, 어느 담당이 무엇을 했는지가 사라지지는 않는다.
-            if (job.sequence().get() == 0) {
-                for (AiContracts.ProgressStep step : response.progress() == null
-                        ? List.<AiContracts.ProgressStep>of()
-                        : response.progress()) {
-                    recordChatProgress(job, step);
-                }
-            }
             complete(job, response);
-            // 답변을 저장한 뒤에 적재한다 — 적재가 실패해도 대화는 이미 끝나 있어야 한다
-            // (진행 기록과 같은 규칙: 부가 기록이 대화를 죽이지 않는다).
-            ingestCollected(job, response.collected());
+            try {
+                // 로드맵 재료(V3)는 두 경우에만, 무음(UI 노출 없음, DB 적재만)으로 만든다:
+                // ① 적합도 판정이 적재된 턴 ② 사용자가 공고 기준 로드맵을 직접 청한 턴
+                //    (requiresConsent=false 인 ANALYZE_POSTING 제안).
+                chatReplyJobService.startRoadmapAnalysisAfterFit(job.userId(), response);
+                chatReplyJobService.executeUserInitiatedAutomaticActions(
+                        job.userId(), job.id(), response.proposedActions()
+                );
+            } catch (RuntimeException actionException) {
+                log.warn(
+                        "Silent roadmap analysis for chat reply job {} failed: {}",
+                        job.id(), actionException.getMessage()
+                );
+            }
         } catch (Exception exception) {
-            // AI 서버가 잠깐 없었을 뿐이면 남은 시도로 되돌린다 — 판정까지 다 끝낸 턴을
-            // 서버 재시작 하나로 잃지 않게. 상한(3회)은 큐가 그대로 쥔다.
             if (isTransportFailure(exception) && job.attemptCount() < MAX_ATTEMPTS) {
-                log.warn("Chat reply job {} could not reach the AI server (attempt {}/{}), "
-                                + "requeueing in {}s: {}",
-                        job.id(), job.attemptCount(), MAX_ATTEMPTS,
-                        RETRY_DELAY_SECONDS, exception.getMessage());
+                log.warn(
+                        "Chat reply job {} could not reach the AI server (attempt {}/{}); retrying in {}s: {}",
+                        job.id(),
+                        job.attemptCount(),
+                        MAX_ATTEMPTS,
+                        RETRY_DELAY_SECONDS,
+                        exception.getMessage()
+                );
                 requeue(job, exception, RETRY_DELAY_SECONDS);
                 return;
             }
@@ -108,79 +139,22 @@ public class ChatReplyWorker {
         }
     }
 
-    /**
-     * AI 가 흘려 보낸 진행 단계를 기록한다 — 프론트는 이 작업 행을 이미 폴링한다.
-     *
-     * <p>공고를 채팅에 붙여넣는 흐름에는 분석 작업(analysis job)이 없어 진행 휠도 없다.
-     * 그래서 "어느 담당이 무슨 도구로 무엇을 하는지"를 보여줄 통로가 이것뿐이다.
-     *
-     * <p>두 군데에 쓴다. {@code stage}/{@code stage_message} 는 <b>지금</b>을 가리키는 한
-     * 칸이고(옛 한 줄 표시 유지), {@code chat_reply_agent_events} 는 <b>순서</b>를 남긴다 —
-     * 대화창은 에이전트별 말풍선을 순서대로 그려야 하므로 한 칸으로는 부족하다(덮어쓰면
-     * 마지막 단계만 남는다). 공고 분석 쪽 {@code analysis_agent_events} 와 같은 구조다.
-     *
-     * <p><b>진행 기록이 실패해도 대화를 죽이지 않는다.</b> 이건 창문이지 대화의 일부가
-     * 아니다 — 실패하면 로그만 남기고 넘어간다.
-     */
-    private void recordChatProgress(ClaimedJob job, AiContracts.ProgressStep step) {
-        if (step == null) {
-            return;
-        }
-        String stage = clip(step.step(), 40);
-        String message = Stream.of(step.label(), step.detail())
-                .filter(part -> part != null && !part.isBlank())
-                .collect(Collectors.joining(" · "));
-        if (stage.isBlank() && message.isBlank()) {
-            return;
-        }
-        int sequence = job.nextSequence();
-        try {
-            String eventData = objectMapper.writeValueAsString(step);
-            rls.write(job.userId(), jdbc -> {
-                jdbc.sql("""
-                                update chat_reply_jobs
-                                set
-                                    stage = coalesce(nullif(:stage, ''), stage),
-                                    stage_message = coalesce(nullif(:message, ''), stage_message),
-                                    updated_at = now()
-                                where id = :jobId
-                                  and status = 'RUNNING'
-                                """)
-                        .param("stage", stage)
-                        .param("message", clip(message, 2000))
-                        .param("jobId", job.id())
-                        .update();
-                jdbc.sql("""
-                                insert into chat_reply_agent_events (
-                                    user_id,
-                                    chat_reply_job_id,
-                                    sequence,
-                                    event_data
-                                )
-                                values (
-                                    :userId,
-                                    :jobId,
-                                    :sequence,
-                                    cast(:eventData as jsonb)
-                                )
-                                on conflict (chat_reply_job_id, sequence)
-                                do update set event_data = excluded.event_data
-                                """)
-                        .param("userId", job.userId())
-                        .param("jobId", job.id())
-                        .param("sequence", sequence)
-                        .param("eventData", eventData)
-                        .update();
-                return null;
-            });
-        } catch (RuntimeException exception) {
-            log.debug("Chat progress not recorded for {}: {}", job.id(), exception.getMessage());
-        }
+    @PreDestroy
+    void shutdown() {
+        interruptActiveJob();
+        taskRegistry.cancelAll();
+        executor.shutdownNow();
     }
 
-    private static String clip(String value, int limit) {
-        String text = value == null ? "" : value.strip();
-        return text.length() <= limit ? text : text.substring(0, limit);
+    private void interruptActiveJob() {
+        try {
+            jdbcClient.sql("select interrupt_auxiliary_ai_jobs(:workerId)")
+                    .param("workerId", workerId)
+                    .query(Integer.class)
+                    .single();
+        } catch (RuntimeException exception) {
+            log.warn("Could not release active chat job during shutdown: {}", exception.getMessage());
+        }
     }
 
     private ClaimedJob claim() {
@@ -199,9 +173,15 @@ public class ChatReplyWorker {
     }
 
     private AiContracts.ChatRequest loadRequest(ClaimedJob job) {
+        // 에이전트가 사용자의 서비스 상태(로드맵)를 보고 대화하도록 매 턴 싣는다.
+        JsonNode roadmap = roadmapFactory.currentRoadmap(job.userId());
         return rls.write(job.userId(), jdbc -> {
             Trigger trigger = jdbc.sql("""
-                            select j.conversation_id, j.trigger_message_id, m.created_at
+                            select
+                                j.conversation_id,
+                                j.trigger_message_id,
+                                j.request_context::text,
+                                m.created_at
                             from chat_reply_jobs j
                             join conversation_messages m on m.id = j.trigger_message_id
                             where j.id = :jobId
@@ -210,18 +190,14 @@ public class ChatReplyWorker {
                     .query((rs, rowNum) -> new Trigger(
                             rs.getObject("conversation_id", UUID.class),
                             rs.getObject("trigger_message_id", UUID.class),
+                            rs.getString("request_context"),
                             rs.getObject("created_at", java.time.OffsetDateTime.class)
                     ))
                     .single();
-
-            // 재시도는 처음부터 다시 실행한다 — 지난 시도의 단계를 남겨 두면 대화창에
-            // 같은 에이전트가 두 번 말한 것처럼 보인다(분석 워커와 같은 규약).
-            jdbc.sql("""
-                            delete from chat_reply_agent_events
-                            where chat_reply_job_id = :jobId
-                            """)
-                    .param("jobId", job.id())
-                    .update();
+            AgentSelection selection = resolveAutomaticAssets(
+                    jdbc,
+                    parseSelection(trigger.requestContext())
+            );
 
             jdbc.sql("""
                             update chat_reply_jobs
@@ -234,7 +210,16 @@ public class ChatReplyWorker {
                                 attempt_count = :attemptCount,
                                 started_at = coalesce(started_at, now()),
                                 error_code = null,
-                                error_message = null
+                                error_message = null,
+                                progress_events = jsonb_build_array(
+                                    jsonb_build_object(
+                                        'agentId', 'context_reader',
+                                        'label', '맥락 정리',
+                                        'status', 'RUNNING',
+                                        'message', '선택한 공고와 커리어 자료를 확인하고 있어요',
+                                        'occurredAt', cast(now() as text)
+                                    )
+                                )
                             where id = :jobId
                             """)
                     .param("workerId", workerId)
@@ -253,16 +238,7 @@ public class ChatReplyWorker {
                                 from conversation_messages
                                 where conversation_id = :conversationId
                                   and role in ('USER', 'ASSISTANT')
-                                  -- POSTING 도 사용자가 한 말이다. 공고 첨부 메시지는 내용이
-                                  -- TEXT 와 똑같고(주소 또는 원문) kind 만 다른데, 전에는 첨부가
-                                  -- AI 대화를 타지 않아 걸러도 무해했다. 첨부에도 답변 작업을
-                                  -- 만들면서 그 전제가 깨졌다 — 실측(08-03): 첨부 턴이
-                                  -- "사용자 발화가 없어요"로 실패했다(같은 URL 을 채팅창에 쓰면
-                                  -- 되는데 왼쪽 박스로 넣으면 안 되던 이유가 이 한 줄이다).
-                                  -- ANALYSIS_STATUS 는 계속 제외한다: 사용자의 말도 에이전트의
-                                  -- 말도 아닌 시스템 알림이라, 넣으면 AI 가 "백그라운드 분석을
-                                  -- 시작했어요"를 자기가 한 말로 읽는다.
-                                  and kind in ('TEXT', 'POSTING')
+                                  and kind = 'TEXT'
                                   and (
                                     created_at < :triggerCreatedAt
                                     or (created_at = :triggerCreatedAt and id <= :triggerMessageId)
@@ -337,92 +313,119 @@ public class ChatReplyWorker {
                     .query(String.class)
                     .list();
 
-            // 등록된 이력서 원문 — AI 가 세션 파일 없이도 이 대화를 이어갈 수 있게 턴마다 싣는다.
-            // 폐기(archived_at)된 것과 원문이 빈 것은 뺀다. 최신 우선 5건 — 더 보내도 AI 쪽
-            // 라이브러리 상한에서 잘린다.
+            // 사용자 DB의 이력서·공고 원문을 요약이 아니라 원문으로 싣는다 — 에이전트가
+            // "저장된 이력서로 분석할까요?" 를 실제 자료를 보고 판단·수행할 수 있게.
             List<AiContracts.StoredResume> resumes = jdbc.sql("""
                             select id, title, source_type, raw_text, created_at
                             from career_sources
-                            where user_id = :userId
+                            where status = 'CONFIRMED'
                               and archived_at is null
-                              and raw_text is not null
-                              and btrim(raw_text) <> ''
                             order by created_at desc
                             limit 5
                             """)
-                    .param("userId", job.userId())
                     .query((rs, rowNum) -> new AiContracts.StoredResume(
                             rs.getObject("id", UUID.class),
                             rs.getString("title"),
                             rs.getString("source_type"),
-                            rs.getString("raw_text"),
+                            clip(sensitiveText.decrypt(rs.getString("raw_text")), 20_000),
                             rs.getObject("created_at", OffsetDateTime.class)
                     ))
                     .list();
-
-            // 적재해 둔 선호·지속 사실을 되돌려 준다 — AI 가 세션 파일 없이 맥락을 세운다.
-            ChatProfile profile = jdbc.sql("""
-                            select chat_preferences, chat_facts
-                            from user_goal_profiles
-                            where user_id = :userId
-                            """)
-                    .param("userId", job.userId())
-                    .query((rs, rowNum) -> new ChatProfile(
-                            readJson(rs.getString("chat_preferences")),
-                            readStringList(rs.getString("chat_facts"))
-                    ))
-                    .optional()
-                    .orElse(new ChatProfile(null, List.of()));
-
-            // 이 대화의 공고들 — parsed_data 를 함께 보내 AI 가 다시 파싱하지 않게 한다.
-            List<AiContracts.StoredPosting> postings = jdbc.sql("""
-                            select id, source_type, source_url, raw_text, parsed_data, created_at
-                            from job_postings
-                            where user_id = :userId
-                              and conversation_id = :conversationId
-                              and archived_at is null
-                            order by created_at desc
+            List<AiContracts.StoredPosting> storedPostings = jdbc.sql("""
+                            select p.id, p.source_type, p.source_url, p.raw_text,
+                                   p.parsed_data::text as parsed_data, p.created_at,
+                                   (
+                                       select cache.structured_posting::text
+                                       from analysis_jobs job
+                                       join ai_v3_verified_posting_snapshots snap
+                                         on snap.id = job.v3_snapshot_id
+                                       join ai_v3_posting_structure_cache cache
+                                         on cache.snapshot_hash = snap.snapshot_hash
+                                        and cache.invalidated_at is null
+                                       where job.posting_id = p.id
+                                       order by job.created_at desc
+                                       limit 1
+                                   ) as structured_posting
+                            from job_postings p
+                            where p.archived_at is null
+                            order by p.created_at desc
                             limit 5
                             """)
-                    .param("userId", job.userId())
-                    .param("conversationId", trigger.conversationId())
                     .query((rs, rowNum) -> new AiContracts.StoredPosting(
                             rs.getObject("id", UUID.class),
                             rs.getString("source_type"),
                             rs.getString("source_url"),
-                            rs.getString("raw_text"),
-                            readJson(rs.getString("parsed_data")),
+                            clip(sensitiveText.decrypt(rs.getString("raw_text")), 20_000),
+                            rs.getString("parsed_data") == null
+                                    ? null : objectMapper.readTree(rs.getString("parsed_data")),
+                            rs.getString("structured_posting") == null
+                                    ? null : objectMapper.readTree(rs.getString("structured_posting")),
                             rs.getObject("created_at", OffsetDateTime.class)
                     ))
                     .list();
 
-            // 여러 턴에 걸친 약속과 면접 진행 — AI 가 세션 파일 없이도 이어갈 수 있게 되돌려 준다.
-            JsonNode sessionState = jdbc.sql("""
-                            select state
-                            from agent_session_state
-                            where conversation_id = :conversationId
+            GoalProfileRow goalProfile = jdbc.sql("""
+                            select chat_preferences::text as chat_preferences,
+                                   chat_facts::text as chat_facts,
+                                   preparation_period_weeks,
+                                   available_hours_per_week
+                            from user_goal_profiles
+                            where user_id = :userId
                             """)
-                    .param("conversationId", trigger.conversationId())
-                    .query((rs, rowNum) -> readJson(rs.getString("state")))
+                    .param("userId", job.userId())
+                    .query((rs, rowNum) -> new GoalProfileRow(
+                            rs.getString("chat_preferences"),
+                            rs.getString("chat_facts"),
+                            rs.getObject("preparation_period_weeks", Integer.class),
+                            rs.getObject("available_hours_per_week", Integer.class)
+                    ))
                     .optional()
-                    .orElse(null);
-            JsonNode interviewState = jdbc.sql("""
-                            select state
-                            from interview_sessions
-                            where conversation_id = :conversationId
-                            """)
-                    .param("conversationId", trigger.conversationId())
-                    .query((rs, rowNum) -> readJson(rs.getString("state")))
-                    .optional()
-                    .orElse(null);
+                    .orElse(new GoalProfileRow(null, null, null, null));
+
+            List<AiContracts.ChatPostingAsset> postingAssets = loadPostingAssets(
+                    jdbc,
+                    selection.postingIds()
+            );
+            List<AiContracts.ChatCareerSourceAsset> sourceAssets = loadCareerSourceAssets(
+                    jdbc,
+                    selection.careerSourceIds()
+            );
+            ensureSelectedAssetsAvailable(selection, postingAssets, sourceAssets);
+
+            String progress = objectMapper.writeValueAsString(List.of(
+                    new ProgressEvent(
+                            "context_reader",
+                            "맥락 정리",
+                            "COMPLETED",
+                            "선택한 자료와 기존 커리어 맥락을 정리했어요",
+                            OffsetDateTime.now()
+                    )
+            ));
 
             jdbc.sql("""
                             update chat_reply_jobs
-                            set stage = 'AI_REPLY', stage_message = 'JOBISS가 답변을 정리하고 있어요'
+                            set
+                                stage = 'AGENT_PLANNING',
+                                stage_message = '대화에 맞는 담당 에이전트를 선택하고 있어요',
+                                progress_events = cast(:progress as jsonb)
                             where id = :jobId
                             """)
+                    .param("progress", progress)
                     .param("jobId", job.id())
                     .update();
+
+            JsonNode workspaceState = jdbc.sql("""
+                            select state::text
+                            from agent_workspace_states
+                            where user_id = :userId
+                              and conversation_id = :conversationId
+                            """)
+                    .param("userId", job.userId())
+                    .param("conversationId", trigger.conversationId())
+                    .query(String.class)
+                    .optional()
+                    .map(objectMapper::readTree)
+                    .orElseGet(objectMapper::createObjectNode);
 
             return new AiContracts.ChatRequest(
                     trigger.conversationId(),
@@ -434,382 +437,305 @@ public class ChatReplyWorker {
                             recentPostings,
                             savedEvidence,
                             resumes,
-                            profile.preferences(),
-                            profile.facts(),
-                            postings,
-                            sessionState,
-                            interviewState
-                    )
+                            storedPostings,
+                            roadmap,
+                            goalProfile.preferences() == null
+                                    ? null : objectMapper.readTree(goalProfile.preferences()),
+                            // AI 계약의 facts 는 null 을 받지 않는 list — 없으면 빈 배열로.
+                            goalProfile.facts() == null
+                                    ? objectMapper.createArrayNode()
+                                    : objectMapper.readTree(goalProfile.facts()),
+                            goalProfile.preparationPeriodWeeks(),
+                            goalProfile.availableHoursPerWeek()
+                    ),
+                    new AiContracts.ChatTaskContext(
+                            selection.mode(),
+                            postingAssets,
+                            sourceAssets
+                    ),
+                    workspaceState
             );
         });
     }
 
-    /**
-     * 대화로 확보한 자산을 이 서비스의 테이블에 적재한다.
-     *
-     * <p>사용자가 채팅에 공고 URL 을 붙이면 AI 는 그것을 수집·파싱해 분석까지 하는데, 지금까지
-     * 그 사실이 우리 쪽으로 돌아오지 않았다 — {@code ConversationService.send} 는 공고 첨부 UI
-     * 경로에서만 공고를 만들고 채팅 요청은 메시지 본문만 싣는다. 그래서 대화로 준 공고는
-     * 채용공고 페이지에도, 커리어지도에도 나타나지 않았다. <b>AI 세션은 캐시이고 진실의 출처는
-     * 이 테이블이다.</b>
-     *
-     * <p>공고는 첨부 경로가 쓰는 {@code JobPostingService.create} 를 그대로 부른다 — 중복 지문
-     * 처리·사용량 제한·분석 작업 큐잉이 전부 그 안에 있으므로 여기서 다시 만들지 않는다.
-     *
-     * <p>실패는 대화를 죽이지 않는다(경고만) — 답변은 이미 저장돼 있고, 적재는 다음 턴에 같은
-     * 자산이 오면 다시 시도된다.
-     */
-    private void ingestCollected(ClaimedJob job, AiContracts.CollectedAssets collected) {
-        if (collected == null) {
-            return;
+    private List<AiContracts.ChatPostingAsset> loadPostingAssets(
+            JdbcClient jdbc,
+            List<UUID> postingIds
+    ) {
+        if (postingIds.isEmpty()) {
+            return List.of();
         }
-        UUID conversationId = rls.read(job.userId(), jdbc -> jdbc.sql("""
-                        select conversation_id from chat_reply_jobs where id = :jobId
+        return jdbc.sql("""
+                        select
+                            p.id,
+                            p.company_name,
+                            p.role_title,
+                            p.source_url,
+                            p.experience_text,
+                            p.lifecycle_status,
+                            p.raw_text,
+                            (
+                                select analysis.result_data -> 'evaluation' ->> 'summary'
+                                from analysis_jobs analysis
+                                where analysis.posting_id = p.id
+                                  and analysis.status = 'SUCCEEDED'
+                                order by analysis.completed_at desc nulls last
+                                limit 1
+                            ) as analysis_summary
+                        from job_postings p
+                        where p.id in (:postingIds)
+                          and p.archived_at is null
+                        order by p.created_at desc
                         """)
-                .param("jobId", job.id())
-                .query(UUID.class)
-                .single());
+                .param("postingIds", postingIds)
+                .query((rs, rowNum) -> new AiContracts.ChatPostingAsset(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("company_name"),
+                        rs.getString("role_title"),
+                        rs.getString("source_url"),
+                        rs.getString("experience_text"),
+                        rs.getString("lifecycle_status"),
+                        clip(sensitiveText.decrypt(rs.getString("raw_text")), 20_000),
+                        rs.getString("analysis_summary")
+                ))
+                .list();
+    }
 
-        AiContracts.CollectedPosting posting = collected.posting();
-        if (posting != null && posting.rawText() != null && !posting.rawText().isBlank()) {
+    private List<AiContracts.ChatCareerSourceAsset> loadCareerSourceAssets(
+            JdbcClient jdbc,
+            List<UUID> sourceIds
+    ) {
+        if (sourceIds.isEmpty()) {
+            return List.of();
+        }
+        List<CareerSourceRow> rows = jdbc.sql("""
+                        select id, source_type, title, source_url, summary, raw_text
+                        from career_sources
+                        where id in (:sourceIds)
+                          and status = 'CONFIRMED'
+                          and archived_at is null
+                        order by created_at desc
+                        """)
+                .param("sourceIds", sourceIds)
+                .query((rs, rowNum) -> new CareerSourceRow(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("source_type"),
+                        rs.getString("title"),
+                        rs.getString("source_url"),
+                        rs.getString("summary"),
+                        clip(sensitiveText.decrypt(rs.getString("raw_text")), 20_000)
+                ))
+                .list();
+        List<AiContracts.ChatCareerSourceAsset> assets = new ArrayList<>();
+        for (CareerSourceRow row : rows) {
+            List<AiContracts.ChatCareerFragment> fragments = jdbc.sql("""
+                            select kind, title, description
+                            from career_fragments
+                            where source_id = :sourceId
+                              and review_status = 'CONFIRMED'
+                              and archived_at is null
+                            order by updated_at desc
+                            limit 100
+                            """)
+                    .param("sourceId", row.id())
+                    .query((rs, rowNum) -> new AiContracts.ChatCareerFragment(
+                            rs.getString("kind"),
+                            rs.getString("title"),
+                            clip(rs.getString("description"), 2_000)
+                    ))
+                    .list();
+            assets.add(new AiContracts.ChatCareerSourceAsset(
+                    row.id(),
+                    row.sourceType(),
+                    row.title(),
+                    row.sourceUrl(),
+                    row.summary(),
+                    row.rawText(),
+                    fragments
+            ));
+        }
+        return List.copyOf(assets);
+    }
+
+    private AgentSelection parseSelection(String value) {
+        JsonNode context = value == null || value.isBlank()
+                ? objectMapper.createObjectNode()
+                : objectMapper.readTree(value);
+        String mode = context.path("mode").stringValue("AUTO");
+        return new AgentSelection(
+                mode,
+                readUuidList(context.path("postingIds")),
+                readUuidList(context.path("careerSourceIds"))
+        );
+    }
+
+    private AgentSelection resolveAutomaticAssets(
+            JdbcClient jdbc,
+            AgentSelection selection
+    ) {
+        if (!"AUTO".equals(selection.mode())) {
+            return selection;
+        }
+        List<UUID> postingIds = selection.postingIds().isEmpty()
+                ? jdbc.sql("""
+                                select id
+                                from job_postings
+                                where archived_at is null
+                                order by updated_at desc, created_at desc
+                                limit 5
+                                """)
+                        .query(UUID.class)
+                        .list()
+                : selection.postingIds();
+        List<UUID> sourceIds = selection.careerSourceIds().isEmpty()
+                ? jdbc.sql("""
+                                select id
+                                from career_sources
+                                where status = 'CONFIRMED'
+                                  and archived_at is null
+                                order by updated_at desc, created_at desc
+                                limit 5
+                                """)
+                        .query(UUID.class)
+                        .list()
+                : selection.careerSourceIds();
+        return new AgentSelection("AUTO", postingIds, sourceIds);
+    }
+
+    private List<UUID> readUuidList(JsonNode node) {
+        if (!node.isArray()) {
+            return List.of();
+        }
+        List<UUID> values = new ArrayList<>();
+        for (JsonNode item : node) {
             try {
-                JobPostingService.CreatedPosting created = postingService.create(
-                        job.userId(),
-                        new JobPostingService.CreatePosting(
-                                posting.sourceType(),
-                                posting.sourceUrl(),
-                                posting.rawText(),
-                                conversationId
-                        )
-                );
-                log.info("Chat-collected posting stored: job={} posting={} analysis={} reused={}",
-                        job.id(), created.postingId(), created.analysisJobId(),
-                        created.reusedAnalysis());
-            } catch (Exception exception) {
-                log.warn("Chat-collected posting was not stored (job {}): {}",
-                        job.id(), exception.getMessage());
+                values.add(UUID.fromString(item.stringValue("")));
+            } catch (IllegalArgumentException ignored) {
+                throw new IllegalStateException("AI 작업에 선택한 자료 ID가 올바르지 않습니다.");
             }
         }
+        return List.copyOf(values);
+    }
 
-        ingestOutputs(job, conversationId, collected.outputs());
-
-        AiContracts.CollectedResume resume = collected.resume();
-        if (resume != null && resume.rawText() != null && !resume.rawText().isBlank()) {
-            try {
-                rls.write(job.userId(), jdbc -> jdbc.sql("""
-                                insert into career_sources (
-                                    user_id,
-                                    source_type,
-                                    title,
-                                    raw_text,
-                                    status
-                                )
-                                values (
-                                    :userId,
-                                    'TEXT',
-                                    :title,
-                                    :rawText,
-                                    'QUEUED'
-                                )
-                                """)
-                        .param("userId", job.userId())
-                        .param("title", resume.title() == null || resume.title().isBlank()
-                                ? "대화로 받은 이력서" : resume.title())
-                        .param("rawText", resume.rawText())
-                        .update());
-                log.info("Chat-collected resume stored as a career source: job={}", job.id());
-            } catch (Exception exception) {
-                log.warn("Chat-collected resume was not stored (job {}): {}",
-                        job.id(), exception.getMessage());
-            }
-        }
-
-        boolean hasPreferences = collected.preferences() != null
-                && !collected.preferences().isNull();
-        boolean hasFacts = collected.facts() != null && !collected.facts().isEmpty();
-        if (hasPreferences || hasFacts) {
-            try {
-                // 전량 upsert — AI 가 누적 전체를 보내므로 멱등이다. 온 것만 덮고 나머지는
-                // 그대로 둔다(선호만 바뀐 턴에 사실을 지우지 않는다).
-                rls.write(job.userId(), jdbc -> jdbc.sql("""
-                                insert into user_goal_profiles (
-                                    user_id,
-                                    chat_preferences,
-                                    chat_facts
-                                )
-                                values (
-                                    :userId,
-                                    cast(:preferences as jsonb),
-                                    cast(:facts as jsonb)
-                                )
-                                on conflict (user_id) do update set
-                                    chat_preferences = coalesce(
-                                        excluded.chat_preferences,
-                                        user_goal_profiles.chat_preferences
-                                    ),
-                                    chat_facts = coalesce(
-                                        excluded.chat_facts,
-                                        user_goal_profiles.chat_facts
-                                    ),
-                                    updated_at = now()
-                                """)
-                        .param("userId", job.userId())
-                        .param("preferences", hasPreferences
-                                ? objectMapper.writeValueAsString(collected.preferences())
-                                : null)
-                        .param("facts", hasFacts
-                                ? objectMapper.writeValueAsString(collected.facts())
-                                : null)
-                        .update());
-                log.info("Chat-collected profile stored: job={} preferences={} facts={}",
-                        job.id(), hasPreferences,
-                        hasFacts ? collected.facts().size() : 0);
-            } catch (Exception exception) {
-                log.warn("Chat-collected profile was not stored (job {}): {}",
-                        job.id(), exception.getMessage());
-            }
+    private void ensureSelectedAssetsAvailable(
+            AgentSelection selection,
+            List<AiContracts.ChatPostingAsset> postings,
+            List<AiContracts.ChatCareerSourceAsset> sources
+    ) {
+        if (postings.size() != selection.postingIds().size()
+                || sources.size() != selection.careerSourceIds().size()) {
+            throw new IllegalStateException(
+                    "선택한 공고 또는 커리어 자료가 삭제되었거나 더 이상 사용할 수 없습니다."
+            );
         }
     }
 
-    /**
-     * 대화가 만든 산출물을 이 서비스의 테이블에 적재한다(V23).
-     *
-     * <p>전에는 이 값들이 AI 세션 파일에만 남아, 그 파일을 지우면 판정·로드맵·초안이 사라졌다.
-     * 각 항목은 <b>그 턴에 만들어졌을 때만</b> 온다 — 매 턴 전량을 받으면 append 형 테이블에
-     * 같은 행이 계속 쌓인다.
-     *
-     * <p>실패는 대화를 죽이지 않는다(경고만). 답변은 이미 저장돼 있다.
-     */
-    private void ingestOutputs(
-            ClaimedJob job,
-            UUID conversationId,
-            AiContracts.CollectedOutputs outputs
-    ) {
-        if (outputs == null) {
-            return;
+    private String clip(String value, int limit) {
+        if (value == null || value.length() <= limit) {
+            return value == null ? "" : value;
         }
-        try {
+        return value.substring(0, limit);
+    }
+
+    private void persistProgress(
+            ClaimedJob job,
+            AiContracts.ChatStreamEvent event
+    ) {
+        if ("PLAN".equals(event.type()) && event.plan() != null) {
+            String plan = objectMapper.writeValueAsString(event.plan());
             rls.write(job.userId(), jdbc -> {
-                // 판정·로드맵·판정근거는 한 행에 모인다 — analysis_jobs.engine_result.
-                // result_data(v2 형식)는 건드리지 않는다: writer 가 둘이 되면 갈린다.
-                if (outputs.analysis() != null) {
-                    jdbc.sql("""
-                                    update analysis_jobs
-                                    set engine_result = cast(:payload as jsonb),
-                                        updated_at = now()
-                                    where id = (
-                                        select j.id
-                                        from analysis_jobs j
-                                        join job_postings p on p.id = j.posting_id
-                                        where p.conversation_id = :conversationId
-                                          and j.user_id = :userId
-                                        order by j.created_at desc
-                                        limit 1
-                                    )
-                                    """)
-                            .param("payload", writeJson(mergeEngineResult(outputs)))
-                            .param("conversationId", conversationId)
-                            .param("userId", job.userId())
-                            .update();
-                }
-                if (outputs.profile() != null) {
-                    jdbc.sql("""
-                                    insert into ai_user_profiles (user_id, profile)
-                                    values (:userId, cast(:payload as jsonb))
-                                    on conflict (user_id) do update set
-                                        profile = excluded.profile,
-                                        updated_at = now()
-                                    """)
-                            .param("userId", job.userId())
-                            .param("payload", writeJson(outputs.profile()))
-                            .update();
-                }
-                if (outputs.recommendations() != null) {
-                    jdbc.sql("""
-                                    insert into posting_recommendations (
-                                        user_id, conversation_id, recommendations
-                                    )
-                                    values (:userId, :conversationId, cast(:payload as jsonb))
-                                    """)
-                            .param("userId", job.userId())
-                            .param("conversationId", conversationId)
-                            .param("payload", writeJson(outputs.recommendations()))
-                            .update();
-                }
-                if (outputs.coverletter() != null) {
-                    jdbc.sql("""
-                                    insert into coverletter_drafts (
-                                        user_id, conversation_id, draft
-                                    )
-                                    values (:userId, :conversationId, cast(:payload as jsonb))
-                                    """)
-                            .param("userId", job.userId())
-                            .param("conversationId", conversationId)
-                            .param("payload", writeJson(outputs.coverletter()))
-                            .update();
-                }
-                if (outputs.interview() != null) {
-                    // 면접은 여러 턴에 걸친 진행 상태다 — 대화당 한 행을 갱신한다.
-                    jdbc.sql("""
-                                    insert into interview_sessions (
-                                        user_id, conversation_id, state
-                                    )
-                                    values (:userId, :conversationId, cast(:payload as jsonb))
-                                    on conflict (conversation_id) do update set
-                                        state = excluded.state,
-                                        updated_at = now()
-                                    """)
-                            .param("userId", job.userId())
-                            .param("conversationId", conversationId)
-                            .param("payload", writeJson(outputs.interview()))
-                            .update();
-                }
-                if (outputs.applicationPlan() != null) {
-                    jdbc.sql("""
-                                    insert into application_plans (
-                                        user_id, conversation_id, plan
-                                    )
-                                    values (:userId, :conversationId, cast(:payload as jsonb))
-                                    """)
-                            .param("userId", job.userId())
-                            .param("conversationId", conversationId)
-                            .param("payload", writeJson(outputs.applicationPlan()))
-                            .update();
-                }
-                if (outputs.preparationPeriodWeeks() != null
-                        || outputs.availableHoursPerWeek() != null) {
-                    jdbc.sql("""
-                                    insert into user_goal_profiles (
-                                        user_id,
-                                        preparation_period_weeks,
-                                        available_hours_per_week
-                                    )
-                                    values (:userId, :weeks, :hours)
-                                    on conflict (user_id) do update set
-                                        preparation_period_weeks = coalesce(
-                                            excluded.preparation_period_weeks,
-                                            user_goal_profiles.preparation_period_weeks
-                                        ),
-                                        available_hours_per_week = coalesce(
-                                            excluded.available_hours_per_week,
-                                            user_goal_profiles.available_hours_per_week
-                                        ),
-                                        updated_at = now()
-                                    """)
-                            .param("userId", job.userId())
-                            .param("weeks", outputs.preparationPeriodWeeks())
-                            .param("hours", outputs.availableHoursPerWeek())
-                            .update();
-                }
-                if (outputs.competencyProposal() != null && outputs.jobContext() == null) {
-                    // 불완전한 캐시는 만들지 않는다. 전에는 아직 분석 전인 job_postings 열로
-                    // job 을 지어냈는데 primaryTrack·experienceRequirement 가 비어, 그 캐시를
-                    // 재사용한 분석 작업이 NOT NULL 위반·NPE 로 죽었다(실측 08-04 01:13).
-                    // 재료 없이 넣는 것보다 이번 캐시를 포기하는 쪽이 싸다 — 분석 작업이
-                    // 엔진을 새로 돌면 완전한 결과가 같은 자리에 저장된다. (§2-6: 폴백은
-                    // 이유를 삼키지 않는다)
-                    log.warn("Chat-collected proposal without jobContext; "
-                            + "skipping shared-analysis cache: job={}", job.id());
-                }
-                if (outputs.competencyProposal() != null && outputs.jobContext() != null) {
-                    // 대화가 만든 지도 재료를 **공용 공고 분석**으로 저장한다. 이 공고의 분석
-                    // 작업이 기존 재사용 경로(AnalysisWorker.reuseSharedAnalysis)로 집어
-                    // user_competencies·posting_competency_requirements·
-                    // posting_target_projects 에 적재하고, 그 뒤 지도가 자동으로 그려진다(D146).
-                    //
-                    // 적재 SQL 을 여기 복제하지 않는 이유: 그 코드는 노드 연결·준비도 계산과
-                    // 얽힌 500줄이고, writer 가 둘이 되면 두 경로의 지도가 갈린다.
-                    // clarification_fingerprint 는 **되묻기 없는 분석의 지문과 같은 값**이어야
-                    // 분석 작업의 재사용 조회가 적중한다. 리터럴 '' 을 쓰면 영원히 빗나간다 —
-                    // 조회 키는 fingerprint(빈 답변) = sha256("") 이다(실측 08-04: use_count 0,
-                    // 분석 작업이 엔진을 다시 돌다 이력서 요청으로 실패해 지도가 안 그려졌다).
-                    // job 은 AI 가 보낸 jobContext 만 쓴다 — 위 가드가 없는 캐시를 걸러 준다.
-                    jdbc.sql("""
-                                    insert into posting_analysis_cache (
-                                        content_fingerprint,
-                                        clarification_fingerprint,
-                                        normalized_analysis
-                                    )
-                                    select
-                                        posting.content_fingerprint,
-                                        :clarificationFingerprint,
-                                        jsonb_build_object(
-                                            'job', cast(:jobContext as jsonb),
-                                            'competencyProposal', cast(:proposal as jsonb)
-                                        )
-                                    from job_postings posting
-                                    where posting.conversation_id = :conversationId
-                                      and posting.user_id = :userId
-                                      and posting.archived_at is null
-                                    order by posting.created_at desc
-                                    limit 1
-                                    on conflict (content_fingerprint, clarification_fingerprint)
-                                    do update set
-                                        normalized_analysis = excluded.normalized_analysis,
-                                        last_used_at = now()
-                                    """)
-                            .param("proposal", writeJson(outputs.competencyProposal()))
-                            .param("jobContext", writeJson(outputs.jobContext()))
-                            .param(
-                                    "clarificationFingerprint",
-                                    AnalysisClarificationNormalizer.fingerprint(List.of())
-                            )
-                            .param("conversationId", conversationId)
-                            .param("userId", job.userId())
-                            .update();
-                }
-                if (outputs.sessionState() != null) {
-                    jdbc.sql("""
-                                    insert into agent_session_state (
-                                        conversation_id, user_id, state
-                                    )
-                                    values (:conversationId, :userId, cast(:payload as jsonb))
-                                    on conflict (conversation_id) do update set
-                                        state = excluded.state,
-                                        updated_at = now()
-                                    """)
-                            .param("conversationId", conversationId)
-                            .param("userId", job.userId())
-                            .param("payload", writeJson(outputs.sessionState()))
-                            .update();
-                }
+                jdbc.sql("""
+                                update chat_reply_jobs
+                                set
+                                    stage = 'AGENT_PLAN',
+                                    stage_message = '에이전트 실행 경로를 구성했어요',
+                                    result_data = jsonb_set(
+                                        result_data,
+                                        '{plan}',
+                                        cast(:plan as jsonb),
+                                        true
+                                    ),
+                                    locked_until = now() + interval '15 minutes'
+                                where id = :jobId
+                                  and status = 'RUNNING'
+                                """)
+                        .param("plan", plan)
+                        .param("jobId", job.id())
+                        .update();
                 return null;
             });
-            log.info("Chat-collected outputs stored: job={}", job.id());
-            // 대화가 만든 재료로도 지도를 자동으로 그린다 — 분석 작업 경로와 **같은 메서드**다.
-            roadmapService.autoGenerateAfterAnalysis(job.userId());
-        } catch (Exception exception) {
-            log.warn("Chat-collected outputs were not stored (job {}): {}",
-                    job.id(), exception.getMessage());
+            return;
         }
+        if (!"PROGRESS".equals(event.type()) && !"ERROR".equals(event.type())) {
+            return;
+        }
+        String agentId = valueOr(event.agentId(), "agent_orchestrator");
+        String label = valueOr(event.label(), "에이전트 실행");
+        String status = valueOr(event.status(), "RUNNING");
+        String message = valueOr(event.message(), "요청을 처리하고 있어요.");
+        rls.write(job.userId(), jdbc -> {
+            jdbc.sql("""
+                            update chat_reply_jobs
+                            set
+                                stage = :stage,
+                                stage_message = :stageMessage,
+                                progress_events = progress_events || jsonb_build_array(
+                                    jsonb_build_object(
+                                        'agentId', :agentId,
+                                        'label', :label,
+                                        'status', :status,
+                                        'message', :message,
+                                        'occurredAt', :occurredAt
+                                    )
+                                ),
+                                locked_until = now() + interval '15 minutes'
+                            where id = :jobId
+                              and status = 'RUNNING'
+                            """)
+                    .param("stage", "AGENT_" + agentId.toUpperCase())
+                    .param("stageMessage", message)
+                    .param("agentId", agentId)
+                    .param("label", label)
+                    .param("status", status)
+                    .param("message", message)
+                    .param(
+                            "occurredAt",
+                            event.occurredAt() == null
+                                    ? OffsetDateTime.now().toString()
+                                    : event.occurredAt().toString()
+                    )
+                    .param("jobId", job.id())
+                    .update();
+            return null;
+        });
     }
 
-    /** 판정·로드맵·판정근거를 한 JSON 으로 — engine_result 한 칸에 모아 둔다. */
-    private JsonNode mergeEngineResult(AiContracts.CollectedOutputs outputs) {
-        var merged = objectMapper.createObjectNode();
-        merged.set("analysis", outputs.analysis());
-        if (outputs.roadmap() != null) {
-            merged.set("roadmap", outputs.roadmap());
-        }
-        if (outputs.judgmentSummary() != null) {
-            merged.set("judgmentSummary", outputs.judgmentSummary());
-        }
-        return merged;
-    }
-
-    private String writeJson(Object value) {
-        return objectMapper.writeValueAsString(value);
+    private String valueOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private void complete(ClaimedJob job, AiContracts.ChatResponse response) {
         rls.write(job.userId(), jdbc -> {
             UUID conversationId = jdbc.sql("""
-                            select conversation_id from chat_reply_jobs where id = :jobId
+                            select conversation_id
+                            from chat_reply_jobs
+                            where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
+                            for update
                             """)
                     .param("jobId", job.id())
+                    .param("workerId", workerId)
                     .query(UUID.class)
-                    .single();
+                    .optional()
+                    .orElse(null);
+            if (conversationId == null) {
+                return null;
+            }
             String metadata = objectMapper.writeValueAsString(response);
+            String completedProgress = objectMapper.writeValueAsString(
+                    canonicalProgress(response)
+            );
             jdbc.sql("""
                             insert into conversation_messages (
                                 user_id,
@@ -843,26 +769,365 @@ public class ChatReplyWorker {
                                 status = 'SUCCEEDED',
                                 stage = 'COMPLETED',
                                 stage_message = '답변 완료',
+                                result_data = cast(:resultData as jsonb),
+                                progress_events = cast(:progressEvents as jsonb),
                                 completed_at = now(),
                                 locked_until = null
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
+                    .param("resultData", metadata)
+                    .param("progressEvents", completedProgress)
                     .param("jobId", job.id())
+                    .param("workerId", workerId)
                     .update();
+            persistWorkspaceState(jdbc, job, conversationId, response.workspaceState());
+            persistWorkProducts(jdbc, job, conversationId, response);
+            persistCollectedAssets(jdbc, job, conversationId, response.collected());
             finish(jdbc, job);
             return null;
         });
     }
 
     /**
-     * AI 서버에 닿지 못한 실패인가 — 답변 내용과 무관한 전송 실패인가.
-     *
-     * <p>실측(08-04 09:20): 대화 도중 AI 서버가 재시작되자 "Connection reset"(진행 중이던
-     * 턴)과 "Connection refused"(그 사이 큐에 들어온 턴)로 두 턴이 한 번에 죽었다. 이건
-     * 답변이 틀린 것도, AI 가 거절한 것도 아니라 <b>말을 걸지 못한 것</b>이다 — 다시 걸면
-     * 된다. 반대로 AI 가 스스로 낸 오류({@link AiServiceException})는 다시 걸어도 같은
-     * 답이 나올 가능성이 높아 여기 넣지 않는다: 재시도는 매번 LLM 비용을 새로 쓴다.
+     * AI가 대화 턴에서 수집한 자산(collected)을 도메인 테이블로 투영한다.
+     * persistence_map.py 계약: 대화에 붙인 공고 → job_postings, 이력서 → career_sources.
+     * 이력서는 기본 상태(QUEUED)로 넣어 CareerExtractionWorker가 조각 추출까지 잇는다.
      */
+    private void persistCollectedAssets(
+            JdbcClient jdbc,
+            ClaimedJob job,
+            UUID conversationId,
+            JsonNode collected
+    ) {
+        if (collected == null || !collected.isObject()) {
+            return;
+        }
+        JsonNode posting = collected.path("posting");
+        String postingText = posting.path("rawText").asString("").trim();
+        if (!postingText.isEmpty()) {
+            String fingerprint = sensitiveText.fingerprint(
+                    postingText.replaceAll("\\s+", " ").toLowerCase(java.util.Locale.ROOT)
+            );
+            JsonNode parsed = collected.path("outputs").path("postingSummary");
+            UUID existing = jdbc.sql("""
+                            select id
+                            from job_postings
+                            where content_fingerprint = :fingerprint
+                              and archived_at is null
+                            limit 1
+                            """)
+                    .param("fingerprint", fingerprint)
+                    .query(UUID.class)
+                    .optional()
+                    .orElse(null);
+            if (existing == null) {
+                jdbc.sql("""
+                                insert into job_postings (
+                                    user_id, source_type, source_url, raw_text,
+                                    conversation_id, content_fingerprint,
+                                    company_name, role_title, parsed_data
+                                )
+                                values (
+                                    :userId, cast(:sourceType as posting_source), :sourceUrl,
+                                    :rawText, :conversationId, :fingerprint,
+                                    :companyName, :roleTitle, cast(:parsedData as jsonb)
+                                )
+                                """)
+                        .param("userId", job.userId())
+                        .param("sourceType", posting.path("sourceType").asString("TEXT"))
+                        .param("sourceUrl", posting.path("sourceUrl").asString(null))
+                        .param("rawText", sensitiveText.encrypt(postingText))
+                        .param("conversationId", conversationId)
+                        .param("fingerprint", fingerprint)
+                        .param("companyName", parsed.path("companyName").asString(null))
+                        .param("roleTitle", parsed.path("jobTitle").asString(null))
+                        .param("parsedData", parsed.isObject()
+                                ? objectMapper.writeValueAsString(parsed) : null)
+                        .update();
+            } else if (parsed.isObject()) {
+                jdbc.sql("""
+                                update job_postings
+                                set parsed_data = cast(:parsedData as jsonb),
+                                    company_name = coalesce(company_name, :companyName),
+                                    role_title = coalesce(role_title, :roleTitle),
+                                    updated_at = now()
+                                where id = :id
+                                """)
+                        .param("parsedData", objectMapper.writeValueAsString(parsed))
+                        .param("companyName", parsed.path("companyName").asString(null))
+                        .param("roleTitle", parsed.path("jobTitle").asString(null))
+                        .param("id", existing)
+                        .update();
+            }
+            // 대화방 제목은 사용자가 가장 최근에 낸 공고의 회사명을 따른다.
+            String companyName = parsed.path("companyName").asString("").trim();
+            if (!companyName.isEmpty()) {
+                jdbc.sql("""
+                                update conversations
+                                set title = :title
+                                where id = :conversationId
+                                """)
+                        .param("title", clip(companyName, 80))
+                        .param("conversationId", conversationId)
+                        .update();
+            }
+        }
+        JsonNode resume = collected.path("resume");
+        String resumeText = resume.path("rawText").asString("").trim();
+        if (!resumeText.isEmpty()) {
+            jdbc.sql("""
+                            insert into career_sources (
+                                user_id, source_type, title, raw_text
+                            )
+                            values (:userId, 'TEXT', :title, :rawText)
+                            """)
+                    .param("userId", job.userId())
+                    .param("title", resume.path("title").asString("대화로 받은 이력서"))
+                    .param("rawText", sensitiveText.encrypt(resumeText))
+                    .update();
+        }
+        JsonNode preferences = collected.path("preferences");
+        JsonNode facts = collected.path("facts");
+        JsonNode outputs = collected.path("outputs");
+        Integer prepWeeks = outputs.path("preparationPeriodWeeks").isNumber()
+                ? outputs.path("preparationPeriodWeeks").asInt() : null;
+        Integer hoursPerWeek = outputs.path("availableHoursPerWeek").isNumber()
+                ? outputs.path("availableHoursPerWeek").asInt() : null;
+        if (preferences.isObject() || facts.isArray()
+                || prepWeeks != null || hoursPerWeek != null) {
+            jdbc.sql("""
+                            insert into user_goal_profiles (
+                                user_id, chat_preferences, chat_facts,
+                                preparation_period_weeks, available_hours_per_week
+                            )
+                            values (
+                                :userId, cast(:preferences as jsonb), cast(:facts as jsonb),
+                                :prepWeeks, :hoursPerWeek
+                            )
+                            on conflict (user_id) do update set
+                                chat_preferences = coalesce(
+                                        excluded.chat_preferences,
+                                        user_goal_profiles.chat_preferences),
+                                chat_facts = coalesce(
+                                        excluded.chat_facts,
+                                        user_goal_profiles.chat_facts),
+                                preparation_period_weeks = coalesce(
+                                        excluded.preparation_period_weeks,
+                                        user_goal_profiles.preparation_period_weeks),
+                                available_hours_per_week = coalesce(
+                                        excluded.available_hours_per_week,
+                                        user_goal_profiles.available_hours_per_week),
+                                updated_at = now()
+                            """)
+                    .param("userId", job.userId())
+                    .param("preferences", preferences.isObject()
+                            ? objectMapper.writeValueAsString(preferences) : null)
+                    .param("facts", facts.isArray()
+                            ? objectMapper.writeValueAsString(facts) : null)
+                    .param("prepWeeks", prepWeeks)
+                    .param("hoursPerWeek", hoursPerWeek)
+                    .update();
+        }
+    }
+
+    private void persistWorkspaceState(
+            JdbcClient jdbc,
+            ClaimedJob job,
+            UUID conversationId,
+            JsonNode workspaceState
+    ) {
+        if (workspaceState == null || !workspaceState.isObject()) {
+            return;
+        }
+        jdbc.sql("""
+                        insert into agent_workspace_states (
+                            user_id, conversation_id, state
+                        ) values (
+                            :userId, :conversationId, cast(:state as jsonb)
+                        )
+                        on conflict (user_id, conversation_id) do update
+                        set state = excluded.state, updated_at = now()
+                        """)
+                .param("userId", job.userId())
+                .param("conversationId", conversationId)
+                .param("state", objectMapper.writeValueAsString(workspaceState))
+                .update();
+    }
+
+    private void persistWorkProducts(
+            JdbcClient jdbc,
+            ClaimedJob job,
+            UUID conversationId,
+            AiContracts.ChatResponse response
+    ) {
+        if (response.workProducts() == null || response.workProducts().isEmpty()) {
+            return;
+        }
+        UUID postingId = response.plan() == null
+                || response.plan().selectedPostingIds() == null
+                || response.plan().selectedPostingIds().isEmpty()
+                ? null
+                : response.plan().selectedPostingIds().get(0);
+        for (int ordinal = 0; ordinal < response.workProducts().size(); ordinal++) {
+            AiContracts.ChatAgentWorkProduct product = response.workProducts().get(ordinal);
+            String payload = objectMapper.writeValueAsString(product);
+            String sources = objectMapper.writeValueAsString(
+                    product.replySources() == null ? List.of() : product.replySources()
+            );
+            UUID productId = jdbc.sql("""
+                            insert into agent_work_products (
+                                user_id, conversation_id, chat_reply_job_id, ordinal,
+                                agent_id, product_type, title, summary, payload, reply_sources
+                            ) values (
+                                :userId, :conversationId, :jobId, :ordinal,
+                                :agentId, :productType, :title, :summary,
+                                cast(:payload as jsonb), cast(:sources as jsonb)
+                            )
+                            on conflict (chat_reply_job_id, ordinal) do update set
+                                agent_id = excluded.agent_id,
+                                product_type = excluded.product_type,
+                                title = excluded.title,
+                                summary = excluded.summary,
+                                payload = excluded.payload,
+                                reply_sources = excluded.reply_sources
+                            returning id
+                            """)
+                    .param("userId", job.userId())
+                    .param("conversationId", conversationId)
+                    .param("jobId", job.id())
+                    .param("ordinal", ordinal)
+                    .param("agentId", product.agentId())
+                    .param("productType", product.productType())
+                    .param("title", product.title())
+                    .param("summary", product.summary())
+                    .param("payload", payload)
+                    .param("sources", sources)
+                    .query(UUID.class)
+                    .single();
+            persistTypedWorkProduct(
+                    jdbc, job.userId(), conversationId, postingId,
+                    productId, product, response.detailedStatus()
+            );
+        }
+    }
+
+    private void persistTypedWorkProduct(
+            JdbcClient jdbc,
+            UUID userId,
+            UUID conversationId,
+            UUID postingId,
+            UUID productId,
+            AiContracts.ChatAgentWorkProduct product,
+            String detailedStatus
+    ) {
+        JsonNode dataNode = product.data() == null
+                ? objectMapper.createObjectNode()
+                : product.data();
+        String data = objectMapper.writeValueAsString(dataNode);
+        switch (product.productType()) {
+            case "PREFERENCES" -> jdbc.sql("""
+                            insert into user_agent_preferences (
+                                user_id, preferences, source_work_product_id
+                            ) values (
+                                :userId, cast(:data as jsonb), :productId
+                            )
+                            on conflict (user_id) do update set
+                                preferences = excluded.preferences,
+                                source_work_product_id = excluded.source_work_product_id,
+                                updated_at = now()
+                            """)
+                    .param("userId", userId)
+                    .param("data", data)
+                    .param("productId", productId)
+                    .update();
+            case "INTERVIEW_SET" -> jdbc.sql("""
+                            insert into interview_sessions (
+                                user_id, conversation_id, posting_id,
+                                source_work_product_id, state
+                            ) values (
+                                :userId, :conversationId, :postingId,
+                                :productId, cast(:data as jsonb)
+                            )
+                            on conflict (source_work_product_id) do update
+                            set state = excluded.state, updated_at = now()
+                            """)
+                    .param("userId", userId)
+                    .param("conversationId", conversationId)
+                    .param("postingId", postingId)
+                    .param("productId", productId)
+                    .param("data", data)
+                    .update();
+            case "COVER_LETTER_DRAFT" -> jdbc.sql("""
+                            insert into cover_letter_drafts (
+                                user_id, posting_id, source_work_product_id,
+                                title, content
+                            ) values (
+                                :userId, :postingId, :productId,
+                                :title, cast(:data as jsonb)
+                            )
+                            on conflict (source_work_product_id) do update
+                            set title = excluded.title,
+                                content = excluded.content,
+                                updated_at = now()
+                            """)
+                    .param("userId", userId)
+                    .param("postingId", postingId)
+                    .param("productId", productId)
+                    .param("title", product.title())
+                    .param("data", data)
+                    .update();
+            case "APPLICATION_PLAN" -> jdbc.sql("""
+                            insert into application_plans (
+                                user_id, posting_id, source_work_product_id,
+                                detailed_status, plan
+                            ) values (
+                                :userId, :postingId, :productId,
+                                :detailedStatus, cast(:data as jsonb)
+                            )
+                            on conflict (source_work_product_id) do update
+                            set detailed_status = excluded.detailed_status,
+                                plan = excluded.plan,
+                                updated_at = now()
+                            """)
+                    .param("userId", userId)
+                    .param("postingId", postingId)
+                    .param("productId", productId)
+                    .param("detailedStatus", detailedStatus)
+                    .param("data", data)
+                    .update();
+            default -> {
+                // Generic products remain available through agent_work_products.
+            }
+        }
+    }
+
+    private List<ProgressEvent> canonicalProgress(
+            AiContracts.ChatResponse response
+    ) {
+        if (response.progress() == null || response.progress().isEmpty()) {
+            return List.of(
+                    new ProgressEvent(
+                            "response_writer",
+                            "결과 정리",
+                            "COMPLETED",
+                            "검토 가능한 답변을 완성했어요.",
+                            OffsetDateTime.now()
+                    )
+            );
+        }
+        return response.progress().stream()
+                .map(item -> new ProgressEvent(
+                        valueOr(item.agentId(), "agent_orchestrator"),
+                        valueOr(item.label(), "에이전트 실행"),
+                        valueOr(item.status(), "COMPLETED"),
+                        valueOr(item.message(), "작업을 완료했어요."),
+                        OffsetDateTime.now()
+                ))
+                .toList();
+    }
+
     static boolean isTransportFailure(Throwable exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof AiServiceException) {
@@ -878,17 +1143,6 @@ public class ChatReplyWorker {
         return false;
     }
 
-    /**
-     * 전송 실패는 최종 실패가 아니다 — 큐에 남은 시도를 쓰게 되돌린다.
-     *
-     * <p>큐는 처음부터 3회를 허용했는데(claim_chat_reply_job 의 {@code attempt_count < 3})
-     * 워커가 전송 실패까지 FAILED 로 닫아 그 예산을 한 번도 쓰지 않았다. 되돌릴 때
-     * <b>{@link #finish} 를 부르지 않는다</b> — 큐 행을 지우면 다음 등록에서 시도 횟수가
-     * 0 으로 돌아가 상한이 사라진다.
-     *
-     * <p>지연을 두는 이유: 서버 재시작은 십수 초가 걸리는데 워커는 3초마다 폴링한다.
-     * 즉시 되돌리면 남은 두 번을 서버가 뜨기도 전에 태운다(실측의 공백은 12초였다).
-     */
     private void requeue(ClaimedJob job, Exception exception, int delaySeconds) {
         rls.write(job.userId(), jdbc -> {
             jdbc.sql("""
@@ -902,10 +1156,13 @@ public class ChatReplyWorker {
                                 error_code = :errorCode,
                                 error_message = :errorMessage
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
                     .param("errorCode", classify(exception))
                     .param("errorMessage", safeMessage(exception))
                     .param("jobId", job.id())
+                    .param("workerId", workerId)
                     .update();
             jdbc.sql("select requeue_chat_reply_job(:jobId, :userId, :delaySeconds)")
                     .param("jobId", job.id())
@@ -919,7 +1176,7 @@ public class ChatReplyWorker {
 
     private void fail(ClaimedJob job, Exception exception) {
         rls.write(job.userId(), jdbc -> {
-            jdbc.sql("""
+            int updated = jdbc.sql("""
                             update chat_reply_jobs
                             set
                                 status = 'FAILED',
@@ -927,15 +1184,29 @@ public class ChatReplyWorker {
                                 stage_message = '답변을 만들지 못했어요',
                                 error_code = :errorCode,
                                 error_message = :errorMessage,
+                                progress_events = progress_events || jsonb_build_array(
+                                    jsonb_build_object(
+                                        'agentId', 'agent_error_boundary',
+                                        'label', '오류 격리',
+                                        'status', 'FAILED',
+                                        'message', '현재 작업의 오류를 다른 대화와 분리했어요',
+                                        'occurredAt', cast(now() as text)
+                                    )
+                                ),
                                 completed_at = now(),
                                 locked_until = null
                             where id = :jobId
+                              and status = 'RUNNING'
+                              and worker_id = :workerId
                             """)
                     .param("errorCode", classify(exception))
                     .param("errorMessage", safeMessage(exception))
                     .param("jobId", job.id())
+                    .param("workerId", workerId)
                     .update();
-            finish(jdbc, job);
+            if (updated > 0) {
+                finish(jdbc, job);
+            }
             return null;
         });
     }
@@ -971,63 +1242,48 @@ public class ChatReplyWorker {
         }
     }
 
-    /**
-     * 잡아 둔 작업 하나. {@code sequence} 는 이 턴의 진행 단계 번호를 매기는 카운터다 —
-     * AI 스트림은 순번을 주지 않고, 순서를 잃으면 대화창이 단계를 뒤섞어 그린다.
-     * 워커는 한 번에 한 작업만 처리하므로 이 카운터를 공유하는 스레드는 없다.
-     */
-    private record ClaimedJob(
-            UUID id,
-            UUID userId,
-            int attemptCount,
-            AtomicInteger sequence
-    ) {
-        ClaimedJob(UUID id, UUID userId, int attemptCount) {
-            this(id, userId, attemptCount, new AtomicInteger());
-        }
-
-        int nextSequence() {
-            return sequence.incrementAndGet();
-        }
+    private record ClaimedJob(UUID id, UUID userId, int attemptCount) {
     }
 
     private record Trigger(
             UUID conversationId,
             UUID triggerMessageId,
+            String requestContext,
             java.time.OffsetDateTime createdAt
     ) {
     }
 
-    /** 되돌려 줄 선호·지속 사실({@code user_goal_profiles}). */
-    private record ChatProfile(JsonNode preferences, List<String> facts) {
+    private record AgentSelection(
+            String mode,
+            List<UUID> postingIds,
+            List<UUID> careerSourceIds
+    ) {
     }
 
-    /** jsonb 문자열 → JsonNode. 비었거나 깨졌으면 null — 맥락 전달이 대화를 죽이지 않는다. */
-    private JsonNode readJson(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        try {
-            return objectMapper.readTree(raw);
-        } catch (RuntimeException exception) {
-            log.debug("chat_preferences not readable: {}", exception.getMessage());
-            return null;
-        }
+    private record GoalProfileRow(
+            String preferences,
+            String facts,
+            Integer preparationPeriodWeeks,
+            Integer availableHoursPerWeek
+    ) {
     }
 
-    /** jsonb 배열 문자열 → 문자열 목록. 비었거나 깨졌으면 빈 목록. */
-    private List<String> readStringList(String raw) {
-        JsonNode node = readJson(raw);
-        if (node == null || !node.isArray()) {
-            return List.of();
-        }
-        List<String> values = new ArrayList<>();
-        node.forEach(item -> {
-            String text = item.stringValue("");
-            if (!text.isBlank()) {
-                values.add(text);
-            }
-        });
-        return values;
+    private record CareerSourceRow(
+            UUID id,
+            String sourceType,
+            String title,
+            String sourceUrl,
+            String summary,
+            String rawText
+    ) {
+    }
+
+    private record ProgressEvent(
+            String agentId,
+            String label,
+            String status,
+            String message,
+            OffsetDateTime occurredAt
+    ) {
     }
 }

@@ -1,15 +1,30 @@
 param(
-    [int]$Port = 55432,
+    [int]$Port = 58432,
+    [string]$Database = "jobiss_v3_integration_lab",
     [string]$MigratorPassword = "jobiss_migrator_dev",
-    [string]$AppPassword = "jobiss_app_dev"
+    [string]$AppPassword = "jobiss_app_dev",
+    [string]$DataDirectory = "",
+    [string]$LogFile = ""
 )
 
 $ErrorActionPreference = "Stop"
 
+if ($Database -notmatch '^[a-z][a-z0-9_]{0,62}$') {
+    throw "Database must be a lowercase PostgreSQL identifier."
+}
+
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $localRoot = Join-Path $projectRoot ".local"
-$dataRoot = Join-Path $localRoot "postgres-data"
-$logPath = Join-Path $localRoot "postgres.log"
+$dataRoot = if ($DataDirectory) {
+    [System.IO.Path]::GetFullPath($DataDirectory)
+} else {
+    Join-Path $localRoot "postgres-data"
+}
+$logPath = if ($LogFile) {
+    [System.IO.Path]::GetFullPath($LogFile)
+} else {
+    Join-Path $localRoot "postgres.log"
+}
 
 $postgresInstallRoot = Join-Path $env:ProgramFiles "PostgreSQL"
 $postgresVersion = Get-ChildItem -LiteralPath $postgresInstallRoot -Directory |
@@ -73,14 +88,14 @@ if (-not $isRunning) {
 $env:PGPASSWORD = $MigratorPassword
 try {
     $databaseExists = & $psql -w -h localhost -p $Port -U jobiss_migrator -d postgres -tAc `
-        "select 1 from pg_database where datname = 'jobiss'"
+        "select 1 from pg_database where datname = '$Database'"
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Could not connect to the JOBISS local PostgreSQL cluster."
+        throw "Could not connect to the JOBIS local PostgreSQL cluster."
     }
 
     if (-not $databaseExists) {
-        & $createdb -w -h localhost -p $Port -U jobiss_migrator -O jobiss_migrator jobiss
+        & $createdb -w -h localhost -p $Port -U jobiss_migrator -O jobiss_migrator $Database
         if ($LASTEXITCODE -ne 0) {
             throw "Could not create the jobiss database."
         }
@@ -105,10 +120,10 @@ BEGIN
 END
 `$do`$;
 
-GRANT CONNECT ON DATABASE jobiss TO jobiss_app;
+GRANT CONNECT ON DATABASE $Database TO jobiss_app;
 "@
 
-    $roleSql | & $psql -w -h localhost -p $Port -U jobiss_migrator -d jobiss -v ON_ERROR_STOP=1
+    $roleSql | & $psql -w -h localhost -p $Port -U jobiss_migrator -d $Database -v ON_ERROR_STOP=1
     if ($LASTEXITCODE -ne 0) {
         throw "Could not configure the jobiss_app role."
     }
@@ -117,4 +132,4 @@ finally {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
 }
 
-Write-Host "JOBISS PostgreSQL is ready at localhost:$Port."
+Write-Host "JOBIS local PostgreSQL is ready at localhost:$Port/$Database."

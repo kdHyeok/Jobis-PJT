@@ -1,0 +1,97 @@
+{
+  "version": "provider-comparison-corpus-1.0.0",
+  "description": "Public synthetic result pairs for deterministic LEGACY/V3 semantic comparison. No user data or real posting text is included.",
+  "cases": [
+    {
+      "id": "PAIR-001",
+      "title": "Backend new-graduate semantic match",
+      "legacy": {
+        "job": {"companyName": "Example Games", "primaryTrack": "BACKEND", "experienceRequirement": {"minimumMonths": 0}},
+        "evaluation": {"verdict": "STRENGTHEN_THEN_APPLY"},
+        "competencyProposal": {
+          "competencies": [{"canonicalKey": "skill.java"}, {"canonicalKey": "skill.spring-boot"}],
+          "requirements": [{"relation": "REQUIRED"}, {"relation": "REQUIRED"}],
+          "targetProject": {"title": "Backend project"}
+        }
+      },
+      "v3": {
+        "structuredPosting": {
+          "company": {"displayName": "Example Games"},
+          "positions": [{
+            "positionId": "position-1",
+            "role": {"specialization": "WEB_BACKEND"},
+            "experience": {"kind": "NEW_GRADUATE"},
+            "requirements": [{"obligation": "REQUIRED"}, {"obligation": "REQUIRED"}]
+          }],
+          "sharedConditions": []
+        },
+        "resolution": {"selectedPositionId": "position-1"},
+        "fit": {"assessment": {"verdictProposal": "STRENGTHEN_THEN_APPLY"}},
+        "projectBlueprint": {"tasks": [{"taskKey": "task-1"}]},
+        "roadmapProposal": {"operations": [
+          {"nodeKind": "CAPABILITY", "technologyKey": "lang.java"},
+          {"nodeKind": "CAPABILITY", "technologyKey": "framework.spring"}
+        ]}
+      },
+      "expected": {"status": "COMPLETED", "fieldAgreementPercent": 100, "criticalMismatchCount": 0, "capabilityJaccard": 1.0, "warnings": []}
+    },
+    {
+      "id": "PAIR-002",
+      "title": "Experience requirement mismatch",
+      "legacy": {
+        "job": {"companyName": "Example Cloud", "primaryTrack": "BACKEND", "experienceRequirement": {"minimumMonths": 0}},
+        "evaluation": {"verdict": "STRENGTHEN_THEN_APPLY"},
+        "competencyProposal": {"competencies": [{"canonicalKey": "skill.java"}], "requirements": [{"relation": "REQUIRED"}], "targetProject": {"title": "API"}}
+      },
+      "v3": {
+        "structuredPosting": {"company": {"displayName": "Example Cloud"}, "positions": [{"positionId": "position-1", "role": {"specialization": "WEB_BACKEND"}, "experience": {"kind": "EXPERIENCE_REQUIRED", "minMonths": 36}, "requirements": [{"obligation": "REQUIRED"}]}], "sharedConditions": []},
+        "resolution": {"selectedPositionId": "position-1"},
+        "fit": {"assessment": {"verdictProposal": "STRENGTHEN_THEN_APPLY"}},
+        "projectBlueprint": {"tasks": [{"taskKey": "task-1"}]},
+        "roadmapProposal": {"operations": [{"nodeKind": "CAPABILITY", "technologyKey": "lang.java"}]}
+      },
+      "expected": {"status": "COMPLETED", "fieldAgreementPercent": 86, "criticalMismatchCount": 1, "capabilityJaccard": 1.0, "warnings": ["EXPERIENCE_MISMATCH"]}
+    },
+    {
+      "id": "PAIR-003",
+      "title": "Backend versus game-client role mismatch",
+      "legacy": {
+        "job": {"companyName": "Example Studio", "primaryTrack": "BACKEND", "experienceRequirement": {"minimumMonths": 0}},
+        "evaluation": {"verdict": "APPLY_NOW"},
+        "competencyProposal": {"competencies": [{"canonicalKey": "skill.java"}], "requirements": [{"relation": "REQUIRED"}]}
+      },
+      "v3": {
+        "structuredPosting": {"company": {"displayName": "Example Studio"}, "positions": [{"positionId": "position-1", "role": {"specialization": "GAME_CLIENT"}, "experience": {"kind": "NEW_GRADUATE"}, "requirements": [{"obligation": "REQUIRED"}]}], "sharedConditions": []},
+        "resolution": {"selectedPositionId": "position-1"},
+        "fit": {"assessment": {"verdictProposal": "APPLY_NOW"}},
+        "projectBlueprint": {"tasks": []},
+        "roadmapProposal": {"operations": [{"nodeKind": "CAPABILITY", "technologyKey": "engine.unity"}]}
+      },
+      "expected": {"status": "COMPLETED", "fieldAgreementPercent": 71, "criticalMismatchCount": 1, "capabilityJaccard": 0.0, "warnings": ["ROLE_MISMATCH", "LOW_CAPABILITY_OVERLAP"]}
+    },
+    {
+      "id": "PAIR-004",
+      "title": "Capability and target-project mismatch",
+      "legacy": {
+        "job": {"companyName": "Example Data", "primaryTrack": "DATA", "experienceRequirement": {"minimumMonths": 24}},
+        "evaluation": {"verdict": "ALTERNATIVE_PATH"},
+        "competencyProposal": {"competencies": [{"canonicalKey": "skill.python"}], "requirements": [{"relation": "REQUIRED"}], "targetProject": {"title": "Pipeline"}}
+      },
+      "v3": {
+        "structuredPosting": {"company": {"displayName": "Example Data"}, "positions": [{"positionId": "position-1", "role": {"specialization": "DATA_ENGINEERING"}, "experience": {"kind": "EXPERIENCE_REQUIRED", "minMonths": 24}, "requirements": [{"obligation": "REQUIRED"}]}], "sharedConditions": []},
+        "resolution": {"selectedPositionId": "position-1"},
+        "fit": {"assessment": {"verdictProposal": "ALTERNATIVE_PATH"}},
+        "projectBlueprint": {"tasks": []},
+        "roadmapProposal": {"operations": [{"nodeKind": "CAPABILITY", "technologyKey": "lang.scala"}]}
+      },
+      "expected": {"status": "COMPLETED", "fieldAgreementPercent": 71, "criticalMismatchCount": 0, "capabilityJaccard": 0.0, "warnings": ["LOW_CAPABILITY_OVERLAP", "PROJECT_PRESENCE_MISMATCH"]}
+    },
+    {
+      "id": "PAIR-005",
+      "title": "Incomplete V3 contract is not guessed",
+      "legacy": {"job": {"companyName": "Example", "primaryTrack": "BACKEND", "experienceRequirement": {"minimumMonths": 0}}},
+      "v3": {"fit": {"assessment": {"verdictProposal": "APPLY_NOW"}}},
+      "expected": {"status": "INCOMPARABLE", "warnings": ["RESULT_CONTRACT_NOT_COMPARABLE"]}
+    }
+  ]
+}

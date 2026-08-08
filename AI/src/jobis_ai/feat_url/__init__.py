@@ -213,8 +213,34 @@ def _html_to_text(html: str) -> str:
 
 
 def _clova_vlm_text(image_url: str, result: ExtractResult) -> str:
-    """공개 URL 이미지 한 장 → Clova VLM 텍스트."""
-    return _clova_vlm({"type": "image_url", "imageUrl": {"url": image_url}}, result, image_url)
+    """공개 URL 이미지 한 장 → Clova VLM 텍스트.
+
+    Clova 가 URL 을 직접 못 가져오는 이미지가 있다(핫링크 차단 등 — 실측 2026-08-07:
+    ispark.kr 공고 PNG 가 40063 Invalid image url). 그때는 우리가 브라우저 UA 로
+    내려받아 base64(data URI)로 재시도한다.
+    """
+    text = _clova_vlm({"type": "image_url", "imageUrl": {"url": image_url}}, result, image_url)
+    if text:
+        return text
+    import base64
+
+    try:
+        req = urllib.request.Request(image_url, headers={"User-Agent": _USER_AGENT})
+        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+            data = resp.read()
+            mime = (resp.headers.get("Content-Type") or "image/png").split(";")[0].strip()
+    except Exception as exc:
+        result.warn("clova_image_fetch_error", f"이미지 내려받기 실패({image_url}): {exc}")
+        return ""
+    if not mime.startswith("image/"):
+        result.warn("clova_image_fetch_error",
+                    f"이미지가 아닌 응답({image_url}): {mime}")
+        return ""
+    encoded = base64.b64encode(data).decode("ascii")
+    return _clova_vlm(
+        {"type": "image_url", "dataUri": {"data": f"data:{mime};base64,{encoded}"}},
+        result, f"{image_url} (base64 재시도)",
+    )
 
 
 def _clova_vlm(image_content: dict, result: ExtractResult, label: str) -> str:

@@ -12,40 +12,62 @@ import {
   MessageCircle,
   Sparkles,
 } from "@lucide/vue";
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import { api } from "@/api";
+import { adaptV3Workspace } from "@/roadmap/v3-adapter";
 import { session } from "@/session";
 import type {
   AnalysisJob,
-  CareerMap,
   CareerSourceSummary,
+  GoalProfile,
   NotificationItem,
   Posting,
+  RoadmapNode,
+  RoadmapWorkspace,
 } from "@/types";
 
-const careerMap = ref<CareerMap | null>(null);
+const roadmap = ref<RoadmapWorkspace | null>(null);
+const goals = ref<GoalProfile | null>(null);
 const postings = ref<Posting[]>([]);
 const jobs = ref<AnalysisJob[]>([]);
 const sources = ref<CareerSourceSummary[]>([]);
 const notifications = ref<NotificationItem[]>([]);
 const loading = ref(true);
 const error = ref("");
+let refreshTimer: number | null = null;
 
-const completedCount = computed(
-  () =>
-    careerMap.value?.nodes.filter((node) => node.progressStatus === "COMPLETED")
-      .length ?? 0,
+const actionableNodes = computed(() =>
+  (roadmap.value?.current.nodes ?? []).filter(
+    (node) => node.type === "MILESTONE" || node.type === "PROJECT",
+  ),
 );
 
-const nextNode = computed(() =>
-  [...(careerMap.value?.nodes ?? [])]
+const completedCount = computed(
+  () => actionableNodes.value.filter((node) => node.status === "COMPLETED").length,
+);
+
+const progressPercent = computed(() =>
+  actionableNodes.value.length
+    ? Math.round((completedCount.value / actionableNodes.value.length) * 100)
+    : 0,
+);
+
+const nextNode = computed<RoadmapNode | undefined>(() =>
+  [...actionableNodes.value]
     .sort((a, b) => a.rank - b.rank)
     .find(
       (node) =>
-        node.progressStatus !== "COMPLETED" &&
-        !["OPPORTUNITY", "OPPORTUNITY_CLUSTER"].includes(node.kind),
+        node.status !== "COMPLETED" &&
+        node.status !== "LOCKED" &&
+        !node.optional,
     ),
+);
+
+const currentTarget = computed(() =>
+  roadmap.value?.current.targets.find(
+    (target) => target.postingId === goals.value?.currentGoalPostingId,
+  ) ?? roadmap.value?.current.targets[0] ?? null,
 );
 
 const activeWork = computed(() => [
@@ -75,30 +97,44 @@ const activeWork = computed(() => [
     })),
 ]);
 
-async function load() {
-  loading.value = true;
-  try {
-    const [map, postingItems, analysisItems, sourceItems, notificationPage] =
-      await Promise.all([
-        api.careerMap(),
-        api.postings(),
-        api.analysisJobs("", 20),
-        api.careerSources(),
-        api.notifications(false),
-      ]);
-    careerMap.value = map;
-    postings.value = postingItems;
-    jobs.value = analysisItems;
-    sources.value = sourceItems;
-    notifications.value = notificationPage.items.slice(0, 5);
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "홈을 불러오지 못했습니다.";
-  } finally {
-    loading.value = false;
+async function load(showLoader = true) {
+  if (showLoader) loading.value = true;
+  error.value = "";
+  const results = await Promise.allSettled([
+    api.v3Roadmap(),
+    api.roadmap(),
+    api.goalProfile(),
+    api.postings(),
+    api.analysisJobs("", 20),
+    api.careerSources(),
+    api.notifications(false),
+  ] as const);
+  const v3 = results[0].status === "fulfilled" ? results[0].value : null;
+  const hasV3Journey = Boolean(v3 && (
+    v3.draftProposal
+    || v3.currentRoadmap.nodes.some((node) => node.nodeKind !== "CAPABILITY" || !node.canonicalKey?.startsWith("foundation."))
+  ));
+  if (hasV3Journey && v3) roadmap.value = adaptV3Workspace(v3);
+  else if (results[1].status === "fulfilled") roadmap.value = results[1].value;
+  if (results[2].status === "fulfilled") goals.value = results[2].value;
+  if (results[3].status === "fulfilled") postings.value = results[3].value;
+  if (results[4].status === "fulfilled") jobs.value = results[4].value;
+  if (results[5].status === "fulfilled") sources.value = results[5].value;
+  if (results[6].status === "fulfilled") {
+    notifications.value = results[6].value.items.slice(0, 5);
   }
+  const failed = results.filter((result) => result.status === "rejected").length;
+  if (failed) error.value = `일부 홈 정보(${failed}개)를 불러오지 못했습니다. 나머지 정보는 정상적으로 표시합니다.`;
+  loading.value = false;
 }
 
-onMounted(load);
+onMounted(() => {
+  void load();
+  refreshTimer = window.setInterval(() => void load(false), 15000);
+});
+onBeforeUnmount(() => {
+  if (refreshTimer) window.clearInterval(refreshTimer);
+});
 </script>
 
 <template>
@@ -111,9 +147,9 @@ onMounted(load);
         <div>
           <p class="eyebrow">TODAY'S JOURNEY</p>
           <h1>{{ session.user.value?.displayName }}님, 오늘도 한 칸 이어가 볼까요?</h1>
-          <p v-if="careerMap?.nodes.length">
+          <p v-if="roadmap?.current.nodes.length">
             지금까지 {{ completedCount }}개 단계를 완료했고
-            {{ postings.length }}개 공고가 커리어에 연결되어 있습니다.
+            현재 지도에는 {{ roadmap.current.targets.length }}개 공고가 연결되어 있습니다.
           </p>
           <p v-else>
             AI와 대화하거나 커리어 자료를 등록해 첫 성장 경로를 만들어 보세요.
@@ -125,6 +161,20 @@ onMounted(load);
       </section>
 
       <p v-if="error" class="form-error">{{ error }}</p>
+      <RouterLink
+        v-if="roadmap?.draft"
+        class="home-roadmap-draft-notice"
+        :to="{ name: 'map', query: { preview: 'draft' } }"
+      >
+        <Map :size="18" />
+        <span>
+          <strong>적용 대기 중인 로드맵 v{{ roadmap.draft.version }}이 있습니다</strong>
+          <small>
+            활성 목표 {{ roadmap.targetCount }}개를 기준으로 만든 변경안을 확인해 주세요.
+          </small>
+        </span>
+        <ArrowRight :size="17" />
+      </RouterLink>
 
       <section class="home-grid">
         <article class="next-quest-card">
@@ -136,9 +186,12 @@ onMounted(load);
             <BookOpen :size="22" />
           </header>
           <template v-if="nextNode">
-            <span>{{ nextNode.domain }} · Level {{ nextNode.level }}</span>
+            <span>{{ nextNode.domain }} · {{ nextNode.stage }}</span>
             <h3>{{ nextNode.title }}</h3>
-            <p>{{ nextNode.scopeDefinition }}</p>
+            <p>{{ nextNode.subtitle || nextNode.competencies[0]?.scopeDefinition }}</p>
+            <small v-if="currentTarget" class="next-quest-card__reason">
+              {{ currentTarget.companyName }} {{ currentTarget.roleTitle }} 준비에 필요한 필수 단계
+            </small>
             <RouterLink
               class="press-button press-button--primary"
               :to="{ name: 'map', query: { node: nextNode.id } }"
@@ -158,11 +211,19 @@ onMounted(load);
 
         <article class="home-progress-card">
           <p class="eyebrow">CAREER PROGRESS</p>
-          <div class="home-stat-ring">
+          <div
+            class="home-stat-ring"
+            role="progressbar"
+            aria-label="학습 및 프로젝트 진행률"
+            :aria-valuenow="progressPercent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            :style="{ '--progress': `${progressPercent * 3.6}deg` }"
+          >
             <strong>{{ completedCount }}</strong>
-            <span>/ {{ careerMap?.nodes.length ?? 0 }}</span>
+            <span>/ {{ actionableNodes.length }}</span>
           </div>
-          <p>완료한 커리어 노드</p>
+          <p>완료한 학습·프로젝트 단계 · {{ progressPercent }}%</p>
           <RouterLink class="text-action" :to="{ name: 'map' }">
             전체 지도 보기 <ArrowRight :size="14" />
           </RouterLink>

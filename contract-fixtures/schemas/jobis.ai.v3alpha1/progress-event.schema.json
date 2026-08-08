@@ -1,0 +1,188 @@
+{
+  "$defs": {
+    "AnalysisStage": {
+      "enum": [
+        "SOURCE_FETCH",
+        "SOURCE_EXTRACT",
+        "AWAITING_SOURCE_VERIFICATION",
+        "POSITION_DISCOVERY",
+        "POSTING_DETAIL",
+        "POSTING_STRUCTURE",
+        "AWAITING_POSITION_SELECTION",
+        "AWAITING_EXPERIENCE_TRACK_SELECTION",
+        "AWAITING_POSTING_CONFIRMATION",
+        "AWAITING_USER_EVIDENCE",
+        "PROFILE_ASSEMBLY",
+        "FIT_ANALYSIS",
+        "CAPABILITY_NORMALIZATION",
+        "PROJECT_PLANNING",
+        "CAPABILITY_GRAPH_LOOKUP",
+        "ROADMAP_PROPOSAL",
+        "CONTRACT_VALIDATION",
+        "RESULT_ASSEMBLY"
+      ],
+      "title": "AnalysisStage",
+      "type": "string"
+    },
+    "ProgressStatus": {
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "WAITING",
+        "COMPLETED",
+        "SKIPPED",
+        "FAILED",
+        "CANCELLED"
+      ],
+      "title": "ProgressStatus",
+      "type": "string"
+    },
+    "WarningItem": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/WarningSeverity",
+          "default": "WARNING"
+        },
+        "evidenceIds": {
+          "items": {
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "type": "string"
+          },
+          "title": "Evidenceids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "WarningItem",
+      "type": "object"
+    },
+    "WarningSeverity": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "ERROR"
+      ],
+      "title": "WarningSeverity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "default": "jobis.ai.v3alpha1",
+      "title": "Contractversion",
+      "type": "string"
+    },
+    "eventId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Eventid",
+      "type": "string"
+    },
+    "jobId": {
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "title": "Jobid",
+      "type": "string"
+    },
+    "sequence": {
+      "minimum": 0,
+      "title": "Sequence",
+      "type": "integer"
+    },
+    "stage": {
+      "$ref": "#/$defs/AnalysisStage"
+    },
+    "status": {
+      "$ref": "#/$defs/ProgressStatus"
+    },
+    "label": {
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "occurredAt": {
+      "format": "date-time",
+      "title": "Occurredat",
+      "type": "string"
+    },
+    "elapsedMs": {
+      "minimum": 0,
+      "title": "Elapsedms",
+      "type": "integer"
+    },
+    "stageDurationMs": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stagedurationms"
+    },
+    "partialResult": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Partialresult"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/WarningItem"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "eventId",
+    "jobId",
+    "sequence",
+    "stage",
+    "status",
+    "label",
+    "occurredAt",
+    "elapsedMs"
+  ],
+  "title": "ProgressEvent",
+  "type": "object"
+}

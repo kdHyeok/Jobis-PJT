@@ -29,7 +29,12 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public UserView register(String email, String password, String displayName) {
+    public UserView register(
+            String email,
+            String password,
+            String displayName,
+            String policyVersion
+    ) {
         UUID userId = UUID.randomUUID();
         String normalizedEmail = email.trim().toLowerCase();
         String passwordHash = passwordEncoder.encode(password);
@@ -56,6 +61,20 @@ public class AuthService {
                         .param("passwordHash", passwordHash)
                         .query(Object.class)
                         .optional();
+
+                jdbc.sql("""
+                                insert into account_policy_consents (
+                                    user_id,
+                                    policy_type,
+                                    policy_version
+                                )
+                                values
+                                    (:userId, 'TERMS', :policyVersion),
+                                    (:userId, 'PRIVACY', :policyVersion)
+                                """)
+                        .param("userId", userId)
+                        .param("policyVersion", policyVersion)
+                        .update();
 
                 UUID graphId = jdbc.sql("""
                                 insert into career_graphs (user_id)

@@ -93,3 +93,11 @@ python -m jobis_ai.eval.planner_harness evals/planner_dataset.json --runs 3   # 
 python -m jobis_ai.eval.consistency --runs 3                                   # 풀턴 궤적
 python -m jobis_ai.eval.loop_consistency --runs 5                               # 자기 루프 궤적
 ```
+
+---
+
+## §5 CI (상세: `docs/ci.md`)
+
+- 고칠 파일은 `ci/test.sh`뿐. `Jenkinsfile`은 Infra 소유 — MR + 리뷰.
+- `--frozen`을 떼지 않는다. 의존성을 바꿨으면 락파일을 같은 커밋에서 갱신한다.
+- 계약을 넓히면 `backend/` record도 같은 MR에서 — `extra="forbid"`라 한쪽만 넓히면 422다.

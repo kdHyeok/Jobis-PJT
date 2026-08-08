@@ -48,8 +48,7 @@ const totalNodes = computed(() => {
           chapter.requiredNodes.length +
           chapter.bonusNodes.length +
           chapter.branches.reduce(
-            (branchSum, branch) =>
-              branchSum + (branch.project ? 2 : 1),
+            (branchSum, branch) => branchSum + (branch.project ? 1 : 0),
             0,
           ),
         0,
@@ -70,7 +69,6 @@ const completedNodes = computed(() => {
           ...chapter.bonusNodes,
           ...chapter.branches.flatMap((branch) => [
             ...(branch.project ? [branch.project] : []),
-            branch.opportunity,
           ]),
           ...(chapter.gateNode ? [chapter.gateNode] : []),
         ],
@@ -159,6 +157,48 @@ function select(node: RoadmapNode) {
       </button>
     </header>
 
+    <section v-if="model.foundations.length" class="journey-foundation-hub">
+      <header>
+        <span><BookOpen :size="21" /></span>
+        <div>
+          <p>COMMON FOUNDATION</p>
+          <h2>모든 직무가 공유하는 공통 기초</h2>
+          <small>한 번 완료하면 아래 모든 직무 경로에서 함께 인정됩니다.</small>
+        </div>
+        <strong>{{ completedCount(model.foundations) }}/{{ model.foundations.length }}</strong>
+      </header>
+      <div class="journey-foundation-hub__nodes">
+        <button
+          v-for="node in (foundationsExpanded ? model.foundations : model.foundations.slice(0, 4))"
+          :key="node.id"
+          type="button"
+          :class="{ completed: node.status === 'COMPLETED', selected: selectedNodeId === node.id }"
+          @click="select(node)"
+        >
+          <span>
+            <Check v-if="node.status === 'COMPLETED'" :size="17" />
+            <Code2 v-else :size="17" />
+          </span>
+          <strong>{{ node.title }}</strong>
+          <small>{{ statusLabel(node.status) }}</small>
+        </button>
+      </div>
+      <button
+        v-if="model.foundations.length > 4"
+        class="journey-foundation-hub__toggle"
+        type="button"
+        @click="foundationsExpanded = !foundationsExpanded"
+      >
+        {{ foundationsExpanded ? '간단히 보기' : `나머지 ${model.foundations.length - 4}개 보기` }}
+        <ChevronDown :size="15" :class="{ rotated: foundationsExpanded }" />
+      </button>
+    </section>
+
+    <div v-if="model.tracks.length" class="journey-track-split" aria-hidden="true">
+      <GitBranch :size="20" />
+      <span>{{ model.tracks.length }}개 직무 경로로 분기</span>
+    </div>
+
     <section
       v-for="track in model.tracks"
       :key="track.domain"
@@ -176,64 +216,6 @@ function select(node: RoadmapNode) {
       <div class="journey-track__scroll">
         <div class="journey-track__timeline">
           <div class="journey-track__main-line" aria-hidden="true" />
-
-          <article class="journey-stop journey-stop--foundation">
-            <button
-              class="journey-stop__node"
-              type="button"
-              :class="{
-                completed: model.foundations.every(
-                  (node) => node.status === 'COMPLETED',
-                ),
-              }"
-              @click="foundationsExpanded = !foundationsExpanded"
-            >
-              <span class="journey-stop__disc">
-                <BookOpen :size="25" />
-                <Check
-                  v-if="
-                    model.foundations.length &&
-                    model.foundations.every(
-                      (node) => node.status === 'COMPLETED',
-                    )
-                  "
-                  class="journey-stop__check"
-                  :size="15"
-                  stroke-width="4"
-                />
-              </span>
-              <small>SHARED START</small>
-              <strong>공통 기반</strong>
-              <em>
-                {{ completedCount(model.foundations) }}/{{ model.foundations.length }}
-                완료
-              </em>
-            </button>
-            <div
-              v-if="foundationsExpanded"
-              class="journey-cluster journey-cluster--foundation"
-            >
-              <button
-                v-for="node in model.foundations"
-                :key="node.id"
-                class="journey-quest-row"
-                :class="{
-                  completed: node.status === 'COMPLETED',
-                  selected: selectedNodeId === node.id,
-                  'is-next': nextNode?.id === node.id,
-                }"
-                type="button"
-                @click="select(node)"
-              >
-                <span>
-                  <Check v-if="node.status === 'COMPLETED'" :size="14" />
-                  <BookOpen v-else :size="15" />
-                </span>
-                <strong>{{ node.title }}</strong>
-                <small>{{ statusLabel(node.status) }}</small>
-              </button>
-            </div>
-          </article>
 
           <article class="journey-stop journey-stop--chapter">
             <button
@@ -376,7 +358,13 @@ function select(node: RoadmapNode) {
                 >
                   <span><Flag :size="19" /></span>
                   <div>
-                    <small>지원 기회</small>
+                    <small>
+                      {{
+                        branch.opportunity.goalMode === "REOPENING_PREPARATION"
+                          ? "재오픈 대비 목표"
+                          : "지원 기회"
+                      }}
+                    </small>
                     <strong>{{ branch.opportunity.title }}</strong>
                   </div>
                 </button>
@@ -548,7 +536,13 @@ function select(node: RoadmapNode) {
                 >
                   <span><Flag :size="19" /></span>
                   <div>
-                    <small>지원 기회</small>
+                    <small>
+                      {{
+                        branch.opportunity.goalMode === "REOPENING_PREPARATION"
+                          ? "재오픈 대비 목표"
+                          : "지원 기회"
+                      }}
+                    </small>
                     <strong>{{ branch.opportunity.title }}</strong>
                   </div>
                 </button>

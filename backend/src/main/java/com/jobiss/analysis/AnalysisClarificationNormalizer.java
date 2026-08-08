@@ -24,6 +24,27 @@ public final class AnalysisClarificationNormalizer {
             AiContracts.AnalysisQuestion question
     ) {
         String key = questionKey(question.key());
+        String inputType = "TEXT".equalsIgnoreCase(question.inputType())
+                ? "TEXT"
+                : "CHOICE";
+        List<String> relatedRequirementIds = normalizedRequirementIds(
+                question.relatedRequirementIds()
+        );
+        String absenceScope = normalizeAbsenceScope(
+                question.absenceScope(),
+                relatedRequirementIds
+        );
+        if ("TEXT".equals(inputType)) {
+            return new AiContracts.AnalysisQuestion(
+                    key,
+                    question.text(),
+                    question.reason(),
+                    inputType,
+                    List.of(),
+                    relatedRequirementIds,
+                    absenceScope
+            );
+        }
         List<AiContracts.AnalysisQuestionOption> options = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (AiContracts.AnalysisQuestionOption option : question.options()) {
@@ -45,7 +66,10 @@ public final class AnalysisClarificationNormalizer {
                 key,
                 question.text(),
                 question.reason(),
-                options
+                inputType,
+                options,
+                relatedRequirementIds,
+                "NONE"
         );
     }
 
@@ -53,12 +77,88 @@ public final class AnalysisClarificationNormalizer {
             AiContracts.AnalysisAnswer answer
     ) {
         String key = questionKey(answer.questionKey());
+        if ("TEXT".equalsIgnoreCase(answer.inputType())) {
+            String text = answer.answerValue() == null
+                    ? ""
+                    : answer.answerValue().trim();
+            List<String> relatedRequirementIds = normalizedRequirementIds(
+                    answer.relatedRequirementIds()
+            );
+            String absenceScope = normalizeAbsenceScope(
+                    answer.absenceScope(),
+                    relatedRequirementIds
+            );
+            String answerStatus = answerStatus(
+                    answer.answerStatus(),
+                    absenceScope,
+                    text
+            );
+            return new AiContracts.AnalysisAnswer(
+                    key,
+                    answer.questionText(),
+                    limit(text, 2000),
+                    limit(text, 2000),
+                    "TEXT",
+                    answerStatus,
+                    relatedRequirementIds,
+                    absenceScope
+            );
+        }
         return new AiContracts.AnalysisAnswer(
                 key,
                 answer.questionText(),
                 answerValue(key, answer.answerValue(), answer.answerLabel()),
-                answer.answerLabel()
+                answer.answerLabel(),
+                "CHOICE",
+                "PROVIDED",
+                normalizedRequirementIds(answer.relatedRequirementIds()),
+                "NONE"
         );
+    }
+
+    public static String answerStatus(
+            String requestedStatus,
+            String absenceScope,
+            String rawAnswer
+    ) {
+        String scope = normalizeAbsenceScope(absenceScope, List.of());
+        if (!"NONE".equals(scope)
+                && ("CONFIRMED_ABSENT".equalsIgnoreCase(requestedStatus)
+                || isConfirmedAbsence(rawAnswer))) {
+            return "CONFIRMED_ABSENT";
+        }
+        if ("SKIPPED".equalsIgnoreCase(requestedStatus)) {
+            return "SKIPPED";
+        }
+        return "PROVIDED";
+    }
+
+    public static boolean isConfirmedAbsence(String rawAnswer) {
+        if (rawAnswer == null) {
+            return false;
+        }
+        String compact = Normalizer.normalize(rawAnswer, Normalizer.Form.NFKC)
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s\\p{Punct}]+", "");
+        return Set.of(
+                "없습니다",
+                "따로없습니다",
+                "경험없습니다",
+                "경험이없습니다",
+                "관련경험없습니다",
+                "프로젝트경험없습니다",
+                "업무경험없습니다",
+                "해본적없습니다",
+                "한적없습니다",
+                "없어요",
+                "따로없어요",
+                "경험없어요",
+                "경험이없어요",
+                "해본적없어요",
+                "없음",
+                "아니요"
+        ).contains(compact);
     }
 
     public static String questionKey(String rawKey) {
@@ -96,7 +196,11 @@ public final class AnalysisClarificationNormalizer {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             List<String> normalized = answers.stream()
                     .map(AnalysisClarificationNormalizer::normalize)
-                    .map(answer -> answer.questionKey() + "=" + answer.answerValue())
+                    .map(answer -> answer.questionKey()
+                            + "=" + answer.answerValue()
+                            + ":" + answer.answerStatus()
+                            + ":" + answer.absenceScope()
+                            + ":" + String.join(",", answer.relatedRequirementIds()))
                     .distinct()
                     .sorted()
                     .toList();
@@ -183,6 +287,33 @@ public final class AnalysisClarificationNormalizer {
             }
         }
         return false;
+    }
+
+    private static List<String> normalizedRequirementIds(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .map(value -> limit(value, 160))
+                .distinct()
+                .limit(50)
+                .toList();
+    }
+
+    private static String normalizeAbsenceScope(
+            String rawScope,
+            List<String> relatedRequirementIds
+    ) {
+        if ("GENERAL_EXPERIENCE".equalsIgnoreCase(rawScope)) {
+            return "GENERAL_EXPERIENCE";
+        }
+        if ("REQUIREMENTS".equalsIgnoreCase(rawScope)
+                || (relatedRequirementIds != null && !relatedRequirementIds.isEmpty())) {
+            return "REQUIREMENTS";
+        }
+        return "NONE";
     }
 
     private static String token(String value) {

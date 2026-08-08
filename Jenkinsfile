@@ -4,6 +4,18 @@
 //   develop             : CI 통과 후 여섯 SHA 이미지 build/push
 //   master 병합         : develop에서 검증한 동일 트리와 이미지를 승격한 뒤 자동 배포
 //
+// ── 소유권 경계 ────────────────────────────────────────────────────────────
+// 이 파일은 CI/CD 뼈대다. Infra 담당이 소유하고, 기능 개발자는 원칙적으로 고치지 않는다.
+//   이 파일이 정하는 것 : 스테이지 구성과 순서, 브랜치 게이트(when), 실행 컨테이너 이미지,
+//                        서비스 컨테이너(PostgreSQL 등), 자격증명, 이미지 승격, 배포
+//   서비스가 정하는 것  : 무엇을 검사하는가 — backend/ci/test.sh, AI/ci/test.sh,
+//                        frontend/ci/test.sh, RAG/ci/test.sh
+//
+// 기능을 추가·수정할 때 개발자가 고칠 파일은 자기 서비스의 ci/test.sh 와 테스트 코드다.
+// 새 인프라 의존성(Redis 등)이나 게이트 정책 변경이 필요하면 이 파일을 바꾸는 MR을 올리고
+// Infra 리뷰를 받는다(.gitlab/CODEOWNERS). 자세한 규칙은 루트 AGENTS.md "CI/CD 소유권".
+// ──────────────────────────────────────────────────────────────────────────
+//
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
 // 필요 플러그인: Docker Pipeline, SSH Agent, JUnit, GitLab
 // 필요 Jenkins 설정: DEPLOY_HOST 전역 환경변수, 'jobis-deploy-ssh' SSH 자격증명,
@@ -53,9 +65,66 @@ pipeline {
       }
     }
 
-    stage('Backend: test & package') {
+    // 직전에 통과한 내용과 같은 서비스는 건너뛴다. 이 서버는 Jenkins와 운영이 같은 호스트를
+    // 쓰고(가용 메모리 약 2GB·스왑 0·executor 2) 스테이지 병렬화는 OOM 위험이 있어,
+    // 부하를 줄이는 수단으로 병렬 대신 재실행 생략을 쓴다.
+    //
+    // 안전 규칙 두 가지:
+    //   1) fail-open — 표식이 없거나 읽지 못하면 **실행한다.** 판단이 안 서면 건너뛰지 않는다.
+    //   2) develop·master 에서는 절대 건너뛰지 않는다. 'Master release: verify' 가 보장하는
+    //      "master 트리 == 검증된 develop 트리"는 develop 이 전부 실행됐을 때만 뜻이 있다.
+    // 표식은 스테이지가 **성공한 뒤에만** 쓴다(.ci-cache/, 워크스페이스 로컬·git 무시).
+    stage('CI plan') {
       when { not { branch 'master' } }
       agent any
+      steps {
+        script {
+          boolean cacheable = env.BRANCH_NAME != 'develop'
+          if (!cacheable) {
+            echo '[plan] develop 은 통합 게이트다 — 모든 스테이지를 실행한다.'
+          }
+          [
+            BACKEND : 'backend',
+            AI      : 'AI',
+            FRONTEND: 'frontend',
+            RAG     : 'RAG',
+            INFRA   : 'ops infra compose.yaml .env.production.example'
+          ].each { key, paths ->
+            // Jenkinsfile 을 함께 해싱한다 — 뼈대가 바뀌면 전 서비스를 다시 검증한다.
+            String name = key.toString()
+            String sha = sh(
+              script: "git ls-tree -r HEAD -- ${paths} Jenkinsfile | sha1sum | cut -c1-40",
+              returnStdout: true
+            ).trim()
+            env.setProperty("SHA_${name}".toString(), sha)
+            boolean unchanged = cacheable && sha && sh(
+              script: "test -f .ci-cache/${name}.sha && " +
+                      "[ \"\$(cat .ci-cache/${name}.sha)\" = '${sha}' ]",
+              returnStatus: true
+            ) == 0
+            env.setProperty("SKIP_${name}".toString(), unchanged ? 'true' : 'false')
+            echo unchanged
+              ? "[plan] skip ${key} — 직전 통과 이후 변경 없음 (${sha})"
+              : "[plan] run  ${key}"
+          }
+        }
+      }
+    }
+
+    stage('Backend: test & package') {
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_BACKEND != 'true' }
+        }
+      }
+      agent any
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_BACKEND" > .ci-cache/BACKEND.sha'
+        }
+      }
       steps {
         updateGitlabCommitStatus name: 'jenkins', state: 'running'
         script {
@@ -117,14 +186,9 @@ SQL
                 'AI_WORKER_ENABLED=false',
                 'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
               ]) {
-              sh '''
-                cd backend
-                chmod +x gradlew
-                ./gradlew clean test bootJar --no-daemon
-                jar="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
-                test -n "$jar" || { echo "실행 가능한 JAR 없음"; exit 1; }
-                cp "$jar" backend.jar
-              '''
+              // 무엇을 검사하는가는 backend 개발자 소유다(backend/ci/test.sh).
+              // 이 스테이지는 실행 환경(이미지·DB 컨테이너·DB_* 환경변수)만 책임진다.
+              sh 'sh backend/ci/test.sh'
               }
             }
           }
@@ -135,65 +199,85 @@ SQL
     }
 
     stage('AI v2bridge: test') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_AI != 'true' }
+        }
+      }
       agent {
         docker { image 'python:3.11-slim' }
       }
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_AI" > .ci-cache/AI.sha'
+        }
+      }
       steps {
-        sh '''
-          export PYTHONUTF8=1
-          export UV_CACHE_DIR=/tmp/jobis-uv-cache
-          export UV_PROJECT_ENVIRONMENT=/tmp/jobis-ai-venv
-
-          python -m venv /tmp/jobis-uv-bootstrap
-          /tmp/jobis-uv-bootstrap/bin/python -m pip install \
-            --disable-pip-version-check --no-cache-dir uv==0.11.32
-
-          cd AI
-          /tmp/jobis-uv-bootstrap/bin/uv run \
-            --frozen --extra dev --extra prototype pytest -q
-          /tmp/jobis-uv-bootstrap/bin/uv run \
-            --frozen --extra prototype python -m jobis_ai.explain \
-            > /tmp/jobis-ai-explain.txt
-        '''
+        // 검사 내용은 AI 개발자 소유다(AI/ci/test.sh).
+        sh 'sh AI/ci/test.sh'
       }
     }
 
     stage('Frontend: typecheck & build') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_FRONTEND != 'true' }
+        }
+      }
       agent {
         docker { image 'node:22-alpine' }
       }
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_FRONTEND" > .ci-cache/FRONTEND.sha'
+        }
+      }
       steps {
-        sh '''
-          cd frontend
-          npm ci --ignore-scripts
-          npm run build
-        '''
+        // 검사 내용은 프론트엔드 개발자 소유다(frontend/ci/test.sh).
+        sh 'sh frontend/ci/test.sh'
       }
     }
 
     stage('RAG: static validation') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_RAG != 'true' }
+        }
+      }
       agent {
         docker { image 'python:3.12-slim' }
       }
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_RAG" > .ci-cache/RAG.sha'
+        }
+      }
       steps {
-        sh '''
-          python -m venv /tmp/jobis-rag-venv
-          /tmp/jobis-rag-venv/bin/python -m pip install \
-            --disable-pip-version-check --no-cache-dir \
-            numpy==2.2.6 rank_bm25==0.2.2 \
-            'psycopg[binary]==3.2.9' python-dotenv==1.1.1
-          /tmp/jobis-rag-venv/bin/python -m compileall -q RAG
-          /tmp/jobis-rag-venv/bin/python -m unittest discover -s RAG/tests -v
-        '''
+        // 검사 내용은 RAG 개발자 소유다(RAG/ci/test.sh).
+        sh 'sh RAG/ci/test.sh'
       }
     }
 
     stage('Infra: static validation') {
-      when { not { branch 'master' } }
+      when {
+        beforeAgent true
+        allOf {
+          not { branch 'master' }
+          expression { env.SKIP_INFRA != 'true' }
+        }
+      }
       agent any
+      post {
+        success {
+          sh 'mkdir -p .ci-cache && printf %s "$SHA_INFRA" > .ci-cache/INFRA.sha'
+        }
+      }
       steps {
         sh '''
           test -x ops/deploy-jobis-container

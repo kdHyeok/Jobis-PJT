@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "SourceEntryPoint": {
+      "enum": [
+        "CHAT",
+        "POSTINGS_PAGE",
+        "INTERNAL"
+      ],
+      "title": "SourceEntryPoint",
+      "type": "string"
+    },
+    "SourceInputType": {
+      "enum": [
+        "URL",
+        "IMAGE",
+        "TEXT"
+      ],
+      "title": "SourceInputType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "inputType": {
+      "$ref": "#/$defs/SourceInputType"
+    },
+    "entryPoint": {
+      "$ref": "#/$defs/SourceEntryPoint"
+    },
+    "extractionRevision": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Extractionrevision",
+      "type": "integer"
+    },
+    "text": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Url"
+    },
+    "imageBase64": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Imagebase64"
+    },
+    "imageMediaType": {
+      "anyOf": [
+        {
+          "enum": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Imagemediatype"
+    },
+    "originalFilename": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Originalfilename"
+    }
+  },
+  "required": [
+    "inputType",
+    "entryPoint"
+  ],
+  "title": "SourceAcquisitionRequest",
+  "type": "object"
+}

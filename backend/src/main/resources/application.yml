@@ -2,7 +2,7 @@ spring:
   application:
     name: jobiss-backend
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:55432/jobiss}
+    url: ${DB_URL:jdbc:postgresql://localhost:58432/jobiss_v3_integration_lab}
     username: ${DB_APP_USER:jobiss_app}
     password: ${DB_APP_PASSWORD:jobiss_app_dev}
     hikari:
@@ -10,15 +10,23 @@ spring:
       auto-commit: false
   flyway:
     enabled: true
-    url: ${DB_URL:jdbc:postgresql://localhost:55432/jobiss}
+    url: ${DB_URL:jdbc:postgresql://localhost:58432/jobiss_v3_integration_lab}
     user: ${DB_MIGRATOR_USER:jobiss_migrator}
     password: ${DB_MIGRATOR_PASSWORD:jobiss_migrator_dev}
     locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8380}
   forward-headers-strategy: framework
   servlet:
     session:
@@ -27,19 +35,42 @@ server:
         same-site: lax
 
 jobiss:
+  data-protection:
+    encryption-key: ${SENSITIVE_DATA_ENCRYPTION_KEY:local-sensitive-data-encryption-key-change-before-production}
+    fingerprint-key: ${SENSITIVE_DATA_FINGERPRINT_KEY:local-sensitive-data-fingerprint-key-change-before-production}
   web:
-    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5473,http://127.0.0.1:5473}
   auth:
     jwt-secret: ${JWT_SECRET:local-development-secret-change-this-before-production}
-    access-token-seconds: ${ACCESS_TOKEN_SECONDS:3600}
+    access-token-seconds: ${ACCESS_TOKEN_SECONDS:7200}
+    refresh-token-seconds: ${REFRESH_TOKEN_SECONDS:1209600}
+    remember-me-refresh-token-seconds: ${REMEMBER_ME_REFRESH_TOKEN_SECONDS:2592000}
     cookie-secure: ${COOKIE_SECURE:false}
   ai:
-    base-url: ${AI_SERVER_URL:http://localhost:8000}
+    base-url: ${AI_SERVER_URL:http://localhost:8400}
     shared-secret: ${AI_SHARED_SECRET:local-ai-secret}
     worker-enabled: ${AI_WORKER_ENABLED:true}
     poll-delay-ms: ${AI_POLL_DELAY_MS:3000}
     request-timeout-seconds: ${AI_HTTP_TIMEOUT_SECONDS:660}
     max-concurrent-analyses: ${AI_MAX_CONCURRENT_ANALYSES:2}
+  repositories:
+    token-encryption-key: ${REPOSITORY_TOKEN_ENCRYPTION_KEY:local-repository-token-key-change-before-production}
+    github:
+      api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+      app-id: ${GITHUB_APP_ID:}
+      app-slug: ${GITHUB_APP_SLUG:}
+      private-key: ${GITHUB_APP_PRIVATE_KEY:}
+      redirect-uri: ${GITHUB_APP_REDIRECT_URI:http://localhost:5473/app/settings}
+    gitlab:
+      base-url: ${GITLAB_BASE_URL:https://gitlab.com}
+      client-id: ${GITLAB_CLIENT_ID:}
+      client-secret: ${GITLAB_CLIENT_SECRET:}
+      redirect-uri: ${GITLAB_REDIRECT_URI:http://localhost:5473/app/settings}
+  recovery:
+    public-base-url: ${PUBLIC_APP_URL:http://localhost:5473}
+    token-minutes: ${PASSWORD_RESET_TOKEN_MINUTES:30}
+    mail-from: ${MAIL_FROM:no-reply@jobis.local}
+    console-delivery: ${PASSWORD_RESET_CONSOLE_DELIVERY:true}
 
 logging:
   pattern:

@@ -45,4 +45,22 @@ public class ChatReplyJobController {
         service.retry(userId, jobId);
         return ResponseEntity.accepted().build();
     }
+
+    @PostMapping("/{jobId}/cancel")
+    ResponseEntity<Void> cancel(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID jobId
+    ) {
+        service.cancel(userId, jobId);
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/{jobId}/actions/{actionId}/execute")
+    ChatReplyJobService.AgentActionExecution executeAction(
+            @AuthenticationPrincipal UUID userId,
+            @PathVariable UUID jobId,
+            @PathVariable String actionId
+    ) {
+        return service.executeAction(userId, jobId, actionId);
+    }
 }

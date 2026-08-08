@@ -1,4 +1,4 @@
-# JOBISS API 계약
+# JOBIS API 계약
 
 모든 변경 요청은 CSRF 헤더가 필요하고, 인증 API와 헬스체크를 제외한 엔드포인트는 HttpOnly 인증 쿠키가 필요합니다.
 
@@ -20,14 +20,51 @@
 - `DELETE /api/conversations/{conversationId}`
 
 메시지는 자유 텍스트 또는 공고 첨부를 포함합니다. `clientMessageId`는 중복 제출을 막습니다.
+자유 텍스트는 기본적으로 `AUTO` 문맥을 사용합니다. 사용자가 고급 설정에서 작업과
+자료를 직접 지정할 때만 다른 모드를 보냅니다.
+
+```json
+{
+  "clientMessageId": "9f65d277-c80d-4288-8e4a-205db30c39de",
+  "content": "두 공고의 차이를 비교해 주세요.",
+  "posting": null,
+  "context": {
+    "mode": "AUTO",
+    "postingIds": ["...", "..."],
+    "careerSourceIds": []
+  }
+}
+```
+
+`mode`는 `AUTO`, `CAREER_CHAT`, `POSTING_QA`, `RESUME_DIAGNOSIS`,
+`POSTING_COMPARE`, `RESUME_COMPARE`, `INTERVIEW_PREP`, `COVER_LETTER`,
+`APPLICATION_PLAN`, `JOB_DISCOVERY` 중 하나입니다. 백엔드는 ID가 현재 사용자의
+활성 자료인지 RLS 범위에서 다시 확인합니다. `AUTO`이고 ID가 비어 있으면 최근
+공고 최대 5개와 사용자가 검토를 끝낸 `CONFIRMED` 커리어 원본 최대 5개를
+후보로 구성하며, AI 플래너가 발화에 필요한 대상만 선택합니다.
 
 ## 대화 답변 작업
 
 - `GET /api/chat-reply-jobs/{jobId}`
 - `GET /api/chat-reply-jobs/conversation/{conversationId}`
 - `POST /api/chat-reply-jobs/{jobId}/retry`
+- `POST /api/chat-reply-jobs/{jobId}/actions/{actionId}/execute`
 
 메시지 전송 응답에는 저장된 사용자 메시지와 `chatReplyJobId`가 포함됩니다. AI 답변은 작업 성공 후 별도 메시지로 추가됩니다.
+작업 조회 응답에는 `requestContext`, `progressEvents`, `result`가 포함됩니다.
+`result`의 `replySources`, `progress`, `pendingConfirmation`, `proposedActions`,
+`artifact`는 각각 답변 근거, 참여 역할, 추가 확인, 사용자 동의가 필요한 제안,
+구조화된 결과물을 나타냅니다. 제안 작업은 조회만으로 실행되지 않습니다.
+AI가 붙여넣은 공고의 분석 의도를 실제로 판정하면 `ANALYZE_POSTING` 제안을 반환합니다.
+프론트는 사용자의 확인을 받은 뒤 `actionId`만 전송합니다. 백엔드는 브라우저가 보낸
+공고 본문을 신뢰하지 않고 해당 작업에 저장된 제안의 타입·동의 여부·원문 길이를 다시
+검증한 뒤 공고 저장, 중복 재사용 판정, 분석 작업 생성을 하나의 트랜잭션으로 수행합니다.
+같은 `actionId`의 재요청은 최초 실행 결과를 반환하며 분석을 중복 생성하지 않습니다.
+
+백엔드는 AI 서버의 `POST /v1/chat/stream`을 우선 호출합니다. 스트림은
+`PROGRESS* → RESULT | ERROR` 순서의 NDJSON이며 플래너, 실제 전문 담당자,
+결과 작성자의 시작·완료 경계를 전달합니다. 경로가 404 또는 405인 구형 AI 서버에
+대해서만 `POST /v1/chat`으로 폴백합니다.
 
 ## 커리어 저장소
 
@@ -72,7 +109,14 @@
 
 분석 결과의 지원 판단은 `APPLY_NOW`, `STRENGTHEN_THEN_APPLY`, `ALTERNATIVE_FIRST` 중 하나입니다. AI는 판단 자료를 추출하고, 최종 값은 백엔드가 검증된 필수 역량 충족률과 경력 조건으로 결정합니다. 분석안 상태는 `PROPOSED → APPROVED | REJECTED`입니다.
 작업 응답의 `stage`, `stageMessage`로 원문 정리·AI 비교·변경안 검증 등 현재 단계를 표시합니다.
-작업 상태가 `WAITING_FOR_INPUT`이면 `pendingQuestion`에 질문과 2~4개의 선택지가 포함됩니다. 답변 본문은 `{"value":"선택지 value"}`이며, 서버는 제공된 선택지인지 확인한 뒤 같은 작업을 `QUEUED`로 되돌립니다.
+작업 상태가 `WAITING_FOR_INPUT`이면 `pendingQuestion.inputType`으로 입력 형식을 구분합니다.
+`CHOICE` 질문에는 2~4개 선택지가 포함되고, `TEXT` 질문은 선택지 없이 실제 프로젝트·업무
+근거를 최대 2,000자로 받습니다. 질문은 `relatedRequirementIds`와 `absenceScope`를 통해 어떤
+공고 조건을 확인하는지 보존합니다. 답변 본문은
+`{"value":"선택값 또는 자유서술","answerStatus":"PROVIDED|CONFIRMED_ABSENT|SKIPPED"}`이며,
+`CONFIRMED_ABSENT`는 사용자가 해당 경험이 없다고 명시한 경우에만 사용합니다. 서버는 형식을
+검증한 뒤 같은 작업을 `QUEUED`로 되돌립니다. 질문 3회가 끝나거나 포괄적인 경험 부재가
+확인되면 확인된 정보만으로 분석을 완료하며, 확인하지 못한 조건은 `uncertain`으로 남깁니다.
 
 백엔드는 AI 서버의 `POST /v1/analyses/stream`을 우선 호출합니다. 응답은 한 줄에
 완전한 JSON 하나를 담는 `application/x-ndjson`이며 이벤트는
@@ -133,6 +177,23 @@ AI는 로드맵 노드·간선·좌표·순서를 만들지 않습니다. `appro
 `futureExtensions`를 분리합니다. `NEEDS_STUDY` 결과는 이의제기할 수 있고,
 운영자 승인 시 해당 역량과 연결된 로드맵 진행 상태가 완료됩니다.
 
+### v3 원자 역량 상태와 검증
+
+- `GET /api/v3/capability-migrations?canonicalKey={canonicalKey}`
+- `POST /api/v3/capability-migrations/{candidateId}/resolve`
+- `GET /api/v3/capabilities/{canonicalKey}/assessment`
+- `POST /api/v3/capabilities/{canonicalKey}/assessment`
+- `POST /api/v3/capabilities/{canonicalKey}/self-confirm`
+- `POST /api/v3/assessments/{sessionId}/answers`
+- `POST /api/v3/assessments/{sessionId}/abandon`
+- `POST /api/v3/assessments/{sessionId}/review`
+
+로드맵에 실제 적용된 원자 역량만 검증할 수 있습니다. 그래프가 `SELF_CONFIRM`으로 선언한
+기초 노드만 자기 확인할 수 있고, 나머지는 2~3문항 검증을 사용합니다. 각 문항 60점 이상,
+전 문항 통과, 평균 75점 이상을 모두 만족해야 `VERIFIED`가 됩니다. 회사·프로젝트·목표는
+문제의 상황 맥락에만 쓰며 `scopeDefinition`과 `excludedScope`가 채점 경계를 결정합니다.
+legacy 이관 후보를 확인해도 `EVIDENCED`까지만 이동하고 자동 인증하지 않습니다.
+
 ## 운영자 검토
 
 - `GET /api/operator/posting-duplicates`
@@ -140,6 +201,9 @@ AI는 로드맵 노드·간선·좌표·순서를 만들지 않습니다. `appro
 - `POST /api/operator/posting-duplicates/audits/{auditId}/rollback`
 - `GET /api/operator/assessment-reviews`
 - `POST /api/operator/assessment-reviews/{sessionId}/resolve`
+- `GET /api/operator/atomic-assessment-reviews`
+- `GET /api/operator/atomic-assessment-reviews/{sessionId}`
+- `POST /api/operator/atomic-assessment-reviews/{sessionId}/resolve`
 
 계정의 `accountRole`이 `OPERATOR`인 사용자만 사용할 수 있습니다. 공고 중복은
 `MERGE | SEPARATE | HOLD`, 역량 이의제기는 `APPROVE | REJECT`로 처리합니다.
