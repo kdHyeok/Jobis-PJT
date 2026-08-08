@@ -1,8 +1,18 @@
 # JOBIS 단일 AI 통합 작업 상태
 
 - 마지막 갱신: `2026-08-07`
-- 상태: `PROJECT_CENTERED_CAREER_JOURNEY_IMPLEMENTED_LIVE_ACCEPTANCE_PENDING`
+- 상태: `CI_GREEN_MR_TO_DEVELOP_OPEN`
 - 영구 결정: `docs/07-decision-register.md`의 `D047`, `D048`
+
+## 지금 어디인가
+
+`feat/be/JOBIS-service`가 Jenkins 빌드 `#8`에서 처음으로 통과했다(`d96d8c2`).
+develop 병합 대기 상태다. CI를 세우던 결함을 순서대로 걷어낸 결과이며, 각 원인은
+`Verification`의 "CI 복구" 항목에 남겼다.
+
+CI 구조가 바뀌었다 — 뼈대(`Jenkinsfile`, Infra 소유)와 서비스별 검사
+(`<서비스>/ci/test.sh`, 각 담당 소유)를 분리했고, 기능 브랜치에 한해 변경 없는 서비스의
+재실행을 생략한다. 규칙은 루트 `AGENTS.md`의 "CI/CD 소유권"이 정본이다.
 
 ## Goal
 
@@ -173,6 +183,35 @@
 - 단일 AI 호출·취소·진행 이벤트·D047 계약 대상 회귀가 통과했다. (`146 passed`, warning 1개)
 - 최종 통합 AI 전체 회귀가 통과했다. (`976 passed`, warning 1개)
 - Spring 테스트를 강제 재실행했다. (`69 tests`, 실패 0, 환경형 PostgreSQL 19 skip)
+
+### CI 복구 (2026-08-07)
+
+Jenkins `#3`~`#7`이 연속 실패했다. 스테이지가 순차라 push마다 결함 하나씩만 드러났고,
+아래 순서로 걷어낸 뒤 `#8`에서 통과했다.
+
+| 빌드 | 실패 스테이지 | 원인 |
+|---|---|---|
+| `#3` | Backend `compileTestJava` | `CareerSummary` 4→11 컴포넌트 확장에 테스트 2곳 미반영 |
+| `#4` | AI | `AI/AGENTS.md` 증가로 자동 로드 문서 상한 초과(142 > 130) |
+| `#6` | Frontend | `node:22-alpine`에 `bash` 없음 (`exit 127`) |
+| `#7` | Infra | `verify-release-config.py`의 `V27__` 하드코딩 + prod env 계약 유실 |
+| `#8` | — | 통과 |
+
+컴파일을 고치자 가려져 있던 `PostgresRlsIntegrationTest` 실패 5건이 드러났다. 앱 역할
+권한을 넓히거나 제약을 완화하지 않고, 테스트가 프로덕션과 같은 경로를 쓰도록 고쳤다
+(`create_auth_identity()`, 권한 있는 연결로 큐 조회, `content_fingerprint`·`answered_at`
+채움, 제약 위반 단언 사이 savepoint 복구).
+
+`74ea9db`가 작업공간을 덮으면서 딸려온 되돌림 둘을 복구했다 — RAG 구현(develop 27개 통과
+→ 브랜치 6 failures·11 errors)과 `.env.production.example`(97줄 → 39줄, prod compose가
+참조하는 35개 중 34개 유실). 후자는 develop 판을 복원하고 이 브랜치가 실제로 추가한
+백엔드 키를 병합했다.
+
+- Jenkins `#8` `SUCCESS` — Infra 실행, `release-config: ok`.
+  Backend·AI·Frontend·RAG는 `#7`에서 동일 트리로 통과해 `#8`에서는 생략됐다.
+- 로컬 실측(CI 이미지 + CI 스크립트 그대로): backend `72 tests` 실패 0,
+  RAG `27 tests OK`(`python:3.12-slim`), frontend `npm ci` + build 완주(`node:22-alpine`),
+  AI `976 passed`.
 - 격리 PostgreSQL을 실제 기동해 전체 마이그레이션과 RLS/큐/경력/UNIFIED 제약 테스트를 통과했다.
   (`6 passed`, skip 0)
 - Capability Graph 전체 테스트가 통과했다. (`24 passed`, warning 1개)
