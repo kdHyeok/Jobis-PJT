@@ -108,7 +108,9 @@ def ocr_task(site: str) -> BashOperator:
             "--retry-base-minutes {{ params.ocr_retry_base_minutes }} "
             "--lease-minutes {{ params.ocr_lease_minutes }}"
         ),
-        pool="ocr_pool",
+        # OCR 과 RAG 적재가 동시에 돌면 메모리가 소진된다(2026-08-06 장애).
+        # 둘을 같은 단일 슬롯 풀에 넣어 직렬화한다.
+        pool="heavy_memory_pool",
         do_xcom_push=True,
     )
 
@@ -161,6 +163,11 @@ def rag_ingest_task() -> CpuLimitedDockerOperator:
         environment=environment,
         private_environment={"GMS_KEY": os.environ.get("GMS_KEY", "")},
         hard_cpus=ingest_cpus,
+        # 적재는 청크 벡터를 모두 메모리에 모은 뒤 한 번에 커밋한다. 2026-08-06 에는
+        # 7.1GB 까지 자라 호스트 전체 메모리를 소진시켰다. 상한을 두면 이 컨테이너만
+        # 종료되고 태스크가 실패로 남는다 — 서버는 영향을 받지 않는다.
+        mem_limit=os.environ.get("RAG_INGEST_MEM_LIMIT", "4g"),
+        pool="heavy_memory_pool",
         mounts=[
             Mount(
                 source="jobis-crawl-exports",

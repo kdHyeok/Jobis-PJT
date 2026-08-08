@@ -42,6 +42,7 @@ required_sources=(
   ops/nginx-jobis-upstream-legacy.conf
   ops/nginx-jobis-upstream-container.conf
   ops/jobis-db-backup.service
+  ops/postgresql-memory.conf
   ops/jobis-db-backup.timer
   ops/jobis-db-restore-drill.service
   ops/jobis-db-restore-drill.timer
@@ -180,6 +181,12 @@ for unit in \
   install -o root -g root -m 0644 \
     "${SOURCE_ROOT}/ops/${unit}" "/etc/systemd/system/${unit}"
 done
+# PostgreSQL 메모리 보호 drop-in. DB 가 스왑으로 밀리거나 OOM 대상이 되면 전체 장애다.
+install -d -o root -g root -m 0755 /etc/systemd/system/postgresql@.service.d
+install -o root -g root -m 0644 \
+  "${SOURCE_ROOT}/ops/postgresql-memory.conf" \
+  /etc/systemd/system/postgresql@.service.d/10-jobis-memory.conf
+
 if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
   systemctl daemon-reload
 else
@@ -220,6 +227,7 @@ asset_paths=(
   /usr/local/sbin/prepare-jobis-v2-release
   /usr/local/sbin/sync-jobis-release-assets
   /etc/sudoers.d/jobis-deploy
+  /etc/systemd/system/postgresql@.service.d/10-jobis-memory.conf
   /etc/systemd/system/jobis-db-backup.service
   /etc/systemd/system/jobis-db-backup.timer
   /etc/systemd/system/jobis-db-restore-drill.service
