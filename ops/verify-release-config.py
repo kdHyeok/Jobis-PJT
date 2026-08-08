@@ -80,6 +80,17 @@ def main() -> None:
             "PostgreSQL health may accept the temporary initialization socket")
 
     production = text("ops/docker-compose.prod.yml")
+    require('SERVER_PORT: "8080"' in production,
+            "production backend must pin SERVER_PORT to 8080 "
+            "(the application default moved to 8380)")
+
+    frontend_nginx = text("frontend/nginx.conf")
+    require("listen ${NGINX_PORT};" in frontend_nginx,
+            "frontend nginx must take its listen port from NGINX_PORT "
+            "(hardcoding clashes with backend on the host network)")
+    require("proxy_pass ${BACKEND_UPSTREAM};" in frontend_nginx,
+            "frontend nginx must proxy through BACKEND_UPSTREAM "
+            "(service-name DNS does not exist under network_mode: host)")
     for service in ("ai", "backend", "frontend"):
         require(re.search(rf"(?m)^  {service}:$", production) is not None,
                 f"production service missing: {service}")

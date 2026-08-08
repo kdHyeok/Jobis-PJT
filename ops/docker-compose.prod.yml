@@ -211,6 +211,11 @@ services:
     network_mode: host
     env_file:
       - /etc/jobis/jobis-v2.env
+    environment:
+      # 애플리케이션 기본 포트가 v3 통합 기준(8380)으로 바뀌었다. 운영 계약(헬스체크·
+      # frontend 업스트림·nginx)은 8080 이므로 여기서 고정한다. 실측 2026-08-08:
+      # 이 고정이 없어 backend 가 8380 으로 떠 헬스체크 실패로 릴리스가 롤백됐다.
+      SERVER_PORT: "8080"
     # 이미지가 -XX:MaxRAMPercentage=75 로 실행되므로 이 상한이 곧 힙 상한이다.
     # 상한이 없으면 JVM 이 호스트 전체(15.6GB)를 기준으로 계산해 힙을 12GB 까지 잡는다
     # (실측: 상한 없음 → 11,992MB, 상한 3g → 2,304MB).
