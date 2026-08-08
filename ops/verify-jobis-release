@@ -195,6 +195,24 @@ else
 fi
 
 # 설정이 서버에만 있고 CD 에는 없는 상태를 배포 시점에 잡는다.
+# 상한이 없으면 한 컨테이너가 호스트 메모리를 다 쓸 수 있다(2026-08-06 장애).
+# backend 는 -XX:MaxRAMPercentage 를 쓰므로 상한이 곧 JVM 힙 상한이기도 하다.
+echo "== 자원 상한 =="
+for container in jobis-backend jobis-ai jobis-rag-search jobis-frontend jobis-airflow-scheduler; do
+  limit="$(docker inspect --format '{{.HostConfig.Memory}}' "$container" 2>/dev/null || true)"
+  if [[ "$limit" =~ ^[0-9]+$ && "$limit" -gt 0 ]]; then
+    pass "메모리 상한 설정됨: $container ($((limit / 1024 / 1024))MB)"
+  else
+    fail "메모리 상한이 없다: $container (폭주 시 호스트 전체가 영향받는다)"
+  fi
+done
+
+if [[ "$(cat /proc/swaps 2>/dev/null | tail -n +2 | wc -l)" -gt 0 ]]; then
+  pass "스왑 활성 ($(free -m | awk '/Swap/{print $2}')MB)"
+else
+  warn "스왑이 없다 — 순간 초과를 흡수할 여유가 없다"
+fi
+
 echo "== 환경 계약 =="
 for variable in AIRFLOW_BASE_URL AIRFLOW_ADMIN_USERNAME AIRFLOW_WEBSERVER_SECRET_KEY; do
   if grep -q "^${variable}=." "$ENV_FILE" 2>/dev/null; then
