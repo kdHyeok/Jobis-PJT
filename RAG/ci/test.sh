@@ -11,8 +11,18 @@ set -eu
 
 venv=/tmp/jobis-rag-venv
 python -m venv "$venv"
+
+# 캐시 경로는 호출자가 정한다. Jenkins 는 워크스페이스 안을 가리켜 빌드 사이에 휠이
+# 살아남게 하고, 그렇지 않으면 종전대로 캐시 없이 받는다.
+if [ -n "${PIP_CACHE_DIR:-}" ]; then
+  cache_opt="--cache-dir ${PIP_CACHE_DIR}"
+else
+  cache_opt="--no-cache-dir"
+fi
+
+# shellcheck disable=SC2086
 "$venv/bin/python" -m pip install \
-  --disable-pip-version-check --no-cache-dir \
+  --disable-pip-version-check $cache_opt \
   numpy==2.2.6 rank_bm25==0.2.2 \
   'psycopg[binary]==3.2.9' python-dotenv==1.1.1
 

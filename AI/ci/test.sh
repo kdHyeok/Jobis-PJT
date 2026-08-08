@@ -10,12 +10,20 @@
 set -eu
 
 export PYTHONUTF8=1
-export UV_CACHE_DIR=/tmp/jobis-uv-cache
-export UV_PROJECT_ENVIRONMENT=/tmp/jobis-ai-venv
+# 캐시 경로는 호출자가 정할 수 있게 둔다. Jenkins 는 워크스페이스 안을 가리켜 빌드 사이에
+# 캐시가 살아남게 하고(매번 재다운로드 방지), 그렇지 않으면 종전대로 /tmp 를 쓴다.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/jobis-uv-cache}"
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-/tmp/jobis-ai-venv}"
+pip_cache="${PIP_CACHE_DIR:-}"
 
 python -m venv /tmp/jobis-uv-bootstrap
-/tmp/jobis-uv-bootstrap/bin/python -m pip install \
-  --disable-pip-version-check --no-cache-dir uv==0.11.32
+if [ -n "$pip_cache" ]; then
+  /tmp/jobis-uv-bootstrap/bin/python -m pip install \
+    --disable-pip-version-check --cache-dir "$pip_cache" uv==0.11.32
+else
+  /tmp/jobis-uv-bootstrap/bin/python -m pip install \
+    --disable-pip-version-check --no-cache-dir uv==0.11.32
+fi
 
 cd "$(dirname "$0")/.."
 

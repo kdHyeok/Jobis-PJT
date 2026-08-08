@@ -184,7 +184,10 @@ SQL
                 'DB_APP_USER=jobiss_app',
                 'DB_APP_PASSWORD=ci-app-password',
                 'AI_WORKER_ENABLED=false',
-                'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+                'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+                // Gradle 배포판과 의존성을 빌드 사이에 남긴다. 없으면 매 빌드가
+                // gradle-*-bin.zip 부터 다시 받는다(실측: develop #39).
+                "GRADLE_USER_HOME=${WORKSPACE}/.ci-cache/gradle"
               ]) {
               // 무엇을 검사하는가는 backend 개발자 소유다(backend/ci/test.sh).
               // 이 스테이지는 실행 환경(이미지·DB 컨테이너·DB_* 환경변수)만 책임진다.
@@ -216,7 +219,13 @@ SQL
       }
       steps {
         // 검사 내용은 AI 개발자 소유다(AI/ci/test.sh).
-        sh 'sh AI/ci/test.sh'
+        // 캐시만 뼈대가 정한다 — 워크스페이스 안에 둬야 빌드 사이에 남는다.
+        withEnv([
+          "UV_CACHE_DIR=${WORKSPACE}/.ci-cache/uv",
+          "PIP_CACHE_DIR=${WORKSPACE}/.ci-cache/pip"
+        ]) {
+          sh 'sh AI/ci/test.sh'
+        }
       }
     }
 
@@ -238,7 +247,9 @@ SQL
       }
       steps {
         // 검사 내용은 프론트엔드 개발자 소유다(frontend/ci/test.sh).
-        sh 'sh frontend/ci/test.sh'
+        withEnv(["npm_config_cache=${WORKSPACE}/.ci-cache/npm"]) {
+          sh 'sh frontend/ci/test.sh'
+        }
       }
     }
 
@@ -260,7 +271,9 @@ SQL
       }
       steps {
         // 검사 내용은 RAG 개발자 소유다(RAG/ci/test.sh).
-        sh 'sh RAG/ci/test.sh'
+        withEnv(["PIP_CACHE_DIR=${WORKSPACE}/.ci-cache/pip"]) {
+          sh 'sh RAG/ci/test.sh'
+        }
       }
     }
 
