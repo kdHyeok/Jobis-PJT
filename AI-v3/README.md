@@ -33,4 +33,3 @@ uv run uvicorn jobis_ai_v3.api:app --host 127.0.0.1 --port 8300
 ```powershell
 uv run pytest
 ```
-

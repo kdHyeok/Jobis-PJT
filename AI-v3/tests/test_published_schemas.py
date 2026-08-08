@@ -29,4 +29,3 @@ def test_published_schemas_match_current_models() -> None:
     for name, model in SCHEMA_MODELS.items():
         published = json.loads((SCHEMA_DIR / f"{name}.schema.json").read_text(encoding="utf-8"))
         assert published == model.model_json_schema(by_alias=True), f"stale schema: {name}"
-

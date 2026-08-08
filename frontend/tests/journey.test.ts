@@ -142,4 +142,3 @@ test("이스트게임즈 진입 기회와 네이버웹툰 경력 기회를 한 �
   assert.equal(adapted.nodes.some((node) => node.title === "게임 구매 API 구현"), false);
   assert.equal(adapted.nodes.find((node) => node.id === "est-project")?.project?.tasks[0].title, "게임 구매 API 구현");
 });
-

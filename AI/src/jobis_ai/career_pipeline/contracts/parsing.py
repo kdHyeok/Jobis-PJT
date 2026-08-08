@@ -38,4 +38,3 @@ def parse_structured_payload(raw: str | dict[str, Any], model: type[ModelT]) -> 
         return model.model_validate(payload)
     except ValidationError as exc:
         raise StructuredContractError(f"structured response violates the contract: {exc}") from exc
-

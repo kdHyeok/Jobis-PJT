@@ -86,4 +86,3 @@ test("진입 회사와 경력직 회사를 하나의 프로젝트 중심 커리�
   await expect(page.getByText("게임 구매 API 구현")).toBeVisible();
   await expect(page.getByText("이 과제에서 직접 사용하는 역량")).toBeVisible();
 });
-

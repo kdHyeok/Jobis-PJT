@@ -67,4 +67,3 @@ def ensure_contract_version(value: str) -> str:
     if not re.fullmatch(r"jobis\.ai\.v3(?:alpha|beta|rc)?[0-9]+", value):
         raise ValueError("unsupported JOBIS AI v3 contract version format")
     return value
-

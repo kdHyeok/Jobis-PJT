@@ -275,7 +275,7 @@ class RoadmapDraftService:
                             "실행 가능한 회사 맞춤 프로젝트 결과물",
                         ][:2]
                     ),
-                    verification_criteria=([ 
+                    verification_criteria=([
                         criterion
                         for task in draft.tasks
                         for criterion in task.acceptance_criteria
