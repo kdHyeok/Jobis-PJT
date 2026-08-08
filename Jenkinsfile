@@ -302,6 +302,7 @@ SQL
           bash -n ops/prepare-jobis-v2-release
           bash -n ops/sync-jobis-release-assets
           bash -n ops/test-legacy-data-migration
+          bash -n ops/test-release-migrations
           # 공백 오류는 병합 시점이 아니라 브랜치에서 잡는다.
           #
           # `HEAD^ HEAD` 만 보면 검사 범위가 커밋 위상에 따라 달라진다 — 기능 브랜치에서는
@@ -483,6 +484,29 @@ SQL
             '''
           }
         }
+      }
+    }
+
+    // CI 는 항상 빈 PostgreSQL 에서 마이그레이션을 검증하므로 "이미 적용된 버전과 어긋난다"는
+    // 결함이 구조적으로 걸리지 않는다. 실측(master #9, 2026-08-08): 통합 브랜치가 운영에 이미
+    // 적용된 V20~V28 을 삭제·재번호했는데 develop CI 는 끝까지 초록이었고, 배포 시점에 backend
+    // 가 기동하지 못해 롤백됐다. 배포 직전에 운영 스냅샷으로 같은 실패를 미리 재현한다.
+    //
+    // Jenkins 와 배포 호스트가 같은 서버라 호스트의 백업 디렉터리를 그대로 쓴다. 운영 DB 는
+    // 읽지도 쓰지도 않고, 덤프를 일회용 컨테이너에 복원해서만 검사한다.
+    // JOBIS_BACKUP_DIR 는 Jenkins 전역 환경변수로 설정한다(DEPLOY_HOST 와 같은 방식).
+    stage('Release migration gate') {
+      when { branch 'master' }
+      agent any
+      steps {
+        sh '''
+          set -euo pipefail
+          test -n "${JOBIS_BACKUP_DIR:-}" || {
+            echo "JOBIS_BACKUP_DIR 전역 환경변수가 없습니다." >&2
+            exit 1
+          }
+          bash ops/test-release-migrations backend/src/main/resources/db/migration
+        '''
       }
     }
 

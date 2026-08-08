@@ -10,6 +10,11 @@ Jenkins는 Multibranch Pipeline으로 저장소의 `Jenkinsfile`을 실행한다
 - SSH credential: `jobis-deploy-ssh`
 - Secret file credential: `jobis-deploy-known-hosts` (배포 서버의 검증된 SSH host key)
 - 전역 환경 변수: `DEPLOY_HOST`
+- 전역 환경 변수: `JOBIS_BACKUP_DIR` — 서비스 DB 덤프가 쌓이는 **호스트 경로**
+  (예: `/mnt/jobis-backups/service-db`). `Release migration gate` 스테이지가 이 디렉터리의
+  최신 덤프를 일회용 컨테이너에 복원해, 릴리스 마이그레이션이 **운영의 현재 스키마**에
+  적용되는지 배포 전에 확인한다. 설정하지 않으면 그 스테이지가 실패한다.
+  운영 DB 는 읽지도 쓰지도 않으며 덤프 파일만 읽는다.
 
 Docker socket 접근은 호스트 root와 동등한 권한이다. 전용 agent를 사용하고 socket을
 `chmod 666`으로 열지 말며, Docker 그룹과 Jenkins agent 그룹을 명시적으로 맞춘다.

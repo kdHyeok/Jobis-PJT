@@ -245,9 +245,24 @@ preserve_initial_containers() {
   done
 }
 
+# 롤백은 실패의 증거를 지운다 — 컨테이너를 재생성하므로 실패한 쪽 로그가 사라진다.
+# 실측(master #9): backend 가 unhealthy 로 배포가 중단됐는데 Jenkins 로그에 원인이
+# 한 줄도 남지 않아, 서버에 직접 들어가 DB 를 조회해서야 원인을 특정할 수 있었다.
+# 롤백 전에 각 서비스의 마지막 로그를 남긴다. 실패해도 롤백을 막지 않는다.
+dump_failure_logs() {
+  local service
+  echo "---- deploy failure logs (before rollback) ----" >&2
+  for service in backend ai frontend rag-search airflow-scheduler; do
+    echo "---- ${service} ----" >&2
+    compose "$RELEASE_SHA" logs --no-color --tail 120 "$service" >&2 2>/dev/null || true
+  done
+  echo "---- end of deploy failure logs ----" >&2
+}
+
 rollback() {
   local exit_code=$? image rollback_ready=true
   trap - ERR HUP INT TERM
+  dump_failure_logs || true
   echo "Deployment failed. Rolling back." >&2
 
   if [[ ! "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
