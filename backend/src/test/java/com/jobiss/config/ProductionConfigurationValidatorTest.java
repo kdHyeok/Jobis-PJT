@@ -20,7 +20,7 @@ class ProductionConfigurationValidatorTest {
                         1209600,
                         2592000,
                         false
-                ),
+                , "jobiss_access"),
                 new JobissProperties.Ai(
                         "http://ai-server:8000",
                         "local-ai-secret",
@@ -57,7 +57,7 @@ class ProductionConfigurationValidatorTest {
                         1209600,
                         2592000,
                         true
-                ),
+                , "jobiss_access"),
                 new JobissProperties.Ai(
                         "http://ai-server:8000",
                         "a-production-ai-secret-that-is-long-and-random",
@@ -91,7 +91,7 @@ class ProductionConfigurationValidatorTest {
                         1209600,
                         2592000,
                         true
-                ),
+                , "jobiss_access"),
                 new JobissProperties.Ai(
                         "http://ai-server:8000",
                         "a-production-ai-secret-that-is-long-and-random",

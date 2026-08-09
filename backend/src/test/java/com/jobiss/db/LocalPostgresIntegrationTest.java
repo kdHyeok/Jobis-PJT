@@ -314,7 +314,7 @@ class LocalPostgresIntegrationTest {
                         1209600,
                         2592000,
                         false
-                ),
+                , "jobiss_access"),
                 new JobissProperties.Ai(
                         "http://localhost:8000",
                         "local-test-ai-secret",

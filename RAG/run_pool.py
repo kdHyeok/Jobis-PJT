@@ -15,7 +15,6 @@ expected_parsed는 현재 파서로 프리필해두되 parsed_verified=false로 
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from pathlib import Path
 
 from pgvector.psycopg import register_vector

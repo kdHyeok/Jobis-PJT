@@ -1,34 +1,32 @@
 param(
     [int]$Port = 8600,
     [switch]$Install,
-    [string]$GraphRoot = "C:\jobiss-capability-graph-lab",
-    [string]$SharedSecret = "local-capability-graph-secret"
+    [string]$SharedSecret = "local-capability-graph-secret",
+    [string]$ReleasePath = ""
 )
 
 $ErrorActionPreference = "Stop"
-$python = Join-Path $GraphRoot ".venv\Scripts\python.exe"
-$dataset = Join-Path $GraphRoot "data\seed.v2.yaml"
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$aiRoot = Join-Path $projectRoot "AI"
+$python = Join-Path $aiRoot ".venv\Scripts\python.exe"
 
-if (-not (Test-Path -LiteralPath $GraphRoot)) {
-    throw "Capability Graph workspace is missing: $GraphRoot"
-}
-if (-not (Test-Path -LiteralPath $dataset)) {
-    throw "Capability Graph dataset is missing: $dataset"
-}
-if ($SharedSecret.Length -lt 16) {
-    throw "SharedSecret must contain at least 16 characters."
-}
-
-if ($Install -or -not (Test-Path -LiteralPath $python)) {
-    $uv = Get-Command uv -ErrorAction SilentlyContinue
-    if (-not $uv) {
-        throw "uv is required to install the Capability Graph environment."
+if (-not (Test-Path -LiteralPath $python)) {
+    $launcher = Get-Command py -ErrorAction SilentlyContinue
+    if ($launcher) {
+        & py -3.12 -m venv (Join-Path $aiRoot ".venv")
     }
-    Push-Location $GraphRoot
+    else {
+        & python -m venv (Join-Path $aiRoot ".venv")
+    }
+    $Install = $true
+}
+
+if ($Install) {
+    Push-Location $aiRoot
     try {
-        & $uv.Source sync --dev
+        & $python -m pip install -e ".[dev,prototype]"
         if ($LASTEXITCODE -ne 0) {
-            throw "Capability Graph dependencies failed to install."
+            throw "JOBIS AI dependencies failed to install."
         }
     }
     finally {
@@ -36,17 +34,18 @@ if ($Install -or -not (Test-Path -LiteralPath $python)) {
     }
 }
 
-$env:JOBIS_GRAPH_ENVIRONMENT = "local"
 $env:JOBIS_GRAPH_SHARED_SECRET = $SharedSecret
-$env:JOBIS_GRAPH_DATASET_PATH = $dataset
+if ([string]::IsNullOrWhiteSpace($ReleasePath)) {
+    Remove-Item Env:JOBIS_GRAPH_DATASET_PATH -ErrorAction SilentlyContinue
+}
+else {
+    $env:JOBIS_GRAPH_DATASET_PATH = $ReleasePath
+}
 
-Push-Location $GraphRoot
+Push-Location $aiRoot
 try {
-    Write-Host "Starting JOBIS Capability Graph at http://127.0.0.1:$Port..." -ForegroundColor Cyan
-    & $python -m uvicorn jobis_capability_graph.api:app --host 127.0.0.1 --port $Port
-    if ($LASTEXITCODE -ne 0) {
-        throw "Capability Graph stopped with exit code $LASTEXITCODE."
-    }
+    Write-Host "Starting optional Capability Graph HTTP facade at http://127.0.0.1:$Port..." -ForegroundColor Cyan
+    & $python -m uvicorn jobis_ai.capability_graph_server.app:app --host 127.0.0.1 --port $Port
 }
 finally {
     Pop-Location

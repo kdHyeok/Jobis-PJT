@@ -61,6 +61,23 @@ class SpringJdbcSqlGuardrailTest {
                 .isEmpty();
     }
 
+    @Test
+    void v3SourceReacquisitionUsesThePostingRevisionConflictKey()
+            throws IOException {
+        String source = Files.readString(
+                Path.of(
+                        "src", "main", "java", "com", "jobiss", "analysis", "v3",
+                        "V3SourceService.java"
+                ),
+                StandardCharsets.UTF_8
+        );
+
+        assertThat(source)
+                .contains("on conflict (user_id, source_document_id)")
+                .contains("on conflict (user_id, posting_id, extraction_revision)")
+                .contains("on conflict (source_id, source_revision, snapshot_hash)");
+    }
+
     private List<String> collectViolations(
             Path file,
             String source,

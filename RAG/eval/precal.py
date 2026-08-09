@@ -12,6 +12,7 @@ judge 정확도는 easy+ambiguous의 유일쌍 120개 기준으로 잰다(rechec
 산출: eval/anchor/precal_judgments.json, eval/anchor/precal_report.json
 """
 from __future__ import annotations
+import os
 
 import csv
 import json
@@ -27,7 +28,6 @@ ANCHOR = Path(__file__).parent / "anchor"
 LABELED = ANCHOR / "anchor_labeled.csv"
 # 프롬프트 버전별 캐시/리포트 — v1 결과(FAIL, Ambiguous 과용)는 그대로 보존
 # PRECAL_TAG: 같은 프롬프트의 재판정(judge 자기일관성 측정)용 접미사
-import os
 _TAG = os.environ.get("PRECAL_TAG", "")
 JUDGED = ANCHOR / f"precal_judgments_{judge.PROMPT_VERSION}{_TAG}.json"
 REPORT = ANCHOR / f"precal_report_{judge.PROMPT_VERSION}{_TAG}.json"

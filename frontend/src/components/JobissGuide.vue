@@ -1,15 +1,12 @@
 <script setup lang="ts">
+import mascot from "@/assets/mascot.png";
+
 defineProps<{ message: string }>();
 </script>
 
 <template>
   <div class="guide">
-    <div class="guide-character" aria-hidden="true">
-      <span class="guide-antenna" />
-      <span class="guide-eye guide-eye--left" />
-      <span class="guide-eye guide-eye--right" />
-      <span class="guide-smile" />
-    </div>
+    <img class="guide-character" :src="mascot" alt="" aria-hidden="true" />
     <p>{{ message }}</p>
   </div>
 </template>

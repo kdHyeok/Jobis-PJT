@@ -69,7 +69,6 @@ def _fetch_db_hashes(conn, uids: list[str]) -> dict[str, str]:
 
 
 def check_fields_intact(output_postings: list[dict], conn) -> dict:
-    uids = [p.get("posting_id", "") for p in output_postings]
     source_uids = []
     for p in output_postings:
         src = p.get("source", "")

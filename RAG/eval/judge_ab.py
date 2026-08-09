@@ -32,7 +32,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from . import anchor, judge
+# .env 를 읽은 뒤에 import 해야 한다 — anchor·judge 가 모듈 로드 시점에 환경변수를 읽는다.
+from . import anchor, judge  # noqa: E402
 
 EVAL_DIR = Path(__file__).parent
 POOL_SPEC_PATH = EVAL_DIR / "pool_spec.json"

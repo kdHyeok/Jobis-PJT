@@ -20,11 +20,11 @@ import os
 import re
 import hashlib
 from dataclasses import replace
-from typing import Any, Literal, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
-from jobis_ai.v2bridge import enrich, mapping
+from jobis_ai.v2bridge import enrich, mapping, role_catalog
 from jobis_ai.v2bridge.models import (
     AnalysisRequest,
     AnalysisResponse,
@@ -110,6 +110,13 @@ class EngineFailed(Exception):
 
 class AnalysisConvergenceFailed(EngineFailed):
     """에이전트가 호출에는 성공했지만 분석 상태가 반복돼 결과에 이르지 못했다."""
+
+
+class RoleResolutionRequired(EngineFailed):
+    """공고의 분석 기준 직무를 사용자 확인 없이 확정할 수 없다."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code="ROLE_RESOLUTION_REQUIRED")
 
 
 def provider_name() -> str:
@@ -560,11 +567,14 @@ def analyze_events(request: AnalysisRequest):
 def _completed(request: AnalysisRequest, state: dict[str, Any],
                session_id: str) -> AnalysisResponse:
     analysis = state.get("analysisResult") or {}
-    posting, _role_resolution = mapping.enrich_posting_role(
-        state.get("normalizedJobPosting") or {},
-        raw_text=request.posting.raw_text,
-        answers=request.answers,
-    )
+    try:
+        posting, role_resolution = mapping.enrich_posting_role(
+            state.get("normalizedJobPosting") or {},
+            raw_text=request.posting.raw_text,
+            answers=request.answers,
+        )
+    except role_catalog.RoleResolutionError as exc:
+        raise RoleResolutionRequired(str(exc)) from exc
     req_status = list((state.get("gapAnalysisResult") or {}).get("requirementStatus") or [])
 
     decision = _application_plan(session_id, analysis)
@@ -579,6 +589,7 @@ def _completed(request: AnalysisRequest, state: dict[str, Any],
         raw_text=request.posting.raw_text,
         answers=request.answers,
         source_text=(request.posting.raw_text if request.posting.source_type == "URL" else None),
+        resolution=role_resolution,
     )
     if job.primary_track is None:
         raise EngineFailed("공고의 직무 경로를 확정하지 못했습니다")
@@ -1185,6 +1196,73 @@ def _combined_web_role_evidence(posting: dict[str, Any], raw_text: str) -> list[
     return result
 
 
+def _is_roadmap_build_request(utterance: str) -> bool:
+    normalized = re.sub(r"\s+", " ", utterance or "").strip()
+    return bool(re.search(
+        r"로드맵.{0,32}(세워|세우|짜|작성|구성|설계|생성|만들|준비|계획)",
+        normalized,
+        re.IGNORECASE,
+    ))
+
+
+def _roadmap_build_public_reply(
+    *,
+    automatic_action_ready: bool,
+    has_posting_review: bool,
+) -> str:
+    if automatic_action_ready:
+        return (
+            "선택한 공고가 실제 분석에 필요한 담당 업무와 지원 조건을 포함하는지 "
+            "확인하고 있어요. 원문 확인과 분석 시작이 완료되면 커리어 지도에서 "
+            "새 로드맵 초안을 미리볼 수 있어요."
+        )
+    if has_posting_review:
+        return (
+            "새 준비 로드맵을 만들기 전에 사용할 공고 내용을 확인해 주세요. "
+            "확인 후 분석하면 커리어 지도에 적용할 초안을 만들어요."
+        )
+    return (
+        "새 준비 로드맵을 만들 기준 공고를 확인하지 못했어요. "
+        "채용 공고를 선택하거나 공고 링크·원문을 보내 주세요."
+    )
+
+
+def _matching_posting_id(
+    request: ChatRequest,
+    *,
+    raw_text: str,
+    source_url: str | None,
+) -> str | None:
+    """Bind a proposal only to a posting id that arrived in this DB snapshot."""
+
+    normalized_raw = re.sub(r"\s+", " ", raw_text or "").strip()
+    normalized_url = (source_url or "").strip().rstrip("/").casefold()
+    candidates = [*request.task.postings, *request.career.postings]
+    for candidate in candidates:
+        candidate_url = str(candidate.source_url or "").strip().rstrip("/").casefold()
+        candidate_raw = re.sub(r"\s+", " ", candidate.raw_text or "").strip()
+        if normalized_url and candidate_url == normalized_url:
+            return str(candidate.id)
+        if normalized_raw and candidate_raw == normalized_raw:
+            return str(candidate.id)
+    return None
+
+
+def _trigger_contains_posting_source(
+    utterance: str,
+    *,
+    raw_text: str,
+    source_url: str | None,
+) -> bool:
+    if source_url and source_url.strip() in (utterance or ""):
+        return True
+    trigger_text = re.sub(r"\s+", " ", utterance or "").strip().casefold()
+    posting_text = re.sub(r"\s+", " ", raw_text or "").strip().casefold()
+    if len(trigger_text) < 120 or len(posting_text) < 120:
+        return False
+    return posting_text[: min(240, len(posting_text))] in trigger_text
+
+
 def _posting_analysis_actions(request: ChatRequest, pasted_attachments: list,
                               dispatched: list[str], utterance: str = "",
                               session: dict[str, Any] | None = None,
@@ -1195,8 +1273,7 @@ def _posting_analysis_actions(request: ChatRequest, pasted_attachments: list,
 
     # "공고 기준으로 바로 로드맵 만들어줘" — 로드맵 직접 요청은 담당 에이전트가 안 돌았어도
     # 세션의 공고로 제안을 만들어 백엔드가 무음 V3(로드맵 재료 적재)를 시작할 수 있게 한다.
-    roadmap_requested = bool(re.search(
-        r"로드맵.{0,16}(생성|만들|시작|진행|해\s*줘|해주세요|부탁)", utterance))
+    roadmap_requested = _is_roadmap_build_request(utterance)
     if not ({"posting_analysis", "fit_analysis"}.intersection(dispatched)
             or roadmap_requested):
         return []
@@ -1232,6 +1309,19 @@ def _posting_analysis_actions(request: ChatRequest, pasted_attachments: list,
         utterance,
         re.IGNORECASE,
     ))
+    posting_id = _matching_posting_id(
+        request,
+        raw_text=raw_text,
+        source_url=source_url,
+    )
+    automatically_bound = explicitly_requested and (
+        posting_id is not None
+        or _trigger_contains_posting_source(
+            utterance,
+            raw_text=raw_text,
+            source_url=source_url,
+        )
+    )
     return [ProposedAgentAction(
         action_id=f"analyze-posting-{fingerprint}",
         action_type="ANALYZE_POSTING",
@@ -1240,8 +1330,9 @@ def _posting_analysis_actions(request: ChatRequest, pasted_attachments: list,
         # An explicit request may prepare and open the review automatically.
         # Actual V3 analysis still cannot start until the user confirms the
         # editable review in the service UI.
-        requires_consent=not explicitly_requested,
+        requires_consent=not automatically_bound,
         payload={
+            "postingId": posting_id,
             "sourceType": "URL" if source_url else "TEXT",
             "sourceUrl": source_url,
             "rawText": raw_text,
@@ -1317,10 +1408,13 @@ def _competency_proposal_for_chat(session_id: str):
         return None, None
 
     gaps = list(analysis.get("gaps") or [])
-    enriched_posting, resolution = mapping.enrich_posting_role(
-        posting,
-        raw_text=str((session.get("job_posting") or {}).get("value") or ""),
-    )
+    try:
+        enriched_posting, resolution = mapping.enrich_posting_role(
+            posting,
+            raw_text=str((session.get("job_posting") or {}).get("value") or ""),
+        )
+    except role_catalog.RoleResolutionError as exc:
+        raise RoleResolutionRequired(str(exc)) from exc
     track = resolution.primary_track
     drafts, _ = mapping.draft_competencies(enriched_posting, req_status, gaps, track)
     enrichment, warnings = enrich.classify_posting(enriched_posting, drafts)
@@ -1341,6 +1435,7 @@ def _competency_proposal_for_chat(session_id: str):
     return proposal, mapping.build_job_context(
         enriched_posting,
         raw_text=str((session.get("job_posting") or {}).get("value") or ""),
+        resolution=resolution,
     )
 
 
@@ -1588,7 +1683,11 @@ def chat_events(request: ChatRequest):
             changed = True
         if changed:
             store.update(session_id, {"resume_library": library})
-    summary_text = db_resume_text or _career_summary_text(request)
+    # 이력서와 확정 커리어 요약(지도 항목·목표·공고 제목·증빙 조각)은 대체 관계가
+    # 아니라 병렬 사실이다. `db_resume_text or ...` 였을 때는 저장소에 이력서가 있는
+    # 사용자일수록 AI 가 커리어 조각을 전혀 못 봤다(실측: AI 담당 보고 2026-08-08).
+    career_text = _career_summary_text(request)
+    summary_text = "\n\n".join(t for t in (db_resume_text, career_text) if t)
     if summary_text:
         existing = store.get(session_id).get("resume") or {}
         if not existing or existing.get("origin") == "career_summary":
@@ -1597,8 +1696,12 @@ def chat_events(request: ChatRequest):
             if db_resume_title and db_resume_text:
                 resume_asset["_label"] = db_resume_title[:200]
             store.update(session_id, {"resume": resume_asset})
-    if request.career.postings and not store.get(session_id).get("posting_library"):
-        library = []
+    # 공고 라이브러리는 "세션에 없을 때만" 이 아니라 매 턴 DB 분을 병합한다. 워크스페이스
+    # 스냅샷이 매 턴 posting_library 를 되살리므로, 없을 때만 심으면 첫 턴 이후 추가·분석된
+    # 공고(structured_posting 포함)가 영영 AI 에 닿지 않았다. DB 분이 최신이므로 앞에 두고,
+    # 대화에 붙여넣어 세션에만 있는 공고는 해시로 식별해 뒤에 보존한다.
+    if request.career.postings:
+        fresh = []
         for stored_posting in request.career.postings:
             entry = _summary_from_structured(stored_posting.structured_posting)
             if entry is None and stored_posting.parsed_data:
@@ -1607,11 +1710,19 @@ def chat_events(request: ChatRequest):
                 continue
             entry.setdefault("_sourceHash", hashlib.md5(
                 (stored_posting.raw_text or "").encode("utf-8")).hexdigest())
-            library.append(entry)
-        if library:
-            store.update(session_id, {"posting_library": library[:10]})
+            fresh.append(entry)
+        if fresh:
+            fresh_hashes = {e.get("_sourceHash") for e in fresh}
+            session_only = [
+                e for e in (store.get(session_id).get("posting_library") or [])
+                if e.get("_sourceHash") not in fresh_hashes
+            ]
+            store.update(session_id, {"posting_library": (fresh + session_only)[:10]})
+    # 커리어 지도도 매 턴 갱신한다. 백엔드가 "에이전트가 서비스 상태(로드맵)를 보고
+    # 대화하도록 매 턴 싣는다"(ChatReplyWorker)고 보내는데, 없을 때만 심으면 분석·지도
+    # 편집으로 바뀐 정본이 세션의 낡은 사본에 가려졌다. 정본은 PostgreSQL 이다(models.py workspace_state 계약).
     roadmap_nodes = list((request.career.roadmap or {}).get("nodes") or [])
-    if roadmap_nodes and not store.get(session_id).get("roadmap"):
+    if request.career.roadmap is not None:
         store.update(session_id, {"roadmap": roadmap_nodes[:100]})
     # 이전 대화에서 수집돼 DB 에 영속된 선호·사실·가용시간 — 세션에 없을 때만 되살린다.
     career_seed_updates: dict[str, Any] = {}
@@ -1642,7 +1753,11 @@ def chat_events(request: ChatRequest):
         try:
             with trace.recording(sink=lambda ev: relay.put(("event", ev))):
                 engine_response = handle_chat(EngineChatRequest(
-                    sessionId=session_id, message=utterance, attachments=attachments))
+                    sessionId=session_id,
+                    message=utterance,
+                    attachments=attachments,
+                    analysisOwner="UNIFIED",
+                ))
             relay.put(("done", engine_response))
         except Exception as exc:   # noqa: BLE001 — 소비 루프가 그대로 다시 올린다
             relay.put(("error", exc))
@@ -1691,7 +1806,10 @@ def chat_events(request: ChatRequest):
         raise EngineFailed("엔진이 빈 답변을 반환했어요")
 
     follow_ups = list(response.followUpQuestions or [])
-    should_request_posting, actions = mapping.chat_actions(follow_ups)
+    should_request_posting, actions = mapping.chat_actions(
+        follow_ups,
+        list(response.dispatched or []),
+    )
     products = _work_products(response)
     current_session = store.get(session_id)
     proposed_actions = _posting_analysis_actions(
@@ -1706,6 +1824,10 @@ def chat_events(request: ChatRequest):
     has_posting_review = any(
         action.action_type == "ANALYZE_POSTING" for action in proposed_actions
     )
+    roadmap_build_requested = _is_roadmap_build_request(utterance)
+    if roadmap_build_requested:
+        # The applied map is still the old version while the new draft runs.
+        actions = [action for action in actions if action.action != "OPEN_MAP"]
     public_reply = reply
     public_products = products
     public_artifact = _artifact(request, response, reply)
@@ -1715,6 +1837,15 @@ def chat_events(request: ChatRequest):
         # 공고 요약·질문에 대한 답이 여기 실리므로 고정 문구로 교체하면 안 된다.
         public_products = []
         public_artifact = None
+    if roadmap_build_requested:
+        automatic_action = next((
+            action for action in proposed_actions
+            if action.action_type == "ANALYZE_POSTING" and not action.requires_consent
+        ), None)
+        public_reply = _roadmap_build_public_reply(
+            automatic_action_ready=automatic_action is not None,
+            has_posting_review=has_posting_review,
+        )
     # 사후 타임라인에는 "실행 중…"(start:*) 단계를 싣지 않는다 — progress_steps 와 동일 규약.
     final_steps = [s for s in steps if not str(s["step"]).startswith("start:")][:60]
     pending = _pending_confirmation(follow_ups)

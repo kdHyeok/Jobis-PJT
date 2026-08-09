@@ -100,6 +100,27 @@ function text(item: Record<string, unknown>, ...keys: string[]) {
   return "";
 }
 
+type LinkPart = { text: string; url?: string };
+
+function linkParts(value: string): LinkPart[] {
+  const parts: LinkPart[] = [];
+  const pattern = /https?:\/\/[^\s<>()]+/g;
+  let cursor = 0;
+  for (const match of value.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) parts.push({ text: value.slice(cursor, index) });
+    parts.push({ text: match[0], url: match[0] });
+    cursor = index + match[0].length;
+  }
+  if (cursor < value.length) parts.push({ text: value.slice(cursor) });
+  return parts.length ? parts : [{ text: value }];
+}
+
+function jobUrl(item: Record<string, unknown>) {
+  const value = text(item, "url", "sourceUrl", "postingUrl", "link");
+  return /^https?:\/\//i.test(value) ? value : "";
+}
+
 function productLabel(type: AgentWorkProduct["productType"]) {
   return {
     DIAGNOSIS: "진단",
@@ -137,11 +158,26 @@ const displayTitle = computed(() =>
     </header>
     <div class="agent-product__summary">
       <template v-for="(block, index) in renderedSummaryBlocks" :key="index">
-        <h4 v-if="block.type === 'heading'">{{ block.text }}</h4>
+        <h4 v-if="block.type === 'heading'">
+          <template v-for="(part, partIndex) in linkParts(block.text)" :key="partIndex">
+            <a v-if="part.url" :href="part.url" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+            <template v-else>{{ part.text }}</template>
+          </template>
+        </h4>
         <ul v-else-if="block.type === 'list'">
-          <li v-for="(item, itemIndex) in block.items" :key="itemIndex">{{ item }}</li>
+          <li v-for="(item, itemIndex) in block.items" :key="itemIndex">
+            <template v-for="(part, partIndex) in linkParts(item)" :key="partIndex">
+              <a v-if="part.url" :href="part.url" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+              <template v-else>{{ part.text }}</template>
+            </template>
+          </li>
         </ul>
-        <p v-else>{{ block.text }}</p>
+        <p v-else>
+          <template v-for="(part, partIndex) in linkParts(block.text)" :key="partIndex">
+            <a v-if="part.url" :href="part.url" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+            <template v-else>{{ part.text }}</template>
+          </template>
+        </p>
       </template>
       <button
         v-if="remainingSummaryBlocks.length"
@@ -174,11 +210,18 @@ const displayTitle = computed(() =>
     </div>
 
     <div v-if="recommendations.length" class="agent-product__recommendations">
-      <article v-for="(job, index) in recommendations.slice(0, 6)" :key="index">
+      <component
+        :is="jobUrl(job) ? 'a' : 'article'"
+        v-for="(job, index) in recommendations.slice(0, 6)"
+        :key="index"
+        :href="jobUrl(job) || undefined"
+        :target="jobUrl(job) ? '_blank' : undefined"
+        :rel="jobUrl(job) ? 'noopener noreferrer' : undefined"
+      >
         <strong>{{ text(job, "companyName", "company") }}</strong>
         <span>{{ text(job, "title", "jobTitle", "roleTitle") }}</span>
         <small>{{ text(job, "reason", "summary") }}</small>
-      </article>
+      </component>
     </div>
 
     <details v-if="details.length" class="agent-product__details">

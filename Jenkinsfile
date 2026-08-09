@@ -1,20 +1,16 @@
-// JOBIS Jenkins CI/CD
+// JOBIS Jenkins CI/CD — **파이프라인 뼈대**
 //
-//   기능 브랜치/develop : CI (backend + AI/v2bridge + frontend + RAG + infra)
-//   develop             : CI 통과 후 여섯 SHA 이미지 build/push
-//   master 병합         : develop에서 검증한 동일 트리와 이미지를 승격한 뒤 자동 배포
+// 이 파일은 "언제 무엇을 어떤 순서로 돌릴지"와 "무엇이 머지를 막을지"만 정한다.
+// "무엇을 검사할지"는 각 영역이 정한다:
+//     backend/ci-checks · frontend/ci-checks · AI/ci-checks · RAG/ci-checks
+// 영역에 검사를 추가할 때 이 파일을 고치지 않는다. 소유권 규칙은 ops/CI_OWNERSHIP.md.
 //
-// ── 소유권 경계 ────────────────────────────────────────────────────────────
-// 이 파일은 CI/CD 뼈대다. Infra 담당이 소유하고, 기능 개발자는 원칙적으로 고치지 않는다.
-//   이 파일이 정하는 것 : 스테이지 구성과 순서, 브랜치 게이트(when), 실행 컨테이너 이미지,
-//                        서비스 컨테이너(PostgreSQL 등), 자격증명, 이미지 승격, 배포
-//   서비스가 정하는 것  : 무엇을 검사하는가 — backend/ci/test.sh, AI/ci/test.sh,
-//                        frontend/ci/test.sh, RAG/ci/test.sh
+//   기능 브랜치 : 바뀐 영역만 (Detect changes 가 판단) + 정적분석
+//   develop     : 전 영역 + 임시 이미지 build → compose 스모크 → 여섯 SHA 이미지 publish
+//   master 병합 : develop에서 검증한 동일 트리와 이미지를 승격한 뒤 자동 배포
 //
-// 기능을 추가·수정할 때 개발자가 고칠 파일은 자기 서비스의 ci/test.sh 와 테스트 코드다.
-// 새 인프라 의존성(Redis 등)이나 게이트 정책 변경이 필요하면 이 파일을 바꾸는 MR을 올리고
-// Infra 리뷰를 받는다(.gitlab/CODEOWNERS). 자세한 규칙은 루트 AGENTS.md "CI/CD 소유권".
-// ──────────────────────────────────────────────────────────────────────────
+// 한 단계가 실패해도 나머지는 계속 돈다(catchError). 한 번의 파이프라인으로 모든
+// 실패를 보기 위해서다. 배포 단계는 앞이 성공했을 때만 진입한다.
 //
 // 사전 설정은 ops/JENKINS_SETUP.md 참고.
 // 필요 플러그인: Docker Pipeline, SSH Agent, JUnit, GitLab
@@ -24,12 +20,6 @@
 pipeline {
   agent none
 
-  environment {
-    // 호스트 postgres(5432)와 겹치지 않는 CI 전용 포트. disableConcurrentBuilds 로
-    // 동시 실행이 없으므로 고정 포트를 써도 충돌하지 않는다.
-    CI_POSTGRES_PORT = '55432'
-  }
-
   options {
     disableConcurrentBuilds()
     timeout(time: 45, unit: 'MINUTES')
@@ -37,6 +27,103 @@ pipeline {
   }
 
   stages {
+
+    // 어떤 영역을 돌릴지 정한다. 기준은 두 가지다.
+    //   1) 그 영역이 마지막으로 **통과한 커밋** 이후에 바뀌었는가 (기억이 있으면)
+    //   2) 기억이 없으면 origin/develop 과 비교
+    // 통과 기록은 빌드 설명(description)에 "ci-pass: backend=<sha> ..." 로 남긴다.
+    // Jenkins 재시작·워크스페이스 교체에도 살아남고, 별도 저장소가 필요 없다.
+    stage('Detect changes') {
+      when { not { branch 'master' } }
+      agent any
+      steps {
+        script {
+          // 최근 빌드들을 거슬러 올라가며 통과 기록을 찾는다(마지막 빌드가 실패했어도
+          // 그 이전 기록은 유효하다).
+          def memo = ''
+          def probe = currentBuild.previousBuild
+          def hops = 0
+          while (probe != null && hops < 15) {
+            def desc = probe.description
+            if (desc != null && desc.contains('ci-pass:')) {
+              memo = desc
+              break
+            }
+            probe = probe.previousBuild
+            hops++
+          }
+          env.CI_PASS_MEMO = memo
+          echo('이전 통과 기록: ' + (memo ? memo : '(없음)'))
+
+          // 판단은 셸에서 끝낸다. Jenkins 의 CPS 변환은 클로저(.each/.any)에서 잘 깨지고,
+          // 실패하면 이 단계 하나 때문에 파이프라인 전체가 선다.
+          def flags = sh(
+            script: '''
+              set +e
+              if [ "$BRANCH_NAME" = "develop" ]; then
+                # develop 은 통합 게이트다. 기억과 무관하게 전부 돌린다 — master 는
+                # "develop 트리가 통째로 검증됐다"를 전제로 테스트를 생략하기 때문이다.
+                echo "backend ai frontend rag infra"
+                exit 0
+              fi
+              if ! git fetch --no-tags --quiet origin develop:refs/remotes/origin/develop; then
+                echo 'origin/develop 갱신에 실패해 모든 영역을 실행합니다.' >&2
+                echo "backend ai frontend rag infra"
+                exit 0
+              fi
+
+              # 영역별 기준 커밋: 통과 기록이 있고 그 커밋이 실제로 있으면 그것,
+              # 없으면 origin/develop.
+              base_for() {
+                # 백슬래시 없이 뽑는다 — Groovy 삼중따옴표 문자열은 잘못된 이스케이프를 거부한다.
+                sha="$(printf '%s' "$CI_PASS_MEMO" | awk -v key="$1=" '{ for (i = 1; i <= NF; i++) if (index($i, key) == 1) { sub(key, "", $i); print $i } }')"
+                if [ -n "$sha" ] && git cat-file -e "$sha^{commit}" 2>/dev/null; then
+                  echo "$sha"
+                else
+                  echo "origin/develop"
+                fi
+              }
+
+              changed_since() {
+                base="$1"; shift
+                if [ "$base" = "origin/develop" ]; then
+                  if ! diff="$(git diff --name-only origin/develop...HEAD)"; then
+                    echo "변경 범위를 계산하지 못해 $base 이후 변경으로 처리합니다." >&2
+                    return 0
+                  fi
+                else
+                  if ! diff="$(git diff --name-only "$base" HEAD)"; then
+                    echo "변경 범위를 계산하지 못해 $base 이후 변경으로 처리합니다." >&2
+                    return 0
+                  fi
+                fi
+                [ -z "$diff" ] && return 1
+                # 루트 파일이나 뼈대가 바뀌면 영향 범위를 알 수 없다 — 무조건 돌린다.
+                echo "$diff" | grep -qv '/' && return 0
+                echo "$diff" | grep -qE "$1"
+              }
+
+              out=""
+              changed_since "$(base_for backend)"  '^backend/'      && out="$out backend"
+              changed_since "$(base_for ai)"       '^AI/'           && out="$out ai"
+              changed_since "$(base_for frontend)" '^frontend/'     && out="$out frontend"
+              changed_since "$(base_for rag)"      '^(RAG|DATA)/'   && out="$out rag"
+              changed_since "$(base_for infra)"    '^(ops|infra)/'  && out="$out infra"
+              echo "$out"
+              exit 0
+            ''',
+            returnStdout: true
+          ).trim()
+
+          env.RUN_BACKEND = flags.contains('backend') ? 'true' : 'false'
+          env.RUN_AI = flags.contains('ai') ? 'true' : 'false'
+          env.RUN_FRONTEND = flags.contains('frontend') ? 'true' : 'false'
+          env.RUN_RAG = flags.contains('rag') ? 'true' : 'false'
+          env.RUN_INFRA = flags.contains('infra') ? 'true' : 'false'
+          echo('실행 영역: [' + (flags ? flags : '없음 — 이전 통과 이후 변경 없음') + ']')
+        }
+      }
+    }
 
     stage('Master release: verify') {
       when { branch 'master' }
@@ -65,336 +152,334 @@ pipeline {
       }
     }
 
-    // 직전에 통과한 내용과 같은 서비스는 건너뛴다. 이 서버는 Jenkins와 운영이 같은 호스트를
-    // 쓰고(가용 메모리 약 2GB·스왑 0·executor 2) 스테이지 병렬화는 OOM 위험이 있어,
-    // 부하를 줄이는 수단으로 병렬 대신 재실행 생략을 쓴다.
-    //
-    // 안전 규칙 두 가지:
-    //   1) fail-open — 표식이 없거나 읽지 못하면 **실행한다.** 판단이 안 서면 건너뛰지 않는다.
-    //   2) develop·master 에서는 절대 건너뛰지 않는다. 'Master release: verify' 가 보장하는
-    //      "master 트리 == 검증된 develop 트리"는 develop 이 전부 실행됐을 때만 뜻이 있다.
-    // 표식은 스테이지가 **성공한 뒤에만** 쓴다(.ci-cache/, 워크스페이스 로컬·git 무시).
-    stage('CI plan') {
-      when { not { branch 'master' } }
-      agent any
-      steps {
-        script {
-          boolean cacheable = env.BRANCH_NAME != 'develop'
-          if (!cacheable) {
-            echo '[plan] develop 은 통합 게이트다 — 모든 스테이지를 실행한다.'
-          }
-          [
-            BACKEND : 'backend',
-            AI      : 'AI',
-            FRONTEND: 'frontend',
-            RAG     : 'RAG',
-            INFRA   : 'ops infra compose.yaml .env.production.example'
-          ].each { key, paths ->
-            // Jenkinsfile 을 함께 해싱한다 — 뼈대가 바뀌면 전 서비스를 다시 검증한다.
-            String name = key.toString()
-            String sha = sh(
-              script: "git ls-tree -r HEAD -- ${paths} Jenkinsfile | sha1sum | cut -c1-40",
-              returnStdout: true
-            ).trim()
-            env.setProperty("SHA_${name}".toString(), sha)
-            boolean unchanged = cacheable && sha && sh(
-              script: "test -f .ci-cache/${name}.sha && " +
-                      "[ \"\$(cat .ci-cache/${name}.sha)\" = '${sha}' ]",
-              returnStatus: true
-            ) == 0
-            env.setProperty("SKIP_${name}".toString(), unchanged ? 'true' : 'false')
-            echo unchanged
-              ? "[plan] skip ${key} — 직전 통과 이후 변경 없음 (${sha})"
-              : "[plan] run  ${key}"
-          }
-        }
-      }
-    }
-
     stage('Backend: test & package') {
       when {
-        beforeAgent true
         allOf {
           not { branch 'master' }
-          expression { env.SKIP_BACKEND != 'true' }
+          environment name: 'RUN_BACKEND', value: 'true'
         }
       }
       agent any
-      post {
-        success {
-          sh 'mkdir -p .ci-cache && printf %s "$SHA_BACKEND" > .ci-cache/BACKEND.sha'
-        }
-      }
       steps {
-        updateGitlabCommitStatus name: 'jenkins', state: 'running'
-        script {
-          // 운영 DB가 PostgreSQL이므로 CI도 동일한 DB로 테스트한다 (방언 불일치 방지)
-          // 아래 테스트 에이전트는 Testcontainers 를 쓰기 위해 host 네트워크로 실행한다.
-          // host 네트워크에서는 --link 를 쓸 수 없으므로 루프백 포트로 발행해 연결한다.
-          docker.image('postgres:17-alpine').withRun(
-            '-e POSTGRES_DB=jobiss ' +
-            '-e POSTGRES_USER=jobiss_migrator ' +
-            '-e POSTGRES_PASSWORD=ci-migrator-password ' +
-            "-p 127.0.0.1:${CI_POSTGRES_PORT}:5432"
-          ) { db ->
-            // 현재 서비스 v2는 Flyway용 역할과 RLS가 적용되는 앱 역할을 분리한다.
-            withEnv(["POSTGRES_CONTAINER=${db.id}"]) {
-              sh '''
-                ready=false
-                for i in $(seq 1 30); do
-                  if docker exec "$POSTGRES_CONTAINER" \
-                    pg_isready -h 127.0.0.1 -U jobiss_migrator -d jobiss >/dev/null 2>&1; then
-                    ready=true
-                    break
-                  fi
-                  sleep 2
-                done
-                [ "$ready" = true ] || { echo "PostgreSQL not ready"; exit 1; }
+        // 여기서 실패해도 뒤 단계는 계속 돈다. 한 번의 파이프라인으로 모든
+        // 실패를 보기 위해서다. 빌드 결과는 그대로 FAILURE 로 남는다.
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          updateGitlabCommitStatus name: 'jenkins', state: 'running'
+          script {
+            // 운영 DB가 PostgreSQL이므로 CI도 동일한 DB로 테스트한다 (방언 불일치 방지)
+            // 아래 테스트 에이전트는 Testcontainers 를 쓰기 위해 host 네트워크로 실행한다.
+            // 브랜치별 작업이 겹쳐도 충돌하지 않도록 Docker가 빈 루프백 포트를 고른다.
+            docker.image('postgres:17-alpine').withRun(
+              '-e POSTGRES_DB=jobiss ' +
+              '-e POSTGRES_USER=jobiss_migrator ' +
+              '-e POSTGRES_PASSWORD=ci-migrator-password ' +
+              '-p 127.0.0.1::5432'
+            ) { db ->
+              def postgresPort = sh(
+                script: "docker port ${db.id} 5432/tcp | sed -n '1s/.*://p'",
+                returnStdout: true
+              ).trim()
+              if (!(postgresPort ==~ /[0-9]+/)) {
+                error("PostgreSQL published port is invalid: ${postgresPort}")
+              }
+              // 현재 서비스 v2는 Flyway용 역할과 RLS가 적용되는 앱 역할을 분리한다.
+              withEnv(["POSTGRES_CONTAINER=${db.id}"]) {
+                sh '''
+                  ready=false
+                  for i in $(seq 1 30); do
+                    if docker exec "$POSTGRES_CONTAINER" \
+                      pg_isready -h 127.0.0.1 -U jobiss_migrator -d jobiss >/dev/null 2>&1; then
+                      ready=true
+                      break
+                    fi
+                    sleep 2
+                  done
+                  [ "$ready" = true ] || { echo "PostgreSQL not ready"; exit 1; }
 
-                docker exec -i "$POSTGRES_CONTAINER" \
-                  psql -v ON_ERROR_STOP=1 -U jobiss_migrator -d jobiss <<'SQL'
-                DO $do$
-                BEGIN
-                  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jobiss_app') THEN
-                    CREATE ROLE jobiss_app
-                      LOGIN PASSWORD 'ci-app-password'
-                      NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
-                  END IF;
-                END
-                $do$;
-                GRANT CONNECT ON DATABASE jobiss TO jobiss_app;
+                  docker exec -i "$POSTGRES_CONTAINER" \
+                    psql -v ON_ERROR_STOP=1 -U jobiss_migrator -d jobiss <<'SQL'
+                  DO $do$
+                  BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'jobiss_app') THEN
+                      CREATE ROLE jobiss_app
+                        LOGIN PASSWORD 'ci-app-password'
+                        NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+                    END IF;
+                  END
+                  $do$;
+                  GRANT CONNECT ON DATABASE jobiss TO jobiss_app;
 SQL
-              '''
-            }
+                '''
+              }
 
-            // 소켓 그룹은 호스트 docker 그룹 GID 를 그대로 쓴다(하드코딩하지 않는다).
-            def dockerGid = sh(
-              script: 'stat -c %g /var/run/docker.sock',
-              returnStdout: true
-            ).trim()
-            docker.image('eclipse-temurin:17-jdk').inside(
-              '--network host ' +
-              '-v /var/run/docker.sock:/var/run/docker.sock ' +
-              "--group-add ${dockerGid}"
-            ) {
-              withEnv([
-                "DB_URL=jdbc:postgresql://127.0.0.1:${CI_POSTGRES_PORT}/jobiss",
-                'DB_MIGRATOR_USER=jobiss_migrator',
-                'DB_MIGRATOR_PASSWORD=ci-migrator-password',
-                'DB_APP_USER=jobiss_app',
-                'DB_APP_PASSWORD=ci-app-password',
-                'AI_WORKER_ENABLED=false',
-                'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-                // Gradle 배포판과 의존성을 빌드 사이에 남긴다. 없으면 매 빌드가
-                // gradle-*-bin.zip 부터 다시 받는다(실측: develop #39).
-                "GRADLE_USER_HOME=${WORKSPACE}/.ci-cache/gradle"
-              ]) {
-              // 무엇을 검사하는가는 backend 개발자 소유다(backend/ci/test.sh).
-              // 이 스테이지는 실행 환경(이미지·DB 컨테이너·DB_* 환경변수)만 책임진다.
-              sh 'sh backend/ci/test.sh'
+              // 소켓 그룹은 호스트 docker 그룹 GID 를 그대로 쓴다(하드코딩하지 않는다).
+              def dockerGid = sh(
+                script: 'stat -c %g /var/run/docker.sock',
+                returnStdout: true
+              ).trim()
+              docker.image('eclipse-temurin:17-jdk').inside(
+                '--network host ' +
+                '-v /var/run/docker.sock:/var/run/docker.sock ' +
+                "--group-add ${dockerGid}"
+              ) {
+                withEnv([
+                  "DB_URL=jdbc:postgresql://127.0.0.1:${postgresPort}/jobiss",
+                  'DB_MIGRATOR_USER=jobiss_migrator',
+                  'DB_MIGRATOR_PASSWORD=ci-migrator-password',
+                  'DB_APP_USER=jobiss_app',
+                  'DB_APP_PASSWORD=ci-app-password',
+                  'AI_WORKER_ENABLED=false',
+                  'JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+                ]) {
+                sh 'chmod +x backend/ci-checks && ./backend/ci-checks test'
+                script { env.PASSED_BACKEND = env.GIT_COMMIT }
+                }
               }
             }
           }
+          junit 'backend/build/test-results/test/*.xml'
+          stash name: 'backend-jar', includes: 'backend/backend.jar'
         }
-        junit 'backend/build/test-results/test/*.xml'
-        stash name: 'backend-jar', includes: 'backend/backend.jar'
       }
     }
 
     stage('AI v2bridge: test') {
       when {
-        beforeAgent true
         allOf {
           not { branch 'master' }
-          expression { env.SKIP_AI != 'true' }
+          environment name: 'RUN_AI', value: 'true'
         }
       }
       agent {
         docker { image 'python:3.11-slim' }
       }
-      post {
-        success {
-          sh 'mkdir -p .ci-cache && printf %s "$SHA_AI" > .ci-cache/AI.sha'
-        }
-      }
       steps {
-        // 검사 내용은 AI 개발자 소유다(AI/ci/test.sh).
-        // 캐시만 뼈대가 정한다 — 워크스페이스 안에 둬야 빌드 사이에 남는다.
-        withEnv([
-          "UV_CACHE_DIR=${WORKSPACE}/.ci-cache/uv",
-          "PIP_CACHE_DIR=${WORKSPACE}/.ci-cache/pip"
-        ]) {
-          sh 'sh AI/ci/test.sh'
+        // 여기서 실패해도 뒤 단계는 계속 돈다. 한 번의 파이프라인으로 모든
+        // 실패를 보기 위해서다. 빌드 결과는 그대로 FAILURE 로 남는다.
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          sh 'chmod +x AI/ci-checks && ./AI/ci-checks test'
+          script { env.TESTED_AI = env.GIT_COMMIT }
         }
       }
     }
 
     stage('Frontend: typecheck & build') {
       when {
-        beforeAgent true
         allOf {
           not { branch 'master' }
-          expression { env.SKIP_FRONTEND != 'true' }
+          environment name: 'RUN_FRONTEND', value: 'true'
         }
       }
       agent {
         docker { image 'node:22-alpine' }
       }
-      post {
-        success {
-          sh 'mkdir -p .ci-cache && printf %s "$SHA_FRONTEND" > .ci-cache/FRONTEND.sha'
-        }
-      }
       steps {
-        // 검사 내용은 프론트엔드 개발자 소유다(frontend/ci/test.sh).
-        withEnv(["npm_config_cache=${WORKSPACE}/.ci-cache/npm"]) {
-          sh 'sh frontend/ci/test.sh'
+        // 여기서 실패해도 뒤 단계는 계속 돈다. 한 번의 파이프라인으로 모든
+        // 실패를 보기 위해서다. 빌드 결과는 그대로 FAILURE 로 남는다.
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          sh 'chmod +x frontend/ci-checks && ./frontend/ci-checks test'
+          script { env.PASSED_FRONTEND = env.GIT_COMMIT }
         }
       }
     }
 
     stage('RAG: static validation') {
       when {
-        beforeAgent true
         allOf {
           not { branch 'master' }
-          expression { env.SKIP_RAG != 'true' }
+          environment name: 'RUN_RAG', value: 'true'
         }
       }
       agent {
         docker { image 'python:3.12-slim' }
       }
-      post {
-        success {
-          sh 'mkdir -p .ci-cache && printf %s "$SHA_RAG" > .ci-cache/RAG.sha'
-        }
-      }
       steps {
-        // 검사 내용은 RAG 개발자 소유다(RAG/ci/test.sh).
-        withEnv(["PIP_CACHE_DIR=${WORKSPACE}/.ci-cache/pip"]) {
-          sh 'sh RAG/ci/test.sh'
+        // 여기서 실패해도 뒤 단계는 계속 돈다. 한 번의 파이프라인으로 모든
+        // 실패를 보기 위해서다. 빌드 결과는 그대로 FAILURE 로 남는다.
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          sh 'chmod +x RAG/ci-checks && ./RAG/ci-checks test'
+          script { env.TESTED_RAG = env.GIT_COMMIT }
         }
       }
     }
 
     stage('Infra: static validation') {
       when {
-        beforeAgent true
         allOf {
           not { branch 'master' }
-          expression { env.SKIP_INFRA != 'true' }
+          environment name: 'RUN_INFRA', value: 'true'
         }
       }
       agent any
-      post {
-        success {
-          sh 'mkdir -p .ci-cache && printf %s "$SHA_INFRA" > .ci-cache/INFRA.sha'
+      steps {
+        // 여기서 실패해도 뒤 단계는 계속 돈다. 한 번의 파이프라인으로 모든
+        // 실패를 보기 위해서다. 빌드 결과는 그대로 FAILURE 로 남는다.
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          sh '''
+            test -x ops/deploy-jobis-container
+            # 실행 비트가 빠지면 배포가 시작 직후 "not executable" 로 멈춘다.
+            test -x ops/verify-jobis-release
+          test -x ops/smoke-compose
+            bash -n ops/deploy-jobis-container
+            bash -n ops/backup-jobis-db
+            bash -n ops/backup-jobis-pipeline-db
+            bash -n ops/restore-jobis-db-test
+            bash -n ops/restore-latest-jobis-db-test
+            bash -n ops/test-db-backup-restore
+            bash -n ops/test-v2-database-bootstrap
+            bash -n ops/prepare-jobis-server
+            bash -n ops/audit-jobis-server
+            bash -n ops/verify-jobis-release
+            bash -n ops/switch-jobis-nginx
+            bash -n ops/install-jobis-nginx-control
+            bash -n ops/bootstrap-jobis-v2-database
+            bash -n ops/bootstrap-jobis-pipeline-databases
+            bash -n ops/configure-jobis-v2-environment
+            bash -n ops/migrate-jobis-legacy-to-v2
+            bash -n ops/prepare-jobis-v2-release
+            bash -n ops/sync-jobis-release-assets
+            bash -n ops/test-legacy-data-migration
+            bash -n ops/test-release-migrations
+          bash -n ops/smoke-compose
+            git diff --check HEAD^ HEAD
+
+            # Multibranch workspaces survive branch changes. Git removes deleted tracked
+            # files, but ignored and ordinary untracked artifacts under retired services
+            # can remain. Fail closed if source was reintroduced, then clean only the two
+            # retired paths in this disposable Jenkins workspace.
+            legacy_tracked="$(git ls-files -- ai-server fake-ai)"
+            if [ -n "$legacy_tracked" ]; then
+              echo 'Retired service paths still contain tracked files:' >&2
+              printf '%s\n' "$legacy_tracked" >&2
+              exit 1
+            fi
+            git clean -fdx -- ai-server fake-ai
+
+            # Jenkins is itself a container. Raw bind mounts resolve on the host Docker
+            # daemon, where the container-only $WORKSPACE path does not exist. Reuse the
+            # Jenkins data volume so sibling validation containers see the same checkout.
+            jenkins_container="$(cat /etc/hostname)"
+            docker run --rm \
+              --volumes-from "${jenkins_container}:ro" \
+              -w "$WORKSPACE" \
+              python:3.12-slim \
+              python ops/verify-release-config.py
+
+            # 활성 배포 경로가 제거된 계약 어댑터/fake-ai를 다시 참조하면 실패한다.
+            if grep -En 'jobis-fake-ai:|ai-server:|AGENT_WS_URL|AGENT_HTTP_URL' \
+              compose.yaml ops/docker-compose.prod.yml; then
+              echo 'Legacy AI deployment reference detected.' >&2
+              exit 1
+            fi
+
+            # Jenkins 컨테이너에는 운영 서버의 /etc/jobis/jobis-v2.env가 없으므로
+            # 절대 경로와 env_file 내용은 해석하지 않고 Compose 모델만 검증한다.
+            # Jenkins 컨테이너의 Docker CLI에는 Compose 플러그인이 없을 수 있다.
+            # Compose가 포함된 공식 CLI 이미지에 파일을 표준입력으로 전달해 모델만 검증한다.
+            docker run --rm \
+              --volumes-from "${jenkins_container}:ro" \
+              -w "$WORKSPACE" \
+              -e JOBIS_SHA=0000000000000000000000000000000000000000 \
+              docker:28-cli \
+              sh -ec '
+                mkdir -p /etc/jobis
+                : > /etc/jobis/jobis-v2.env
+                exec docker compose --project-name jobis-validation \
+                  --env-file .env.production.example -f ops/docker-compose.prod.yml \
+                  config --quiet --no-path-resolution --no-env-resolution
+              '
+
+            docker run --rm \
+              --volumes-from "${jenkins_container}:ro" \
+              -e JOBIS_WORKSPACE="$WORKSPACE" \
+              nginx:1.27-alpine \
+              sh -ec '
+                ln -s "$JOBIS_WORKSPACE" /workspace
+                mkdir -p /etc/jobis
+                cp /workspace/ops/nginx-jobis-upstream-container.conf \
+                  /etc/jobis/nginx-active-upstream.conf
+                exec nginx -t -c /workspace/ops/nginx-jobis-app.test.conf
+              '
+
+            bash ops/test-db-backup-restore
+            bash ops/test-v2-database-bootstrap
+            bash ops/test-legacy-data-migration
+          '''
+        script { env.PASSED_INFRA = env.GIT_COMMIT }
         }
       }
+    }
+
+
+    // 정적분석. 검사 내용은 각 영역의 ci-checks 가 정하고 이 단계는 호출만 한다.
+    // ruff(AI·RAG)는 지적 0건을 달성해 required 다. SpotBugs·ESLint 는 아직
+    // advisory 이며, 승격 조건은 ops/CI_OWNERSHIP.md 에 적혀 있다.
+    stage('backend: spotbugs') {
+      when {
+        allOf {
+          not { branch 'master' }
+          environment name: 'RUN_BACKEND', value: 'true'
+        }
+      }
+      agent { docker { image 'eclipse-temurin:17-jdk' } }
       steps {
-        sh '''
-          test -x ops/deploy-jobis-container
-          # 실행 비트가 빠지면 배포가 시작 직후 "not executable" 로 멈춘다.
-          test -x ops/verify-jobis-release
-          bash -n ops/deploy-jobis-container
-          bash -n ops/backup-jobis-db
-          bash -n ops/backup-jobis-pipeline-db
-          bash -n ops/restore-jobis-db-test
-          bash -n ops/restore-latest-jobis-db-test
-          bash -n ops/test-db-backup-restore
-          bash -n ops/test-v2-database-bootstrap
-          bash -n ops/prepare-jobis-server
-          bash -n ops/audit-jobis-server
-          bash -n ops/verify-jobis-release
-          bash -n ops/switch-jobis-nginx
-          bash -n ops/install-jobis-nginx-control
-          bash -n ops/bootstrap-jobis-v2-database
-          bash -n ops/bootstrap-jobis-pipeline-databases
-          bash -n ops/configure-jobis-v2-environment
-          bash -n ops/migrate-jobis-legacy-to-v2
-          bash -n ops/prepare-jobis-v2-release
-          bash -n ops/sync-jobis-release-assets
-          bash -n ops/test-legacy-data-migration
-          bash -n ops/test-release-migrations
-          # 공백 오류는 병합 시점이 아니라 브랜치에서 잡는다.
-          #
-          # `HEAD^ HEAD` 만 보면 검사 범위가 커밋 위상에 따라 달라진다 — 기능 브랜치에서는
-          # 마지막 커밋 하나뿐이고, develop 에서는 HEAD 가 병합 커밋이라 통합분 전체다.
-          # 그래서 브랜치 CI 가 초록이어도 병합 순간 처음 보는 오류가 쏟아진다(실측:
-          # develop #34 에서 39건). 브랜치가 develop 에 더하는 전체 범위를 본다.
-          #
-          # develop 에서는 merge-base 가 HEAD 자신이라 비교 대상이 없으므로 HEAD^(병합 전
-          # develop)로 되돌린다. origin/develop 을 못 찾을 때도 같은 폴백을 쓴다 —
-          # 판단이 안 서면 덜 보지 않는다.
-          whitespace_base="$(git merge-base origin/develop HEAD 2>/dev/null || true)"
-          if [ -z "$whitespace_base" ] || [ "$whitespace_base" = "$(git rev-parse HEAD)" ]; then
-            whitespace_base="$(git rev-parse HEAD^)"
-          fi
-          echo "[whitespace] ${whitespace_base}..HEAD"
-          git diff --check "$whitespace_base" HEAD
-
-          # Multibranch workspaces survive branch changes. Git removes deleted tracked
-          # files, but ignored and ordinary untracked artifacts under retired services
-          # can remain. Fail closed if source was reintroduced, then clean only the two
-          # retired paths in this disposable Jenkins workspace.
-          legacy_tracked="$(git ls-files -- ai-server fake-ai)"
-          if [ -n "$legacy_tracked" ]; then
-            echo 'Retired service paths still contain tracked files:' >&2
-            printf '%s\n' "$legacy_tracked" >&2
-            exit 1
-          fi
-          git clean -fdx -- ai-server fake-ai
-
-          # Jenkins is itself a container. Raw bind mounts resolve on the host Docker
-          # daemon, where the container-only $WORKSPACE path does not exist. Reuse the
-          # Jenkins data volume so sibling validation containers see the same checkout.
-          jenkins_container="$(cat /etc/hostname)"
-          docker run --rm \
-            --volumes-from "${jenkins_container}:ro" \
-            -w "$WORKSPACE" \
-            python:3.12-slim \
-            python ops/verify-release-config.py
-
-          # 활성 배포 경로가 제거된 계약 어댑터/fake-ai를 다시 참조하면 실패한다.
-          if grep -En 'jobis-fake-ai:|ai-server:|AGENT_WS_URL|AGENT_HTTP_URL' \
-            compose.yaml ops/docker-compose.prod.yml; then
-            echo 'Legacy AI deployment reference detected.' >&2
-            exit 1
-          fi
-
-          # Jenkins 컨테이너에는 운영 서버의 /etc/jobis/jobis-v2.env가 없으므로
-          # 절대 경로와 env_file 내용은 해석하지 않고 Compose 모델만 검증한다.
-          # Jenkins 컨테이너의 Docker CLI에는 Compose 플러그인이 없을 수 있다.
-          # Compose가 포함된 공식 CLI 이미지에 파일을 표준입력으로 전달해 모델만 검증한다.
-          docker run --rm \
-            --volumes-from "${jenkins_container}:ro" \
-            -w "$WORKSPACE" \
-            -e JOBIS_SHA=0000000000000000000000000000000000000000 \
-            docker:28-cli \
-            sh -ec '
-              mkdir -p /etc/jobis
-              : > /etc/jobis/jobis-v2.env
-              exec docker compose --project-name jobis-validation \
-                --env-file .env.production.example -f ops/docker-compose.prod.yml \
-                config --quiet --no-path-resolution --no-env-resolution
-            '
-
-          docker run --rm \
-            --volumes-from "${jenkins_container}:ro" \
-            -e JOBIS_WORKSPACE="$WORKSPACE" \
-            nginx:1.27-alpine \
-            sh -ec '
-              ln -s "$JOBIS_WORKSPACE" /workspace
-              mkdir -p /etc/jobis
-              cp /workspace/ops/nginx-jobis-upstream-container.conf \
-                /etc/jobis/nginx-active-upstream.conf
-              exec nginx -t -c /workspace/ops/nginx-jobis-app.test.conf
-            '
-
-          bash ops/test-db-backup-restore
-          bash ops/test-v2-database-bootstrap
-          bash ops/test-legacy-data-migration
-        '''
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+          sh 'chmod +x backend/ci-checks && ./backend/ci-checks lint'
+        }
+      }
+    }
+    stage('frontend: eslint') {
+      when {
+        allOf {
+          not { branch 'master' }
+          environment name: 'RUN_FRONTEND', value: 'true'
+        }
+      }
+      agent { docker { image 'node:22-alpine' } }
+      steps {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+          sh 'chmod +x frontend/ci-checks && ./frontend/ci-checks lint'
+        }
+      }
+    }
+    stage('AI: ruff') {
+      when {
+        allOf {
+          not { branch 'master' }
+          environment name: 'RUN_AI', value: 'true'
+        }
+      }
+      agent { docker { image 'python:3.11-slim' } }
+      steps {
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          // 테스트와 required Ruff가 모두 통과한 커밋만 다음 빌드의 캐시에 남긴다.
+          sh 'chmod +x AI/ci-checks && ./AI/ci-checks lint'
+          script {
+            if (env.TESTED_AI == env.GIT_COMMIT) {
+              env.PASSED_AI = env.GIT_COMMIT
+            }
+          }
+        }
+      }
+    }
+    stage('RAG: ruff') {
+      when {
+        allOf {
+          not { branch 'master' }
+          environment name: 'RUN_RAG', value: 'true'
+        }
+      }
+      agent { docker { image 'python:3.12-slim' } }
+      steps {
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          // 테스트와 required Ruff가 모두 통과한 커밋만 다음 빌드의 캐시에 남긴다.
+          sh 'chmod +x RAG/ci-checks && ./RAG/ci-checks lint'
+          script {
+            if (env.TESTED_RAG == env.GIT_COMMIT) {
+              env.PASSED_RAG = env.GIT_COMMIT
+            }
+          }
+        }
       }
     }
 
@@ -431,10 +516,18 @@ SQL
       }
     }
 
-    // develop에서 컨테이너 빌드를 검증한다. JOBIS_IMAGE_PREFIX가 설정된 표준 구성은
-    // registry에 불변 SHA 태그를 push해 별도 배포 서버에서도 같은 이미지를 pull한다.
+    // develop에서 임시 ci-<SHA> 태그로 이미지를 만든다. 불변 SHA 태그는 smoke가
+    // 통과한 뒤에만 발행해 실패한 이미지가 master 승격 후보가 되지 않게 한다.
     stage('Docker images: build') {
-      when { branch 'develop' }
+      when {
+        allOf {
+          branch 'develop'
+          expression {
+            currentBuild.result == null || currentBuild.result == 'SUCCESS' ||
+              currentBuild.result == 'UNSTABLE'
+          }
+        }
+      }
       agent any
       steps {
         script {
@@ -447,15 +540,78 @@ SQL
             case "$prefix" in
               *://*) echo 'JOBIS_IMAGE_PREFIX must not include a URL scheme.' >&2; exit 2 ;;
             esac
-            docker build -t "${prefix}jobis-backend:$GIT_COMMIT" backend
-            docker build -t "${prefix}jobis-ai:$GIT_COMMIT" AI
-            docker build -t "${prefix}jobis-frontend:$GIT_COMMIT" frontend
-            docker build -t "${prefix}jobis-rag-search:$GIT_COMMIT" \
+            tag="ci-$GIT_COMMIT"
+            docker build -t "${prefix}jobis-backend:$tag" backend
+            docker build -t "${prefix}jobis-ai:$tag" AI
+            docker build -t "${prefix}jobis-frontend:$tag" frontend
+            docker build -t "${prefix}jobis-rag-search:$tag" \
               -f infra/airflow/Dockerfile.rag-search .
-            docker build -t "${prefix}jobis-rag-ingest:$GIT_COMMIT" \
+            docker build -t "${prefix}jobis-rag-ingest:$tag" \
               -f infra/airflow/Dockerfile.rag-ingest .
-            docker build -t "${prefix}jobis-airflow:$GIT_COMMIT" \
+            docker build -t "${prefix}jobis-airflow:$tag" \
               -f infra/airflow/Dockerfile.airflow .
+          '''
+        }
+      }
+    }
+
+    // develop 통합 게이트. 각 영역은 자기 안에서만 검증됐다. 여기서는 방금 빌드한
+    // 이미지를 그대로 띄워 접합부(nginx→백엔드→DB, 백엔드→AI)가 붙는지 본다.
+    // 운영이 '처음 실행되는 곳'이 되지 않게 하는 최소 장치다.
+    stage('Compose smoke (develop)') {
+      when {
+        allOf {
+          branch 'develop'
+          expression {
+            currentBuild.result == null || currentBuild.result == 'SUCCESS' ||
+              currentBuild.result == 'UNSTABLE'
+          }
+        }
+      }
+      agent any
+      steps {
+        script {
+          // Jenkins 컨테이너의 Docker CLI 에는 Compose 플러그인이 없을 수 있다.
+          // Compose 가 포함된 공식 CLI 이미지에서 돌리고, 워크스페이스는
+          // --volumes-from 으로 넘긴다(호스트 데몬에는 $WORKSPACE 경로가 없다).
+          def jenkinsContainer = sh(script: 'cat /etc/hostname', returnStdout: true).trim()
+          sh """
+            docker run --rm \
+              --volumes-from "${jenkinsContainer}" \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -w "\$WORKSPACE" \
+              -e SMOKE_IMAGE_TAG="ci-\$GIT_COMMIT" \
+              -e SMOKE_IMAGE_PREFIX="\${JOBIS_IMAGE_PREFIX:-}" \
+              docker:28-cli \
+              sh -ec 'apk add --no-cache bash >/dev/null && chmod +x ops/smoke-compose && bash ops/smoke-compose'
+          """
+        }
+      }
+    }
+
+    stage('Docker images: publish') {
+      when {
+        allOf {
+          branch 'develop'
+          expression {
+            currentBuild.result == null || currentBuild.result == 'SUCCESS' ||
+              currentBuild.result == 'UNSTABLE'
+          }
+        }
+      }
+      agent any
+      steps {
+        script {
+          sh '''
+            set -euo pipefail
+            prefix="${JOBIS_IMAGE_PREFIX:-}"
+            for image in jobis-backend jobis-ai jobis-frontend \
+                         jobis-rag-search jobis-rag-ingest jobis-airflow; do
+              source="${prefix}${image}:ci-$GIT_COMMIT"
+              target="${prefix}${image}:$GIT_COMMIT"
+              docker image inspect "$source" >/dev/null
+              docker tag "$source" "$target"
+            done
           '''
 
           if (env.JOBIS_IMAGE_PREFIX?.trim()) {
@@ -465,27 +621,31 @@ SQL
               passwordVariable: 'REGISTRY_PASSWORD'
             )]) {
               sh '''
+                set -euo pipefail
                 registry="${JOBIS_IMAGE_PREFIX%%/*}"
                 printf '%s' "$REGISTRY_PASSWORD" | docker login "$registry" \
                   --username "$REGISTRY_USER" --password-stdin
                 trap 'docker logout "$registry" >/dev/null 2>&1 || true' EXIT
-                docker push "${JOBIS_IMAGE_PREFIX}jobis-backend:$GIT_COMMIT"
-                docker push "${JOBIS_IMAGE_PREFIX}jobis-ai:$GIT_COMMIT"
-                docker push "${JOBIS_IMAGE_PREFIX}jobis-frontend:$GIT_COMMIT"
-                docker push "${JOBIS_IMAGE_PREFIX}jobis-rag-search:$GIT_COMMIT"
-                docker push "${JOBIS_IMAGE_PREFIX}jobis-rag-ingest:$GIT_COMMIT"
-                docker push "${JOBIS_IMAGE_PREFIX}jobis-airflow:$GIT_COMMIT"
+                for image in jobis-backend jobis-ai jobis-frontend \
+                             jobis-rag-search jobis-rag-ingest jobis-airflow; do
+                  docker push "${JOBIS_IMAGE_PREFIX}${image}:$GIT_COMMIT"
+                done
               '''
             }
           } else {
-            echo 'JOBIS_IMAGE_PREFIX is empty; using the same-Docker-daemon deployment mode.'
+            echo 'Smoke-tested SHA images are ready on the shared Docker daemon.'
           }
         }
       }
     }
 
     stage('Docker images: promote') {
-      when { branch 'master' }
+      when {
+        allOf {
+          branch 'master'
+          expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+        }
+      }
       agent any
       steps {
         script {
@@ -534,7 +694,12 @@ SQL
     }
 
     stage('Deploy production') {
-      when { branch 'master' }
+      when {
+        allOf {
+          branch 'master'
+          expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+        }
+      }
       agent any
       // develop에서 검증하고 위 단계가 승격한 여섯 이미지를 백업 후 원자적으로 교체한다.
       steps {
@@ -594,9 +759,43 @@ SQL
     }
   }
 
+  // 선언형 파이프라인은 post 섹션을 하나만 허용한다.
   post {
-    success  { updateGitlabCommitStatus name: 'jenkins', state: 'success' }
-    failure  { updateGitlabCommitStatus name: 'jenkins', state: 'failed' }
-    aborted  { updateGitlabCommitStatus name: 'jenkins', state: 'canceled' }
+    always {
+      script {
+        // 영역별 '마지막으로 통과한 커밋'을 다음 빌드가 읽을 수 있게 남긴다.
+        // 이번에 돌지 않았거나 실패한 영역은 이전 기록을 그대로 물려받는다.
+        // 정규식 Matcher 는 CPS 에서 직렬화되지 않으므로 문자열 연산만 쓴다.
+        def memo = env.CI_PASS_MEMO ?: ''
+        def areas = ['backend', 'ai', 'frontend', 'rag', 'infra']
+        def passed = [env.PASSED_BACKEND, env.PASSED_AI, env.PASSED_FRONTEND,
+                      env.PASSED_RAG, env.PASSED_INFRA]
+        def out = ''
+        for (int i = 0; i < areas.size(); i++) {
+          def sha = passed[i]
+          if (!sha) {
+            def key = areas[i] + '='
+            def at = memo.indexOf(key)
+            if (at >= 0) {
+              def rest = memo.substring(at + key.length())
+              def sp = rest.indexOf(' ')
+              sha = (sp < 0) ? rest : rest.substring(0, sp)
+            }
+          }
+          if (sha) {
+            out = out + ' ' + areas[i] + '=' + sha
+          }
+        }
+        if (out) {
+          currentBuild.description = 'ci-pass:' + out
+        }
+      }
+    }
+    // GitLab 에 최종 상태를 직접 보고한다. UNSTABLE 은 플러그인이 매핑하지 않아
+    // MR 상태가 running 에 머물렀다. advisory 는 머지를 막지 않으므로 success 다.
+    success { updateGitlabCommitStatus name: 'jenkins', state: 'success' }
+    unstable { updateGitlabCommitStatus name: 'jenkins', state: 'success' }
+    failure { updateGitlabCommitStatus name: 'jenkins', state: 'failed' }
+    aborted { updateGitlabCommitStatus name: 'jenkins', state: 'canceled' }
   }
 }

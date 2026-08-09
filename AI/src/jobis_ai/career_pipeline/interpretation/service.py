@@ -27,6 +27,7 @@ from jobis_ai.career_pipeline.contracts.validation import (
     validate_snapshot_source,
 )
 from jobis_ai.career_pipeline.llm import (
+    JsonProviderContractError,
     JsonProviderError,
     JsonProviderNotConfigured,
     LlmProgressCallback,
@@ -120,7 +121,9 @@ SYSTEM_PROMPT = """너는 검증된 채용 공고 원문을 구조화하는 의�
 - TECHNICAL_CAPABILITY: 설계, 성능 개선, 테스트, 운영처럼 기술 수행 능력
 - RESPONSIBILITY: 입사 후 담당 업무
 - DOMAIN_KNOWLEDGE: 게임·금융 등 도메인 이해
-- CREDENTIAL: 자격증·학위 등 형식 자격
+- CREDENTIAL: 학위·전공·학력 등 형식 자격
+- CERTIFICATION: 기사·기능사·벤더 인증 등 취득 여부를 확인할 수 있는 자격증
+- LANGUAGE: 영어 회화·외국어 독해·공인 어학 수준 등 자연어 의사소통 역량
 - EXPERIENCE: 실제 경력·프로젝트 경험 조건
 - PORTFOLIO: 제출 결과물 조건
 - BEHAVIORAL: 열정·책임감·협업 태도
@@ -153,7 +156,12 @@ DISCOVERY_SYSTEM_PROMPT = """너는 채용 공고의 분석 범위를 먼저 확
 7. 자격요건, 우대사항, 복지, 급여, 주소, 전형 절차는 이 단계에서 추출하지 않는다.
 8. evidenceIds는 입력에 있는 ID만 사용하고 원문에 없는 정보를 만들지 않는다.
 9. 알려진 roleCatalog와 정확히 맞을 때만 canonicalRoleIdCandidate를 사용한다.
-10. JSON 외 설명과 내부 추론은 출력하지 않는다.
+10. 채용 직무 목록이라도 현재 모집 중임을 나타내는 구체적인 직무명과 신입/경력 구분, 근무지,
+    관련 요건 중 하나 이상이 함께 제시된 행은 선택 가능한 position 후보로 보존한다. 여러 후보가
+    있으면 임의로 하나를 고르지 않는다. 서버가 사용자에게 지원할 직무를 질문한다.
+11. 단순 직무 카테고리, 직무 소개 인터뷰, 회사 인재상처럼 실제 모집 행을 식별할 근거가 없는
+    문서만 positions를 빈 배열로 둔다. 추측하거나 가짜 포지션을 만들지 않는다.
+12. JSON 외 설명과 내부 추론은 출력하지 않는다.
 """
 
 
@@ -164,8 +172,8 @@ DETAIL_SYSTEM_PROMPT = """너는 사용자가 선택한 하나의 채용 포지�
 1. selectedPosition의 입사 후 담당 업무를 responsibilities로 분리한다.
 2. selectedPosition에 적용되는 필수·우대 요건만 requirements로 분리한다.
 3. 공통 조건도 선택 포지션에 실제 적용되면 포함한다.
-4. TECHNOLOGY, TECHNICAL_CAPABILITY, DOMAIN_KNOWLEDGE, CREDENTIAL, EXPERIENCE,
-   PORTFOLIO 중 취업 준비와 프로젝트 설계에 필요한 조건만 포함한다.
+4. TECHNOLOGY, TECHNICAL_CAPABILITY, DOMAIN_KNOWLEDGE, CREDENTIAL, CERTIFICATION,
+   LANGUAGE, EXPERIENCE, PORTFOLIO 중 취업 준비와 프로젝트 설계에 필요한 조건만 포함한다.
 5. BEHAVIORAL, EMPLOYMENT_CONDITION, OTHER는 제외한다.
 6. 급여, 복지, 근무지, 전형 절차, 문의처, 재지원 제한, 이력서 제출 안내는 제외한다.
 7. sourceText는 생략하고 evidenceIds만 정확히 연결한다. 서버가 원문을 복원한다.
@@ -192,6 +200,8 @@ ROADMAP_RELEVANT_CATEGORIES = {
     RequirementCategory.TECHNICAL_CAPABILITY,
     RequirementCategory.DOMAIN_KNOWLEDGE,
     RequirementCategory.CREDENTIAL,
+    RequirementCategory.CERTIFICATION,
+    RequirementCategory.LANGUAGE,
     RequirementCategory.EXPERIENCE,
     RequirementCategory.PORTFOLIO,
 }
@@ -233,6 +243,12 @@ class PostingInterpretationService:
         except JsonProviderNotConfigured as exc:
             raise PostingInterpretationFailure(
                 code=ErrorCode.AI_PROVIDER_NOT_CONFIGURED,
+                message=str(exc),
+                retryable=False,
+            ) from exc
+        except JsonProviderContractError as exc:
+            raise PostingInterpretationFailure(
+                code=ErrorCode.CONTRACT_VALIDATION_FAILED,
                 message=str(exc),
                 retryable=False,
             ) from exc
@@ -288,12 +304,28 @@ class PostingInterpretationService:
                 message=str(exc),
                 retryable=False,
             ) from exc
+        except JsonProviderContractError as exc:
+            raise PostingInterpretationFailure(
+                code=ErrorCode.CONTRACT_VALIDATION_FAILED,
+                message=str(exc),
+                retryable=False,
+            ) from exc
         except JsonProviderError as exc:
             raise PostingInterpretationFailure(
                 code=_provider_error_code(exc),
                 message=str(exc),
                 retryable=True,
             ) from exc
+        if not draft.positions:
+            raise PostingInterpretationFailure(
+                code=ErrorCode.ROLE_RESOLUTION_REQUIRED,
+                message=(
+                    "이 링크에서는 지원할 특정 모집 직무를 확정할 수 없습니다. "
+                    "채용 직무 목록이나 직무 소개 페이지가 아닌 상세 공고 URL 또는 "
+                    "회사명·직무명·지원 요건이 포함된 공고 원문을 입력해 주세요."
+                ),
+                retryable=False,
+            )
         draft, evidence_repairs = _restore_draft_evidence_ids(
             draft,
             prompt.evidence_alias_to_id,
@@ -337,6 +369,12 @@ class PostingInterpretationService:
         except JsonProviderNotConfigured as exc:
             raise PostingInterpretationFailure(
                 code=ErrorCode.AI_PROVIDER_NOT_CONFIGURED,
+                message=str(exc),
+                retryable=False,
+            ) from exc
+        except JsonProviderContractError as exc:
+            raise PostingInterpretationFailure(
+                code=ErrorCode.CONTRACT_VALIDATION_FAILED,
                 message=str(exc),
                 retryable=False,
             ) from exc
@@ -973,13 +1011,19 @@ def _compile_requirement(
     applies_to: list[str],
     evidence_by_id: dict[str, str],
 ) -> AtomicRequirement:
+    category = _refine_formal_requirement_category(
+        item.category,
+        item.atomic_text,
+    )
     normalized = (
         NormalizationStatus.PENDING
-        if item.category in {
+        if category in {
             RequirementCategory.TECHNOLOGY,
             RequirementCategory.TECHNICAL_CAPABILITY,
             RequirementCategory.DOMAIN_KNOWLEDGE,
             RequirementCategory.CREDENTIAL,
+            RequirementCategory.CERTIFICATION,
+            RequirementCategory.LANGUAGE,
             RequirementCategory.EXPERIENCE,
             RequirementCategory.PORTFOLIO,
         }
@@ -994,12 +1038,64 @@ def _compile_requirement(
         ),
         atomic_text=item.atomic_text,
         obligation=item.obligation,
-        category=item.category,
+        category=category,
         applies_to_position_ids=applies_to,
         evidence_ids=item.evidence_ids,
         confidence=item.confidence,
         normalization_status=normalized,
     )
+
+
+def _refine_formal_requirement_category(
+    category: RequirementCategory,
+    atomic_text: str,
+) -> RequirementCategory:
+    """Keep language and certificates out of project-learnable categories.
+
+    The LLM still performs the primary classification. This narrow server-side
+    guard only corrects common, observable category collisions so that spoken
+    English is not treated as a technical project capability and certificates
+    are not conflated with degrees or majors.
+    """
+    compact = re.sub(r"\s+", "", atomic_text).casefold()
+    language_markers = (
+        "영어회화",
+        "영어의사소통",
+        "비즈니스영어",
+        "외국어",
+        "어학",
+        "toeic",
+        "toefl",
+        "opic",
+        "일본어",
+        "중국어",
+        "englishcommunication",
+        "spokenenglish",
+        "languageproficiency",
+    )
+    if category in {
+        RequirementCategory.TECHNICAL_CAPABILITY,
+        RequirementCategory.BEHAVIORAL,
+        RequirementCategory.CREDENTIAL,
+        RequirementCategory.OTHER,
+    } and any(marker in compact for marker in language_markers):
+        return RequirementCategory.LANGUAGE
+
+    certification_markers = (
+        "자격증",
+        "산업기사",
+        "기능사",
+        "정보처리기사",
+        "기사자격",
+        "certification",
+        "certified",
+        "professionallicense",
+    )
+    if category is RequirementCategory.CREDENTIAL and any(
+        marker in compact for marker in certification_markers
+    ):
+        return RequirementCategory.CERTIFICATION
+    return category
 
 
 def _requirement_key(item: RequirementDraft) -> tuple[str, str, str, str]:

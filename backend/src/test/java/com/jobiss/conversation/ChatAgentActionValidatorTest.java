@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -36,6 +38,7 @@ class ChatAgentActionValidatorTest {
 
         assertThat(result.sourceType()).isEqualTo("TEXT");
         assertThat(result.sourceUrl()).isNull();
+        assertThat(result.postingId()).isNull();
         assertThat(result.rawText()).contains("Spring Boot");
         assertThat(result.reviewText()).contains("필수 요건");
     }
@@ -69,12 +72,14 @@ class ChatAgentActionValidatorTest {
 
     @Test
     void acceptsAnExplicitlyRequestedAutomaticAnalysis() {
+        UUID postingId = UUID.randomUUID();
         JsonNode action = objectMapper.readTree("""
                 {
                   "actionId": "analyze-posting-explicit123",
                   "actionType": "ANALYZE_POSTING",
                   "requiresConsent": false,
                   "payload": {
+                    "postingId": "%s",
                     "sourceType": "TEXT",
                     "sourceUrl": null,
                     "rawText": "Java와 Spring Boot 백엔드 개발자를 모집합니다.",
@@ -82,7 +87,7 @@ class ChatAgentActionValidatorTest {
                     "userInitiated": true
                   }
                 }
-                """);
+                """.formatted(postingId));
 
         ChatAgentActionValidator.ValidatedAction result =
                 ChatAgentActionValidator.require(
@@ -91,7 +96,24 @@ class ChatAgentActionValidatorTest {
                 );
 
         assertThat(result.actionType()).isEqualTo("ANALYZE_POSTING");
+        assertThat(result.postingAnalysis().postingId()).isEqualTo(postingId);
         assertThat(result.postingAnalysis().rawText()).contains("Spring Boot");
+    }
+
+    @Test
+    void rejectsMalformedPostingBindingId() {
+        JsonNode action = validAction();
+        ((tools.jackson.databind.node.ObjectNode) action.path("payload"))
+                .put("postingId", "not-a-uuid");
+
+        assertThatThrownBy(() ->
+                ChatAgentActionValidator.requirePostingAnalysis(
+                        action,
+                        "analyze-posting-abcd1234"
+                )
+        ).isInstanceOfSatisfying(ApiException.class, exception ->
+                assertThat(exception.code()).isEqualTo("INVALID_AGENT_ACTION")
+        );
     }
 
     private JsonNode validAction() {

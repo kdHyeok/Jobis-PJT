@@ -236,7 +236,7 @@ class V3AiClientTest {
                                 7200,
                                 7200,
                                 false
-                        ),
+                        , "jobiss_access"),
                         new JobissProperties.Ai(
                                 "http://127.0.0.1:" + server.getAddress().getPort(),
                                 "test-v3-secret-123",

@@ -87,7 +87,7 @@ class AnalysisPipelineRequest(ContractModel):
     user_evidence: UserEvidenceBundle
     current_roadmap: CurrentRoadmapSnapshot
     opportunity_id: EntityId
-    require_posting_confirmation: bool = False
+    require_posting_confirmation: bool = True
     confirmed_posting_review_id: EntityId | None = None
     skip_remaining_evidence_questions: bool = False
     requested_graph_version: NonBlank | None = None

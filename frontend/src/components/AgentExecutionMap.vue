@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronDown, CircleAlert, LoaderCircle, Sparkles } from "@lucide/vue";
+import { ChevronDown, CircleAlert, LoaderCircle, Sparkles } from "@lucide/vue";
 import { computed } from "vue";
 
 import type {
@@ -173,7 +173,7 @@ function statusLabel(status: PlannedAgent["status"]) {
         :class="{ 'is-complete': allComplete, 'is-failed': failed }"
       >
         <CircleAlert v-if="failed" :size="18" />
-        <Check v-else-if="allComplete" :size="18" :stroke-width="3.5" />
+        <Sparkles v-else-if="allComplete" :size="18" />
         <LoaderCircle v-else class="spin" :size="18" />
       </span>
       <div class="agent-execution-map__summary-copy">
@@ -183,22 +183,20 @@ function statusLabel(status: PlannedAgent["status"]) {
           <template v-if="agents.length > 1"> · {{ completedCount }}/{{ agents.length }} 완료</template>
         </small>
       </div>
-      <Sparkles :size="18" class="agent-execution-map__sparkle" />
-    </div>
-
-    <div
-      class="agent-execution-map__trail"
-      role="progressbar"
-      :aria-valuenow="completedCount"
-      :aria-valuemax="agents.length"
-      aria-label="에이전트 실행 진행률"
-    >
-      <i
-        v-for="agent in agents"
-        :key="agent.runId"
-        :class="`is-${agent.status.toLowerCase()}`"
-        :style="{ '--agent-accent': color(agent.agentId) }"
-      />
+      <div
+        class="agent-execution-map__trail"
+        role="progressbar"
+        :aria-valuenow="completedCount"
+        :aria-valuemax="agents.length"
+        aria-label="에이전트 실행 진행률"
+      >
+        <i
+          v-for="agent in agents"
+          :key="agent.runId"
+          :class="`is-${agent.status.toLowerCase()}`"
+          :style="{ '--agent-accent': color(agent.agentId) }"
+        />
+      </div>
     </div>
 
     <p v-if="activeMessage && !allComplete" class="agent-execution-map__message">

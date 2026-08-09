@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-import httpx
 import pytest
 
-from jobis_ai.career_pipeline.capability_graph import InMemoryCapabilityGraphPort, closure_content_hash
+from jobis_ai.career_pipeline.capability_graph import (
+    GraphReleaseCapabilityGraphPort,
+    InMemoryCapabilityGraphPort,
+    closure_content_hash,
+)
 from jobis_ai.career_pipeline.contracts.capability_graph import (
     CapabilityGraphClosure,
     CapabilityGraphNode,
@@ -23,7 +25,13 @@ from jobis_ai.career_pipeline.contracts.capability_graph import (
     ProjectNecessity,
     VerificationMethod,
 )
-from jobis_ai.career_pipeline.contracts.fit import FitAnalysisResult, FitAnalysisStatus, FitAssessment, UserEvidenceBundle
+from jobis_ai.career_pipeline.contracts.errors import ErrorCode
+from jobis_ai.career_pipeline.contracts.fit import (
+    ClaimState,
+    RequirementSelfReport,
+    RequirementStatus,
+    UserEvidenceBundle,
+)
 from jobis_ai.career_pipeline.contracts.normalization import (
     CapabilityCatalogEntry,
     CapabilityCatalogSnapshot,
@@ -37,7 +45,7 @@ from jobis_ai.career_pipeline.contracts.normalization import (
     RoadmapDisposition,
 )
 from jobis_ai.career_pipeline.contracts.pipeline import AnalysisPipelineRequest, PipelineStatus
-from jobis_ai.career_pipeline.contracts.posting import RequirementCategory
+from jobis_ai.career_pipeline.contracts.posting import ExperienceKind, RequirementCategory
 from jobis_ai.career_pipeline.contracts.progress import AnalysisStage, ProgressStatus
 from jobis_ai.career_pipeline.contracts.resolution import ClarificationAnswer
 from jobis_ai.career_pipeline.contracts.project_planning import (
@@ -47,8 +55,9 @@ from jobis_ai.career_pipeline.contracts.project_planning import (
 )
 from jobis_ai.career_pipeline.contracts.roadmap import CurrentRoadmapSnapshot, RoadmapProposal
 from jobis_ai.career_pipeline.contracts.source import SourceStatus
-from jobis_ai.career_pipeline.service import AnalysisPipelineService
+from jobis_ai.career_pipeline.service import AnalysisPipelineFailure, AnalysisPipelineService
 from jobis_ai.career_pipeline.resolution import PostingResolutionService
+from jobis_ai.career_pipeline.roadmap import RoadmapDraftService
 
 
 NOW = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
@@ -74,16 +83,6 @@ class StaticPostingService:
     def interpret_selected(self, _request, **_kwargs):
         self.calls += 1
         return self.posting
-
-
-class StaticFitService:
-    def __init__(self, assessment: FitAssessment) -> None:
-        self.assessment = assessment
-        self.calls = 0
-
-    def analyze(self, _request):
-        self.calls += 1
-        return FitAnalysisResult(status=FitAnalysisStatus.COMPLETED, assessment=self.assessment)
 
 
 class StaticNormalizationService:
@@ -227,18 +226,19 @@ def project_blueprint() -> CompanyProjectBlueprint:
     )
 
 
-def pipeline(structured_posting) -> AnalysisPipelineService:
-    examples = json.loads(EXAMPLES.read_text(encoding="utf-8"))
+def pipeline(
+    structured_posting,
+    *,
+    graph_port=None,
+    roadmap_service=None,
+) -> AnalysisPipelineService:
     return AnalysisPipelineService(
         posting_service=StaticPostingService(structured_posting),
         resolution_service=PostingResolutionService(),
-        fit_service=StaticFitService(FitAssessment.model_validate(examples["fit-assessment"])),
         normalization_service=StaticNormalizationService(normalization()),
         project_planning_service=StaticProjectPlanningService(project_blueprint()),
-        graph_port=InMemoryCapabilityGraphPort(graph()),
-        roadmap_service=StaticRoadmapService(
-            RoadmapProposal.model_validate(examples["roadmap-proposal"])
-        ),
+        graph_port=graph_port or InMemoryCapabilityGraphPort(graph()),
+        roadmap_service=roadmap_service or RoadmapDraftService(None),
     )
 
 
@@ -255,7 +255,30 @@ def request(source_document, verified_snapshot) -> AnalysisPipelineRequest:
         ),
         current_roadmap=CurrentRoadmapSnapshot(roadmap_version=0),
         opportunity_id="opportunity-example",
+        require_posting_confirmation=False,
     )
+
+
+def with_required_experience(structured_posting):
+    payload = structured_posting.model_dump(mode="json")
+    payload["positions"][0]["experience"] = {
+        "kind": ExperienceKind.EXPERIENCE_REQUIRED.value,
+        "min_months": 24,
+        "max_months": None,
+        "experienced_min_months": None,
+        "confidence": 0.99,
+        "evidence_ids": ["seg-exp"],
+    }
+    return type(structured_posting).model_validate(payload)
+
+
+def with_required_credential(structured_posting):
+    payload = structured_posting.model_dump(mode="json")
+    payload["positions"][0]["requirements"][0]["category"] = (
+        RequirementCategory.CREDENTIAL.value
+    )
+    payload["positions"][0]["requirements"][0]["atomic_text"] = "AWS 자격증"
+    return type(structured_posting).model_validate(payload)
 
 
 def test_pipeline_runs_one_verified_revision_to_draft(
@@ -273,7 +296,7 @@ def test_pipeline_runs_one_verified_revision_to_draft(
     assert result.roadmap_proposal.status.value == "DRAFT"
     assert result.capability_graph.graph_version == "0.1.0-alpha.1"
     assert result.normalization.audit.normalizer_version == "project-blueprint-normalizer-3.3.0"
-    assert result.fit.assessment.audit.matcher_version == "project-evidence-overlay-3.2.0"
+    assert result.fit.assessment.audit.matcher_version == "project-evidence-overlay-3.3.0"
     assert [event.sequence for event in events] == list(range(1, len(events) + 1))
     assert any(
         event.stage is AnalysisStage.CAPABILITY_GRAPH_LOOKUP
@@ -310,6 +333,137 @@ def test_pipeline_runs_one_verified_revision_to_draft(
     assert "PROJECT_BLUEPRINT" in partial_kinds
     assert "CAPABILITY_GRAPH" in partial_kinds
     assert "ROADMAP_PROPOSAL" in partial_kinds
+    posting_confirmation = next(
+        event for event in events
+        if event.stage is AnalysisStage.AWAITING_POSTING_CONFIRMATION
+    )
+    assert posting_confirmation.status is ProgressStatus.SKIPPED
+    assert posting_confirmation.detail.startswith("PRECONFIRMED")
+    assert any(
+        event.stage is AnalysisStage.AWAITING_USER_EVIDENCE
+        and event.status is ProgressStatus.SKIPPED
+        and event.detail.startswith("NO_BLOCKING_FORMAL_EVIDENCE_GAP")
+        for event in events
+    )
+
+
+def test_project_overlay_waits_for_unknown_required_experience_then_resumes(
+    source_document,
+    verified_snapshot,
+    structured_posting,
+) -> None:
+    posting = with_required_experience(structured_posting)
+    service = pipeline(posting)
+    initial = request(source_document, verified_snapshot)
+
+    waiting = service.run(initial)
+
+    assert waiting.status is PipelineStatus.AWAITING_USER_EVIDENCE
+    assert waiting.fit.active_ambiguity.candidate_ids == ["req-experience-pos-backend"]
+    assert waiting.roadmap_proposal is None
+
+    answered = initial.user_evidence.model_copy(update={
+        "revision": 2,
+        "requirement_self_reports": [RequirementSelfReport(
+            requirement_id="req-experience-pos-backend",
+            claim_state=ClaimState.NOT_CLAIMED,
+            answered_at=NOW,
+        )],
+    })
+    completed = service.run(initial.model_copy(update={
+        "structured_posting_checkpoint": waiting.structured_posting,
+        "user_evidence": answered,
+    }))
+
+    assert completed.status is PipelineStatus.COMPLETED
+    experience = next(
+        item for item in completed.fit.assessment.requirement_assessments
+        if item.requirement_id == "req-experience-pos-backend"
+    )
+    assert experience.status is RequirementStatus.NOT_MET
+
+
+def test_project_overlay_waits_for_unknown_required_credential(
+    source_document,
+    verified_snapshot,
+    structured_posting,
+) -> None:
+    result = pipeline(with_required_credential(structured_posting)).run(
+        request(source_document, verified_snapshot)
+    )
+
+    assert result.status is PipelineStatus.AWAITING_USER_EVIDENCE
+    assert result.fit.active_ambiguity.candidate_ids == ["req-java"]
+    assert result.roadmap_proposal is None
+
+
+def test_question_limit_preserves_unknown_required_experience(
+    source_document,
+    verified_snapshot,
+    structured_posting,
+) -> None:
+    events = []
+    result = pipeline(with_required_experience(structured_posting)).run(
+        request(source_document, verified_snapshot).model_copy(update={
+            "skip_remaining_evidence_questions": True,
+        }),
+        event_sink=events.append,
+    )
+
+    assert result.status is PipelineStatus.COMPLETED
+    experience = next(
+        item for item in result.fit.assessment.requirement_assessments
+        if item.requirement_id == "req-experience-pos-backend"
+    )
+    assert experience.status is RequirementStatus.UNKNOWN
+    skipped = next(
+        event for event in events
+        if event.stage is AnalysisStage.AWAITING_USER_EVIDENCE
+    )
+    assert skipped.status is ProgressStatus.SKIPPED
+    assert skipped.detail.startswith("QUESTION_LIMIT_REACHED")
+
+
+def test_pipeline_rejects_capability_only_roadmap_shell(
+    source_document,
+    verified_snapshot,
+    structured_posting,
+) -> None:
+    examples = json.loads(EXAMPLES.read_text(encoding="utf-8"))
+    service = pipeline(
+        structured_posting,
+        roadmap_service=StaticRoadmapService(
+            RoadmapProposal.model_validate(examples["roadmap-proposal"])
+        ),
+    )
+
+    with pytest.raises(AnalysisPipelineFailure) as raised:
+        service.run(request(source_document, verified_snapshot))
+
+    assert raised.value.code is ErrorCode.CONTRACT_VALIDATION_FAILED
+    assert "target project" in str(raised.value)
+
+
+def test_pipeline_completes_with_packaged_graph_and_no_graph_service(
+    monkeypatch,
+    source_document,
+    verified_snapshot,
+    structured_posting,
+) -> None:
+    monkeypatch.delenv("CAPABILITY_GRAPH_URL", raising=False)
+    monkeypatch.delenv("JOBIS_GRAPH_RELEASE_PATH", raising=False)
+    graph_port = GraphReleaseCapabilityGraphPort.from_active_release()
+
+    result = pipeline(structured_posting, graph_port=graph_port).run(
+        request(source_document, verified_snapshot)
+    )
+
+    assert result.status is PipelineStatus.COMPLETED
+    assert result.capability_graph.graph_version == "0.2.0-alpha.1"
+    assert "java.classes-objects" in {
+        node.canonical_key for node in result.capability_graph.nodes
+    }
+    assert graph_port.loaded.fallback_reason is None
 
 
 def test_pipeline_resume_reuses_structured_posting_checkpoint(
@@ -350,12 +504,35 @@ def test_pipeline_waits_for_selected_posting_review_before_project_planning(
     resumed = initial.model_copy(update={
         "structured_posting_checkpoint": waiting.structured_posting,
         "confirmed_posting_review_id": waiting.posting_review.review_id,
+        "require_posting_confirmation": False,
     })
-    completed = service.run(resumed)
+    events = []
+    completed = service.run(resumed, event_sink=events.append)
 
     assert completed.status is PipelineStatus.COMPLETED
     assert completed.posting_review.review_id == waiting.posting_review.review_id
     assert service._posting.calls == 1
+    auto_confirmed = next(
+        event for event in events
+        if event.stage is AnalysisStage.AWAITING_POSTING_CONFIRMATION
+    )
+    assert auto_confirmed.status is ProgressStatus.SKIPPED
+    assert auto_confirmed.detail.startswith("AUTO_CONFIRMED")
+
+
+def test_stale_confirmed_review_id_cannot_bypass_confirmation(
+    source_document,
+    verified_snapshot,
+    structured_posting,
+) -> None:
+    stale = request(source_document, verified_snapshot).model_copy(update={
+        "require_posting_confirmation": False,
+        "confirmed_posting_review_id": "posting-review-stale",
+    })
+
+    result = pipeline(structured_posting).run(stale)
+
+    assert result.status is PipelineStatus.AWAITING_POSTING_CONFIRMATION
 
 
 def test_multi_role_and_experience_are_resolved_before_selected_review(

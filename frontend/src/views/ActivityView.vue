@@ -168,12 +168,10 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="workspace activity-workspace">
-    <section class="page-heading">
-      <div>
-        <p class="eyebrow">ACTIVITY</p>
-        <h1>알림과 작업 내역</h1>
-        <p>공고 분석, 자료 파편화, 증빙 검증과 지도 변경 결과를 확인합니다.</p>
-      </div>
+    <Teleport defer to="#app-topbar-center">
+      <h1 class="app-page-title">활동 내역</h1>
+    </Teleport>
+    <Teleport defer to="#app-topbar-actions">
       <div class="activity-actions">
         <button class="icon-button" type="button" aria-label="새로고침" @click="load()">
           <RefreshCw :size="18" />
@@ -187,7 +185,7 @@ onBeforeUnmount(() => {
           <Check :size="17" /> 모두 읽음
         </button>
       </div>
-    </section>
+    </Teleport>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <section class="activity-filters" aria-label="활동 필터">
       <Filter :size="17" />

@@ -7,7 +7,6 @@ import CareerMapView from "@/views/CareerMapView.vue";
 import CareerSourceReviewView from "@/views/CareerSourceReviewView.vue";
 import ChatView from "@/views/ChatView.vue";
 import HomeView from "@/views/HomeView.vue";
-import LoginView from "@/views/LoginView.vue";
 import PasswordResetRequestView from "@/views/PasswordResetRequestView.vue";
 import PasswordResetView from "@/views/PasswordResetView.vue";
 import PolicyView from "@/views/PolicyView.vue";
@@ -31,7 +30,16 @@ export const router = createRouter({
     {
       path: "/login",
       name: "login",
-      component: LoginView,
+      redirect: (to) => {
+        const { mode, ...query } = to.query;
+        return {
+          name: "landing",
+          query: {
+            ...query,
+            auth: mode === "register" ? "register" : "login",
+          },
+        };
+      },
       meta: { public: true, title: "로그인" },
     },
     { path: "/forgot-password", name: "forgot-password", component: PasswordResetRequestView, meta: { public: true, title: "비밀번호 재설정" } },
@@ -74,8 +82,8 @@ export const router = createRouter({
   ],
 });
 
-router.afterEach((to) => {
-  document.title = `${String(to.meta.title ?? "커리어 지도")} · JOBIS`;
+router.afterEach(() => {
+  document.title = "JOBIS";
 });
 
 router.beforeEach(async (to) => {

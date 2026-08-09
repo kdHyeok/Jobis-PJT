@@ -133,7 +133,7 @@ public class AuthController {
     ) {
         String refreshToken = CookieAuthenticationFilter.findCookie(
                 request,
-                CookieAuthenticationFilter.REFRESH_COOKIE
+                properties.auth().refreshCookieName()
         );
         if (userId != null) {
             refreshTokens.revokeAll(userId);
@@ -148,7 +148,7 @@ public class AuthController {
     AuthResponse refresh(HttpServletRequest request, HttpServletResponse response) {
         String rawToken = CookieAuthenticationFilter.findCookie(
                 request,
-                CookieAuthenticationFilter.REFRESH_COOKIE
+                properties.auth().refreshCookieName()
         );
         RefreshTokenService.IssuedRefreshToken rotated = refreshTokens.rotate(rawToken);
         setAccessCookie(response, rotated.userId());
@@ -169,7 +169,7 @@ public class AuthController {
     private void setAccessCookie(HttpServletResponse response, UUID userId) {
         String token = jwtService.createAccessToken(userId, tokenVersions.current(userId));
         ResponseCookie cookie = ResponseCookie
-                .from(CookieAuthenticationFilter.ACCESS_COOKIE, token)
+                .from(properties.auth().cookieName(), token)
                 .httpOnly(true)
                 .secure(properties.auth().cookieSecure())
                 .sameSite("Lax")
@@ -188,7 +188,7 @@ public class AuthController {
                 token.expiresAt()
         ).toSeconds());
         ResponseCookie cookie = ResponseCookie
-                .from(CookieAuthenticationFilter.REFRESH_COOKIE, token.rawToken())
+                .from(properties.auth().refreshCookieName(), token.rawToken())
                 .httpOnly(true)
                 .secure(properties.auth().cookieSecure())
                 .sameSite("Lax")
@@ -200,11 +200,11 @@ public class AuthController {
 
     private void clearSessionCookies(HttpServletResponse response) {
         response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(
-                CookieAuthenticationFilter.ACCESS_COOKIE,
+                properties.auth().cookieName(),
                 "/"
         ).toString());
         response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(
-                CookieAuthenticationFilter.REFRESH_COOKIE,
+                properties.auth().refreshCookieName(),
                 "/api/auth"
         ).toString());
     }

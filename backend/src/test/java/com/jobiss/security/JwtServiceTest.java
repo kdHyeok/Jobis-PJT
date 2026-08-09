@@ -32,7 +32,7 @@ class JwtServiceTest {
 
     private JobissProperties properties(String secret) {
         return new JobissProperties(
-                new JobissProperties.Auth(secret, 3600, 1209600, 2592000, false),
+                new JobissProperties.Auth(secret, 3600, 1209600, 2592000, false, "jobiss_access"),
                 new JobissProperties.Ai(
                         "http://localhost:8000",
                         "test-secret",

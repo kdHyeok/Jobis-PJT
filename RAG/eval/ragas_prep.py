@@ -94,7 +94,7 @@ def build() -> dict:
             labels = judgments["queries"].get(qid, {}).get("labels", {})
 
             retrieved_ids = pool_data["arm_tops"][qid]["rrf_ce"][:TOP_K]
-            correct_ids = sorted(u for u, l in labels.items() if l == "Correct")
+            correct_ids = sorted(uid for uid, label in labels.items() if label == "Correct")
             ref_ids_full = correct_ids
             ref_ids_text = correct_ids[:MAX_REFERENCE_CONTEXTS]
 

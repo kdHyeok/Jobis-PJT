@@ -230,7 +230,7 @@ def test_roadmap_manager_reads_session_roadmap():
     # 읊으면 사용자는 같은 내용을 두 번 보고 지도를 열 이유가 없어진다. 채팅은 개수와 어디서
     # 보는지까지만 말한다 — 그래서 이제 제목이 **없어야** 한다.
     assert "Kafka 기초 강의" not in rendered
-    assert "커리어지도" in rendered
+    assert "커리어 지도" in rendered
     # 지도의 상태를 모르므로 "이미 그려져 있다"고 단정하지 않는다(채우는 것은 분석 작업이다).
     assert "준비 중" not in rendered
 

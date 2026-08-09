@@ -1153,6 +1153,67 @@ def test_unfulfilled_request_is_flagged(monkeypatch):
     assert any(w.get("code") == "request_not_fulfilled" for w in res.warnings)
 
 
+def test_requested_agent_omitted_from_plan_is_reconciled(monkeypatch):
+    """플래너가 requestedAgents를 agents에서 빠뜨려도 직접 요청은 실행 계획으로 복구한다."""
+
+    plan = AgentPlan(
+        agents=["posting_analysis"],
+        requestedAgents=["posting_analysis", "job_recommend"],
+        confidence=0.92,
+    )
+    monkeypatch.setattr(
+        "jobis_ai.orchestrator.chat.plan_agents",
+        lambda message, session: (plan, []),
+    )
+
+    res = handle_chat(ChatRequest(
+        sessionId="m3-reconcile",
+        message="이 공고를 분석하고 대체 공고도 추천해줘",
+        attachments=[_posting_attachment(), _resume_attachment()],
+    ))
+
+    assert "posting_analysis" in res.dispatched
+    assert "job_recommend" in res.dispatched
+    assert not any(w.get("code") == "request_not_fulfilled" for w in res.warnings)
+    assert any(
+        w.get("code") == "planner_requested_agents_reconciled"
+        for w in res.warnings
+    )
+
+
+def test_requested_application_plan_runs_after_prerequisite_agents(monkeypatch):
+    """직접 청한 지원 계획을 선행 분석만 실행하고 끝내지 않는다."""
+
+    plan = AgentPlan(
+        agents=["posting_analysis", "fit_analysis"],
+        requestedAgents=["application_plan"],
+        confidence=0.94,
+    )
+    monkeypatch.setattr(
+        "jobis_ai.orchestrator.chat.plan_agents",
+        lambda message, session: (plan, []),
+    )
+
+    res = handle_chat(ChatRequest(
+        sessionId="m3-application-plan",
+        message="이 공고 기준으로 지원 계획과 준비 로드맵을 설명해줘",
+        attachments=[_posting_attachment(), _resume_attachment()],
+    ))
+
+    assert "fit_analysis" not in res.dispatched
+    assert "application_plan" not in res.dispatched
+    assert not any(w.get("code") == "request_not_fulfilled" for w in res.warnings)
+
+    resumed = handle_chat(ChatRequest(
+        sessionId="m3-application-plan",
+        message="응, 계속 진행해줘",
+    ))
+
+    assert "fit_analysis" in resumed.dispatched
+    assert "application_plan" in resumed.dispatched
+    assert not any(w.get("code") == "request_not_fulfilled" for w in resumed.warnings)
+
+
 def test_unreadable_review_tools_emit_structural_warnings(monkeypatch):
     """M5: 정리 도구가 아무것도 못 읽었으면 조용히 완료로 흐르지 않는다 — 구조 경고.
 
@@ -1191,6 +1252,25 @@ def test_submitted_assets_are_reviewed_before_fit(monkeypatch):
 
     second = handle_chat(ChatRequest(sessionId="s-review", message="다시 분석해줘"))
     assert "posting_analysis" not in second.dispatched   # 제출 없는 턴 — 정리 반복 없음
+
+
+def test_unified_chat_hands_fit_request_to_posting_review(monkeypatch):
+    """서비스 채팅은 레거시 fit을 실행하지 않고 V3 분석 확인용 공고 정리로 넘긴다."""
+
+    stub_planner(monkeypatch, ["fit_analysis"])
+    res = handle_chat(ChatRequest(
+        sessionId="unified-fit-handoff",
+        message="이 공고와 내 이력서 적합도 분석해줘",
+        attachments=[_resume_attachment(), _posting_attachment()],
+        analysisOwner="UNIFIED",
+    ))
+
+    assert res.dispatched == ["posting_analysis"]
+    assert "fit_analysis" not in res.dispatched
+    assert any(w.get("code") == "unified_analysis_handoff" for w in res.warnings)
+    session = session_mod.get_session_store().get("unified-fit-handoff")
+    assert not session.get("analysis")
+    assert not session.get("roadmap")
 
 
 def test_chat_planner_ack_is_visible_when_it_explains_a_plan(monkeypatch):
@@ -1387,11 +1467,14 @@ def test_consent_gate_records_what_it_asked_and_passes_next_turn(monkeypatch, fr
     assert "fit_analysis" not in first.dispatched
     assert first.dispatched == ["posting_analysis", "resume_diagnosis"]
     assert "진행할까요" in first.reply
-    assert fresh_session_store.get("consent-1")["pendingConsent"] == ["fit_analysis"]
+    assert fresh_session_store.get("consent-1")["pendingConsent"] == [
+        "fit_analysis", "coverletter_draft",
+    ]
 
     # 다음 턴 — 사용자가 "응"이라 하고 플래너가 같은 계획을 낸다(requested 는 여전히 자소서뿐).
     second = handle_chat(ChatRequest(sessionId="consent-1", message="응 진행해줘"))
     assert second.dispatched[0] == "fit_analysis", "동의했으므로 게이트를 통과한다"
+    assert "coverletter_draft" in second.dispatched, "보존한 최종 요청까지 이어서 실행한다"
     assert fresh_session_store.get("consent-1")["pendingConsent"] == [], "동의는 한 번 쓰면 소진된다"
 
 

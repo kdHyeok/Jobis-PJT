@@ -11,6 +11,7 @@ import {
 } from "@lucide/vue";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
+import mascot from "@/assets/mascot.png";
 import type {
   AnalysisProgressEvent,
   AnalysisStageDefinition,
@@ -46,7 +47,7 @@ const fallbackStages: AnalysisStage[] = [
     label: "분석 자료 준비",
     role: "공고와 커리어 자료를 준비하고 있어요",
     message: "공고와 커리어 근거를 분석 입력으로 조립하고 있어요.",
-    color: "#1cb0f6",
+    color: "#1f76c2",
     icon: ClipboardCheck,
   },
   {
@@ -55,7 +56,7 @@ const fallbackStages: AnalysisStage[] = [
     label: "분석 기준 확인",
     role: "정확한 분석에 필요한 조건을 확인하고 있어요",
     message: "결과를 바꿀 모호한 조건이 있는지 확인하고 있어요.",
-    color: "#ff9600",
+    color: "#ffcc00",
     icon: Layers3,
   },
   {
@@ -64,7 +65,7 @@ const fallbackStages: AnalysisStage[] = [
     label: "지원 준비도 분석",
     role: "공고 조건과 현재 경험을 비교하고 있어요",
     message: "필수·우대 조건과 현재 근거를 구조화하고 있어요.",
-    color: "#ce82ff",
+    color: "#a458df",
     icon: FileSearch,
   },
   {
@@ -73,7 +74,7 @@ const fallbackStages: AnalysisStage[] = [
     label: "분석 결과 확인",
     role: "빠진 조건이나 잘못된 연결이 없는지 확인하고 있어요",
     message: "스키마와 참조 무결성을 코드로 검증하고 있어요.",
-    color: "#2b70c9",
+    color: "#2b7dc9",
     icon: ShieldCheck,
   },
   {
@@ -82,7 +83,7 @@ const fallbackStages: AnalysisStage[] = [
     label: "로드맵 반영안 준비",
     role: "지원 판단과 새 로드맵 초안을 정리하고 있어요",
     message: "지원 판단과 로드맵 변경안을 정리하고 있어요.",
-    color: "#58cc02",
+    color: "#00854d",
     icon: PackageCheck,
   },
 ];
@@ -235,11 +236,7 @@ const stageUpdates = computed<Map<string, AnalysisStageUpdate>>(() => {
     .filter((event) => event.sequence <= revealedSequence.value)
     .forEach((event) => {
       const progress = event.progress!;
-      const status = progress.status === "SKIPPED"
-        ? "COMPLETED"
-        : progress.status === "CANCELLED"
-          ? "FAILED"
-          : progress.status;
+      const status = progress.status === "CANCELLED" ? "FAILED" : progress.status;
       const stageId = displayStageId(progress.stage);
       updates.set(stageId, {
         id: stageId,
@@ -299,7 +296,7 @@ const currentStage = computed<AnalysisStage>(() => {
       label: "기준 확인",
       role: "사용자 답변 대기",
       message: "더 정확한 경로를 만들기 위해 답변을 기다리고 있어요.",
-      color: "#ffc800",
+      color: "#ffcb00",
     };
   }
   if (props.status === "FAILED") {
@@ -308,7 +305,7 @@ const currentStage = computed<AnalysisStage>(() => {
       label: "분석 중단",
       role: "다시 확인이 필요해요",
       message: "오류를 확인한 뒤 같은 분석을 다시 시작할 수 있어요.",
-      color: "#ff4b4b",
+      color: "#d83a52",
     };
   }
   return base;
@@ -322,7 +319,7 @@ const progressLabel = computed(() => {
 });
 
 const completedStageCount = computed(
-  () => stages.value.filter((_, index) => isDone(index)).length,
+  () => stages.value.filter((_, index) => isResolved(index)).length,
 );
 
 const displayMessage = computed(() => {
@@ -374,13 +371,32 @@ function stageState(index: number) {
 }
 
 function isDone(index: number) {
-  return visualComplete.value || stageState(index) === "COMPLETED";
+  return (
+    (v3Events.value.length === 0 && visualComplete.value) ||
+    stageState(index) === "COMPLETED"
+  );
+}
+
+function isSkipped(index: number) {
+  return stageState(index) === "SKIPPED";
+}
+
+function isResolved(index: number) {
+  return isDone(index) || isSkipped(index);
+}
+
+function stageStatusLabel(index: number) {
+  if (isDone(index)) return "완료";
+  if (isSkipped(index)) return "자동 확인";
+  if (index === currentIndex.value && props.status !== "SUCCEEDED") return "진행 중";
+  return "대기";
 }
 
 function agentClass(index: number) {
   const state = stageState(index);
   return {
     done: isDone(index),
+    skipped: isSkipped(index),
     active:
       index === currentIndex.value &&
       !visualComplete.value &&
@@ -392,7 +408,7 @@ function agentClass(index: number) {
       index === currentIndex.value &&
       (props.status === "FAILED" || state === "FAILED"),
     upcoming:
-      !isDone(index) &&
+      !isResolved(index) &&
       index !== currentIndex.value &&
       state !== "FAILED",
   };
@@ -475,7 +491,7 @@ function agentStyle(index: number) {
           >
             <i />
             <span>{{ item.label }}</span>
-            <small>{{ isDone(index) ? "완료" : index === currentIndex ? "진행 중" : "대기" }}</small>
+            <small>{{ stageStatusLabel(index) }}</small>
           </li>
         </ol>
       </details>
@@ -502,16 +518,7 @@ function agentStyle(index: number) {
         </span>
 
         <div class="analysis-wheel__center">
-          <div class="analysis-guide-character">
-            <span class="analysis-guide-character__antenna" />
-            <span
-              class="analysis-guide-character__eye analysis-guide-character__eye--left"
-            />
-            <span
-              class="analysis-guide-character__eye analysis-guide-character__eye--right"
-            />
-            <span class="analysis-guide-character__smile" />
-          </div>
+          <img class="analysis-wheel__mascot" :src="mascot" alt="" aria-hidden="true" />
           <strong>{{ progressLabel }}</strong>
         </div>
       </div>
@@ -554,6 +561,15 @@ function agentStyle(index: number) {
 </template>
 
 <style scoped>
+.analysis-wheel__compact-details li.skipped i {
+  background: #94a3b8;
+}
+
+.analysis-wheel__compact-details li.skipped small,
+.analysis-wheel__legend li.skipped small {
+  color: #64748b;
+}
+
 .analysis-wheel__partial {
   margin-top: 12px;
   padding: 14px 16px;

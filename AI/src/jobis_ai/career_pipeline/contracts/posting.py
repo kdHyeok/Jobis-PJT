@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 from enum import StrEnum
-from typing import Annotated
 
 from pydantic import Field, model_validator
 
@@ -44,6 +43,8 @@ class RequirementCategory(StrEnum):
     RESPONSIBILITY = "RESPONSIBILITY"
     DOMAIN_KNOWLEDGE = "DOMAIN_KNOWLEDGE"
     CREDENTIAL = "CREDENTIAL"
+    CERTIFICATION = "CERTIFICATION"
+    LANGUAGE = "LANGUAGE"
     EXPERIENCE = "EXPERIENCE"
     PORTFOLIO = "PORTFOLIO"
     BEHAVIORAL = "BEHAVIORAL"
@@ -116,8 +117,10 @@ class ExperienceRequirement(ContractModel):
             if self.min_months is None or self.max_months is None:
                 raise ValueError("RANGE requires minMonths and maxMonths")
         elif self.kind is ExperienceKind.NEW_GRADUATE_OR_EXPERIENCED:
-            if self.experienced_min_months is None:
-                raise ValueError("NEW_GRADUATE_OR_EXPERIENCED requires experiencedMinMonths")
+            # 실제 공고는 최소 연차 없이 "신입/경력"만 표기하기도 한다.
+            # 숫자가 명시된 경우에만 experiencedMinMonths를 보존하고,
+            # 명시되지 않은 숫자를 계약 통과 목적으로 만들어 내지 않는다.
+            pass
         elif self.kind in {
             ExperienceKind.NEW_GRADUATE,
             ExperienceKind.NO_RESTRICTION,

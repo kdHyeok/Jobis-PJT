@@ -108,16 +108,14 @@ public class ChatReplyWorker {
             }
             complete(job, response);
             try {
-                // 로드맵 재료(V3)는 두 경우에만, 무음(UI 노출 없음, DB 적재만)으로 만든다:
-                // ① 적합도 판정이 적재된 턴 ② 사용자가 공고 기준 로드맵을 직접 청한 턴
-                //    (requiresConsent=false 인 ANALYZE_POSTING 제안).
-                chatReplyJobService.startRoadmapAnalysisAfterFit(job.userId(), response);
+                // 공고 분석은 사용자의 현재 요청과 바인딩을 검증한 ANALYZE_POSTING
+                // 제안으로만 시작한다. 최근 공고나 AI 출력을 암묵적으로 재사용하지 않는다.
                 chatReplyJobService.executeUserInitiatedAutomaticActions(
                         job.userId(), job.id(), response.proposedActions()
                 );
             } catch (RuntimeException actionException) {
                 log.warn(
-                        "Silent roadmap analysis for chat reply job {} failed: {}",
+                        "Automatic action for chat reply job {} failed: {}",
                         job.id(), actionException.getMessage()
                 );
             }
@@ -347,10 +345,12 @@ public class ChatReplyWorker {
                                        limit 1
                                    ) as structured_posting
                             from job_postings p
-                            where p.archived_at is null
+                            where p.user_id = :userId
+                              and p.archived_at is null
                             order by p.created_at desc
                             limit 5
                             """)
+                    .param("userId", job.userId())
                     .query((rs, rowNum) -> new AiContracts.StoredPosting(
                             rs.getObject("id", UUID.class),
                             rs.getString("source_type"),
@@ -1227,6 +1227,14 @@ public class ChatReplyWorker {
     }
 
     private String safeMessage(Exception exception) {
+        String code = classify(exception);
+        if ("ROLE_RESOLUTION_REQUIRED".equals(code)) {
+            return "공고의 분석 기준 직무를 확정하지 못했습니다. 직무명을 확인하거나 "
+                    + "분석할 기준 직무를 선택한 뒤 다시 요청해 주세요.";
+        }
+        if ("INTERNAL_ERROR".equals(code)) {
+            return "AI 답변 내부 처리 중 오류가 발생했습니다. 잠시 후 다시 요청해 주세요.";
+        }
         String message = exception.getMessage();
         if (message == null || message.isBlank()) {
             return "AI 답변을 생성하지 못했습니다.";

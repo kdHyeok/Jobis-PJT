@@ -42,9 +42,8 @@ from jobis_ai.career_pipeline.contracts.roadmap import (
     SectionMembership,
 )
 from jobis_ai.career_pipeline.contracts.posting import PostingStatus
-from jobis_ai.career_pipeline.llm import JsonProviderError, JsonProviderNotConfigured, StructuredGenerator
+from jobis_ai.career_pipeline.llm import StructuredGenerator
 
-from .draft import RoadmapContentDraft
 from .chaptering import career_stage_ref, chapter_for
 
 
@@ -813,7 +812,11 @@ def _add_gates(
         if (
             item.disposition is RoadmapDisposition.CAREER_GATE
             and requirement is not None
-            and requirement.category is RequirementCategory.CREDENTIAL
+            and requirement.category in {
+                RequirementCategory.CREDENTIAL,
+                RequirementCategory.CERTIFICATION,
+                RequirementCategory.LANGUAGE,
+            }
             and requirement.obligation is RequirementObligation.REQUIRED
         ):
             status = assessment_by_id.get(item.requirement_id)
@@ -826,7 +829,11 @@ def _add_gates(
                 title=requirement.atomic_text,
                 section_key=section_key,
                 gate_spec=GateSpec(
-                    gate_type=CareerGateType.CREDENTIAL,
+                    gate_type={
+                        RequirementCategory.CREDENTIAL: CareerGateType.CREDENTIAL,
+                        RequirementCategory.CERTIFICATION: CareerGateType.CERTIFICATION,
+                        RequirementCategory.LANGUAGE: CareerGateType.LANGUAGE,
+                    }[requirement.category],
                     requirement_id=item.requirement_id,
                     evidence_ids=requirement.evidence_ids,
                     assessment_status=(

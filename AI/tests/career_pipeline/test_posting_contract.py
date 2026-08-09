@@ -45,7 +45,6 @@ def test_new_role_candidate_must_not_have_existing_id() -> None:
     [
         (ExperienceKind.EXPERIENCE_REQUIRED, {}, "positive minMonths"),
         (ExperienceKind.RANGE, {"min_months": 12}, "requires minMonths and maxMonths"),
-        (ExperienceKind.NEW_GRADUATE_OR_EXPERIENCED, {}, "experiencedMinMonths"),
         (ExperienceKind.NEW_GRADUATE, {"min_months": 12}, "cannot carry a numeric range"),
     ],
 )
@@ -68,6 +67,27 @@ def test_min_months_cannot_exceed_max_months() -> None:
             confidence=0.9,
             evidence_ids=["seg-exp"],
         )
+
+
+def test_new_graduate_or_experienced_allows_unspecified_minimum() -> None:
+    requirement = ExperienceRequirement(
+        kind=ExperienceKind.NEW_GRADUATE_OR_EXPERIENCED,
+        confidence=0.9,
+        evidence_ids=["seg-exp"],
+    )
+
+    assert requirement.experienced_min_months is None
+
+
+def test_new_graduate_or_experienced_preserves_explicit_minimum() -> None:
+    requirement = ExperienceRequirement(
+        kind=ExperienceKind.NEW_GRADUATE_OR_EXPERIENCED,
+        experienced_min_months=36,
+        confidence=0.9,
+        evidence_ids=["seg-exp"],
+    )
+
+    assert requirement.experienced_min_months == 36
 
 
 def test_choice_question_requires_two_options() -> None:

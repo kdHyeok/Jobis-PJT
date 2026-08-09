@@ -515,6 +515,9 @@ public class AiAnalysisClient {
         try {
             JsonNode root = objectMapper.readTree(new String(body, StandardCharsets.UTF_8));
             JsonNode detail = root.path("detail");
+            if (detail.isObject() && detail.path("error").isObject()) {
+                detail = detail.path("error");
+            }
             if (!detail.isObject() && root.path("error").isObject()) {
                 detail = root.path("error");
             }
@@ -531,11 +534,40 @@ public class AiAnalysisClient {
                         message = upstreamMessage;
                     }
                 }
+            } else if (detail.isArray() && !detail.isEmpty()) {
+                JsonNode issue = detail.get(0);
+                code = "AI_CONTRACT_VALIDATION_FAILED";
+                String path = validationPath(issue.path("loc"));
+                String reason = issue.path("msg").stringValue("");
+                message = "AI 요청 계약 검증에 실패했습니다."
+                        + (path.isBlank() ? "" : " 필드: " + path)
+                        + (reason.isBlank() ? "" : " (" + reason + ")");
             }
         } catch (RuntimeException ignored) {
             // A non-JSON upstream response is reduced to the stable public message above.
         }
         throw new AiServiceException(code, message);
+    }
+
+    private static String validationPath(JsonNode location) {
+        if (!location.isArray()) {
+            return "";
+        }
+        StringBuilder result = new StringBuilder();
+        for (JsonNode segment : location) {
+            if (segment.isString() && "body".equals(segment.stringValue())) {
+                continue;
+            }
+            if (segment.isIntegralNumber()) {
+                result.append('[').append(segment.intValue()).append(']');
+            } else {
+                if (!result.isEmpty()) {
+                    result.append('.');
+                }
+                result.append(segment.stringValue(""));
+            }
+        }
+        return result.toString();
     }
 
     private static final class StreamNotSupportedException extends RuntimeException {

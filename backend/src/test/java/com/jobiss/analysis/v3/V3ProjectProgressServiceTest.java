@@ -26,7 +26,16 @@ class V3ProjectProgressServiceTest {
                       "nodeKind": "TARGET_PROJECT",
                       "targetRef": "project:11111111-1111-1111-1111-111111111111",
                       "progressState": "EVIDENCED",
-                      "careerNodeId": "22222222-2222-2222-2222-222222222222"
+                      "careerNodeId": "22222222-2222-2222-2222-222222222222",
+                      "atomicAssessmentAvailable": false,
+                      "projectSpec": {
+                        "tasks": [{
+                          "taskKey": "task.api",
+                          "title": "API 구현",
+                          "progressState": "CLAIMED",
+                          "evidenceCount": 2
+                        }]
+                      }
                     }
                   ],
                   "relations": []
@@ -36,10 +45,18 @@ class V3ProjectProgressServiceTest {
         JsonNode contractSnapshot = service.withoutInternalLinkage(original);
 
         assertThat(contractSnapshot.path("nodes").get(0).has("careerNodeId")).isFalse();
+        assertThat(contractSnapshot.path("nodes").get(0).has("atomicAssessmentAvailable")).isFalse();
         assertThat(contractSnapshot.path("nodes").get(0).path("progressState").stringValue())
                 .isEqualTo("EVIDENCED");
+        JsonNode contractTask = contractSnapshot.path("nodes").get(0)
+                .path("projectSpec").path("tasks").get(0);
+        assertThat(contractTask.has("progressState")).isFalse();
+        assertThat(contractTask.has("evidenceCount")).isFalse();
+        assertThat(contractTask.path("taskKey").stringValue()).isEqualTo("task.api");
         assertThat(contractSnapshot.path("nodes").get(0).path("targetRef").stringValue())
                 .isEqualTo("project:11111111-1111-1111-1111-111111111111");
         assertThat(original.path("nodes").get(0).has("careerNodeId")).isTrue();
+        assertThat(original.path("nodes").get(0).path("projectSpec").path("tasks").get(0)
+                .has("progressState")).isTrue();
     }
 }

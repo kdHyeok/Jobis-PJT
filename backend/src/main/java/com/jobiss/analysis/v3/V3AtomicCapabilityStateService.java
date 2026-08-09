@@ -46,7 +46,9 @@ public class V3AtomicCapabilityStateService {
                     || !"CAPABILITY".equals(node.path("nodeKind").stringValue(""))) {
                 continue;
             }
-            String state = states.get(node.path("canonicalKey").stringValue(""));
+            String canonicalKey = node.path("canonicalKey").stringValue("");
+            String state = states.get(canonicalKey);
+            node.put("atomicAssessmentAvailable", state != null);
             if (state != null) {
                 node.put("progressState", state);
             }

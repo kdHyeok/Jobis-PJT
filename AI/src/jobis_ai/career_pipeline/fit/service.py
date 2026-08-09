@@ -124,7 +124,7 @@ class FitAnalysisService:
             ) from exc
 
         if not request.skip_remaining_evidence_questions:
-            question = _next_formal_evidence_question(request, contexts, assessments)
+            question = next_formal_evidence_question(request, contexts, assessments)
             if question is not None:
                 return FitAnalysisResult(
                     status=FitAnalysisStatus.AWAITING_USER_EVIDENCE,
@@ -672,7 +672,7 @@ def _assessment(
     )
 
 
-def _next_formal_evidence_question(
+def next_formal_evidence_question(
     request: FitAnalysisRequest,
     contexts: list[_RequirementContext],
     assessments: list[RequirementAssessment],
@@ -683,7 +683,12 @@ def _next_formal_evidence_question(
     for context, assessment in zip(contexts, assessments, strict=True):
         if (
             context.required
-            and context.category in {RequirementCategory.CREDENTIAL, RequirementCategory.EXPERIENCE}
+            and context.category in {
+                RequirementCategory.CREDENTIAL,
+                RequirementCategory.CERTIFICATION,
+                RequirementCategory.LANGUAGE,
+                RequirementCategory.EXPERIENCE,
+            }
             and assessment.status is RequirementStatus.UNKNOWN
             and context.requirement_id not in answered
         ):
@@ -817,6 +822,8 @@ def _formal_eligibility(
         for context, assessment in zip(contexts, assessments, strict=True)
         if context.required and context.category in {
             RequirementCategory.CREDENTIAL,
+            RequirementCategory.CERTIFICATION,
+            RequirementCategory.LANGUAGE,
             RequirementCategory.EXPERIENCE,
         }
     ]

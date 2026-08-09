@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.0'
     id 'io.spring.dependency-management' version '1.1.7'
+    // 정적분석. CI 의 'Static analysis' 단계가 spotbugsMain 을 advisory 로 돌린다.
+    id 'com.github.spotbugs' version '6.0.26'
 }
 
 group = 'com.jobiss'
@@ -45,4 +47,21 @@ tasks.named('test') {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs += ['-parameters', '-Xlint:deprecation']
+}
+
+// SpotBugs — 서식이 아니라 실제 버그 패턴(널 역참조·자원 누수·동시성)을 본다.
+// 테스트 소스는 제외하고, 리포트는 HTML 하나만 남긴다.
+spotbugs {
+    ignoreFailures = true          // advisory. 정리 후 false 로 올린다.
+    // effort·reportLevel 은 기본값을 쓴다. 플러그인 6.x 의 enum 상수는 Groovy 에서
+    // Class 로 잡혀 "Cannot convert value 'class ...$MEDIUM'" 로 빌드가 깨진다.
+}
+
+spotbugsTest.enabled = false
+
+tasks.named('spotbugsMain') {
+    reports {
+        html { required = true }
+        xml { required = false }
+    }
 }

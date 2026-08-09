@@ -35,7 +35,7 @@ Stop-ExpectedPortService `
     -ServiceName "backend"
 Stop-ExpectedPortService `
     -Port 8600 `
-    -CommandPattern "jobis_capability_graph\.api:app" `
+    -CommandPattern "jobis_capability_graph\.api:app|jobis_ai\.capability_graph_server\.app:app" `
     -ServiceName "Capability Graph"
 Stop-ExpectedPortService `
     -Port 8400 `

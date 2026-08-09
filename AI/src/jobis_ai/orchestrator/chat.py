@@ -705,6 +705,66 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     plan, warnings = plan_agents(request.message, session)
     warnings = attach_warnings + warnings
 
+    # requestedAgents 는 스키마상 agents 의 부분집합이지만 공급자가 이 불변식을 어기면,
+    # 사용자가 직접 청한 작업이 턴 끝의 request_not_fulfilled 경고로만 남고 실행되지 않는다.
+    # 요청 이름은 이미 AgentName 으로 검증된 닫힌 집합이므로 실행 계획에 복구한 뒤 기존
+    # validate_plan 에 다시 맡긴다. 자산이 없으면 검증기가 제거하고 pendingRequest/M3가
+    # 원래대로 처리하므로, 실행 가능성 검증을 우회하지 않는다.
+    if plan is not None:
+        missing_requested = [
+            name for name in plan.requestedAgents if name not in plan.agents
+        ]
+        if missing_requested:
+            plan = plan.model_copy(update={
+                "agents": list(dict.fromkeys([*plan.agents, *missing_requested])),
+            })
+            warnings.append({
+                "code": "planner_requested_agents_reconciled",
+                "message": "직접 요청된 작업을 실행 계획에 복구함: "
+                + ", ".join(missing_requested),
+            })
+            log.warning(
+                "[%s] planner 불변식 복구 — requestedAgents 누락 %s → agents=%s",
+                session_id,
+                missing_requested,
+                list(plan.agents),
+            )
+
+        # 서비스 채팅의 적합도 요청은 레거시 세션 판정을 실행하지 않는다. 공고 정리 뒤
+        # v2bridge가 ANALYZE_POSTING 확인 계약을 만들고, 백엔드가 UNIFIED 분석을 시작한다.
+        # V3 분석 자체가 이 오케스트레이터를 계산 엔진으로 재사용하는 경로는 LEGACY
+        # 기본값이라 영향을 받지 않는다.
+        if request.analysisOwner == "UNIFIED" and any(
+            "fit_analysis" in names
+            for names in (plan.agents, plan.requestedAgents, plan.blockedRequests)
+        ):
+            plan = plan.model_copy(update={
+                "agents": list(dict.fromkeys(
+                    "posting_analysis" if name == "fit_analysis" else name
+                    for name in plan.agents
+                )),
+                "requestedAgents": list(dict.fromkeys(
+                    "posting_analysis" if name == "fit_analysis" else name
+                    for name in plan.requestedAgents
+                )),
+                "blockedRequests": list(dict.fromkeys(
+                    "posting_analysis" if name == "fit_analysis" else name
+                    for name in plan.blockedRequests
+                )),
+                "agentArgs": [
+                    arg for arg in plan.agentArgs if arg.agent != "fit_analysis"
+                ],
+                "ack": "적합도 분석을 시작하기 전에 사용할 공고 기준을 확인할게요.",
+            })
+            warnings.append({
+                "code": "unified_analysis_handoff",
+                "message": "레거시 세션 판정 대신 UNIFIED 공고 분석 확인 단계로 연결했습니다.",
+            })
+            trace.emit("unified_analysis_handoff", "적합도 요청을 UNIFIED 분석으로 이관", {
+                "agents": list(plan.agents),
+            })
+            log.info("[%s] unified_analysis_handoff: agents=%s", session_id, list(plan.agents))
+
     ack = safe_ack(plan)   # 플래너의 이해 확인 문장 — 검증 통과 시 결정론 note 대신 쓴다
     # LLM 이 정한 인자 — 선언된 이름만 통과시킨다(미선언 인자 환각 차단). 에이전트는
     # 세션의 `_agentArgs` 에서 자기 것만 꺼내 쓴다(없으면 기존대로 세션만 보고 동작).
@@ -1151,8 +1211,13 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # 신호이지 답변 차단이 아니다(이미 나간 문장은 관찰 규칙의 note 가 설명했다).
     if plan is not None:
         remembered = str((session.get("pendingRequest") or {}).get("agent") or "")
+        consented_plan = set(session.get("pendingConsent") or ())
+        if dispatch.ask:
+            # 부분 실행 턴은 아래 응답 조립 직전에 pendingConsent를 저장한다. M3 검사는
+            # 그보다 먼저 실행되므로, 이번 턴에 이미 보존하기로 확정한 계획도 기억된 요청이다.
+            consented_plan.update(dispatch.pending)
         for name in plan.requestedAgents:
-            if name not in dispatched and name != remembered:
+            if name not in dispatched and name != remembered and name not in consented_plan:
                 warnings.append({"code": "request_not_fulfilled",
                                  "message": f"청한 에이전트가 실행·기억 어느 쪽도 되지 않음: {name}"})
                 log.warning("[%s] 요청 미완수 — %s (dispatched=%s)", session_id, name, dispatched)

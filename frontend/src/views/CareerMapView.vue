@@ -1133,7 +1133,11 @@ async function submitProjectTaskEvidence(task: V3ProjectTask) {
 
 async function startV3Assessment() {
   const node = selectedV3Capability(evidenceCompetency.value);
-  if (!node?.canonicalKey || previewDraft.value) return;
+  if (
+    !node?.canonicalKey ||
+    previewDraft.value ||
+    evidenceCompetency.value?.assessmentAvailability !== "AVAILABLE"
+  ) return;
   v3AssessmentLoading.value = true;
   v3AssessmentError.value = "";
   try {
@@ -1152,7 +1156,12 @@ async function startV3Assessment() {
 
 async function selfConfirmV3Capability() {
   const node = selectedV3Capability(evidenceCompetency.value);
-  if (!node?.canonicalKey || node.completionPolicy !== "SELF_CONFIRM" || previewDraft.value) return;
+  if (
+    !node?.canonicalKey ||
+    node.completionPolicy !== "SELF_CONFIRM" ||
+    previewDraft.value ||
+    evidenceCompetency.value?.assessmentAvailability !== "AVAILABLE"
+  ) return;
   v3AssessmentLoading.value = true;
   v3AssessmentError.value = "";
   try {
@@ -1255,7 +1264,7 @@ async function chooseCompetency(competency: RoadmapCompetency) {
   v3AssessmentAnswer.value = "";
   v3AssessmentReviewReason.value = "";
   if (competency.source === "UNIFIED") {
-    if (previewDraft.value || competency.catalogStatus === "PENDING_REVIEW") return;
+    if (previewDraft.value || competency.assessmentAvailability !== "AVAILABLE") return;
     v3AssessmentLoading.value = true;
     try {
       v3Assessment.value = await api.latestV3AtomicAssessment(competency.canonicalKey);
@@ -1529,20 +1538,15 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="workspace roadmap-v2-workspace">
-    <section class="roadmap-v2-hero">
-      <div>
-        <p class="eyebrow">MY QUEST MAP</p>
-        <h1>{{ snapshot?.title ?? "나의 커리어 로드맵" }}</h1>
-        <p>
-          퀘스트를 완료하고 파란 경로를 이어가세요. 새 목표가 생기면 완료
-          기록은 그대로 둔 채 하나의 직무 여정에 새 기회가 연결됩니다.
-        </p>
+    <Teleport defer to="#app-topbar-center">
+      <h1 class="app-page-title">커리어 지도</h1>
+    </Teleport>
+    <Teleport defer to="#app-topbar-actions">
+      <div class="app-page-meta">
+        <span title="현재 적용된 로드맵 스냅샷 번호">버전 <strong>{{ snapshot?.version ?? 1 }}</strong></span>
+        <span title="현재 지도에 연결된 목표 공고 수">목표 <strong>{{ workspace?.targetCount ?? 0 }}</strong>개</span>
       </div>
-      <div class="roadmap-v2-meta">
-        <span>버전 {{ snapshot?.version ?? 1 }}</span>
-        <span>목표 {{ workspace?.targetCount ?? 0 }}개</span>
-      </div>
-    </section>
+    </Teleport>
 
     <div v-if="error" class="inline-error">{{ error }}</div>
     <div v-if="loading" class="state-panel">
@@ -2107,6 +2111,13 @@ onBeforeUnmount(() => {
               이 공고에서 새로 발견된 임시 역량입니다. 로드맵에는 포함되지만 공용 역량 사전 검토가
               끝난 뒤 학습·검증을 시작할 수 있습니다.
             </p>
+            <p
+              v-else-if="evidenceCompetency.assessmentAvailability === 'NOT_ATOMIC'"
+              class="v3-atomic-assessment__notice"
+            >
+              기존 로드맵의 넓은 범위 역량입니다. 공용 역량 사전에서 검증 범위가 승인된 원자 역량으로
+              연결된 뒤 검증을 시작할 수 있습니다.
+            </p>
             <div v-else-if="v3AssessmentLoading" class="v3-atomic-assessment__loading">
               <LoaderCircle class="spin" :size="18" /> 검증 상태를 확인하고 있습니다.
             </div>
@@ -2114,7 +2125,7 @@ onBeforeUnmount(() => {
             <button
               v-if="
                 !previewDraft &&
-                evidenceCompetency.catalogStatus !== 'PENDING_REVIEW' &&
+                evidenceCompetency.assessmentAvailability === 'AVAILABLE' &&
                 evidenceCompetency.completionPolicy === 'SELF_CONFIRM' &&
                 evidenceCompetency.progressStatus !== 'COMPLETED'
               "
@@ -2137,8 +2148,9 @@ onBeforeUnmount(() => {
             <button
               v-if="
                 !previewDraft &&
-                evidenceCompetency.catalogStatus !== 'PENDING_REVIEW' &&
+                evidenceCompetency.assessmentAvailability === 'AVAILABLE' &&
                 evidenceCompetency.completionPolicy !== 'SELF_CONFIRM' &&
+                evidenceCompetency.progressStatus !== 'COMPLETED' &&
                 !v3Assessment &&
                 !v3AssessmentLoading
               "

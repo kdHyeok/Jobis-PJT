@@ -31,6 +31,10 @@ class JsonProviderError(RuntimeError):
     """The configured provider failed or returned an invalid contract."""
 
 
+class JsonProviderContractError(JsonProviderError):
+    """The provider responded, but its structured payload violated the contract."""
+
+
 class JsonProviderNotConfigured(JsonProviderError):
     """No usable shared JOBIS provider is configured."""
 
@@ -134,6 +138,8 @@ class StructuredGenerator:
                 detail = "; ".join(str(item.get("message") or item) for item in warnings)
                 if any(item.get("code") == "llm_not_configured" for item in warnings):
                     raise JsonProviderNotConfigured(detail or "JOBIS LLM is not configured")
+                if any(item.get("code") == "llm_contract_validation_failed" for item in warnings):
+                    raise JsonProviderContractError(detail or "structured response violated the contract")
                 raise JsonProviderError(detail or "shared JOBIS LLM generation failed")
             attempts = 1
             effort_history = (self._initial_effort,)
@@ -248,7 +254,11 @@ class StructuredGenerator:
                 return parse_structured_payload(payload, model), attempt, tuple(efforts)
             except JsonProviderNotConfigured:
                 raise
-            except (JsonProviderError, StructuredContractError, ValueError, TypeError) as exc:
+            except JsonProviderContractError:
+                # Retrying a response that already violated the local schema only
+                # repeats the same deterministic failure and obscures the real cause.
+                raise
+            except JsonProviderError as exc:
                 last_error = exc
                 if attempt < self._max_attempts:
                     prompt = (
@@ -256,6 +266,10 @@ class StructuredGenerator:
                         "원문 근거를 유지하고 JSON 계약만 바로잡으세요."
                     )
                     time.sleep(self._retry_backoff * attempt)
+            except (StructuredContractError, ValueError, TypeError) as exc:
+                raise JsonProviderContractError(
+                    f"structured response violated the contract: {exc}"
+                ) from exc
         raise JsonProviderError(
             f"structured response failed validation after {self._max_attempts} attempts: {last_error}"
         )

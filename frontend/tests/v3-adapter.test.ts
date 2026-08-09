@@ -134,8 +134,36 @@ test("임시 필수 역량도 준비도와 회사 경로에 포함한다", () =>
   assert.ok(pendingGroup);
   assert.equal(pendingGroup.competencies.length, 5);
   assert.ok(pendingGroup.competencies.every((item) => item.catalogStatus === "PENDING_REVIEW"));
+  assert.ok(pendingGroup.competencies.every(
+    (item) => item.assessmentAvailability === "PENDING_REVIEW",
+  ));
   assert.deepEqual(pendingGroup.postingIds, [postingId]);
   assert.equal(pendingGroup.requirementKinds?.[postingId], "REQUIRED");
+
+  const broadDocker = adapted.nodes
+    .flatMap((node) => node.competencies)
+    .find((item) => item.canonicalKey === "docker.container-basics");
+  assert.equal(broadDocker?.assessmentAvailability, "NOT_ATOMIC");
+});
+
+test("사용자 원자 역량으로 등록된 승인 노드만 검증 가능 상태로 노출한다", () => {
+  const snapshot = securitySnapshot();
+  const docker = snapshot.nodes.find((node) => node.canonicalKey === "docker.container-basics");
+  assert.ok(docker);
+  docker.technologyKey = "container.docker";
+  docker.graphNodeVersion = 1;
+  docker.verificationMethods = ["IMPLEMENT", "DEBUG"];
+  docker.completionPolicy = "ASSESSMENT";
+  docker.atomicAssessmentAvailable = true;
+
+  const adapted = adaptV3Snapshot(snapshot);
+  const approvedAtomic = adapted.nodes
+    .flatMap((node) => node.competencies)
+    .find((item) => item.canonicalKey === "docker.container-basics");
+
+  assert.equal(approvedAtomic?.catalogStatus, "APPROVED");
+  assert.equal(approvedAtomic?.assessmentAvailability, "AVAILABLE");
+  assert.deepEqual(approvedAtomic?.verificationMethods, ["IMPLEMENT", "DEBUG"]);
 });
 
 test("V3가 전달한 필수·우대·기회 관계를 화면 관계로 보존한다", () => {

@@ -2,7 +2,8 @@
 
 @AGENTS.md
 
-루트 [../AGENTS.md](../AGENTS.md)가 상위 규약이다.
+## Claude Code
 
-CI에서 고칠 파일은 [ci/test.sh](ci/test.sh)다. RAG는 `pyproject.toml`이 없어 CI 의존성이
-그 파일에 고정 버전으로 직접 적혀 있으니, 새 패키지를 쓰면 함께 추가한다.
+- CI 환경에는 numpy·rank_bm25·psycopg·python-dotenv 만 있다. 테스트가 torch·pgvector 를
+  끌어오는 모듈을 import 하면 파이프라인이 깨진다 — 순수 계산은 별도 모듈로 떼어 테스트한다.
+- 검사를 추가할 일이 생기면 `Jenkinsfile` 이 아니라 `RAG/ci-checks` 를 고친다.

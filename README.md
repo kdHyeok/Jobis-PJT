@@ -17,8 +17,8 @@ Vue :5473
           ├─ 공고 수집·복수 직무 확인
           ├─ 적합도·회사 맞춤 프로젝트 설계
           ├─ 원자 역량 정규화
+          ├─ Capability Graph 승인 릴리스(읽기 전용, 프로세스 내부)
           └─ 사용자 커리어 그래프 제안
-              → Capability Graph :8600 (읽기 전용 지식 데이터)
 ```
 
 Spring과 PostgreSQL이 사용자 대화, 질문·답변, 분석 상태, 취소, 로드맵 초안과 버전의 정본입니다.
@@ -43,7 +43,7 @@ powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-all.ps1
 
 로그가 보이는 별도 창으로 실행하려면 `JOBIS-START.cmd`를 실행합니다. 개별 실행 파일도 있습니다.
 
-- `JOBIS-START-CAPABILITY-GRAPH.cmd`: 공용 원자 역량 그래프
+- `JOBIS-START-CAPABILITY-GRAPH.cmd`: 외부 호출 호환용 Graph HTTP facade(선택)
 - `JOBIS-START-AI.cmd`: 단일 JOBIS AI
 - `JOBIS-START-BACKEND.cmd`: PostgreSQL 준비 후 Spring Boot
 - `JOBIS-START-FRONTEND.cmd`: Vue/Vite
@@ -56,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-all.ps1
 |---|---|
 | PostgreSQL | `localhost:58432/jobiss_v3_integration_lab` |
 | JOBIS AI | `http://127.0.0.1:8400` |
-| Capability Graph | `http://127.0.0.1:8600` |
+| Capability Graph HTTP facade(선택) | `http://127.0.0.1:8600` |
 | Spring Boot | `http://localhost:8380` |
 | Vue/Vite | `http://localhost:5473` |
 
@@ -70,9 +70,11 @@ powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-ai-agent.ps1 `
   -EnvFile C:\path\to\env
 ```
 
-로컬 실행에서는 `CAPABILITY_GRAPH_URL`이 비어 있으면 `http://127.0.0.1:8600`으로 자동 설정하고,
-`start-capability-graph.ps1`과 동일한 로컬 공유 비밀값을 사용합니다. 이 환경변수는 AI 프로세스가
-시작될 때 한 번 읽히므로 설정을 바꾼 뒤에는 AI 서버를 재시작해야 합니다.
+`CAPABILITY_GRAPH_URL`이 비어 있으면 AI가 패키지에 포함된 마지막 승인 `GraphRelease`를 같은
+프로세스에서 읽습니다. 별도 8600 서비스는 필요하지 않습니다. 운영자가
+`JOBIS_GRAPH_RELEASE_PATH`로 다른 승인 릴리스를 지정할 수 있지만, 스키마·참조·순환·승인 상태·
+content hash 검증에 실패하면 원인을 로그에 남기고 패키지의 마지막 승인 스냅샷을 사용합니다.
+`CAPABILITY_GRAPH_URL`은 외부 HTTP 그래프와의 호환이 명시적으로 필요할 때만 설정합니다.
 
 공고 URL·본문·이미지는 같은 source 계약으로 들어갑니다. 여러 직무나 혼합 경력이 있으면 임의로
 합치지 않고 사용자 확인을 기다립니다. 확인 뒤 회사 맞춤 프로젝트를 먼저 설계하고, 필요한 원자
@@ -98,7 +100,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\check.ps1
 ```
 
-검사 범위는 Spring, 단일 JOBIS AI(내부 career pipeline 포함), Capability Graph, 프론트
+검사 범위는 Spring, 단일 JOBIS AI(내부 career pipeline과 Capability Graph 포함), 프론트
 단위 테스트·빌드·E2E와 격리 PostgreSQL 검증입니다. 환경 부족으로 건너뛴 검사는 성공으로
 간주하지 않습니다.
 

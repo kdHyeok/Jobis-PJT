@@ -44,6 +44,10 @@ class RoleResolution:
         }
 
 
+class RoleResolutionError(ValueError):
+    """공고 근거만으로 서비스 직무 경로를 확정할 수 없다."""
+
+
 # 에이전트 코어가 이미 의미를 읽고 고른 표준 키를 서비스 트랙으로 번역한다. 이 표는
 # 자유 원문의 모든 단어가 아니라 두 계약 사이의 enum 대응표다.
 _ENGINE_TRACK = {
@@ -175,7 +179,7 @@ def resolve(
         )
         return RoleResolution(track, specialization, (candidate,), False)
 
-    raise ValueError(
+    raise RoleResolutionError(
         "공고의 주 직무를 서비스 경로로 정규화할 근거가 부족합니다. "
         "직무명을 확인하거나 분석 기준 직무를 선택해 주세요."
     )
@@ -186,7 +190,6 @@ def candidates_for(posting: dict, *, raw_text: str = "") -> tuple[RoleCandidate,
     title = str(posting.get("jobTitle") or "").strip()
     source = "\n".join(part for part in (_posting_facts(posting), raw_text) if part)
     lower = source.lower()
-    title_lower = title.lower()
     candidates: list[RoleCandidate] = []
     suppress_engine_track = False
 

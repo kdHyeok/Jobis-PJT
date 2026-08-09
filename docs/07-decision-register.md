@@ -937,6 +937,43 @@
 - 이전 결정: D031의 project-first 생성, D039·D042의 하나의 커리어 그래프와 문맥별 공유 역량,
   D044의 수정 순서, D045의 분야·챕터 배치와 D047의 단일 AI를 구체적인 구현 계약으로 보완한다.
 
+## D049 · Capability Graph를 승인 릴리스 기반 단일 AI 내부 지식 계층으로 실행한다
+
+- 날짜: `2026-08-09`
+- 상태: `ACCEPTED · IMPLEMENTED`
+- 결정: Capability Graph의 정본 배포 단위는 `GraphRelease`다. `Capability`, `ProjectTask`,
+  `TaskRequirement`를 분리하고 과제 간 선행관계는 `ProjectTask.dependsOnTaskKeys`로 표현한다.
+  단일 JOBIS AI는 기본적으로 패키지의 마지막 승인 릴리스를 프로세스 내부에서 읽는다.
+  8600번 HTTP facade와 `CAPABILITY_GRAPH_URL`은 명시적 호환 모드로만 유지한다.
+- 릴리스 검증: schema version과 content hash, source·역량·과제 참조, 승인 상태,
+  조건 없는 conditional relation, 역량 선수관계 순환과 과제 의존관계 순환을 기동 시 거부한다.
+  운영자가 지정한 릴리스가 이 검증에 실패하면 상세 원인을 로그에 남기고 패키지의 마지막 승인
+  스냅샷으로 복귀한다. 패키지 스냅샷 자체가 깨졌으면 AI 기동을 실패시켜 잘못된 그래프를 숨기지 않는다.
+- 근거: 그래프는 LLM 에이전트가 아니라 버전·근거·승인을 가진 결정론적 판단 데이터다. 현재 규모에서
+  별도 네트워크 프로세스는 일관성보다 구성 누락이라는 새 실패 경계를 만들었고, 실제 UNIFIED 분석이
+  `CAPABILITY_GRAPH_URL` 부재로 시작 단계에서 중단됐다.
+- 영향받는 계약·테스트: GraphRelease schema, in-process graph port, optional HTTP facade,
+  단일 AI capability 응답, 로컬 시작·검증 스크립트, 그래프 불변식과 no-service 분석 완주 테스트.
+- 이전 결정: D047의 "그래프 서비스를 별도로 유지할 수 있다"는 선택지는 호환 facade로 축소하며,
+  D048의 additive seed는 분리된 정식 승인 릴리스 `0.2.0-alpha.1`로 구체화한다.
+
+## D050 · 공고 적합도·근거 분석과 로드맵 제안을 분리해 표시한다
+
+- 날짜: `2026-08-09`
+- 상태: `ACCEPTED · IMPLEMENTED`
+- 결정: 커리어 저장소 분석은 사용자 근거를 만드는 입력 계층, 공고 적합도는 필수·우대 요건과
+  그 근거를 비교하는 갭 분석 계층, 로드맵은 갭을 해소하는 단계와 관계를 제안하는 별도 계층으로
+  유지한다. 공고 상세 화면은 이 세 책임을 섞지 않고, 로드맵 초안의 `operations`와 `relations`를
+  함께 관계 그래프로 표시한다.
+- 근거: 실제 제안에는 43개 operation과 79개 relation이 저장되어 있었지만 프론트가 operation만
+  카드 목록으로 투영해 관계가 없는 빈 로드맵처럼 보였다. 또한 `REQUIRED_EVIDENCE_UNKNOWN`을
+  커리어 자료 전체 부재로 번역해 이미 등록된 학력·자격·기술 근거까지 없는 것처럼 오해하게 했다.
+- 대안: 적합도와 로드맵을 하나의 결과 카드로 계속 노출하거나 프론트가 operation 순서를 추측하는
+  방식을 거부한다. 관계의 정본은 AI 제안과 백엔드 컴파일러가 보존하며 프론트는 이를 시각화한다.
+- 영향받는 계약·테스트: 백엔드의 confirmed career fragment formal fact, AI project fit overlay의
+  학력·전공·자격 매칭, 공고·채팅의 준비도 문구, 로드맵 proposal graph 컴포넌트와 UI 계약 테스트.
+- 이전 결정: D048의 프로젝트 중심 커리어 그래프 원칙을 공고 상세의 제안 미리보기까지 확장한다.
+
 새 결정을 추가할 때 다음 형식을 사용한다.
 
 ```text

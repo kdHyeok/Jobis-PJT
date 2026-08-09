@@ -95,7 +95,6 @@ def job_context(analysis_id: str, posting: dict, hint: Optional[dict] = None) ->
     """
 
     # 연차 한글 표기는 AI 의 role_taxonomy 가 이미 갖고 있다 — 브릿지가 다시 정의하지 않는다.
-    from jobis_ai.role_taxonomy import SENIORITY_KO
 
     return {"type": "JOB_CONTEXT", "analysisId": analysis_id, **job_items(posting, hint)}
 

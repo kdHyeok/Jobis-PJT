@@ -97,7 +97,7 @@ async function updatePosting() {
   actionId.value = selected.value.id;
   error.value = "";
   try {
-    await api.updatePosting(
+    await api.reanalyzeV3Posting(
       selected.value.id,
       editUrl.value.trim() || null,
       editRawText.value.trim(),
@@ -197,17 +197,15 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="workspace storage-workspace">
-    <section class="page-heading">
-      <div>
-        <p class="eyebrow">JOB POSTINGS</p>
-        <h1>채용 공고</h1>
-        <p>등록한 공고의 원문, 분석 상태와 결과를 다시 찾고 관리합니다.</p>
-      </div>
-      <RouterLink class="press-button press-button--primary" :to="{ name: 'posting-new' }">
+    <Teleport defer to="#app-topbar-center">
+      <h1 class="app-page-title">채용 공고</h1>
+    </Teleport>
+    <Teleport defer to="#app-topbar-actions">
+      <RouterLink class="press-button press-button--primary app-page-action" :to="{ name: 'posting-new' }">
         <BriefcaseBusiness :size="18" />
         새 공고 분석
       </RouterLink>
-    </section>
+    </Teleport>
 
     <form class="storage-toolbar" @submit.prevent="load(true)">
       <label class="storage-search">
@@ -257,43 +255,53 @@ onBeforeUnmount(() => {
     </div>
 
     <section v-else class="storage-list">
-      <button
+      <article
         v-for="posting in result.items"
         :key="posting.id"
-        class="storage-item"
-        type="button"
-        @click="open(posting)"
+        class="storage-item-row"
       >
-        <span class="storage-logo">
-          {{ posting.companyName?.slice(0, 1) ?? "?" }}
-        </span>
-        <span class="storage-copy">
-          <small>{{ posting.companyName ?? "회사명 분석 중" }}</small>
-          <strong>{{ posting.roleTitle ?? "직무를 분석하고 있습니다" }}</strong>
-          <span>{{ posting.experienceText ?? "경력 조건 미확인" }} · {{ formatDate(posting.createdAt) }}</span>
-          <em
-            v-if="['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')"
-            class="posting-lifecycle posting-lifecycle--closed"
-          >
-            모집 마감 · 재오픈 대비 가능
-          </em>
-        </span>
-        <span :class="`posting-status posting-status--${(posting.analysisStatus ?? 'saved').toLowerCase()}`">
-          <LoaderCircle
-            v-if="['QUEUED', 'RUNNING'].includes(posting.analysisStatus ?? '')"
-            class="spin"
-            :size="14"
-          />
-          <CircleAlert v-else-if="posting.analysisStatus === 'FAILED'" :size="14" />
-          <X v-else-if="posting.analysisStatus === 'CANCELLED'" :size="14" />
-          <CircleHelp
-            v-else-if="posting.analysisStatus === 'WAITING_FOR_INPUT'"
-            :size="14"
-          />
-          {{ statusLabel(posting.analysisStatus) }}
-        </span>
-        <ChevronRight :size="20" />
-      </button>
+        <button class="storage-item" type="button" @click="open(posting)">
+          <span class="storage-logo">
+            {{ posting.companyName?.slice(0, 1) ?? "?" }}
+          </span>
+          <span class="storage-copy">
+            <small>{{ posting.companyName ?? "회사명 분석 중" }}</small>
+            <strong>{{ posting.roleTitle ?? "직무를 분석하고 있습니다" }}</strong>
+            <span>{{ posting.experienceText ?? "경력 조건 미확인" }} · {{ formatDate(posting.createdAt) }}</span>
+            <em
+              v-if="['EXPIRED', 'CLOSED'].includes(posting.lifecycleStatus ?? '')"
+              class="posting-lifecycle posting-lifecycle--closed"
+            >
+              모집 마감 · 재오픈 대비 가능
+            </em>
+          </span>
+          <span :class="`posting-status posting-status--${(posting.analysisStatus ?? 'saved').toLowerCase()}`">
+            <LoaderCircle
+              v-if="['QUEUED', 'RUNNING'].includes(posting.analysisStatus ?? '')"
+              class="spin"
+              :size="14"
+            />
+            <CircleAlert v-else-if="posting.analysisStatus === 'FAILED'" :size="14" />
+            <X v-else-if="posting.analysisStatus === 'CANCELLED'" :size="14" />
+            <CircleHelp
+              v-else-if="posting.analysisStatus === 'WAITING_FOR_INPUT'"
+              :size="14"
+            />
+            {{ statusLabel(posting.analysisStatus) }}
+          </span>
+          <ChevronRight :size="20" />
+        </button>
+        <button
+          class="storage-item-delete"
+          type="button"
+          :disabled="actionId === posting.id"
+          :aria-label="`${posting.companyName ?? '채용 공고'}와 분석 기록 삭제`"
+          title="공고와 분석 기록 삭제"
+          @click="deletePosting(posting)"
+        >
+          <Trash2 :size="17" />
+        </button>
+      </article>
     </section>
 
     <nav v-if="result.total > result.size" class="pagination" aria-label="페이지">

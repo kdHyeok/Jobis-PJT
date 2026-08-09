@@ -36,6 +36,29 @@ def test_undetermined_never_becomes_a_verdict():
         mapping.verdict_from_plan("")
 
 
+@pytest.mark.parametrize(
+    "engine_role,expected_track,expected_specialization",
+    [
+        ("ml_engineer", "AI", "ML_ENGINEER"),
+        ("data_engineer", "DATA", "DATA_ENGINEER"),
+        ("data_scientist", "DATA", "DATA_SCIENTIST"),
+        ("data_analyst", "DATA", "DATA_ANALYST"),
+        ("sre", "DEVOPS", "SRE"),
+    ],
+)
+def test_job_context_reuses_the_enriched_role_resolution(
+    engine_role, expected_track, expected_specialization
+):
+    """정규화된 상위 트랙을 다시 엔진 enum으로 해석하지 않는다."""
+
+    posting, resolution = mapping.enrich_posting_role({"roleCategory": engine_role})
+
+    job = mapping.build_job_context(posting, resolution=resolution)
+
+    assert job.primary_track == expected_track
+    assert job.parsed_data["roleResolution"]["specialization"] == expected_specialization
+
+
 def test_evaluation_uses_engine_reasons_only():
     evaluation = mapping.build_evaluation(
         {"summary": "판정 요약", "fitGrade": "중"},

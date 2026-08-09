@@ -70,16 +70,8 @@ if ([string]::IsNullOrWhiteSpace($env:CODEX_EFFORT)) {
     $env:CODEX_EFFORT = "low"
 }
 
-# The career pipeline always consumes the local, read-only Capability Graph.
-# Keep these defaults after .env import: an explicitly configured remote URL or
-# secret wins, while a local launch works without duplicating graph settings in
-# every developer env file.
-if ([string]::IsNullOrWhiteSpace($env:CAPABILITY_GRAPH_URL)) {
-    $env:CAPABILITY_GRAPH_URL = "http://127.0.0.1:8600"
-}
-if ([string]::IsNullOrWhiteSpace($env:CAPABILITY_GRAPH_SHARED_SECRET)) {
-    $env:CAPABILITY_GRAPH_SHARED_SECRET = "local-capability-graph-secret"
-}
+# With no explicit URL, the single AI process loads the packaged approved
+# GraphRelease. CAPABILITY_GRAPH_URL remains an opt-in compatibility adapter.
 if ([string]::IsNullOrWhiteSpace($env:CAPABILITY_GRAPH_TIMEOUT_SECONDS)) {
     $env:CAPABILITY_GRAPH_TIMEOUT_SECONDS = "10"
 }
@@ -118,7 +110,12 @@ if ($Install) {
 
 Push-Location $aiRoot
 try {
-    Write-Host "Capability Graph: $($env:CAPABILITY_GRAPH_URL)" -ForegroundColor DarkCyan
+    if ([string]::IsNullOrWhiteSpace($env:CAPABILITY_GRAPH_URL)) {
+        Write-Host "Capability Graph: packaged approved release (in-process)" -ForegroundColor DarkCyan
+    }
+    else {
+        Write-Host "Capability Graph: $($env:CAPABILITY_GRAPH_URL) (HTTP compatibility mode)" -ForegroundColor DarkCyan
+    }
     Write-Host "Starting unified JOBIS AI (LLM_PROVIDER=$($env:LLM_PROVIDER))..." -ForegroundColor Cyan
     & $python -m uvicorn jobis_ai.v2bridge.app:app --host 127.0.0.1 --port $Port
 }

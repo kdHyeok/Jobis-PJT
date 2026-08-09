@@ -129,14 +129,19 @@ public class JobPostingController {
             String sourceType,
             @Size(max = 2000)
             String sourceUrl,
-            @NotBlank
             @Size(max = 100_000)
             String rawText,
             UUID conversationId
     ) {
-        @AssertTrue(message = "URL 방식에서는 sourceUrl이 필요합니다.")
+        @AssertTrue(message = "URL 방식에서는 http/https 공고 주소가, 그 외에는 20자 이상의 원문이 필요합니다.")
         public boolean isSourceConsistent() {
-            return !"URL".equals(sourceType) || (sourceUrl != null && !sourceUrl.isBlank());
+            if ("URL".equals(sourceType)) {
+                String url = sourceUrl == null ? "" : sourceUrl.strip();
+                return url.startsWith("http://") || url.startsWith("https://");
+            }
+            // DB 가 raw_text 길이를 20자 이상으로 강제한다(V63). 여기서 먼저 걸러야
+            // 사용자가 500 대신 무엇을 고칠지 아는 400 을 받는다.
+            return rawText != null && rawText.strip().length() >= 20;
         }
 
         @AssertTrue(message = "공고 URL은 http 또는 https 주소여야 합니다.")
@@ -154,7 +159,9 @@ public class JobPostingController {
 
     public record UpdatePostingRequest(
             @Size(max = 2000) String sourceUrl,
-            @NotBlank @Size(max = 100_000) String rawText
+            // 하한 20자는 DB CHECK(V63)와 같은 값이다. 여기서 걸러야 400 으로 안내된다.
+            @NotBlank @Size(min = 20, max = 100_000,
+                    message = "공고 원문은 20자 이상 100,000자 이하여야 합니다.") String rawText
     ) {
         @AssertTrue(message = "공고 URL은 http 또는 https 주소여야 합니다.")
         public boolean isSourceUrlSafe() {

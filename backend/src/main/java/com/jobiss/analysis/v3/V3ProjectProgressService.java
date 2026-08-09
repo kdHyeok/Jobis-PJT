@@ -94,14 +94,16 @@ public class V3ProjectProgressService {
     }
 
     /**
-     * Removes backend-only linkage fields before a roadmap snapshot crosses the
+     * Removes backend-only runtime fields before a roadmap snapshot crosses the
      * AI contract boundary or is stored as a canonical roadmap version.
      *
      * <p>{@code careerNodeId} is only used by the service UI to address the
      * legacy {@code career_nodes} row. AI v3 identifies roadmap nodes with
      * {@code nodeId}/{@code targetRef} and consumes the already overlaid
      * {@code progressState}, so exposing the database UUID would couple the
-     * contract to local persistence details.</p>
+     * contract to local persistence details. Project-task progress and atomic
+     * assessment availability are service projections as well: they belong in
+     * the UI response, not in the immutable AI planning contract.</p>
      */
     public JsonNode withoutInternalLinkage(JsonNode snapshot) {
         if (snapshot == null || !snapshot.isObject()) return snapshot;
@@ -109,6 +111,13 @@ public class V3ProjectProgressService {
         for (JsonNode item : result.path("nodes")) {
             if (item instanceof ObjectNode node) {
                 node.remove("careerNodeId");
+                node.remove("atomicAssessmentAvailable");
+                for (JsonNode task : node.path("projectSpec").path("tasks")) {
+                    if (task instanceof ObjectNode taskNode) {
+                        taskNode.remove("progressState");
+                        taskNode.remove("evidenceCount");
+                    }
+                }
             }
         }
         return result;

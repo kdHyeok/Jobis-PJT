@@ -110,6 +110,11 @@ function competencyOf(node: V3RoadmapNode): RoadmapCompetency {
     excludedScope: node.excludedScope ?? [],
     provisionalCandidateId: node.provisionalCandidateId,
     catalogStatus: node.provisionalCandidateId ? "PENDING_REVIEW" : "APPROVED",
+    assessmentAvailability: node.provisionalCandidateId
+      ? "PENDING_REVIEW"
+      : node.atomicAssessmentAvailable
+        ? "AVAILABLE"
+        : "NOT_ATOMIC",
   };
 }
 

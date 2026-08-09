@@ -12,7 +12,6 @@ from __future__ import annotations
 import csv
 import json
 import os
-import sys
 import time
 from collections import Counter
 from pathlib import Path

@@ -105,7 +105,8 @@ def build_pools(conn) -> None:
 def judge_pools(conn) -> None:
     for track, cfg in TRACKS.items():
         if not cfg["pool"].exists():
-            print(f"{cfg['pool'].name} 없음 — --pool 먼저"); continue
+            print(f"{cfg['pool'].name} 없음 — --pool 먼저")
+            continue
         judge.JUDGMENTS_PATH = cfg["judgments"]      # 트랙별 분리 저장
         data = json.loads(cfg["pool"].read_text(encoding="utf-8"))
         print(f"=== {track} 판정 (prompt {judge.PROMPT_VERSION}) ===")

@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -245,10 +246,67 @@ class AiAnalysisClientTest {
         });
     }
 
+    @Test
+    void preservesNestedCareerApiErrorEnvelope() throws Exception {
+        byte[] responseBody = """
+                {"detail":{"error":{"code":"CAPABILITY_NOT_AVAILABLE","message":"역량 그래프를 사용할 수 없습니다."}}}
+                """.getBytes(StandardCharsets.UTF_8);
+        HttpServer server = errorServer("/v1/assessments/questions", 503, responseBody);
+        try {
+            AiAnalysisClient httpClient = client(
+                    "http://127.0.0.1:" + server.getAddress().getPort()
+            );
+
+            assertThatThrownBy(() -> httpClient.createAssessmentQuestion(new ObjectMapper().createObjectNode()))
+                    .isInstanceOfSatisfying(AiServiceException.class, exception -> {
+                        assertThat(exception.code()).isEqualTo("CAPABILITY_NOT_AVAILABLE");
+                        assertThat(exception.getMessage()).isEqualTo("역량 그래프를 사용할 수 없습니다.");
+                    });
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void reportsFastApiValidationPathInsteadOfGenericAiServiceError() throws Exception {
+        byte[] responseBody = """
+                {"detail":[{"type":"extra_forbidden","loc":["body","currentRoadmap","nodes",32,"projectSpec","tasks",0,"evidenceCount"],"msg":"Extra inputs are not permitted"}]}
+                """.getBytes(StandardCharsets.UTF_8);
+        HttpServer server = errorServer("/v1/assessments/questions", 422, responseBody);
+        try {
+            AiAnalysisClient httpClient = client(
+                    "http://127.0.0.1:" + server.getAddress().getPort()
+            );
+
+            assertThatThrownBy(() -> httpClient.createAssessmentQuestion(new ObjectMapper().createObjectNode()))
+                    .isInstanceOfSatisfying(AiServiceException.class, exception -> {
+                        assertThat(exception.code()).isEqualTo("AI_CONTRACT_VALIDATION_FAILED");
+                        assertThat(exception.getMessage())
+                                .contains("currentRoadmap.nodes[32].projectSpec.tasks[0].evidenceCount")
+                                .contains("Extra inputs are not permitted");
+                    });
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static HttpServer errorServer(String path, int status, byte[] body) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(path, exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            exchange.getResponseHeaders().set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+            exchange.sendResponseHeaders(status, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
     private static AiAnalysisClient client(String baseUrl) {
         return new AiAnalysisClient(
                 new JobissProperties(
-                        new JobissProperties.Auth("test-secret", 3600, 1209600, 2592000, false),
+                        new JobissProperties.Auth("test-secret", 3600, 1209600, 2592000, false, "jobiss_access"),
                         new JobissProperties.Ai(
                                 baseUrl,
                                 "local-ai-secret",

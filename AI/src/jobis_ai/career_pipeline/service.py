@@ -46,8 +46,15 @@ from jobis_ai.career_pipeline.contracts.posting import (
 from jobis_ai.career_pipeline.contracts.progress import AnalysisStage, ProgressEvent, ProgressStatus
 from jobis_ai.career_pipeline.contracts.project_planning import ProjectPlanningRequest
 from jobis_ai.career_pipeline.contracts.resolution import PostingResolutionRequest, ResolutionStatus
-from jobis_ai.career_pipeline.contracts.roadmap import OpportunityTargetInput, RoadmapDraftRequest
-from jobis_ai.career_pipeline.fit import FitAnalysisService, compile_project_fit
+from jobis_ai.career_pipeline.contracts.roadmap import (
+    CurrentRoadmapSnapshot,
+    OpportunityTargetInput,
+    RoadmapAction,
+    RoadmapDraftRequest,
+    RoadmapNodeKind,
+    RoadmapProposal,
+)
+from jobis_ai.career_pipeline.fit import compile_project_fit
 from jobis_ai.career_pipeline.interpretation import (
     PostingInterpretationFailure,
     PostingInterpretationService,
@@ -74,13 +81,55 @@ class AnalysisPipelineFailure(RuntimeError):
         super().__init__(message)
 
 
+def _require_actionable_roadmap_proposal(
+    proposal: RoadmapProposal,
+    current_roadmap: CurrentRoadmapSnapshot,
+) -> None:
+    """A completed analysis must contain a usable draft, not capability shells."""
+
+    if not proposal.operations:
+        raise AnalysisPipelineFailure(
+            code=ErrorCode.CONTRACT_VALIDATION_FAILED,
+            message="Roadmap proposal has no operations.",
+            retryable=False,
+        )
+    existing_by_id = {node.node_id: node for node in current_roadmap.nodes}
+    project_operations = [
+        operation for operation in proposal.operations
+        if operation.node_kind is RoadmapNodeKind.TARGET_PROJECT
+    ]
+    opportunity_operations = [
+        operation for operation in proposal.operations
+        if operation.node_kind is RoadmapNodeKind.OPPORTUNITY
+    ]
+    if not project_operations or not opportunity_operations:
+        raise AnalysisPipelineFailure(
+            code=ErrorCode.CONTRACT_VALIDATION_FAILED,
+            message="Roadmap proposal requires a target project and an opportunity.",
+            retryable=False,
+        )
+    for operation in project_operations:
+        if operation.action is RoadmapAction.CREATE_TARGET_PROJECT:
+            tasks = list((operation.project_spec.tasks if operation.project_spec else []) or [])
+        else:
+            existing = existing_by_id.get(operation.existing_node_id or "")
+            tasks = list((existing.project_spec.tasks if existing and existing.project_spec else []) or [])
+        if tasks:
+            break
+    else:
+        raise AnalysisPipelineFailure(
+            code=ErrorCode.CONTRACT_VALIDATION_FAILED,
+            message="Roadmap target project requires at least one learning task.",
+            retryable=False,
+        )
+
+
 class AnalysisPipelineService:
     def __init__(
         self,
         *,
         posting_service: PostingInterpretationService,
         resolution_service: PostingResolutionService,
-        fit_service: FitAnalysisService,
         normalization_service: CapabilityNormalizationService,
         project_planning_service: ProjectPlanningService,
         graph_port: CapabilityGraphPort,
@@ -88,7 +137,6 @@ class AnalysisPipelineService:
     ) -> None:
         self._posting = posting_service
         self._resolution = resolution_service
-        self._fit = fit_service
         # Kept for the standalone normalization API. The integrated pipeline no
         # longer performs a second whole-posting LLM normalization pass.
         self._normalization = normalization_service
@@ -208,9 +256,13 @@ class AnalysisPipelineService:
             )
 
         review = _posting_review(request, structured, resolution)
+        confirmed_review = request.confirmed_posting_review_id == review.review_id
         if (
-            request.require_posting_confirmation
-            and request.confirmed_posting_review_id != review.review_id
+            not confirmed_review
+            and (
+                request.require_posting_confirmation
+                or request.confirmed_posting_review_id is not None
+            )
         ):
             emit.wait(
                 AnalysisStage.AWAITING_POSTING_CONFIRMATION,
@@ -224,6 +276,15 @@ class AnalysisPipelineService:
                 resolution=resolution,
                 posting_review=review,
             )
+        emit.skip(
+            AnalysisStage.AWAITING_POSTING_CONFIRMATION,
+            "분석 기준 확인을 자동으로 통과했어요",
+            detail=(
+                "AUTO_CONFIRMED: 확인한 분석 기준과 현재 공고 검토가 일치합니다."
+                if confirmed_review
+                else "PRECONFIRMED: 호출자가 분석 기준 확인을 완료한 요청입니다."
+            ),
+        )
 
         graph_catalog = self._load_graph_catalog()
         normalization_catalog = _normalization_catalog(graph_catalog)
@@ -362,7 +423,7 @@ class AnalysisPipelineService:
             selected_position_id=resolution.selected_position_id,
             selected_experience_track=resolution.selected_experience_track,
             user_evidence=request.user_evidence,
-            skip_remaining_evidence_questions=True,
+            skip_remaining_evidence_questions=request.skip_remaining_evidence_questions,
         ), blueprint)
         if fit.status is FitAnalysisStatus.AWAITING_USER_EVIDENCE:
             emit.wait(
@@ -381,6 +442,15 @@ class AnalysisPipelineService:
                 project_blueprint=blueprint,
                 capability_graph=closure,
             )
+        emit.skip(
+            AnalysisStage.AWAITING_USER_EVIDENCE,
+            "추가 근거 질문 없이 적합도 분석을 확정했어요",
+            detail=(
+                "QUESTION_LIMIT_REACHED: 질문 상한에 도달해 확인되지 않은 요건은 UNKNOWN으로 보존합니다."
+                if request.skip_remaining_evidence_questions
+                else "NO_BLOCKING_FORMAL_EVIDENCE_GAP: 추가 확인이 필요한 필수 자격·경력 요건이 없습니다."
+            ),
+        )
         emit.complete(AnalysisStage.FIT_ANALYSIS, "현재 역량 표시를 완료했어요")
 
         position = next(
@@ -412,6 +482,7 @@ class AnalysisPipelineService:
                 posting_title=structured.posting_title,
             ),
         ))
+        _require_actionable_roadmap_proposal(proposal, request.current_roadmap)
         emit.partial(
             AnalysisStage.ROADMAP_PROPOSAL,
             "로드맵 초안",
@@ -500,6 +571,16 @@ class _ProgressEmitter:
             label,
             stage_duration_ms=None,
             detail=None,
+            partial_result=None,
+        )
+
+    def skip(self, stage: AnalysisStage, label: str, *, detail: str) -> None:
+        self._send(
+            stage,
+            ProgressStatus.SKIPPED,
+            label,
+            stage_duration_ms=None,
+            detail=detail,
             partial_result=None,
         )
 

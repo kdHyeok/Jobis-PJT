@@ -1,0 +1,2404 @@
+schema_version: jobis.capability-graph.release.v1
+graph_version: 0.2.0-alpha.1
+release_status: APPROVED
+released_at: '2026-08-09T00:00:00Z'
+content_hash: sha256:06b641afa9f729621e7f9cd6dbd274400ee72b2b53960f66a6c4e076d4683438
+sources:
+- source_id: source-dev-java
+  title: Dev.java — Learn Java
+  uri: https://dev.java/learn/
+  publisher: Oracle
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: Java 언어 기초(타입·흐름·클래스·컬렉션·예외·제네릭·스트림)의 공식 학습 경로.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:c29e1b3136571dffff29d99a51463f72ef627face937966eb4062fabefdc67a6
+- source_id: source-spring-boot-docs
+  title: Spring Boot Reference Documentation
+  uri: https://docs.spring.io/spring-boot/index.html
+  publisher: Broadcom (Spring)
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: Spring Boot 구성·DI·웹 MVC·검증·트랜잭션의 공식 참조 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:f023c00837702716f1a66a982c51c1b846959d4020c910fedc5f265ee795575e
+- source_id: source-spring-data-jpa-docs
+  title: Spring Data JPA Reference
+  uri: https://docs.spring.io/spring-data/jpa/reference/
+  publisher: Broadcom (Spring)
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: Repository 추상화와 파생 쿼리의 공식 참조 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:665036a03309d6a319eea4b6b868fc6719f9339ac5daacb64f6b11e9bc1c838c
+- source_id: source-hibernate-orm-docs
+  title: Hibernate ORM User Guide
+  uri: https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html
+  publisher: Hibernate (Red Hat)
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: JPA 엔터티·연관관계 매핑과 지연 로딩 동작의 공식 안내서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:c15ee2ec7d261a72ef281d12e9a0624f58b4aa4de2acfcbb1b9ec4f04b893d5f
+- source_id: source-mdn-http
+  title: MDN — HTTP
+  uri: https://developer.mozilla.org/en-US/docs/Web/HTTP
+  publisher: Mozilla
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: 클라이언트-서버 모델, HTTP 왕복, 메서드·상태 코드·헤더의 기반 명세 해설.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:e47b60754748a593db89cbe0d44a62b15034bb0f17af8db900d7d155019fccd4
+- source_id: source-postgres-docs
+  title: PostgreSQL Documentation
+  uri: https://www.postgresql.org/docs/current/
+  publisher: PostgreSQL Global Development Group
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: SQL 질의·제약·정규화·인덱스·트랜잭션·실행계획의 공식 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:6772c859f6f86a1bdc81ad0abc6822c69bbbae758db9a8df19c763e88541f092
+- source_id: source-git-scm
+  title: Pro Git Book
+  uri: https://git-scm.com/book/en/v2
+  publisher: Software Freedom Conservancy
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: Git 변경 이력과 브랜치·병합 워크플로의 공식 안내서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:c1a2abc82c4e68d62fab7ad35c828eeca8da376566ec490b9a7c5ee6f615ee5c
+- source_id: source-junit-docs
+  title: JUnit 5 User Guide
+  uri: https://junit.org/junit5/docs/current/user-guide/
+  publisher: JUnit Team
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: 단위 테스트 라이프사이클·단언의 공식 가이드.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:3a99718fc7316ec17e506a6e0cc155e8963e02ab3b4cd090ecdc049ca1a0ac9e
+- source_id: source-docker-docs
+  title: Docker Documentation
+  uri: https://docs.docker.com/get-started/
+  publisher: Docker Inc.
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: 이미지·컨테이너 개념, Dockerfile 작성, Compose 로컬 스택의 공식 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:baee36a857ceebb5500216a8060ec71691eb93b854e4967529f6499406e4aa02
+- source_id: source-redis-docs
+  title: Redis Documentation
+  uri: https://redis.io/docs/latest/
+  publisher: Redis Ltd.
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: 데이터 타입·만료와 캐싱 패턴(cache-aside)의 공식 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:51b3f7ab365bee1a173811ddbae6625a0c7aeed6454219273faf25f98bee8a7f
+- source_id: source-kafka-docs
+  title: Apache Kafka Documentation
+  uri: https://kafka.apache.org/documentation/
+  publisher: Apache Software Foundation
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: Topic·Partition·Producer·Consumer Group·전달 보장의 공식 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:7f170ac8b9ffdadc115f348c0c3c5f296aed9a9e395267c600f18598cf7dd71f
+- source_id: source-github-actions-docs
+  title: GitHub Actions Documentation
+  uri: https://docs.github.com/en/actions
+  publisher: GitHub
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: CI 빌드·테스트 자동화 파이프라인 구성의 공식 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:322d314481009e44d7c43329083cdccdaa09de44b29868678cde13df207a37c5
+- source_id: source-intellij-docs
+  title: IntelliJ IDEA Documentation
+  uri: https://www.jetbrains.com/help/idea/
+  publisher: JetBrains
+  source_type: OFFICIAL_DOCUMENTATION
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: IDE 실행 구성과 디버거 사용의 공식 문서.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:acac785d6f0b4183dec50810023868c217d86ee0d0b0bc5c21ee969ab3eb5830
+- source_id: source-jobis-knowledge-map
+  title: JOBIS 역량 지식 그래프 설계도 v2 (이스트게임즈 게임 결제 특화)
+  uri: jobis-design://capability-knowledge-map/v2
+  publisher: JOBIS
+  source_type: INTERNAL_DESIGN
+  retrieved_at: '2026-08-08T00:00:00Z'
+  evidence_summary: 게임 결제 도메인 역량 6개와 프로젝트 과제 12개(필수 7·추천 1·확장 3·전달 1)의 출처 설계도.
+  snapshot_scope: LINK_ONLY
+  content_hash: sha256:9adc3e01abdb178895906bd60ae661b6626cfdb8c177783889ad8e19fdeeebaa
+capabilities:
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: devenv.files-and-directories
+  technology_key: tool.dev-environment
+  display_name: 파일과 디렉터리 다루기
+  kind: TOOL
+  objective: 프로젝트의 파일·디렉터리 구조를 만들고 경로로 찾아다닐 수 있다.
+  scope_definition: 절대/상대 경로, 디렉터리 트리 구성, 파일 생성·이동·삭제까지.
+  source_ids:
+  - source-git-scm
+  confidence: &id001
+    band: STRONG_INFERENCE
+    reason: Curated from the roadmap seed and its cited official or internal sources.
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: devenv.cli-execution
+  technology_key: tool.dev-environment
+  display_name: 명령줄에서 프로그램 실행
+  kind: TOOL
+  objective: 터미널에서 프로그램을 인자와 함께 실행하고 출력·종료 코드를 읽을 수 있다.
+  scope_definition: 명령 실행, 인자·환경변수 전달, 표준 출력/오류 구분까지.
+  source_ids:
+  - source-git-scm
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - DEBUG
+  canonical_key: devenv.ide-run-debug
+  technology_key: tool.dev-environment
+  display_name: IDE 실행과 디버깅
+  kind: TOOL
+  objective: IDE 에서 프로그램을 실행하고 중단점으로 상태를 관찰할 수 있다.
+  scope_definition: 실행 구성, 중단점·스텝 실행, 변수 관찰까지.
+  source_ids:
+  - source-intellij-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: git.commit-history
+  technology_key: tool.git
+  display_name: Git 변경 이력 만들기
+  kind: TOOL
+  objective: 변경을 스테이징·커밋해 의미 있는 이력을 만들 수 있다.
+  scope_definition: add/commit/log/diff 와 커밋 메시지 작성까지.
+  source_ids:
+  - source-git-scm
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: git.branch-and-merge
+  technology_key: tool.git
+  display_name: 브랜치와 병합 사용
+  kind: TOOL
+  objective: 브랜치를 만들어 작업을 분리하고 병합·충돌 해결을 할 수 있다.
+  scope_definition: branch/switch/merge, 충돌 해결, 원격 push/pull 까지.
+  excluded_scope:
+  - rebase 전략
+  - 모노레포 운영
+  source_ids:
+  - source-git-scm
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.compile-and-run
+  technology_key: lang.java
+  display_name: Java 프로그램 컴파일과 실행
+  kind: PROGRAMMING_LANGUAGE
+  objective: Java 소스를 컴파일해 JVM 에서 실행할 수 있다.
+  scope_definition: javac/java 실행, 클래스패스, main 진입점까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.types-and-variables
+  technology_key: lang.java
+  display_name: 타입과 변수 사용
+  kind: PROGRAMMING_LANGUAGE
+  objective: 기본형·참조형 변수를 선언하고 타입에 맞게 값을 다룰 수 있다.
+  scope_definition: 기본형/참조형 구분, 형변환, 문자열 다루기까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.control-flow
+  technology_key: lang.java
+  display_name: 조건과 반복으로 흐름 구성
+  kind: PROGRAMMING_LANGUAGE
+  objective: 조건 분기와 반복으로 프로그램의 실행 흐름을 구성할 수 있다.
+  scope_definition: if/switch, for/while, break/continue 까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.methods-responsibility
+  technology_key: lang.java
+  display_name: 메서드로 책임 분리
+  kind: PROGRAMMING_LANGUAGE
+  objective: 하나의 일을 하는 메서드로 코드를 나누고 서명을 설계할 수 있다.
+  scope_definition: 매개변수/반환 설계, 오버로딩, 재사용 단위 나누기까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.classes-objects
+  technology_key: lang.java
+  display_name: 클래스와 객체 모델링
+  kind: PROGRAMMING_LANGUAGE
+  objective: 도메인을 클래스·객체로 모델링해 구현할 수 있다.
+  scope_definition: 클래스/생성자/필드/상속과 객체 생명주기까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.encapsulation-invariants
+  technology_key: lang.java
+  display_name: 캡슐화와 불변식 보호
+  kind: PROGRAMMING_LANGUAGE
+  objective: 접근 제어와 불변 설계로 객체의 규칙이 깨지지 않게 지킬 수 있다.
+  scope_definition: 접근 제어자, 불변 객체, 유효성 지키는 생성자·세터까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.interfaces-polymorphism
+  technology_key: lang.java
+  display_name: 인터페이스와 다형성 적용
+  kind: PROGRAMMING_LANGUAGE
+  objective: 인터페이스로 계약을 정의하고 구현 교체가 가능한 코드를 쓸 수 있다.
+  scope_definition: 인터페이스 정의/구현, 다형적 참조, 기본 메서드까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.collections-usage
+  technology_key: lang.java
+  display_name: 컬렉션 선택과 사용
+  kind: PROGRAMMING_LANGUAGE
+  objective: 자료의 성격에 맞는 컬렉션을 골라 다룰 수 있다.
+  scope_definition: List/Set/Map 선택 기준, 순회, equals/hashCode 관계까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.exceptions-handling
+  technology_key: lang.java
+  display_name: 예외 정의와 처리
+  kind: PROGRAMMING_LANGUAGE
+  objective: 예외를 정의·전파·처리해 실패 경로를 설계할 수 있다.
+  scope_definition: checked/unchecked 구분, try-with-resources, 사용자 예외까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.generics-usage
+  technology_key: lang.java
+  display_name: 제네릭 타입 사용
+  kind: PROGRAMMING_LANGUAGE
+  objective: 제네릭으로 타입 안전한 컨테이너·메서드를 선언하고 쓸 수 있다.
+  scope_definition: 제네릭 클래스/메서드 선언, 와일드카드 읽기까지.
+  excluded_scope:
+  - 타입 소거 내부 동작
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: java.streams-transformation
+  technology_key: lang.java
+  display_name: Stream으로 컬렉션 변환
+  kind: PROGRAMMING_LANGUAGE
+  objective: Stream 파이프라인으로 컬렉션을 걸러내고 변환·집계할 수 있다.
+  scope_definition: filter/map/collect, 그룹핑, Optional 다루기까지.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  canonical_key: web.client-server-model
+  technology_key: concept.web-architecture
+  display_name: 클라이언트와 서버 구분
+  kind: COMPUTER_SCIENCE
+  objective: 요청하는 쪽과 응답하는 쪽의 역할·경계를 설명할 수 있다.
+  scope_definition: 클라이언트/서버 역할, 요청-응답 사이클, 포트와 주소까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  - DEBUG
+  canonical_key: http.request-response
+  technology_key: protocol.http
+  display_name: HTTP 요청과 응답 해석
+  kind: PROTOCOL
+  objective: 요청/응답 라인·헤더·바디로 구성된 HTTP 왕복을 해석할 수 있다.
+  scope_definition: 요청/응답 구조, URL 구성, 브라우저 개발자 도구로 관찰까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - EXPLAIN
+  - IMPLEMENT
+  canonical_key: http.methods-status-codes
+  technology_key: protocol.http
+  display_name: HTTP 메서드와 상태 코드 선택
+  kind: PROTOCOL
+  objective: 의도에 맞는 메서드와 상태 코드를 고를 수 있다.
+  scope_definition: GET/POST/PUT/PATCH/DELETE 의미, 2xx/4xx/5xx 구분까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: http.headers-json-body
+  technology_key: protocol.http
+  display_name: 헤더와 JSON 본문 사용
+  kind: PROTOCOL
+  objective: Content-Type 등 헤더와 JSON 본문으로 데이터를 주고받을 수 있다.
+  scope_definition: 주요 헤더, JSON 직렬화/역직렬화, 문자 인코딩까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: http.client-implementation
+  technology_key: protocol.http
+  display_name: 외부 HTTP API 클라이언트 구현
+  kind: PROTOCOL
+  objective: 외부 API 를 호출하고 실패·타임아웃을 처리하는 클라이언트를 구현할 수 있다.
+  scope_definition: 요청 작성, 응답 파싱, 오류·타임아웃 처리까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - DOCUMENT
+  - IMPLEMENT
+  canonical_key: rest.resource-api-design
+  technology_key: protocol.http
+  display_name: 리소스 중심 REST API 설계
+  kind: PROTOCOL
+  objective: 도메인을 리소스·URI·메서드 의미에 맞게 배치한 API 를 설계할 수 있다.
+  scope_definition: 리소스 명명, URI 계층, 메서드 매핑, 컬렉션/단건 관례까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - DOCUMENT
+  - IMPLEMENT
+  canonical_key: rest.validation-error-contract
+  technology_key: protocol.http
+  display_name: API 검증과 오류 계약
+  kind: PROTOCOL
+  objective: 입력 검증 규칙과 일관된 오류 응답 형식을 계약으로 정의할 수 있다.
+  scope_definition: 필수/형식 검증 규칙, 오류 코드·메시지 형식, 상태 코드 대응까지.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: sql.crud
+  technology_key: lang.sql
+  display_name: SQL CRUD 작성
+  kind: DATABASE
+  objective: 단일 테이블에 대해 INSERT/SELECT/UPDATE/DELETE 를 작성할 수 있다.
+  scope_definition: 기본 CRUD, WHERE 조건, 정렬과 LIMIT 까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: sql.joins-aggregation
+  technology_key: lang.sql
+  display_name: JOIN과 집계 작성
+  kind: DATABASE
+  objective: 여러 테이블을 조인하고 그룹 집계 질의를 작성할 수 있다.
+  scope_definition: INNER/LEFT JOIN, GROUP BY/HAVING, 서브쿼리까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: rdb.keys-constraints
+  technology_key: db.rdb
+  display_name: 키와 제약조건 설계
+  kind: DATABASE
+  objective: PK/FK/UNIQUE/CHECK 로 데이터 정합성을 스키마에 심을 수 있다.
+  scope_definition: 키 선정, 참조 무결성, 유니크·체크 제약까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - DOCUMENT
+  - IMPLEMENT
+  canonical_key: rdb.normalization
+  technology_key: db.rdb
+  display_name: 관계형 데이터 모델 정규화
+  kind: DATABASE
+  objective: 중복과 이상 현상을 없애는 방향으로 테이블을 분해·설계할 수 있다.
+  scope_definition: 1~3정규형 판단, 의도적 반정규화의 근거 남기기까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - MEASURE
+  canonical_key: rdb.index-design
+  technology_key: db.rdb
+  display_name: 인덱스 설계와 효과 설명
+  kind: DATABASE
+  objective: 질의 패턴에 맞는 인덱스를 설계하고 그 효과를 설명할 수 있다.
+  scope_definition: B-tree 기본, 복합 인덱스 순서, 쓰기 비용 트레이드오프까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  canonical_key: rdb.transactions-acid
+  technology_key: db.rdb
+  display_name: 트랜잭션과 ACID 이해
+  kind: DATABASE
+  objective: 여러 변경을 하나의 원자적 단위로 묶는 트랜잭션 성질을 설명할 수 있다.
+  scope_definition: ACID 각 성질, commit/rollback, 트랜잭션 경계의 의미까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: rdb.isolation-locking
+  technology_key: db.rdb
+  display_name: 격리 수준과 잠금 적용
+  kind: DATABASE
+  objective: 동시 트랜잭션의 이상 현상을 격리 수준·잠금으로 제어할 수 있다.
+  scope_definition: 격리 수준별 이상 현상, 행 잠금, SELECT FOR UPDATE 까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - MEASURE
+  - DEBUG
+  canonical_key: rdb.query-plan-analysis
+  technology_key: db.rdb
+  display_name: 실행계획으로 쿼리 병목 분석
+  kind: DATABASE
+  objective: 실행계획을 읽어 느린 질의의 원인을 특정하고 개선할 수 있다.
+  scope_definition: EXPLAIN/ANALYZE 읽기, 스캔 방식 구분, 개선 전후 비교까지.
+  source_ids:
+  - source-postgres-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: spring.di-concept-apply
+  technology_key: framework.spring-boot
+  display_name: Spring 의존성 주입 이해와 적용
+  kind: FRAMEWORK
+  objective: 빈 등록과 생성자 주입으로 객체 조립을 컨테이너에 맡길 수 있다.
+  scope_definition: 컴포넌트 스캔, 생성자 주입, 빈 생명주기 기초까지.
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: spring.boot-configuration
+  technology_key: framework.spring-boot
+  display_name: Spring Boot 애플리케이션 구성과 실행
+  kind: FRAMEWORK
+  objective: Boot 애플리케이션을 설정 파일·프로필로 구성해 실행할 수 있다.
+  scope_definition: application.yml, 프로필, 자동 구성의 개요까지.
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: spring.mvc-rest-controller
+  technology_key: framework.spring-boot
+  display_name: Spring MVC REST Controller 구현
+  kind: FRAMEWORK
+  objective: 요청 매핑·바인딩·응답 직렬화를 갖춘 REST 컨트롤러를 구현할 수 있다.
+  scope_definition: '@RestController, 경로/본문 바인딩, 응답 상태 지정까지.'
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: spring.request-validation
+  technology_key: framework.spring-boot
+  display_name: 요청 DTO 검증 적용
+  kind: FRAMEWORK
+  objective: 요청 DTO 에 검증 규칙을 선언하고 위반을 일관되게 응답할 수 있다.
+  scope_definition: Bean Validation 애노테이션, @Valid, 검증 실패 응답까지.
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: spring.global-exception
+  technology_key: framework.spring-boot
+  display_name: 전역 예외 처리 구현
+  kind: FRAMEWORK
+  objective: 전역 예외 핸들러로 실패를 일관된 오류 응답으로 바꿀 수 있다.
+  scope_definition: '@RestControllerAdvice, 예외→상태코드 매핑, 오류 본문 설계까지.'
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - DOCUMENT
+  canonical_key: spring.layered-responsibility
+  technology_key: framework.spring-boot
+  display_name: 웹 애플리케이션 책임 분리
+  kind: FRAMEWORK
+  objective: 컨트롤러·서비스·저장 계층의 책임을 나눠 변경에 강한 구조를 만들 수 있다.
+  scope_definition: 계층별 책임, DTO/도메인 구분, 의존 방향 정리까지.
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: spring.transaction-boundary
+  technology_key: framework.spring-boot
+  display_name: Spring 트랜잭션 경계 설계
+  kind: FRAMEWORK
+  objective: 서비스 메서드에 트랜잭션 경계를 선언하고 롤백 규칙을 다룰 수 있다.
+  scope_definition: '@Transactional 경계/전파/롤백 규칙, 읽기 전용 최적화까지.'
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: jpa.entity-mapping
+  technology_key: framework.jpa
+  display_name: JPA 엔터티 매핑
+  kind: FRAMEWORK
+  objective: 테이블과 클래스를 엔터티로 매핑해 영속화할 수 있다.
+  scope_definition: '@Entity/@Id/컬럼 매핑, 영속성 컨텍스트 기초까지.'
+  source_ids:
+  - source-hibernate-orm-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: jpa.relationship-mapping
+  technology_key: framework.jpa
+  display_name: JPA 연관관계 매핑
+  kind: FRAMEWORK
+  objective: 1:N/N:1 연관을 방향·주인을 정해 매핑할 수 있다.
+  scope_definition: '@ManyToOne/@OneToMany, 연관 주인, 편의 메서드까지.'
+  excluded_scope:
+  - 다대다 실전 운용
+  - 상속 매핑 전략
+  source_ids:
+  - source-hibernate-orm-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: jpa.spring-data-repository
+  technology_key: framework.jpa
+  display_name: Spring Data JPA Repository 사용
+  kind: FRAMEWORK
+  objective: Repository 인터페이스로 조회·저장 로직을 구현할 수 있다.
+  scope_definition: 파생 쿼리, @Query, 페이징 기초까지.
+  source_ids:
+  - source-spring-data-jpa-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - DEBUG
+  - MEASURE
+  canonical_key: jpa.lazy-loading-nplus1
+  technology_key: framework.jpa
+  display_name: 지연 로딩과 N+1 진단
+  kind: FRAMEWORK
+  objective: 지연 로딩 동작을 이해하고 N+1 문제를 SQL 로그로 진단·해결할 수 있다.
+  scope_definition: LAZY/EAGER, N+1 재현과 fetch join 해결까지.
+  source_ids:
+  - source-hibernate-orm-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - DOCUMENT
+  canonical_key: gamepay.wallet-ledger-model
+  technology_key: domain.game-payment
+  display_name: 가상재화 지갑과 원장 모델링
+  kind: DOMAIN_KNOWLEDGE
+  objective: 잔액을 직접 덮지 않고 변동 기록(원장)의 합으로 다루는 모델을 설계할 수 있다.
+  scope_definition: 지갑/원장 테이블 설계, 변동 유형 구분, 잔액 파생 규칙까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - DOCUMENT
+  canonical_key: gamepay.purchase-state-transitions
+  technology_key: domain.game-payment
+  display_name: 구매 상태와 전이 설계
+  kind: DOMAIN_KNOWLEDGE
+  objective: 구매의 상태와 허용 전이를 정의해 잘못된 전이를 구조로 막을 수 있다.
+  scope_definition: 상태 열거, 전이 규칙 표, 전이 검증 코드까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: gamepay.atomic-debit-credit
+  technology_key: domain.game-payment
+  display_name: 차감과 지급의 원자성 보장
+  kind: DOMAIN_KNOWLEDGE
+  objective: 재화 차감과 아이템 지급이 함께 성공하거나 함께 실패하게 만들 수 있다.
+  scope_definition: 하나의 트랜잭션 경계로 묶기, 부분 실패 롤백 검증까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: gamepay.idempotent-purchase
+  technology_key: domain.game-payment
+  display_name: 중복 구매 요청 멱등 처리
+  kind: DOMAIN_KNOWLEDGE
+  objective: 같은 구매 요청이 여러 번 와도 한 번만 반영되게 만들 수 있다.
+  scope_definition: 멱등 키 설계, 유니크 제약 활용, 재시도 응답 규칙까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: gamepay.concurrent-balance
+  technology_key: domain.game-payment
+  display_name: 동시 구매와 잔액 경쟁 처리
+  kind: DOMAIN_KNOWLEDGE
+  objective: 동시 요청이 잔액을 두고 경쟁해도 음수 잔액이 나오지 않게 만들 수 있다.
+  scope_definition: 잠금 전략 선택, 경쟁 시나리오 재현, 정합성 검증까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: gamepay.cancel-consistency
+  technology_key: domain.game-payment
+  display_name: 구매 취소 정합성 처리
+  kind: DOMAIN_KNOWLEDGE
+  objective: 취소·환불이 원장과 아이템 상태를 모순 없이 되돌리게 만들 수 있다.
+  scope_definition: 보상 기록 추가 방식, 취소 가능 상태 판정, 이중 취소 방지까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - TEST
+  canonical_key: test.unit
+  technology_key: practice.testing
+  display_name: 단위 테스트 작성
+  kind: SOFTWARE_PRACTICE
+  objective: 동작을 고정하는 단위 테스트를 작성할 수 있다.
+  scope_definition: JUnit 라이프사이클, 단언, 실패 메시지 설계까지.
+  source_ids:
+  - source-junit-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - TEST
+  canonical_key: test.spring-slice
+  technology_key: practice.testing
+  display_name: Spring 계층 슬라이스 테스트
+  kind: SOFTWARE_PRACTICE
+  objective: 웹/데이터 계층만 잘라 띄우는 슬라이스 테스트를 작성할 수 있다.
+  scope_definition: '@WebMvcTest/@DataJpaTest, 목 주입, 계층별 검증 범위까지.'
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - TEST
+  canonical_key: test.db-integration
+  technology_key: practice.testing
+  display_name: 실제 DB 통합 테스트
+  kind: SOFTWARE_PRACTICE
+  objective: 실제 RDB 를 띄워 저장 동작을 통합 검증할 수 있다.
+  scope_definition: 테스트 DB 기동, 데이터 준비/정리, 트랜잭션 경계 검증까지.
+  source_ids:
+  - source-spring-boot-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - TEST
+  canonical_key: test.concurrency-scenario
+  technology_key: practice.testing
+  display_name: 동시 요청 시나리오 검증
+  kind: SOFTWARE_PRACTICE
+  objective: 동시 요청을 재현하는 테스트로 경쟁 상황의 정합성을 검증할 수 있다.
+  scope_definition: 스레드/래치 기반 동시 실행, 결과 불변식 단언까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - MEASURE
+  canonical_key: test.load-and-metrics
+  technology_key: practice.testing
+  display_name: 부하 테스트와 성능 지표 비교
+  kind: SOFTWARE_PRACTICE
+  objective: 부하를 걸어 처리량·지연 지표를 재고 개선 전후를 비교할 수 있다.
+  scope_definition: 부하 시나리오 작성, p95 지연/처리량 읽기, 전후 비교표까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  canonical_key: redis.data-types-expiry
+  technology_key: db.redis
+  display_name: Redis 데이터 타입과 만료 이해
+  kind: DATABASE
+  objective: 주요 데이터 타입과 TTL 만료 동작을 설명할 수 있다.
+  scope_definition: String/Hash/Sorted Set 용도, TTL 과 축출 개요까지.
+  source_ids:
+  - source-redis-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: redis.cache-aside
+  technology_key: db.redis
+  display_name: Cache-aside 조회 구현
+  kind: DATABASE
+  objective: 조회 경로에 cache-aside 패턴을 넣어 응답을 캐시할 수 있다.
+  scope_definition: 미스 시 적재, 키 설계, TTL 선정까지.
+  source_ids:
+  - source-redis-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: redis.invalidation-fallback
+  technology_key: db.redis
+  display_name: 캐시 무효화와 장애 fallback
+  kind: DATABASE
+  objective: 원본 변경 시 캐시를 무효화하고 캐시 장애 시 원본으로 우회할 수 있다.
+  scope_definition: 무효화 시점 설계, 스탬피드 완화 기초, 장애 시 폴백까지.
+  source_ids:
+  - source-redis-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  - DOCUMENT
+  canonical_key: kafka.sync-vs-event
+  technology_key: messaging.kafka
+  display_name: 동기 처리와 이벤트 분리 판단
+  kind: MESSAGING
+  objective: 어떤 작업을 요청-응답에 남기고 어떤 것을 이벤트로 뺄지 판단할 수 있다.
+  scope_definition: 동기/비동기 트레이드오프, 이벤트로 뺄 기준까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  canonical_key: kafka.topic-partition
+  technology_key: messaging.kafka
+  display_name: Topic과 Partition 이해
+  kind: MESSAGING
+  objective: 토픽·파티션·키가 순서와 병렬성에 주는 영향을 설명할 수 있다.
+  scope_definition: 파티셔닝과 키, 파티션 내 순서 보장까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: kafka.producing
+  technology_key: messaging.kafka
+  display_name: Kafka 이벤트 발행
+  kind: MESSAGING
+  objective: 애플리케이션에서 토픽으로 이벤트를 발행할 수 있다.
+  scope_definition: 프로듀서 구성, 키 지정 발행, 발행 실패 처리까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: kafka.consuming
+  technology_key: messaging.kafka
+  display_name: Kafka 이벤트 소비
+  kind: MESSAGING
+  objective: 토픽을 구독해 이벤트를 받아 처리하는 컨슈머를 구현할 수 있다.
+  scope_definition: 컨슈머 구성, 폴링/리스너, 역직렬화까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  canonical_key: kafka.consumer-group-offset
+  technology_key: messaging.kafka
+  display_name: Consumer Group과 Offset 이해
+  kind: MESSAGING
+  objective: 그룹 리밸런싱과 오프셋 커밋이 소비 진행에 주는 영향을 설명할 수 있다.
+  scope_definition: 그룹/파티션 할당, 커밋 시점, 재소비 발생 조건까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - DOCUMENT
+  canonical_key: kafka.event-schema-serialization
+  technology_key: messaging.kafka
+  display_name: 이벤트 스키마와 직렬화 설계
+  kind: MESSAGING
+  objective: 이벤트 본문 스키마를 정의하고 호환 가능한 직렬화를 선택할 수 있다.
+  scope_definition: 스키마 필드 설계, 직렬화 포맷 선택, 하위 호환 고려까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: kafka.delivery-guarantees-idempotency
+  technology_key: messaging.kafka
+  display_name: 전달 보장과 멱등 소비
+  kind: MESSAGING
+  objective: at-least-once 전달을 전제로 중복 소비를 멱등하게 처리할 수 있다.
+  scope_definition: 전달 보장 수준 구분, 중복 소비 재현, 멱등 처리 구현까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  canonical_key: kafka.consumer-retry-isolation
+  technology_key: messaging.kafka
+  display_name: Consumer 재시도와 실패 격리
+  kind: MESSAGING
+  objective: 처리 실패를 재시도하고 반복 실패를 격리해 소비 멈춤을 막을 수 있다.
+  scope_definition: 재시도 정책, 실패 이벤트 격리(DLT 개념), 모니터링 지점까지.
+  source_ids:
+  - source-kafka-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: CONCEPT
+  verification_methods:
+  - EXPLAIN
+  canonical_key: docker.image-vs-container
+  technology_key: tool.docker
+  display_name: 이미지와 컨테이너 구분
+  kind: INFRASTRUCTURE
+  objective: 이미지(불변 산출물)와 컨테이너(실행 인스턴스)의 관계를 설명할 수 있다.
+  scope_definition: 이미지/컨테이너/레지스트리 관계, 레이어 개요까지.
+  source_ids:
+  - source-docker-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: docker.springboot-image
+  technology_key: tool.docker
+  display_name: Spring Boot 이미지 작성
+  kind: INFRASTRUCTURE
+  objective: Boot 애플리케이션을 Dockerfile 로 이미지화해 실행할 수 있다.
+  scope_definition: Dockerfile 작성, 포트 노출, 환경변수 주입까지.
+  source_ids:
+  - source-docker-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: docker.compose-local-stack
+  technology_key: tool.docker
+  display_name: Compose로 로컬 스택 실행
+  kind: INFRASTRUCTURE
+  objective: 앱과 DB 를 Compose 로 함께 띄워 로컬 스택을 재현할 수 있다.
+  scope_definition: 서비스 정의, 의존 순서, 볼륨/네트워크 기초까지.
+  source_ids:
+  - source-docker-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - IMPLEMENT
+  canonical_key: ci.build-test-automation
+  technology_key: practice.ci-cd
+  display_name: CI 빌드와 테스트 자동화
+  kind: SOFTWARE_PRACTICE
+  objective: push 마다 빌드·테스트가 자동으로 도는 파이프라인을 구성할 수 있다.
+  scope_definition: 워크플로 정의, 테스트 실패 시 차단, 결과 확인까지.
+  source_ids:
+  - source-github-actions-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- node_type: PERFORMANCE
+  verification_methods:
+  - DOCUMENT
+  canonical_key: docs.design-verification-evidence
+  technology_key: practice.documentation
+  display_name: 프로젝트 설계와 검증 증거 문서화
+  kind: SOFTWARE_PRACTICE
+  objective: 설계 결정과 검증 결과를 남이 재현할 수 있게 문서로 남길 수 있다.
+  scope_definition: 설계 근거 기록, 테스트·측정 증거 첨부, README 구성까지.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+capability_relations:
+- relation_id: rel-files-cli
+  from_capability_key: devenv.files-and-directories
+  to_capability_key: devenv.cli-execution
+  reason: 명령줄 실행은 경로·파일 구조 이해를 전제한다.
+  source_ids:
+  - source-git-scm
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-cli-ide
+  from_capability_key: devenv.cli-execution
+  to_capability_key: devenv.ide-run-debug
+  relation_type: RECOMMENDED_FOUNDATION
+  reason: IDE 버튼 뒤에서 일어나는 실행을 알면 디버깅 문제를 스스로 좁힐 수 있다.
+  source_ids:
+  - source-intellij-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-files-git
+  from_capability_key: devenv.files-and-directories
+  to_capability_key: git.commit-history
+  reason: 커밋의 대상인 파일 트리를 다룰 수 있어야 이력을 만들 수 있다.
+  source_ids:
+  - source-git-scm
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-git-branch
+  from_capability_key: git.commit-history
+  to_capability_key: git.branch-and-merge
+  reason: 브랜치는 커밋 이력 위에서 갈라지고 합쳐진다.
+  source_ids:
+  - source-git-scm
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-cli-java-run
+  from_capability_key: devenv.cli-execution
+  to_capability_key: java.compile-and-run
+  reason: 컴파일·실행은 명령줄 프로그램 실행의 특수형이다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-run-types
+  from_capability_key: java.compile-and-run
+  to_capability_key: java.types-and-variables
+  reason: 코드를 실행해 봐야 타입·변수 동작을 확인하며 배울 수 있다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-types-flow
+  from_capability_key: java.types-and-variables
+  to_capability_key: java.control-flow
+  reason: 분기·반복 조건은 값과 타입 위에서 판정된다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-flow-methods
+  from_capability_key: java.control-flow
+  to_capability_key: java.methods-responsibility
+  reason: 메서드로 나눌 흐름이 먼저 있어야 책임 분리가 성립한다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-methods-classes
+  from_capability_key: java.methods-responsibility
+  to_capability_key: java.classes-objects
+  reason: 클래스는 관련 메서드와 상태를 묶는 단위다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-classes-encapsulation
+  from_capability_key: java.classes-objects
+  to_capability_key: java.encapsulation-invariants
+  reason: 불변식 보호는 클래스·객체 모델 위에서 정의된다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-classes-interfaces
+  from_capability_key: java.classes-objects
+  to_capability_key: java.interfaces-polymorphism
+  reason: 다형성은 클래스 구현체들 사이의 계약으로 성립한다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-flow-collections
+  from_capability_key: java.control-flow
+  to_capability_key: java.collections-usage
+  reason: 컬렉션 활용은 반복 순회 위에서 시작한다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-classes-exceptions
+  from_capability_key: java.classes-objects
+  to_capability_key: java.exceptions-handling
+  reason: 예외 계층 설계는 클래스 상속 모델을 전제한다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-collections-generics
+  from_capability_key: java.collections-usage
+  to_capability_key: java.generics-usage
+  reason: 제네릭의 필요성은 컬렉션 타입 안전에서 동기가 생긴다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-collections-streams
+  from_capability_key: java.collections-usage
+  to_capability_key: java.streams-transformation
+  reason: 스트림은 컬렉션 변환의 선언적 표현이다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-generics-streams
+  from_capability_key: java.generics-usage
+  to_capability_key: java.streams-transformation
+  relation_type: RECOMMENDED_FOUNDATION
+  reason: 스트림 API 시그니처를 읽으려면 제네릭 표기 이해가 도움이 된다.
+  source_ids:
+  - source-dev-java
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-web-http
+  from_capability_key: web.client-server-model
+  to_capability_key: http.request-response
+  reason: HTTP 왕복은 클라이언트-서버 역할 구분 위에서 해석된다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-http-methods
+  from_capability_key: http.request-response
+  to_capability_key: http.methods-status-codes
+  reason: 메서드·상태 코드는 요청/응답 구조의 구성 요소다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-http-headers
+  from_capability_key: http.request-response
+  to_capability_key: http.headers-json-body
+  reason: 헤더와 본문은 HTTP 메시지 구조 안에서 의미를 가진다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-methods-restdesign
+  from_capability_key: http.methods-status-codes
+  to_capability_key: rest.resource-api-design
+  reason: 리소스 설계는 메서드·상태 코드의 의미 위에 선다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-headers-restdesign
+  from_capability_key: http.headers-json-body
+  to_capability_key: rest.resource-api-design
+  relation_type: RECOMMENDED_FOUNDATION
+  reason: 표현(JSON)과 콘텐츠 협상을 알면 리소스 표현 설계가 수월하다.
+  source_ids:
+  - source-mdn-http
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-restdesign-contract
+  from_capability_key: rest.resource-api-design
+  to_capability_key: rest.validation-error-contract
+  reason: 검증·오류 계약은 설계된 리소스 계약의 실패 반쪽이다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-headers-httpclient
+  from_capability_key: http.headers-json-body
+  to_capability_key: http.client-implementation
+  reason: 클라이언트 구현은 헤더·본문을 직접 구성하는 일이다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-methods-httpclient
+  from_capability_key: java.methods-responsibility
+  to_capability_key: http.client-implementation
+  reason: 호출·파싱·실패 처리를 메서드 단위로 나눠 구현한다.
+  source_ids:
+  - source-dev-java
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-crud-joins
+  from_capability_key: sql.crud
+  to_capability_key: sql.joins-aggregation
+  reason: 조인·집계는 단일 테이블 질의 위에서 확장된다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-crud-keys
+  from_capability_key: sql.crud
+  to_capability_key: rdb.keys-constraints
+  reason: 제약을 설계하려면 제약이 막는 CRUD 동작을 먼저 안다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-keys-normalization
+  from_capability_key: rdb.keys-constraints
+  to_capability_key: rdb.normalization
+  reason: 정규화 판단은 키·함수적 종속 이해를 전제한다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-joins-index
+  from_capability_key: sql.joins-aggregation
+  to_capability_key: rdb.index-design
+  reason: 인덱스는 질의 패턴(조인·조건)이 있어야 설계 근거가 생긴다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-crud-acid
+  from_capability_key: sql.crud
+  to_capability_key: rdb.transactions-acid
+  reason: 트랜잭션은 여러 CRUD 를 하나의 단위로 묶는 개념이다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-acid-isolation
+  from_capability_key: rdb.transactions-acid
+  to_capability_key: rdb.isolation-locking
+  reason: 격리 수준은 ACID 의 I 를 구체화한 것이다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-index-queryplan
+  from_capability_key: rdb.index-design
+  to_capability_key: rdb.query-plan-analysis
+  reason: 실행계획 읽기는 인덱스 사용 여부 판단이 핵심이다.
+  source_ids:
+  - source-postgres-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-interfaces-di
+  from_capability_key: java.interfaces-polymorphism
+  to_capability_key: spring.di-concept-apply
+  reason: DI 는 인터페이스에 의존하고 구현을 주입하는 다형성 활용이다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-di-bootconf
+  from_capability_key: spring.di-concept-apply
+  to_capability_key: spring.boot-configuration
+  reason: Boot 구성은 빈 조립(DI) 위에 설정·프로필을 얹는 일이다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-bootconf-mvc
+  from_capability_key: spring.boot-configuration
+  to_capability_key: spring.mvc-rest-controller
+  reason: 컨트롤러는 구동된 Boot 애플리케이션 안에서 동작한다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-restdesign-mvc
+  from_capability_key: rest.resource-api-design
+  to_capability_key: spring.mvc-rest-controller
+  reason: 구현할 리소스 계약이 먼저 있어야 매핑을 코드로 옮긴다.
+  source_ids:
+  - source-mdn-http
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-mvc-validation
+  from_capability_key: spring.mvc-rest-controller
+  to_capability_key: spring.request-validation
+  reason: 검증은 컨트롤러로 바인딩된 DTO 에 적용된다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-contract-validation
+  from_capability_key: rest.validation-error-contract
+  to_capability_key: spring.request-validation
+  reason: 무엇을 어떤 형식으로 거절할지 계약이 먼저 정해져야 한다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-exceptions-globalex
+  from_capability_key: java.exceptions-handling
+  to_capability_key: spring.global-exception
+  reason: 전역 처리기는 Java 예외 계층 위에서 매핑을 정의한다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-mvc-globalex
+  from_capability_key: spring.mvc-rest-controller
+  to_capability_key: spring.global-exception
+  reason: 전역 예외 처리는 MVC 요청 처리 흐름의 실패 경로다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-mvc-layered
+  from_capability_key: spring.mvc-rest-controller
+  to_capability_key: spring.layered-responsibility
+  reason: 계층 분리는 컨트롤러에 몰린 책임을 나누는 데서 시작한다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-acid-txboundary
+  from_capability_key: rdb.transactions-acid
+  to_capability_key: spring.transaction-boundary
+  reason: '@Transactional 은 DB 트랜잭션 개념의 선언적 표현이다.'
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-layered-txboundary
+  from_capability_key: spring.layered-responsibility
+  to_capability_key: spring.transaction-boundary
+  reason: 트랜잭션 경계는 보통 서비스 계층에 놓인다 — 계층이 먼저다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-keys-entity
+  from_capability_key: rdb.keys-constraints
+  to_capability_key: jpa.entity-mapping
+  reason: 매핑 대상인 테이블·키 구조를 먼저 이해해야 한다.
+  source_ids:
+  - source-hibernate-orm-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-classes-entity
+  from_capability_key: java.classes-objects
+  to_capability_key: jpa.entity-mapping
+  reason: 엔터티는 클래스 모델링에 영속 규칙을 얹은 것이다.
+  source_ids:
+  - source-hibernate-orm-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-entity-relationship
+  from_capability_key: jpa.entity-mapping
+  to_capability_key: jpa.relationship-mapping
+  reason: 연관관계는 단일 엔터티 매핑 위에서 정의된다.
+  source_ids:
+  - source-hibernate-orm-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-entity-repository
+  from_capability_key: jpa.entity-mapping
+  to_capability_key: jpa.spring-data-repository
+  reason: Repository 는 매핑된 엔터티를 저장·조회하는 창구다.
+  source_ids:
+  - source-spring-data-jpa-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-di-repository
+  from_capability_key: spring.di-concept-apply
+  to_capability_key: jpa.spring-data-repository
+  reason: Repository 는 DI 컨테이너가 구현체를 만들어 주입하는 빈이다.
+  source_ids:
+  - source-spring-data-jpa-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-relationship-nplus1
+  from_capability_key: jpa.relationship-mapping
+  to_capability_key: jpa.lazy-loading-nplus1
+  reason: N+1 은 연관관계 로딩 방식에서 발생한다.
+  source_ids:
+  - source-hibernate-orm-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-normalization-wallet
+  from_capability_key: rdb.normalization
+  to_capability_key: gamepay.wallet-ledger-model
+  reason: 원장 중심 모델은 잔액 중복 저장을 피하는 정규화 판단이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-wallet-state
+  from_capability_key: gamepay.wallet-ledger-model
+  to_capability_key: gamepay.purchase-state-transitions
+  reason: 구매 상태는 지갑·원장 모델 위에서 전이한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-acid-atomicdebit
+  from_capability_key: rdb.transactions-acid
+  to_capability_key: gamepay.atomic-debit-credit
+  reason: 차감·지급의 원자성은 트랜잭션 개념의 도메인 적용이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-txboundary-atomicdebit
+  from_capability_key: spring.transaction-boundary
+  to_capability_key: gamepay.atomic-debit-credit
+  reason: 원자성 보장은 서비스의 트랜잭션 경계 선언으로 구현된다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-state-idempotent
+  from_capability_key: gamepay.purchase-state-transitions
+  to_capability_key: gamepay.idempotent-purchase
+  reason: 중복 요청 판정은 구매 상태 전이 규칙 위에서 정의된다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-keys-idempotent
+  from_capability_key: rdb.keys-constraints
+  to_capability_key: gamepay.idempotent-purchase
+  reason: 멱등 키는 유니크 제약으로 강제할 때 구조적으로 안전하다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-isolation-concurrent
+  from_capability_key: rdb.isolation-locking
+  to_capability_key: gamepay.concurrent-balance
+  reason: 잔액 경쟁 제어는 격리 수준·잠금 선택의 문제다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-atomic-concurrent
+  from_capability_key: gamepay.atomic-debit-credit
+  to_capability_key: gamepay.concurrent-balance
+  reason: 동시성 제어는 원자적 구매 처리 위에 얹는 다음 층이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-state-cancel
+  from_capability_key: gamepay.purchase-state-transitions
+  to_capability_key: gamepay.cancel-consistency
+  reason: 취소 가능 여부는 상태 전이 규칙으로 판정한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-atomic-cancel
+  from_capability_key: gamepay.atomic-debit-credit
+  to_capability_key: gamepay.cancel-consistency
+  reason: 환불도 차감·지급과 같은 원자성 규칙을 따른다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-methods-unittest
+  from_capability_key: java.methods-responsibility
+  to_capability_key: test.unit
+  reason: 테스트 가능한 단위는 책임이 분리된 메서드다.
+  source_ids:
+  - source-junit-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-unit-slice
+  from_capability_key: test.unit
+  to_capability_key: test.spring-slice
+  reason: 슬라이스 테스트는 단위 테스트 작성 위에 프레임워크 지원을 얹는다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-mvc-slice
+  from_capability_key: spring.mvc-rest-controller
+  to_capability_key: test.spring-slice
+  reason: 웹 슬라이스는 검증 대상인 컨트롤러가 먼저 있어야 한다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-slice-integration
+  from_capability_key: test.spring-slice
+  to_capability_key: test.db-integration
+  reason: 통합 테스트는 슬라이스로 좁혀 본 뒤 실제 조립을 검증하는 단계다.
+  source_ids:
+  - source-spring-boot-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-repo-integration
+  from_capability_key: jpa.spring-data-repository
+  to_capability_key: test.db-integration
+  reason: 실 DB 통합 검증의 대상은 저장 계층 동작이다.
+  source_ids:
+  - source-spring-data-jpa-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-integration-concurrency
+  from_capability_key: test.db-integration
+  to_capability_key: test.concurrency-scenario
+  reason: 동시성 검증은 실 DB 위에서만 의미 있는 결과가 나온다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-isolation-concurrencytest
+  from_capability_key: rdb.isolation-locking
+  to_capability_key: test.concurrency-scenario
+  reason: 무엇이 경쟁 이상 현상인지 알아야 시나리오를 설계한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-integration-load
+  from_capability_key: test.db-integration
+  to_capability_key: test.load-and-metrics
+  reason: 부하 측정은 실제 스택이 도는 환경을 전제한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-redistypes-cacheaside
+  from_capability_key: redis.data-types-expiry
+  to_capability_key: redis.cache-aside
+  reason: 캐시 구현은 타입·만료 동작 이해 위에서 안전하다.
+  source_ids:
+  - source-redis-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-layered-cacheaside
+  from_capability_key: spring.layered-responsibility
+  to_capability_key: redis.cache-aside
+  relation_type: RECOMMENDED_FOUNDATION
+  reason: 캐시는 조회 계층이 분리돼 있을 때 깨끗하게 끼워진다.
+  source_ids:
+  - source-redis-docs
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-cacheaside-invalidation
+  from_capability_key: redis.cache-aside
+  to_capability_key: redis.invalidation-fallback
+  reason: 무효화·폴백은 동작하는 캐시 경로가 먼저 있어야 한다.
+  source_ids:
+  - source-redis-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-sync-topic
+  from_capability_key: kafka.sync-vs-event
+  to_capability_key: kafka.topic-partition
+  reason: 무엇을 이벤트로 뺄지 판단한 뒤에 전달 구조를 배운다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-topic-producing
+  from_capability_key: kafka.topic-partition
+  to_capability_key: kafka.producing
+  reason: 발행은 토픽·파티션·키 구조를 전제한다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-topic-consuming
+  from_capability_key: kafka.topic-partition
+  to_capability_key: kafka.consuming
+  reason: 소비는 토픽·파티션 구조를 전제한다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-consuming-group
+  from_capability_key: kafka.consuming
+  to_capability_key: kafka.consumer-group-offset
+  reason: 그룹·오프셋은 소비 동작의 진행 상태 모델이다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-producing-schema
+  from_capability_key: kafka.producing
+  to_capability_key: kafka.event-schema-serialization
+  reason: 스키마 설계는 발행할 이벤트가 있어야 구체화된다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-group-delivery
+  from_capability_key: kafka.consumer-group-offset
+  to_capability_key: kafka.delivery-guarantees-idempotency
+  reason: 중복 소비 조건(커밋·리밸런스)을 알아야 멱등 처리가 설계된다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-delivery-retry
+  from_capability_key: kafka.delivery-guarantees-idempotency
+  to_capability_key: kafka.consumer-retry-isolation
+  reason: 재시도·격리는 전달 보장 모델 위의 실패 처리 전략이다.
+  source_ids:
+  - source-kafka-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-imgcont-bootimage
+  from_capability_key: docker.image-vs-container
+  to_capability_key: docker.springboot-image
+  reason: 이미지 작성은 이미지/컨테이너 구분 이해를 전제한다.
+  source_ids:
+  - source-docker-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-bootconf-bootimage
+  from_capability_key: spring.boot-configuration
+  to_capability_key: docker.springboot-image
+  reason: 이미지에 담을 실행 산출물과 설정 주입 방식을 알아야 한다.
+  source_ids:
+  - source-docker-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-bootimage-compose
+  from_capability_key: docker.springboot-image
+  to_capability_key: docker.compose-local-stack
+  reason: Compose 스택은 만들 수 있는 이미지가 먼저 있어야 한다.
+  source_ids:
+  - source-docker-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-unittest-ci
+  from_capability_key: test.unit
+  to_capability_key: ci.build-test-automation
+  reason: CI 가 자동으로 돌릴 테스트가 먼저 있어야 한다.
+  source_ids:
+  - source-github-actions-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-branch-ci
+  from_capability_key: git.branch-and-merge
+  to_capability_key: ci.build-test-automation
+  reason: CI 는 브랜치·push 이벤트 위에서 동작한다.
+  source_ids:
+  - source-github-actions-docs
+  relation_type: HARD_PREREQUISITE
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- relation_id: rel-history-docs
+  from_capability_key: git.commit-history
+  to_capability_key: docs.design-verification-evidence
+  relation_type: RECOMMENDED_FOUNDATION
+  reason: 의미 있는 커밋 이력이 곧 결정·검증 기록의 골격이 된다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+project_tasks:
+- task_key: task.gamepay.domain-model
+  title: 지갑·상품·구매 도메인 모델 설계
+  objective: 필수 과제 — 지갑·상품·구매를 원장 중심으로 모델링하고 스키마로 옮긴다.
+  scope_definition: 도메인 모델 다이어그램, 테이블 스키마, 상태 전이 표까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - DOCUMENT
+  depends_on_task_keys: []
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.catalog-rest-api
+  title: 상품 조회 REST API
+  objective: 필수 과제 — 상품 목록·상세를 조회하는 REST API 를 구현한다.
+  scope_definition: 리소스 설계, 컨트롤러·서비스·리포지토리 구현, 검증 응답까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.domain-model
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.wallet-topup-ledger
+  title: 가상재화 충전과 원장 기록
+  objective: 필수 과제 — 충전 요청을 원장 기록으로 반영하고 잔액을 파생한다.
+  scope_definition: 충전 API, 원장 적재, 잔액 조회 일치 검증까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.catalog-rest-api
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.purchase-atomicity
+  title: 아이템 구매 원자성
+  objective: 필수 과제 — 차감과 지급을 한 트랜잭션으로 묶고 부분 실패를 롤백한다.
+  scope_definition: 구매 API, 트랜잭션 경계, 실패 주입 롤백 테스트까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.wallet-topup-ledger
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.duplicate-prevention
+  title: 중복 구매 요청 방지
+  objective: 필수 과제 — 재전송된 구매 요청이 두 번 반영되지 않게 멱등 처리한다.
+  scope_definition: 멱등 키 API 계약, 유니크 제약, 중복 요청 테스트까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.purchase-atomicity
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.concurrent-purchase
+  title: 동시 구매 잔액 경쟁 처리
+  objective: 필수 과제 — 동시 구매 경쟁에서도 음수 잔액이 없음을 테스트로 증명한다.
+  scope_definition: 잠금 적용, 동시 시나리오 테스트, 정합성 단언까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.duplicate-prevention
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.cancel-refund
+  title: 구매 취소와 환불
+  objective: 필수 과제 — 취소를 보상 기록으로 처리하고 이중 취소를 막는다.
+  scope_definition: 취소 API, 보상 원장 기록, 이중 취소 방지 테스트까지.
+  necessity: REQUIRED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.concurrent-purchase
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.mock-external-payment
+  title: 모의 외부 결제 API 연동
+  objective: 추천 과제 — 모의 결제 서버를 호출해 승인·실패·타임아웃을 처리한다.
+  scope_definition: 외부 호출 클라이언트, 실패·타임아웃 분기, 연동 테스트까지.
+  necessity: RECOMMENDED
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.purchase-atomicity
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.purchase-event-consumer
+  title: 구매 완료 이벤트와 통계 Consumer
+  objective: 확장 과제 — 구매 완료를 이벤트로 발행하고 통계 컨슈머로 집계한다.
+  scope_definition: 이벤트 스키마, 발행·소비 구현, 중복 소비 멱등 처리까지.
+  necessity: EXTENSION
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.purchase-atomicity
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.popular-items-cache
+  title: 인기 상품 Redis 캐시
+  objective: 확장 과제 — 인기 상품 조회에 캐시를 적용하고 무효화를 다룬다.
+  scope_definition: cache-aside 적용, 무효화 시점, 캐시 장애 폴백까지.
+  necessity: EXTENSION
+  task_type: FEATURE
+  verification_methods:
+  - IMPLEMENT
+  - TEST
+  depends_on_task_keys:
+  - task.gamepay.catalog-rest-api
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.read-performance-tuning
+  title: 조회 성능 측정과 개선
+  objective: 확장 과제 — 조회 병목을 실행계획으로 찾고 개선 전후를 수치로 비교한다.
+  scope_definition: 부하 시나리오, 실행계획 분석, 인덱스 개선과 전후 비교표까지.
+  necessity: EXTENSION
+  task_type: FEATURE
+  verification_methods:
+  - MEASURE
+  - DOCUMENT
+  depends_on_task_keys:
+  - task.gamepay.popular-items-cache
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- task_key: task.gamepay.delivery-package
+  title: 실행·테스트·문서 전달
+  objective: 필수 과제 — 한 번의 명령으로 실행되고 증거가 담긴 형태로 프로젝트를 전달한다.
+  scope_definition: Compose 실행, CI 통과, 설계·검증 문서 동봉까지.
+  necessity: REQUIRED
+  task_type: DELIVERY
+  verification_methods:
+  - IMPLEMENT
+  - DOCUMENT
+  depends_on_task_keys:
+  - task.gamepay.cancel-refund
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+task_requirements:
+- requirement_id: rel-task-domainmodel-wallet
+  task_key: task.gamepay.domain-model
+  capability_key: gamepay.wallet-ledger-model
+  necessity: REQUIRED
+  reason: 과제의 산출물이 지갑·원장 모델 그 자체다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-domainmodel-state
+  task_key: task.gamepay.domain-model
+  capability_key: gamepay.purchase-state-transitions
+  necessity: REQUIRED
+  reason: 도메인 모델에는 구매 상태 전이 표가 포함된다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-catalog-mvc
+  task_key: task.gamepay.catalog-rest-api
+  capability_key: spring.mvc-rest-controller
+  necessity: REQUIRED
+  reason: 조회 API 구현의 골격이 REST 컨트롤러다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-catalog-repo
+  task_key: task.gamepay.catalog-rest-api
+  capability_key: jpa.spring-data-repository
+  necessity: REQUIRED
+  reason: 상품 조회는 Repository 를 통해 구현한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-catalog-validation
+  task_key: task.gamepay.catalog-rest-api
+  capability_key: spring.request-validation
+  necessity: RECOMMENDED
+  reason: 조회 파라미터 검증까지 갖추면 계약이 완결된다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-topup-atomic
+  task_key: task.gamepay.wallet-topup-ledger
+  capability_key: gamepay.atomic-debit-credit
+  necessity: REQUIRED
+  reason: 충전 반영도 원장 기록과 잔액 파생의 원자성 규칙을 따른다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-topup-globalex
+  task_key: task.gamepay.wallet-topup-ledger
+  capability_key: spring.global-exception
+  necessity: RECOMMENDED
+  reason: 충전 실패를 일관된 오류 응답으로 돌려주면 클라이언트 처리와 디버깅이 쉬워진다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-atomicity-txboundary
+  task_key: task.gamepay.purchase-atomicity
+  capability_key: spring.transaction-boundary
+  necessity: REQUIRED
+  reason: 차감·지급을 묶는 수단이 트랜잭션 경계 선언이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-duplicate-idempotent
+  task_key: task.gamepay.duplicate-prevention
+  capability_key: gamepay.idempotent-purchase
+  necessity: REQUIRED
+  reason: 과제의 산출물이 멱등 구매 처리 그 자체다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-concurrent-balance
+  task_key: task.gamepay.concurrent-purchase
+  capability_key: gamepay.concurrent-balance
+  necessity: REQUIRED
+  reason: 과제의 산출물이 잔액 경쟁 제어 그 자체다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-concurrent-test
+  task_key: task.gamepay.concurrent-purchase
+  capability_key: test.concurrency-scenario
+  necessity: REQUIRED
+  reason: 경쟁 처리의 완료 조건이 동시 시나리오 테스트 통과다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-cancel-consistency
+  task_key: task.gamepay.cancel-refund
+  capability_key: gamepay.cancel-consistency
+  necessity: REQUIRED
+  reason: 과제의 산출물이 취소 정합성 처리 그 자체다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-mockpay-httpclient
+  task_key: task.gamepay.mock-external-payment
+  capability_key: http.client-implementation
+  necessity: REQUIRED
+  reason: 모의 결제 서버 호출은 HTTP 클라이언트 구현이 핵심이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-event-producing
+  task_key: task.gamepay.purchase-event-consumer
+  capability_key: kafka.producing
+  necessity: REQUIRED
+  reason: 구매 완료 이벤트 발행이 과제의 절반이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-event-consuming
+  task_key: task.gamepay.purchase-event-consumer
+  capability_key: kafka.consuming
+  necessity: REQUIRED
+  reason: 통계 Consumer 구현이 과제의 나머지 절반이다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-event-schema
+  task_key: task.gamepay.purchase-event-consumer
+  capability_key: kafka.event-schema-serialization
+  necessity: REQUIRED
+  reason: 발행·소비가 공유할 이벤트 스키마가 먼저 정의돼야 한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-event-delivery
+  task_key: task.gamepay.purchase-event-consumer
+  capability_key: kafka.delivery-guarantees-idempotency
+  necessity: RECOMMENDED
+  reason: 통계 중복 집계를 막으려면 멱등 소비까지 다루는 것이 좋다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-cache-cacheaside
+  task_key: task.gamepay.popular-items-cache
+  capability_key: redis.cache-aside
+  necessity: REQUIRED
+  reason: 인기 상품 캐시의 구현 패턴이 cache-aside 다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-cache-invalidation
+  task_key: task.gamepay.popular-items-cache
+  capability_key: redis.invalidation-fallback
+  necessity: REQUIRED
+  reason: 상품 변경 시 무효화와 캐시 장애 폴백까지가 과제 범위다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-perf-queryplan
+  task_key: task.gamepay.read-performance-tuning
+  capability_key: rdb.query-plan-analysis
+  necessity: REQUIRED
+  reason: 병목 원인 특정은 실행계획 분석으로 한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-perf-load
+  task_key: task.gamepay.read-performance-tuning
+  capability_key: test.load-and-metrics
+  necessity: REQUIRED
+  reason: 개선 전후 비교는 부하 측정 수치로 증명한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-perf-index
+  task_key: task.gamepay.read-performance-tuning
+  capability_key: rdb.index-design
+  necessity: REQUIRED
+  reason: 대표적 개선 수단이 인덱스 설계다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-delivery-compose
+  task_key: task.gamepay.delivery-package
+  capability_key: docker.compose-local-stack
+  necessity: REQUIRED
+  reason: 한 번의 명령 실행은 Compose 스택으로 달성한다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-delivery-ci
+  task_key: task.gamepay.delivery-package
+  capability_key: ci.build-test-automation
+  necessity: REQUIRED
+  reason: CI 초록이 곧 재현 가능한 검증 증거다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-delivery-docs
+  task_key: task.gamepay.delivery-package
+  capability_key: docs.design-verification-evidence
+  necessity: REQUIRED
+  reason: 설계 결정과 검증 증거 문서가 전달물의 일부다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1
+- requirement_id: rel-task-delivery-integration
+  task_key: task.gamepay.delivery-package
+  capability_key: test.db-integration
+  necessity: RECOMMENDED
+  reason: 실 DB 통합 테스트가 있으면 전달물의 신뢰가 한 층 올라간다.
+  source_ids:
+  - source-jobis-knowledge-map
+  confidence: *id001
+  review_status: APPROVED
+  version: 1

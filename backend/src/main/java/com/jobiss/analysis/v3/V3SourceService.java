@@ -78,6 +78,29 @@ public class V3SourceService {
         String canonicalInputHash = requiredText(document, "canonicalInputHash");
         String contentHash = requiredText(document, "contentHash");
 
+        String conflictClause = command.postingId() == null
+                ? """
+                        on conflict (user_id, source_document_id)
+                        do update set
+                            document = excluded.document,
+                            status = excluded.status,
+                            content_hash = excluded.content_hash,
+                            updated_at = now()
+                        where ai_v3_source_documents.user_id = excluded.user_id
+                        """
+                : """
+                        on conflict (user_id, posting_id, extraction_revision)
+                        do update set
+                            source_document_id = excluded.source_document_id,
+                            entry_point = excluded.entry_point,
+                            input_type = excluded.input_type,
+                            status = excluded.status,
+                            canonical_input_hash = excluded.canonical_input_hash,
+                            content_hash = excluded.content_hash,
+                            document = excluded.document,
+                            updated_at = now()
+                        """;
+
         UUID localId = rls.write(userId, jdbc -> jdbc.sql("""
                         insert into ai_v3_source_documents (
                             user_id,
@@ -103,13 +126,7 @@ public class V3SourceService {
                             :contentHash,
                             cast(:document as jsonb)
                         )
-                        on conflict (user_id, source_document_id)
-                        do update set
-                            document = excluded.document,
-                            status = excluded.status,
-                            content_hash = excluded.content_hash,
-                            updated_at = now()
-                        where ai_v3_source_documents.user_id = excluded.user_id
+                        """ + conflictClause + """
                         returning id
                         """)
                 .param("userId", userId)
@@ -230,8 +247,12 @@ public class V3SourceService {
                                 :verifiedBy,
                                 cast(:snapshot as jsonb)
                             )
-                            on conflict (user_id, verified_snapshot_id)
-                            do update set snapshot = excluded.snapshot
+                            on conflict (source_id, source_revision, snapshot_hash)
+                            do update set
+                                verified_snapshot_id = excluded.verified_snapshot_id,
+                                previous_snapshot_id = excluded.previous_snapshot_id,
+                                verified_by = excluded.verified_by,
+                                snapshot = excluded.snapshot
                             returning id
                             """)
                     .param("userId", userId)
@@ -295,7 +316,13 @@ public class V3SourceService {
                                 source.id,
                                 source.posting_id,
                                 source.input_type,
-                                source.document ->> 'canonicalUrl' as canonical_url,
+                                case
+                                    when source.input_type = 'URL' then coalesce(
+                                        nullif(source.document ->> 'originalInput', ''),
+                                        source.document ->> 'canonicalUrl'
+                                    )
+                                    else source.document ->> 'canonicalUrl'
+                                end as canonical_url,
                                 snapshot.id as snapshot_id,
                                 snapshot.snapshot ->> 'verifiedText' as verified_text
                             from ai_v3_source_documents source

@@ -401,6 +401,8 @@ class PostgresRlsIntegrationTest {
             return null;
         });
 
+        assertThat(service.latest(userId, "java.exceptions")).isNull();
+
         var passing = service.start(userId, "java.exceptions", null);
         assertThat(passing.status()).isEqualTo("IN_PROGRESS");
         passing = service.answer(userId, passing.id(), "정상 답변 1");

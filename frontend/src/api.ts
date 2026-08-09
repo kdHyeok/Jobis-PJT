@@ -195,6 +195,8 @@ export const api = {
     email: string,
     password: string,
     displayName: string,
+    termsAccepted: boolean,
+    privacyAccepted: boolean,
   ): Promise<User> {
     const payload = await request<{ user: User }>("/api/auth/register", {
       method: "POST",
@@ -202,8 +204,8 @@ export const api = {
         email,
         password,
         displayName,
-        termsAccepted: true,
-        privacyAccepted: true,
+        termsAccepted,
+        privacyAccepted,
         policyVersion: "2026-08-04",
       }),
     });
@@ -477,6 +479,69 @@ export const api = {
     }>(`/api/v3/sources/${sourceId}/analyses`, {
       method: "POST",
       body: JSON.stringify({ conversationId }),
+    });
+  },
+
+  async reanalyzeV3Posting(
+    postingId: string,
+    sourceUrl: string | null,
+    verifiedText: string,
+  ) {
+    const normalizedUrl = sourceUrl?.trim() || null;
+    const normalizedText = verifiedText.trim();
+    const inputType = normalizedUrl ? "URL" : "TEXT";
+    const priorSources = await request<Array<{
+      id: string;
+      postingId: string | null;
+      extractionRevision: number;
+      verified: boolean;
+    }>>("/api/v3/sources");
+    const latestPriorSource = priorSources
+      .filter((item) => item.postingId === postingId)
+      .sort((left, right) => right.extractionRevision - left.extractionRevision)[0];
+    const previousSource = latestPriorSource?.verified
+      ? await request<V3SourceView>(`/api/v3/sources/${latestPriorSource.id}`)
+      : null;
+    const source = await request<V3SourceView>("/api/v3/sources", {
+      method: "POST",
+      body: JSON.stringify({
+        inputType,
+        entryPoint: "POSTINGS_PAGE",
+        extractionRevision: (latestPriorSource?.extractionRevision ?? 0) + 1,
+        postingId,
+        text: inputType === "TEXT" ? normalizedText : null,
+        url: inputType === "URL" ? normalizedUrl : null,
+      }),
+    });
+    const extractedText = source.sourceDocument.rawText.trim();
+    await request<V3SourceView>(`/api/v3/sources/${source.id}/verify`, {
+      method: "POST",
+      body: JSON.stringify({
+        verifiedText: normalizedText,
+        corrections: normalizedText === extractedText
+          ? []
+          : [{
+              field: "verifiedText",
+              before: source.sourceDocument.rawText,
+              after: normalizedText,
+              reason: "OTHER",
+            }],
+        verifiedBy: "USER",
+        previousSnapshotId:
+          previousSource?.verifiedSnapshot?.verifiedSnapshotId ?? null,
+      }),
+    });
+    return request<{
+      postingId: string;
+      analysisJobId: string;
+      sourceId: string;
+      verifiedSnapshotId: string;
+      status: string;
+      reusedAnalysis: boolean;
+      reuseMessage: string | null;
+    }>(`/api/v3/sources/${source.id}/analyses`, {
+      method: "POST",
+      body: JSON.stringify({ conversationId: null }),
     });
   },
 

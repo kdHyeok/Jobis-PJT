@@ -16,7 +16,10 @@ from jobis_ai.career_pipeline.contracts.capability_graph import (
     VerificationMethod,
 )
 from jobis_ai.career_pipeline.contracts.normalization import CapabilityKind
-from jobis_ai.career_pipeline.contracts.posting import StructuredPosting
+from jobis_ai.career_pipeline.contracts.posting import (
+    RequirementCategory,
+    StructuredPosting,
+)
 from jobis_ai.career_pipeline.contracts.project_planning import ProjectPlanningRequest
 from jobis_ai.career_pipeline.llm import StructuredGenerator
 from jobis_ai.career_pipeline.project_planning import ProjectPlanningFailure, ProjectPlanningService
@@ -31,6 +34,19 @@ class StaticProvider:
 
     def complete_json(self, **_kwargs) -> str:
         return json.dumps(self.payload, ensure_ascii=False)
+
+
+class SequenceProvider:
+    name = "scripted"
+    model = "project-planner-fixture"
+
+    def __init__(self, payloads: list[dict]) -> None:
+        self.payloads = list(payloads)
+        self.prompts: list[str] = []
+
+    def complete_json(self, **kwargs) -> str:
+        self.prompts.append(kwargs["user_prompt"])
+        return json.dumps(self.payloads.pop(0), ensure_ascii=False)
 
 
 def node(key: str, title: str) -> CapabilityGraphNode:
@@ -75,6 +91,14 @@ def service(payload: dict) -> ProjectPlanningService:
     )
 
 
+def sequence_service(payloads: list[dict]) -> tuple[ProjectPlanningService, SequenceProvider]:
+    provider = SequenceProvider(payloads)
+    return (
+        ProjectPlanningService(StructuredGenerator(provider, max_attempts=1)),
+        provider,
+    )
+
+
 def payload(*, keys=None, unresolved=None, include_task=True) -> dict:
     capability_keys = (
         ["java.control-flow", "java.classes-objects"]
@@ -111,6 +135,36 @@ def test_broad_posting_requirement_becomes_multiple_atomic_targets(structured_po
         "java.classes-objects",
     ]
     assert result.tasks[0].task_key.startswith("task.draft.")
+
+
+def test_contract_invalid_draft_is_reprompted_once_with_valid_requirement_ids(
+    structured_posting,
+) -> None:
+    invalid = payload()
+    invalid["tasks"][0]["requirementIds"] = []
+    planner, provider = sequence_service([invalid, payload()])
+
+    result = planner.plan(request(structured_posting))
+
+    assert len(provider.prompts) == 2
+    assert "CONTRACT_REPAIR_REQUEST" in provider.prompts[1]
+    assert '"req-java"' in provider.prompts[1]
+    assert result.tasks[0].requirement_ids == ["req-java"]
+    assert result.audit.generation_attempts == 2
+
+
+def test_contract_invalid_draft_fails_after_one_bounded_repair_attempt(
+    structured_posting,
+) -> None:
+    invalid = payload()
+    invalid["tasks"][0]["requirementIds"] = []
+    planner, provider = sequence_service([invalid, invalid])
+
+    with pytest.raises(ProjectPlanningFailure, match="violated the contract") as caught:
+        planner.plan(request(structured_posting))
+
+    assert caught.value.retryable is True
+    assert len(provider.prompts) == 2
 
 
 def test_responsibility_can_shape_task_without_becoming_a_learning_requirement(
@@ -196,9 +250,82 @@ def test_unknown_atomic_key_is_rejected_instead_of_guessed(structured_posting) -
         service(payload(keys=["java.fabricated"])).plan(request(structured_posting))
 
 
-def test_omitted_learning_requirement_must_be_explicitly_unresolved(structured_posting) -> None:
-    with pytest.raises(ProjectPlanningFailure, match="omitted learnable requirements"):
-        service(payload(include_task=False)).plan(request(structured_posting))
+def test_omitted_learning_requirement_is_semantically_repaired_once(
+    structured_posting,
+) -> None:
+    planner, provider = sequence_service([
+        payload(include_task=False),
+        payload(include_task=False, unresolved=["req-java"]),
+    ])
+
+    result = planner.plan(request(structured_posting))
+
+    assert len(provider.prompts) == 2
+    assert "SEMANTIC_REPAIR_REQUEST" in provider.prompts[1]
+    assert "omitted learnable requirements" in provider.prompts[1]
+    assert result.unresolved_requirement_ids == ["req-java"]
+    assert result.audit.generation_attempts == 2
+
+
+def test_semantic_repair_defaults_a_second_omission_to_unresolved(
+    structured_posting,
+) -> None:
+    planner, provider = sequence_service([
+        payload(include_task=False),
+        payload(include_task=False),
+    ])
+
+    result = planner.plan(request(structured_posting))
+
+    assert len(provider.prompts) == 2
+    assert "SEMANTIC_REPAIR_REQUEST" in provider.prompts[1]
+    assert result.unresolved_requirement_ids == ["req-java"]
+
+
+def test_language_and_certification_are_project_context_not_project_learning(
+    structured_posting,
+) -> None:
+    posting_payload = copy.deepcopy(structured_posting.model_dump(mode="json"))
+    posting_payload["positions"][0]["requirements"].extend([
+        {
+            "requirement_id": "req-english",
+            "source_text": "해외 인력과 영어 회화 가능",
+            "atomic_text": "해외 인력과 커뮤니케이션 가능한 수준의 영어 회화 역량 보유",
+            "obligation": "PREFERRED",
+            "category": RequirementCategory.TECHNICAL_CAPABILITY.value,
+            "applies_to_position_ids": ["pos-backend"],
+            "evidence_ids": ["seg-req"],
+            "confidence": 0.9,
+            "normalization_status": "PENDING",
+            "warnings": [],
+        },
+        {
+            "requirement_id": "req-license",
+            "source_text": "정보처리기사 우대",
+            "atomic_text": "정보처리기사 보유",
+            "obligation": "PREFERRED",
+            "category": RequirementCategory.CERTIFICATION.value,
+            "applies_to_position_ids": ["pos-backend"],
+            "evidence_ids": ["seg-req"],
+            "confidence": 0.9,
+            "normalization_status": "PENDING",
+            "warnings": [],
+        },
+    ])
+    posting = StructuredPosting.model_validate(posting_payload)
+    planner, provider = sequence_service([payload()])
+
+    result = planner.plan(request(posting))
+
+    prompt_payload = json.loads(provider.prompts[0])
+    assert {item["requirementId"] for item in prompt_payload["learnableRequirements"]} == {
+        "req-java"
+    }
+    assert {item["contextId"] for item in prompt_payload["projectContext"]} >= {
+        "req-english",
+        "req-license",
+    }
+    assert result.tasks[0].requirement_ids == ["req-java"]
 
 
 def test_catalog_gap_can_continue_as_reviewable_unresolved_requirement(structured_posting) -> None:

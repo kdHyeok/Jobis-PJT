@@ -12,7 +12,6 @@ UI 가 실제로 읽는 키는 다음 7개다(static/*.html 전수 확인):
 
 from __future__ import annotations
 
-import re
 from typing import Any, Optional
 
 # AlternativeJob.type → 대체 공고 카드 배지 문구
@@ -46,7 +45,6 @@ def to_web_result(state: dict[str, Any]) -> dict[str, Any]:
     analysis = state.get("analysisResult") or {}
     gap = state.get("gapAnalysisResult") or {}
     roadmap_result = state.get("roadmapResult") or {}
-    posting = state.get("normalizedJobPosting") or {}
 
     req_status: list[dict] = list(gap.get("requirementStatus") or [])
     items: list[dict] = list(analysis.get("roadmap") or roadmap_result.get("roadmap") or [])

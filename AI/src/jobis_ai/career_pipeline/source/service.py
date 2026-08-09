@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from datetime import datetime, timezone
+from urllib.parse import quote, urlsplit, urlunsplit
 from uuid import uuid4
 
 import httpx
@@ -30,10 +32,15 @@ from .image import ClovaImageRecognizer, ImageRecognizer, decode_image_base64, s
 from .security import UnsafeSourceUrl, UrlSafetyPolicy, canonicalize_url
 
 
-EXTRACTOR_VERSION = "source-extractor-3.0.0"
+EXTRACTOR_VERSION = "source-extractor-3.2.0"
 MIN_MEANINGFUL_CHARS = 120
+MINIMUM_USEFUL_POSTING_LENGTH = 200
 MAX_IFRAMES = 8
 MAX_IMAGES = 10
+FIRECRAWL_SCRAPE_URL = "https://api.firecrawl.dev/v2/scrape"
+TAVILY_EXTRACT_URL = "https://api.tavily.com/extract"
+
+logger = logging.getLogger(__name__)
 
 
 class SourceAcquisitionFailure(RuntimeError):
@@ -72,9 +79,14 @@ class SourceAcquisitionService:
             elif request.input_type is SourceInputType.URL:
                 assert request.url is not None
                 original_input = request.url
-                canonical_url = canonicalize_url(request.url)
-                canonical_value = canonical_url
-                segments, warnings, canonical_url = self._from_url(canonical_url)
+                canonical_base_url = canonicalize_url(request.url)
+                external_fragment = urlsplit(request.url.strip()).fragment
+                canonical_value = _with_fragment(canonical_base_url, external_fragment)
+                segments, warnings, final_base_url = self._from_url(
+                    canonical_base_url,
+                    external_fragment=external_fragment,
+                )
+                canonical_url = _with_fragment(final_base_url, external_fragment)
             else:
                 assert request.image_base64 is not None
                 assert request.original_filename is not None
@@ -111,11 +123,17 @@ class SourceAcquisitionService:
                 message="source extraction returned no text",
                 retryable=True,
             )
-        if request.input_type is SourceInputType.URL and not _looks_like_posting(raw_text):
+        if (
+            request.input_type is SourceInputType.URL
+            and not _is_sufficient_posting_text(raw_text)
+        ):
             raise SourceAcquisitionFailure(
                 code=ErrorCode.SOURCE_FETCH_FAILED,
-                message="the fetched page does not look like a job posting; paste the posting text or use its detail URL",
-                retryable=True,
+                message=(
+                    "공고의 담당 업무와 지원 조건을 충분히 가져오지 못했습니다. "
+                    "채용 공고 원문을 직접 붙여 넣거나 실제 공고 상세 URL을 사용해 주세요."
+                ),
+                retryable=False,
             )
 
         confidences = [item.confidence for item in segments if item.confidence is not None]
@@ -172,88 +190,306 @@ class SourceAcquisitionService:
     def _from_url(
         self,
         url: str,
+        *,
+        external_fragment: str = "",
     ) -> tuple[list[ExtractionSegment], list[WarningItem], str]:
-        resource = self._http.get(url, max_bytes=self._settings.source_max_text_bytes)
-        final_url = resource.final_url
-        media_type = resource.content_type.split(";", 1)[0].strip().lower()
-        if media_type.startswith("image/"):
-            segments, warnings = self._from_image(resource.data)
-            return segments, warnings, final_url
-        if media_type not in {"text/html", "application/xhtml+xml", "text/plain", "application/octet-stream"}:
-            raise ValueError(f"unsupported source content type: {media_type}")
-
-        html = resource.text()
-        parsed = ExtractedHtml(html, final_url)
         segments: list[ExtractionSegment] = []
         warnings: list[WarningItem] = []
-        main_text = _join_distinct(parsed.meta_description, parsed.text)
-        if main_text:
-            segments.append(self._segment(main_text, ExtractionMethod.HTML, len(segments)))
+        deferred_failures: list[tuple[str, Exception]] = []
+        final_url = url
 
-        iframe_urls = list(dict.fromkeys(parsed.iframe_urls + derived_iframe_urls(final_url)))
-        if len(iframe_urls) > MAX_IFRAMES:
-            warnings.append(WarningItem(
-                code="IFRAME_LIMIT_REACHED",
-                message=f"iframe {len(iframe_urls)}개 중 {MAX_IFRAMES}개만 수집했습니다.",
-            ))
-        for iframe_url in iframe_urls[:MAX_IFRAMES]:
-            try:
-                iframe = self._http.get(
-                    iframe_url,
-                    max_bytes=self._settings.source_max_text_bytes,
-                    headers={"Referer": final_url},
-                )
-            except (httpx.HTTPError, OSError, ValueError, UnsafeSourceUrl) as exc:
-                warnings.append(WarningItem(code="IFRAME_FETCH_FAILED", message=str(exc)))
-                continue
-            iframe_media = iframe.content_type.split(";", 1)[0].lower()
-            if iframe_media.startswith("image/"):
-                image_segments, image_warnings = self._from_image(iframe.data, segment_offset=len(segments))
-                segments.extend(image_segments)
-                warnings.extend(image_warnings)
-                continue
-            parsed_iframe = ExtractedHtml(iframe.text(), iframe.final_url)
-            iframe_text = _join_distinct(parsed_iframe.meta_description, parsed_iframe.text)
-            if len(iframe_text) >= MIN_MEANINGFUL_CHARS:
-                segments.append(self._segment(
-                    iframe_text,
-                    ExtractionMethod.IFRAME,
-                    len(segments),
-                ))
-                continue
-            for image_url in parsed_iframe.image_urls[:MAX_IMAGES]:
+        try:
+            resource = self._http.get(url, max_bytes=self._settings.source_max_text_bytes)
+        except UnsafeSourceUrl:
+            # Never turn an external reader into a proxy for a private URL.
+            raise
+        except (httpx.HTTPError, OSError, ValueError) as exc:
+            deferred_failures.append(("DIRECT_FETCH_FAILED", exc))
+        else:
+            final_url = resource.final_url
+            media_type = resource.content_type.split(";", 1)[0].strip().lower()
+            if media_type.startswith("image/"):
                 try:
-                    image = self._http.get(
-                        image_url,
-                        max_bytes=self._settings.source_max_image_bytes,
-                        headers={"Referer": iframe.final_url},
-                    )
-                    image_segments, image_warnings = self._from_image(
-                        image.data,
-                        segment_offset=len(segments),
-                    )
+                    image_segments, image_warnings = self._from_image(resource.data)
                     segments.extend(image_segments)
                     warnings.extend(image_warnings)
-                except (httpx.HTTPError, OSError, ValueError, UnsafeSourceUrl, SourceAcquisitionFailure) as exc:
-                    warnings.append(WarningItem(code="IMAGE_FETCH_OR_READ_FAILED", message=str(exc)))
+                except (httpx.HTTPError, OSError, ValueError, SourceAcquisitionFailure) as exc:
+                    deferred_failures.append(("DIRECT_IMAGE_READ_FAILED", exc))
+            elif media_type in {
+                "text/html",
+                "application/xhtml+xml",
+                "text/plain",
+                "application/octet-stream",
+            }:
+                html = resource.text()
+                parsed = ExtractedHtml(html, final_url)
+                main_text = _join_distinct(parsed.meta_description, parsed.text)
+                main_text, removed_tail = _drop_unrelated_tail(main_text)
+                if removed_tail:
+                    warnings.append(WarningItem(
+                        code="UNRELATED_TAIL_DROPPED",
+                        message=f"기업정보 이후 타사 공고/광고 꼬리 {removed_tail}자를 제거했습니다.",
+                        severity=WarningSeverity.INFO,
+                    ))
+                if main_text:
+                    segments.append(self._segment(main_text, ExtractionMethod.HTML, len(segments)))
 
-        if len(_merge_segments(segments)) < MIN_MEANINGFUL_CHARS and self._settings.jina_enabled:
-            reader_url = f"https://r.jina.ai/{final_url}"
-            headers = ({"Authorization": f"Bearer {self._settings.jina_api_key}"}
-                       if self._settings.jina_api_key else {})
+                iframe_urls = list(dict.fromkeys(
+                    parsed.iframe_urls + derived_iframe_urls(final_url)
+                ))
+                if len(iframe_urls) > MAX_IFRAMES:
+                    warnings.append(WarningItem(
+                        code="IFRAME_LIMIT_REACHED",
+                        message=f"iframe {len(iframe_urls)}개 중 {MAX_IFRAMES}개만 수집했습니다.",
+                    ))
+                for iframe_url in iframe_urls[:MAX_IFRAMES]:
+                    try:
+                        iframe = self._http.get(
+                            iframe_url,
+                            max_bytes=self._settings.source_max_text_bytes,
+                            headers={"Referer": final_url},
+                        )
+                    except (httpx.HTTPError, OSError, ValueError, UnsafeSourceUrl) as exc:
+                        deferred_failures.append(("IFRAME_FETCH_FAILED", exc))
+                        continue
+                    iframe_media = iframe.content_type.split(";", 1)[0].lower()
+                    if iframe_media.startswith("image/"):
+                        try:
+                            image_segments, image_warnings = self._from_image(
+                                iframe.data,
+                                segment_offset=len(segments),
+                            )
+                            segments.extend(image_segments)
+                            warnings.extend(image_warnings)
+                        except (httpx.HTTPError, OSError, ValueError, SourceAcquisitionFailure) as exc:
+                            deferred_failures.append(("IFRAME_IMAGE_READ_FAILED", exc))
+                        continue
+                    parsed_iframe = ExtractedHtml(iframe.text(), iframe.final_url)
+                    iframe_text = _join_distinct(
+                        parsed_iframe.meta_description,
+                        parsed_iframe.text,
+                    )
+                    if len(iframe_text) >= MIN_MEANINGFUL_CHARS:
+                        segments.append(self._segment(
+                            iframe_text,
+                            ExtractionMethod.IFRAME,
+                            len(segments),
+                        ))
+                        continue
+                    for image_url in parsed_iframe.image_urls[:MAX_IMAGES]:
+                        try:
+                            image = self._http.get(
+                                image_url,
+                                max_bytes=self._settings.source_max_image_bytes,
+                                headers={"Referer": iframe.final_url},
+                            )
+                            image_segments, image_warnings = self._from_image(
+                                image.data,
+                                segment_offset=len(segments),
+                            )
+                            segments.extend(image_segments)
+                            warnings.extend(image_warnings)
+                        except (
+                            httpx.HTTPError,
+                            OSError,
+                            ValueError,
+                            UnsafeSourceUrl,
+                            SourceAcquisitionFailure,
+                        ) as exc:
+                            deferred_failures.append(("IMAGE_FETCH_OR_READ_FAILED", exc))
+            else:
+                deferred_failures.append((
+                    "DIRECT_CONTENT_TYPE_UNSUPPORTED",
+                    ValueError(f"unsupported source content type: {media_type}"),
+                ))
+
+        # A URL fragment often selects one opening inside a client-rendered career
+        # book. The base document can pass the coarse posting-text gate while still
+        # describing the wrong (or no specific) position. For this URL shape, run
+        # every configured dynamic collector once before the user verifies the text.
+        collect_dynamic_route = bool(external_fragment.strip())
+        direct_text = _merge_segments(segments)
+        external_url = _with_fragment(final_url, external_fragment)
+        if collect_dynamic_route:
+            logger.info(
+                "source dynamic-route collection enabled url=%s",
+                external_url,
+            )
+        if (
+            collect_dynamic_route or not _is_sufficient_posting_text(direct_text)
+        ) and self._settings.jina_enabled:
+            reader_target = quote(external_url, safe=":/?=&")
+            reader_url = f"https://r.jina.ai/{reader_target}"
+            headers = {"Accept": "text/plain"}
+            if self._settings.jina_api_key:
+                headers["Authorization"] = f"Bearer {self._settings.jina_api_key}"
             try:
                 reader = self._http.get(
                     reader_url,
                     max_bytes=self._settings.source_max_text_bytes,
                     headers=headers,
                 )
-                reader_text = _normalize_text(reader.text())
+                reader_text, removed_tail = _drop_unrelated_tail(
+                    _normalize_text(reader.text())
+                )
                 if reader_text:
-                    segments.append(self._segment(reader_text, ExtractionMethod.HTML, len(segments)))
+                    segments.append(self._segment(
+                        reader_text,
+                        ExtractionMethod.DIRECT_TEXT,
+                        len(segments),
+                    ))
+                    logger.info(
+                        "source collector succeeded collector=jina chars=%d",
+                        len(reader_text),
+                    )
+                    if removed_tail:
+                        warnings.append(WarningItem(
+                            code="UNRELATED_TAIL_DROPPED",
+                            message=(
+                                "기업정보 이후 타사 공고/광고 꼬리 "
+                                f"{removed_tail}자를 제거했습니다."
+                            ),
+                            severity=WarningSeverity.INFO,
+                        ))
             except (httpx.HTTPError, OSError, ValueError, UnsafeSourceUrl) as exc:
-                warnings.append(WarningItem(code="JINA_FETCH_FAILED", message=str(exc)))
+                deferred_failures.append(("JINA_FETCH_FAILED", exc))
+
+        merged_text = _merge_segments(segments)
+        if (
+            (collect_dynamic_route or not _is_sufficient_posting_text(merged_text))
+            and self._settings.firecrawl_enabled
+            and self._settings.firecrawl_api_key
+        ):
+            try:
+                firecrawl_text, removed_tail = _drop_unrelated_tail(
+                    _normalize_text(self._extract_with_firecrawl(external_url))
+                )
+                if firecrawl_text:
+                    segments.append(self._segment(
+                        firecrawl_text,
+                        ExtractionMethod.DIRECT_TEXT,
+                        len(segments),
+                    ))
+                    logger.info(
+                        "source collector succeeded collector=firecrawl chars=%d",
+                        len(firecrawl_text),
+                    )
+                    if removed_tail:
+                        warnings.append(WarningItem(
+                            code="UNRELATED_TAIL_DROPPED",
+                            message=(
+                                "기업정보 이후 타사 공고/광고 꼬리 "
+                                f"{removed_tail}자를 제거했습니다."
+                            ),
+                            severity=WarningSeverity.INFO,
+                        ))
+            except (httpx.HTTPError, OSError, ValueError) as exc:
+                deferred_failures.append(("FIRECRAWL_FETCH_FAILED", exc))
+
+        merged_text = _merge_segments(segments)
+        if (
+            (collect_dynamic_route or not _is_sufficient_posting_text(merged_text))
+            and self._settings.tavily_enabled
+            and self._settings.tavily_api_key
+        ):
+            try:
+                tavily_text, removed_tail = _drop_unrelated_tail(
+                    _normalize_text(self._extract_with_tavily(external_url))
+                )
+                if tavily_text:
+                    segments.append(self._segment(
+                        tavily_text,
+                        ExtractionMethod.DIRECT_TEXT,
+                        len(segments),
+                    ))
+                    logger.info(
+                        "source collector succeeded collector=tavily chars=%d",
+                        len(tavily_text),
+                    )
+                    if removed_tail:
+                        warnings.append(WarningItem(
+                            code="UNRELATED_TAIL_DROPPED",
+                            message=(
+                                "기업정보 이후 타사 공고/광고 꼬리 "
+                                f"{removed_tail}자를 제거했습니다."
+                            ),
+                            severity=WarningSeverity.INFO,
+                        ))
+            except (httpx.HTTPError, OSError, ValueError) as exc:
+                deferred_failures.append(("TAVILY_FETCH_FAILED", exc))
+
+        merged_text = _merge_segments(segments)
+        if deferred_failures:
+            logger.info(
+                "source URL collection completed with failed auxiliary paths: %s",
+                ", ".join(code for code, _exc in deferred_failures),
+            )
+        if merged_text and not _is_sufficient_posting_text(merged_text):
+            for code, exc in deferred_failures:
+                warnings.append(WarningItem(code=code, message=str(exc)))
 
         return segments, warnings, final_url
+
+    def _extract_with_firecrawl(self, url: str) -> str:
+        with httpx.Client(timeout=self._settings.source_fetch_timeout_seconds) as client:
+            response = client.post(
+                FIRECRAWL_SCRAPE_URL,
+                headers={
+                    "Authorization": f"Bearer {self._settings.firecrawl_api_key}",
+                },
+                json={
+                    "url": url,
+                    "formats": ["markdown"],
+                    "onlyMainContent": True,
+                    "waitFor": 2_000,
+                    "timeout": int(
+                        self._settings.source_fetch_timeout_seconds * 1_000
+                    ),
+                    "maxAge": 0,
+                },
+            )
+            response.raise_for_status()
+        if len(response.content) > self._settings.source_max_text_bytes:
+            raise ValueError("Firecrawl response exceeds the source text safety limit")
+        payload = response.json()
+        if not isinstance(payload, dict) or payload.get("success") is not True:
+            raise ValueError("Firecrawl extraction was not successful")
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            raise ValueError("Firecrawl extraction returned an invalid result")
+        markdown = data.get("markdown")
+        if not isinstance(markdown, str) or not markdown.strip():
+            raise ValueError("Firecrawl extraction returned no readable content")
+        return markdown
+
+    def _extract_with_tavily(self, url: str) -> str:
+        with httpx.Client(timeout=self._settings.source_fetch_timeout_seconds) as client:
+            response = client.post(
+                TAVILY_EXTRACT_URL,
+                headers={
+                    "Authorization": f"Bearer {self._settings.tavily_api_key}",
+                },
+                json={
+                    "urls": url,
+                    "extract_depth": "advanced",
+                    "format": "text",
+                    "include_images": False,
+                },
+            )
+            response.raise_for_status()
+        if len(response.content) > self._settings.source_max_text_bytes:
+            raise ValueError("Tavily response exceeds the source text safety limit")
+        payload = response.json()
+        results = payload.get("results") if isinstance(payload, dict) else None
+        if not isinstance(results, list) or not results:
+            raise ValueError("Tavily extraction returned no result")
+        result = results[0]
+        if not isinstance(result, dict):
+            raise ValueError("Tavily extraction returned an invalid result")
+        raw_content = result.get("raw_content")
+        if not isinstance(raw_content, str) or not raw_content.strip():
+            raise ValueError("Tavily extraction returned no readable content")
+        return raw_content
 
     def _from_image(
         self,
@@ -391,6 +627,21 @@ def _join_distinct(*parts: str) -> str:
     return "\n\n".join(output)
 
 
+_TAIL_MARKERS = (
+    "## 스마트픽",
+    "[기업정보 전체보기]",
+    "공고를 확인해 보세요",
+)
+
+
+def _drop_unrelated_tail(text: str) -> tuple[str, int]:
+    cuts = [index for marker in _TAIL_MARKERS if (index := text.find(marker)) != -1]
+    if not cuts:
+        return text, 0
+    cut = min(cuts)
+    return text[:cut].rstrip(), len(text) - cut
+
+
 def _merge_segments(segments: list[ExtractionSegment]) -> str:
     output: list[str] = []
     overlap_seen: dict[str, set[str]] = {}
@@ -413,19 +664,69 @@ def _merge_segments(segments: list[ExtractionSegment]) -> str:
     return _join_distinct(*output)
 
 
-_POSTING_STRONG_MARKERS = (
-    "자격요건", "자격 요건", "지원자격", "지원 자격", "우대사항", "우대 사항",
-    "담당업무", "담당 업무", "주요업무", "주요 업무", "qualifications", "requirements",
-    "responsibilities",
+_RESPONSIBILITY_SIGNALS = (
+    "담당업무", "주요 업무", "주요업무", "하는 일", "업무 내용",
+    "responsibilities", "what you'll do", "role description",
 )
-_POSTING_WEAK_MARKERS = ("채용", "모집", "지원", "전형", "근무", "고용", "career", "recruit")
+_REQUIREMENT_SIGNALS = (
+    "자격요건", "자격 요건", "지원자격", "지원 자격",
+    "필수 요건", "필수요건", "요구사항",
+    "requirements", "qualifications", "what we're looking for",
+)
+_PREFERENCE_SIGNALS = (
+    "우대사항", "우대 사항", "preferred", "nice to have", "우대 요건",
+)
+_EMPLOYMENT_SIGNALS = (
+    "채용", "모집", "고용형태", "고용 형태", "근무형태", "근무 형태", "경력", "신입",
+    "employment", "career", "experience",
+)
 
 
 def _looks_like_posting(text: str) -> bool:
-    lowered = text.casefold()
-    strong = sum(marker in lowered for marker in _POSTING_STRONG_MARKERS)
-    weak = sum(marker in lowered for marker in _POSTING_WEAK_MARKERS)
-    return strong >= 1 or (weak >= 2 and len(text) >= MIN_MEANINGFUL_CHARS)
+    return _posting_signal_groups(text)[0] >= 2
+
+
+def _is_sufficient_posting_text(text: str) -> bool:
+    normalized = _normalize_for_posting_quality(text)
+    signal_groups, responsibilities, requirements = _posting_signal_groups(
+        normalized,
+        normalized=True,
+    )
+    return (
+        len(normalized) >= MINIMUM_USEFUL_POSTING_LENGTH
+        and signal_groups >= 2
+        and (responsibilities or requirements)
+    )
+
+
+def _normalize_for_posting_quality(text: str) -> str:
+    # Keep this contract aligned with backend PostingContentQuality.
+    return re.sub(r"\s+", " ", text or "").strip().lower()
+
+
+def _posting_signal_groups(
+    text: str,
+    *,
+    normalized: bool = False,
+) -> tuple[int, bool, bool]:
+    value = text if normalized else _normalize_for_posting_quality(text)
+    responsibilities = _contains_any(value, _RESPONSIBILITY_SIGNALS)
+    requirements = _contains_any(value, _REQUIREMENT_SIGNALS)
+    groups = int(responsibilities) + int(requirements)
+    groups += int(_contains_any(value, _PREFERENCE_SIGNALS))
+    groups += int(_contains_any(value, _EMPLOYMENT_SIGNALS))
+    return groups, responsibilities, requirements
+
+
+def _contains_any(value: str, signals: tuple[str, ...]) -> bool:
+    return any(signal in value for signal in signals)
+
+
+def _with_fragment(url: str, fragment: str) -> str:
+    if not fragment:
+        return url
+    parsed = urlsplit(url)
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, parsed.query, fragment))
 
 
 def _sha256(value: str) -> str:

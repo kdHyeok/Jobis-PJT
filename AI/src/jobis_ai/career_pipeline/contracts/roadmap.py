@@ -67,6 +67,8 @@ class SectionMembership(ContractModel):
 class CareerGateType(StrEnum):
     EXPERIENCE = "EXPERIENCE"
     CREDENTIAL = "CREDENTIAL"
+    CERTIFICATION = "CERTIFICATION"
+    LANGUAGE = "LANGUAGE"
     PORTFOLIO = "PORTFOLIO"
     OTHER = "OTHER"
 

@@ -133,3 +133,31 @@ def test_error_event_is_terminal_and_carries_a_code():
     builder.backbone()
     event = builder.error("AI_PROVIDER_NOT_CONFIGURED", "LLM 이 설정되지 않았어요")
     assert event.type == "ERROR" and event.error_code == "AI_PROVIDER_NOT_CONFIGURED"
+
+
+def test_builder_serves_every_method_the_service_closing_sequence_calls():
+    """service.analyze_events 의 종결 시퀀스(validating→validated→roadmap→assembled)와
+    무소식 하트비트가 부르는 메서드가 전부 있어야 한다 — develop 에서 service.py 가
+    stream.py 보다 앞서 커밋돼 모든 스트리밍 분석이 결과 직전 AttributeError 로
+    죽었다(2026-08-08 실측). 존재만이 아니라 계약(선언 스테이지·시퀀스 증가)도 지킨다."""
+
+    builder = _builder()
+    builder.backbone()
+    events = [builder.validating(), builder.validated(),
+              builder.roadmap(), builder.assembled()]
+    assert all(e is not None for e in events)
+    sequences = [e.sequence for e in events]
+    assert sequences == sorted(sequences) and len(set(sequences)) == len(sequences)
+    assert events[1].stage.status == "COMPLETED"
+    assert events[3].stage.id == "RESULT_ASSEMBLY"
+
+
+def test_heartbeat_repeats_last_stage_and_respects_budget():
+    builder = _builder()
+    assert builder.heartbeat() is None          # 아직 보낸 스테이지가 없다
+    builder.backbone()
+    first = builder.validating()
+    beat = builder.heartbeat()
+    assert beat is not None
+    assert beat.stage.id == first.stage.id and beat.stage.status == first.stage.status
+    assert beat.sequence > first.sequence

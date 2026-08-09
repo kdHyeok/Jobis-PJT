@@ -38,7 +38,7 @@ ASSET_KEYS = frozenset({
     # 않는다(판정은 공고 × 이력서의 함수다). 재사용 사실은 `analysis_reused` 경고로 남는다.
     "analysis_key",
     "recommendations",   # job_recommend 산출
-    "roadmap",           # 준비 로드맵 (fit_analysis 산출 → roadmap_manager 조회)
+    "roadmap",           # 백엔드 DB 준비 로드맵 스냅샷 → roadmap_manager 조회
     "coverletter",       # 자소서 초안 (항상 draft_pending_review 상태)
     "interview",         # 면접 연습 진행 상태 {asked, answers, usedTopics} — 자기 루프가 턴 간에 이어받는다
     "application_plan",  # {decision, routes} — application_plan 산출 (목표 상태·지원 경로)

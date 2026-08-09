@@ -200,7 +200,7 @@ export type AnalysisStageDefinition = {
 
 export type AnalysisStageUpdate = {
   id: string;
-  status: "PENDING" | "RUNNING" | "WAITING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "RUNNING" | "WAITING" | "COMPLETED" | "SKIPPED" | "FAILED";
   message: string | null;
 };
 
@@ -327,6 +327,7 @@ export type V3RoadmapNode = {
   objective?: string;
   excludedScope?: string[];
   completionPolicy?: "SELF_CONFIRM" | "ASSESSMENT";
+  atomicAssessmentAvailable?: boolean;
   provisionalCandidateId?: string;
   targetRef?: string;
   sectionKey: string;
@@ -553,6 +554,7 @@ export type RoadmapCompetency = {
   excludedScope?: string[];
   provisionalCandidateId?: string;
   catalogStatus?: "APPROVED" | "PENDING_REVIEW";
+  assessmentAvailability?: "AVAILABLE" | "PENDING_REVIEW" | "NOT_ATOMIC";
 };
 
 export type RoadmapProject = {
@@ -699,6 +701,9 @@ export type ConversationSummary = {
   lastMessage: string;
   lastMessageAt: string;
   createdAt: string;
+  aiReplyPending: boolean;
+  latestJobFailed: boolean;
+  latestMessageRole: "USER" | "ASSISTANT" | "SYSTEM" | "";
 };
 
 export type SendMessageResult = {
@@ -899,6 +904,7 @@ export type ActivityJob = {
   destinationType: "CONVERSATION" | "ROADMAP_NODE" | "POSTING" | "CAREER_SOURCE";
   destinationId: string;
   createdAt: string;
+  estimatedRemainingSeconds: number | null;
 };
 
 export type PostingDetail = Posting & {

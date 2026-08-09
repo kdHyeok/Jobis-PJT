@@ -1,0 +1,27 @@
+# 스모크 전용 오버라이드.
+#
+# 1) 볼륨 격리 — compose.yaml 의 볼륨은 이름이 고정돼 있다(data-airflow_jobiss_*).
+#    프로젝트 이름만 바꿔 띄우면 같은 볼륨을 공유하므로, `down -v` 가 로컬·서버의
+#    실제 데이터를 지운다. 여기서 이름을 갈아끼워 완전히 격리한다.
+#
+# 2) 이미지 고정 — SMOKE_IMAGE_TAG 가 있으면 CI 가 방금 빌드한 이미지를 그대로 띄운다
+#    (build once, test what you deploy). 없으면 로컬 개발용으로 소스에서 빌드한다.
+#
+# 3) 포트 이동 — 개발자 로컬에서 8088 로 스택이 떠 있어도 충돌하지 않게 한다.
+services:
+  postgres:
+    image: postgres:17-alpine
+  ai:
+    image: ${SMOKE_IMAGE_PREFIX:-}jobis-ai:${SMOKE_IMAGE_TAG:-smoke-local}
+  backend:
+    image: ${SMOKE_IMAGE_PREFIX:-}jobis-backend:${SMOKE_IMAGE_TAG:-smoke-local}
+  frontend:
+    image: ${SMOKE_IMAGE_PREFIX:-}jobis-frontend:${SMOKE_IMAGE_TAG:-smoke-local}
+    ports:
+      - "${SMOKE_HTTP_PORT:-18088}:8080"
+
+volumes:
+  jobiss_postgres_data:
+    name: jobis-smoke-postgres-data
+  jobiss_ai_state:
+    name: jobis-smoke-ai-state

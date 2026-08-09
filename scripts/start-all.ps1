@@ -84,24 +84,9 @@ try {
     Write-Host "Preparing JOBIS local PostgreSQL..."
     & (Join-Path $PSScriptRoot "start-local-postgres.ps1")
 
-    $capabilityGraphPattern = "jobis_capability_graph\.api:app"
     $jobisAiPattern = "jobis_ai\.v2bridge\.app:app"
     $backendPattern = "com\.jobiss\.JobissBackendApplication|JobissBackendApplication"
     $frontendPattern = "node(?:\.exe)?.*vite|vite(?:\.js)?"
-
-    if (-not (Get-ExpectedListener -Port 8600 -CommandPattern $capabilityGraphPattern -ServiceName "Capability Graph")) {
-        $capabilityGraphArguments = @()
-        if ($Install -or -not (Test-Path -LiteralPath "C:\jobiss-capability-graph-lab\.venv\Scripts\python.exe")) {
-            $capabilityGraphArguments += "-Install"
-        }
-        Start-BackgroundPowerShell `
-            -ScriptPath (Join-Path $PSScriptRoot "start-capability-graph.ps1") `
-            -ScriptArguments $capabilityGraphArguments `
-            -LogName "capability-graph" | Out-Null
-    }
-    else {
-        Write-Host "[ready] Capability Graph is already running (port 8600)"
-    }
 
     if (-not (Get-ExpectedListener -Port 8400 -CommandPattern $jobisAiPattern -ServiceName "JOBIS AI")) {
         $jobisAiArguments = @()
@@ -141,7 +126,6 @@ try {
         Write-Host "[ready] frontend is already running (port 5473)"
     }
 
-    Wait-ForExpectedListener -Port 8600 -CommandPattern $capabilityGraphPattern -ServiceName "Capability Graph"
     Wait-ForExpectedListener -Port 8400 -CommandPattern $jobisAiPattern -ServiceName "JOBIS AI"
     Wait-ForExpectedListener -Port 8380 -CommandPattern $backendPattern -ServiceName "backend"
     Wait-ForExpectedListener -Port 5473 -CommandPattern $frontendPattern -ServiceName "frontend"

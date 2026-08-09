@@ -15,7 +15,6 @@ User Profile Builder 가 함께 쓴다.
 
 from __future__ import annotations
 
-import io
 import re
 import urllib.request
 from dataclasses import dataclass, field
@@ -225,17 +224,19 @@ def extract_text(source: dict | None) -> ExtractResult:
         # 사용자가 특정 공고를 가리킨 것이므로 DB 에 있든 없든 그 공고의 현재 내용을 봐야 한다
         # (DB 는 크롤링 시점 스냅샷이고, 마감·수정이 반영되지 않는다).
         # 공고 DB 는 **검색·추천**(job_recommend / find_alternatives) 쪽에서만 쓴다.
-        # jina + iframe(텍스트/이미지 VLM) 수집기(feat_url/)를 먼저 쓰고,
-        # 전부 실패하면 기존 정적 추출로 폴백한다.
+        # 직접 HTML/iframe을 먼저 읽고, 결과가 부족할 때만 Jina를 쓰는 공통
+        # SourceAcquisition 계약을 호출한다. 별도 정적 수집 폴백을 두지 않는다.
         from .feat_url import fetch_job_posting  # 지연 임포트: url 경로에서만 필요
 
         fetched = fetch_job_posting(value)
         result.warnings.extend(fetched.warnings)
-        result.text = fetched.text or _extract_url(value, result)
+        result.text = fetched.text
     else:
         result.warn("unknown_source_type", f"알 수 없는 sourceType: {source_type}")
         result.text = value.strip()
 
-    if not result.text:
+    if not result.text and not any(
+        warning.get("code") == "source_fetch_failed" for warning in result.warnings
+    ):
         result.warn("empty_extract", "추출된 텍스트가 없습니다.")
     return result
