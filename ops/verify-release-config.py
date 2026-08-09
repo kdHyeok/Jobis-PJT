@@ -207,6 +207,11 @@ def main() -> None:
             "develop images are published before smoke succeeds")
     require('SMOKE_IMAGE_TAG="ci-\\$GIT_COMMIT"' in smoke_stage,
             "compose smoke does not use the temporary CI image tag")
+    # 중첩 컨테이너의 바인드 마운트는 호스트 데몬이 푼다. 이 값이 없으면 postgres
+    # 초기화 스크립트가 빈 디렉터리로 마운트돼 V1 이 죽고, 이미지 게시가 막혀
+    # 배포 전체가 멈춘다(실측 2026-08-09 develop #45).
+    require("SMOKE_HOST_ROOT" in smoke_stage,
+            "compose smoke does not pass a host-resolved workspace root")
     require('source="${prefix}${image}:ci-$GIT_COMMIT"' in publish_stage and
             'target="${prefix}${image}:$GIT_COMMIT"' in publish_stage and
             'docker push "${JOBIS_IMAGE_PREFIX}${image}:$GIT_COMMIT"' in publish_stage,

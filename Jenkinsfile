@@ -575,6 +575,26 @@ SQL
           // Compose 가 포함된 공식 CLI 이미지에서 돌리고, 워크스페이스는
           // --volumes-from 으로 넘긴다(호스트 데몬에는 $WORKSPACE 경로가 없다).
           def jenkinsContainer = sh(script: 'cat /etc/hostname', returnStdout: true).trim()
+          // --volumes-from 은 CLI 컨테이너가 워크스페이스를 보게 해줄 뿐이다. 그 안에서
+          // compose 가 띄우는 컨테이너의 바인드 마운트는 **호스트 데몬**이 경로 문자열로
+          // 푸는데, $WORKSPACE 는 호스트에 없는 경로다. 데몬은 없는 경로를 빈 디렉터리로
+          // 만들어 마운트하므로 postgres 초기화 스크립트가 사라지고, V1 이
+          // `role "jobiss_app" does not exist` 로 죽는다(실측 2026-08-09 develop #45).
+          // jenkins_home 바인드의 호스트 경로로 접두사를 갈아 호스트 기준 경로를 만든다.
+          def homeSource = sh(
+            script: "docker inspect ${jenkinsContainer} " +
+              "--format '{{range .Mounts}}{{if eq .Destination \"/var/jenkins_home\"}}{{.Source}}{{end}}{{end}}'",
+            returnStdout: true
+          ).trim()
+          def hostRoot = env.WORKSPACE
+          if (homeSource && env.WORKSPACE.startsWith('/var/jenkins_home/')) {
+            hostRoot = homeSource + env.WORKSPACE.substring('/var/jenkins_home'.length())
+          } else {
+            // 컨테이너 밖에서 도는 Jenkins 이거나 워크스페이스가 jenkins_home 밖에 있다.
+            // 그 경우 컨테이너 경로 == 호스트 경로이므로 그대로 쓴다. 틀렸다면
+            // ops/smoke-compose 의 선제 검사가 원인을 명시하며 멈춘다.
+            echo "[smoke] jenkins_home 바인드를 찾지 못해 WORKSPACE 를 호스트 경로로 쓴다."
+          }
           sh """
             docker run --rm \
               --volumes-from "${jenkinsContainer}" \
@@ -582,6 +602,7 @@ SQL
               -w "\$WORKSPACE" \
               -e SMOKE_IMAGE_TAG="ci-\$GIT_COMMIT" \
               -e SMOKE_IMAGE_PREFIX="\${JOBIS_IMAGE_PREFIX:-}" \
+              -e SMOKE_HOST_ROOT="${hostRoot}" \
               docker:28-cli \
               sh -ec 'apk add --no-cache bash >/dev/null && chmod +x ops/smoke-compose && bash ops/smoke-compose'
           """
