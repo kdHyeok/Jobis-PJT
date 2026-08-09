@@ -8,14 +8,33 @@
 #    (build once, test what you deploy). 없으면 로컬 개발용으로 소스에서 빌드한다.
 #
 # 3) 포트 이동 — 개발자 로컬에서 8088 로 스택이 떠 있어도 충돌하지 않게 한다.
+#
+# 4) 초기화 스크립트 경로 치환 — 중첩 컨테이너의 바인드 마운트는 **호스트 도커 데몬**이
+#    경로 문자열로 푼다. Jenkins(DooD)에서 $WORKSPACE 는 컨테이너 안에만 있는 경로라
+#    데몬이 빈 디렉터리를 만들어 마운트하고, 그러면 app 역할을 만드는 초기화 스크립트가
+#    사라져 V1 마이그레이션이 `role "jobiss_app" does not exist` 로 죽는다
+#    (실측 2026-08-09 develop #45: 이 때문에 이미지 게시가 막혀 배포가 멈췄다).
+#    SMOKE_HOST_ROOT 로 호스트 기준 경로를 넘긴다. 로컬에서는 기본값 `.` 이라 동작이 같다.
+#
+# 5) 메모리 상한 — Jenkins 와 운영이 같은 호스트를 쓴다(루트 AGENTS.md). compose.yaml
+#    은 로컬 개발용이라 상한이 없고, 백엔드 JVM 은 -XX:MaxRAMPercentage 로 상한을
+#    읽으므로 무제한이면 호스트 메모리 기준으로 힙을 잡는다. 스모크가 폭주해서 운영
+#    컨테이너가 OOM killer 에 맞는 일(2026-08-06 장애)을 막으려고 여기서 조인다.
+#    운영 상한(ops/docker-compose.prod.yml)보다 작게 잡되 기동에는 넉넉한 값이다.
 services:
   postgres:
     image: postgres:17-alpine
+    mem_limit: 512m
+    volumes:
+      - ${SMOKE_HOST_ROOT:-.}/infra/postgres/init:/docker-entrypoint-initdb.d:ro
   ai:
     image: ${SMOKE_IMAGE_PREFIX:-}jobis-ai:${SMOKE_IMAGE_TAG:-smoke-local}
+    mem_limit: 2g
   backend:
     image: ${SMOKE_IMAGE_PREFIX:-}jobis-backend:${SMOKE_IMAGE_TAG:-smoke-local}
+    mem_limit: 2g
   frontend:
+    mem_limit: 256m
     image: ${SMOKE_IMAGE_PREFIX:-}jobis-frontend:${SMOKE_IMAGE_TAG:-smoke-local}
     ports:
       - "${SMOKE_HTTP_PORT:-18088}:8080"
