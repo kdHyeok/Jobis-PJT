@@ -581,9 +581,13 @@ SQL
           // 만들어 마운트하므로 postgres 초기화 스크립트가 사라지고, V1 이
           // `role "jobiss_app" does not exist` 로 죽는다(실측 2026-08-09 develop #45).
           // jenkins_home 바인드의 호스트 경로로 접두사를 갈아 호스트 기준 경로를 만든다.
+          // inspect 실패를 치명적으로 두지 않는다. Jenkins 가 컨테이너가 아니면
+          // /etc/hostname 은 조회할 컨테이너 이름이 아니므로 실패가 정상이고,
+          // 그 환경에서는 컨테이너 경로 == 호스트 경로라 아래 fallback 이 맞다.
           def homeSource = sh(
             script: "docker inspect ${jenkinsContainer} " +
-              "--format '{{range .Mounts}}{{if eq .Destination \"/var/jenkins_home\"}}{{.Source}}{{end}}{{end}}'",
+              "--format '{{range .Mounts}}{{if eq .Destination \"/var/jenkins_home\"}}{{.Source}}{{end}}{{end}}' " +
+              "2>/dev/null || true",
             returnStdout: true
           ).trim()
           def hostRoot = env.WORKSPACE
