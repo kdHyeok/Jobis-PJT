@@ -422,7 +422,7 @@ def run_dataset(path: str | Path = _DATASET, runs: int = 1) -> tuple[list[dict],
     print("기준선: 데이터셋에 고정된 요구사항 텍스트를 쓴다(D108·D109)", flush=True)
     baseline_texts, baseline_warnings = posting_baseline(postings)
     posting_sim = _pairwise([t[:_MAX_CHARS] for t in baseline_texts], labels)
-    print(f"  기준선 공고 유사도 평균: "
+    print("  기준선 공고 유사도 평균: "
           + (f"{sum(posting_sim.values()) / len(posting_sim):.4f}" if posting_sim
              else "측정 불가(임베딩 미연결)") + "\n", flush=True)
     if runs > 1:
@@ -508,7 +508,7 @@ def main() -> None:
         print(f"      최악 쌍: {r['worstPair']} delta {r['worstDelta']:+.4f}"
               f"  · 답변 길이 {r['answerChars']}")
         off = r["meanOffPostingSkillRate"]
-        print(f"      공고 밖 기술 비율: "
+        print("      공고 밖 기술 비율: "
               + (f"{off:.4f} (0 이면 그 공고 기술만 말했다)" if off is not None
                  else "측정 불가(답변에서 기술을 못 찾음)")
               + f"  {r['offPostingSkillRate']}")

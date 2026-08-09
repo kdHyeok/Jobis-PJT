@@ -358,7 +358,7 @@ def parse_job_posting(state: GraphState) -> dict[str, Any]:
     if not rules.has_sections and extracted.text.strip():
         warnings.append({
             "code": "no_requirement_sections",
-            "message": "자격요건/우대사항 헤더를 찾지 못해 전문에서 LLM 추출로 처리합니다.",
+            "message": "명시적인 자격요건/우대사항 헤더가 없어 공고 전문에서 요구사항을 추출했습니다.",
         })
 
     # 4) 2차 LLM 추출 — 룰이 못 잡은 비정형 요구사항만 (읽기 전용 스키마)

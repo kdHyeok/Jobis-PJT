@@ -43,7 +43,7 @@ Jenkins와 배포 서버가 실제로 같은 Docker daemon을 사용할 때만
 ## 브랜치 게이트
 
 - 기능 브랜치와 MR: Backend, AI v2bridge, Frontend, RAG, Infra CI
-- `develop`: 전체 CI + 여섯 SHA 이미지 build/push, 운영 배포 없음
+- `develop`: 전체 CI + 임시 이미지 build → Compose smoke → 여섯 SHA 이미지 publish, 운영 배포 없음
 - `master`: develop 부모·동일 트리 검증 + 검증된 여섯 이미지의 master SHA 승격 + 자동 CD
 - `master` 직접 push 금지, protected branch와 `develop -> master` release MR만 허용
 - 운영 배포 credential과 환경 변수는 protected branch에서만 사용 가능

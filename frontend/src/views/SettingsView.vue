@@ -237,13 +237,9 @@ async function logout() {
 
 <template>
   <main class="workspace settings-workspace">
-    <section class="page-heading">
-      <div>
-        <p class="eyebrow">SETTINGS</p>
-        <h1>계정과 커리어 목표</h1>
-        <p>AI가 현재 준비 수준과 장기 방향을 구분할 수 있도록 목표를 관리합니다.</p>
-      </div>
-    </section>
+    <Teleport defer to="#app-topbar-center">
+      <h1 class="app-page-title">계정과 커리어 목표</h1>
+    </Teleport>
 
     <p v-if="error" class="form-error">{{ error }}</p>
     <p v-if="success" class="form-success">{{ success }}</p>

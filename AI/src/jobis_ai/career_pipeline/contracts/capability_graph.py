@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
@@ -83,6 +83,17 @@ class ProjectNecessity(StrEnum):
     REQUIRED = "REQUIRED"
     RECOMMENDED = "RECOMMENDED"
     EXTENSION = "EXTENSION"
+
+
+class ProjectTaskType(StrEnum):
+    FEATURE = "FEATURE"
+    DELIVERY = "DELIVERY"
+
+
+class GraphReleaseStatus(StrEnum):
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    RETIRED = "RETIRED"
 
 
 class GraphConfidence(ContractModel):
@@ -181,6 +192,138 @@ class CapabilityGraphEdge(ContractModel):
             and self.conditions
         ):
             raise ValueError("only CONDITIONAL_PREREQUISITE may carry conditions")
+        return self
+
+
+class ProjectTask(ContractModel):
+    """A deliverable in a project template, not an atomic capability."""
+
+    task_key: CanonicalKey
+    title: NonBlank
+    objective: NonBlank
+    scope_definition: NonBlank
+    necessity: ProjectNecessity
+    task_type: ProjectTaskType = ProjectTaskType.FEATURE
+    verification_methods: list[VerificationMethod] = Field(min_length=1)
+    depends_on_task_keys: list[CanonicalKey] = Field(default_factory=list)
+    confidence: GraphConfidence
+    review_status: GraphReviewStatus
+    version: int = Field(ge=1)
+    source_ids: list[EntityId] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_dependencies(self) -> "ProjectTask":
+        ensure_unique(self.depends_on_task_keys, "project task dependency")
+        if self.task_key in self.depends_on_task_keys:
+            raise ValueError("project task cannot depend on itself")
+        return self
+
+
+class TaskRequirement(ContractModel):
+    """An explicit capability requirement for one project task."""
+
+    requirement_id: EntityId
+    task_key: CanonicalKey
+    capability_key: CanonicalKey
+    necessity: ProjectNecessity
+    reason: NonBlank
+    confidence: GraphConfidence
+    review_status: GraphReviewStatus
+    version: int = Field(ge=1)
+    source_ids: list[EntityId] = Field(min_length=1)
+
+
+class GraphRelease(ContractModel):
+    """Immutable, reviewable snapshot consumed by the runtime graph adapter."""
+
+    schema_version: Literal["jobis.capability-graph.release.v1"] = (
+        "jobis.capability-graph.release.v1"
+    )
+    graph_version: NonBlank
+    release_status: GraphReleaseStatus
+    released_at: datetime
+    content_hash: Sha256Digest
+    sources: list[GraphSource] = Field(min_length=1)
+    capabilities: list[CapabilityGraphNode] = Field(min_length=1)
+    capability_relations: list[CapabilityGraphEdge] = Field(default_factory=list)
+    project_tasks: list[ProjectTask] = Field(default_factory=list)
+    task_requirements: list[TaskRequirement] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_release(self) -> "GraphRelease":
+        source_ids = [item.source_id for item in self.sources]
+        capability_keys = [item.canonical_key for item in self.capabilities]
+        relation_ids = [item.relation_id for item in self.capability_relations]
+        task_keys = [item.task_key for item in self.project_tasks]
+        requirement_ids = [item.requirement_id for item in self.task_requirements]
+        ensure_unique(source_ids, "graph release source")
+        ensure_unique(capability_keys, "graph release capability")
+        ensure_unique(relation_ids, "graph release capability relation")
+        ensure_unique(task_keys, "graph release project task")
+        ensure_unique(requirement_ids, "graph release task requirement")
+
+        source_id_set = set(source_ids)
+        capability_key_set = set(capability_keys)
+        task_key_set = set(task_keys)
+        reviewed = [
+            *self.capabilities,
+            *self.capability_relations,
+            *self.project_tasks,
+            *self.task_requirements,
+        ]
+        if self.release_status is GraphReleaseStatus.APPROVED:
+            unapproved = [
+                _reviewed_item_key(item)
+                for item in reviewed
+                if item.review_status is not GraphReviewStatus.APPROVED
+            ]
+            if unapproved:
+                raise ValueError(
+                    "approved graph release contains unapproved items: "
+                    f"{sorted(unapproved)}"
+                )
+
+        for item in reviewed:
+            missing_sources = set(item.source_ids) - source_id_set
+            if missing_sources:
+                raise ValueError(
+                    f"{_reviewed_item_key(item)} has unknown source IDs: "
+                    f"{sorted(missing_sources)}"
+                )
+
+        for relation in self.capability_relations:
+            missing = {
+                relation.from_capability_key,
+                relation.to_capability_key,
+            } - capability_key_set
+            if missing:
+                raise ValueError(
+                    f"relation {relation.relation_id} has unknown capabilities: "
+                    f"{sorted(missing)}"
+                )
+
+        for task in self.project_tasks:
+            missing = set(task.depends_on_task_keys) - task_key_set
+            if missing:
+                raise ValueError(
+                    f"project task {task.task_key} has unknown dependencies: "
+                    f"{sorted(missing)}"
+                )
+
+        for requirement in self.task_requirements:
+            if requirement.task_key not in task_key_set:
+                raise ValueError(
+                    f"task requirement {requirement.requirement_id} has unknown task: "
+                    f"{requirement.task_key}"
+                )
+            if requirement.capability_key not in capability_key_set:
+                raise ValueError(
+                    f"task requirement {requirement.requirement_id} has unknown capability: "
+                    f"{requirement.capability_key}"
+                )
+
+        _reject_prerequisite_cycles(self.capability_relations)
+        _reject_project_task_cycles(self.project_tasks)
         return self
 
 
@@ -326,4 +469,54 @@ def _reject_hard_prerequisite_cycles(edges: list[CapabilityGraphEdge]) -> None:
         visited.add(node)
 
     for key in list(adjacency):
+        visit(key)
+
+
+def _reviewed_item_key(item: object) -> str:
+    for attribute in ("canonical_key", "relation_id", "task_key", "requirement_id"):
+        value = getattr(item, attribute, None)
+        if isinstance(value, str):
+            return value
+    raise TypeError(f"unsupported reviewed graph item: {type(item).__name__}")
+
+
+def _reject_prerequisite_cycles(edges: list[CapabilityGraphEdge]) -> None:
+    traversable = {
+        CapabilityRelationType.HARD_PREREQUISITE,
+        CapabilityRelationType.RECOMMENDED_FOUNDATION,
+        CapabilityRelationType.CONDITIONAL_PREREQUISITE,
+    }
+    adjacency: dict[str, list[str]] = {}
+    for edge in edges:
+        if edge.relation_type in traversable:
+            adjacency.setdefault(edge.from_capability_key, []).append(
+                edge.to_capability_key
+            )
+    _reject_cycles(adjacency, "prerequisite relations contain a cycle")
+
+
+def _reject_project_task_cycles(tasks: list[ProjectTask]) -> None:
+    adjacency = {
+        task.task_key: list(task.depends_on_task_keys)
+        for task in tasks
+    }
+    _reject_cycles(adjacency, "project task dependencies contain a cycle")
+
+
+def _reject_cycles(adjacency: dict[str, list[str]], message: str) -> None:
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str) -> None:
+        if node in visiting:
+            raise ValueError(message)
+        if node in visited:
+            return
+        visiting.add(node)
+        for child in adjacency.get(node, []):
+            visit(child)
+        visiting.remove(node)
+        visited.add(node)
+
+    for key in adjacency:
         visit(key)

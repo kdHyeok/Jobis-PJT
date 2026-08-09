@@ -47,7 +47,9 @@ class RequirementDraft(ContractModel):
 
 
 class PositionDraft(ContractModel):
-    position_key: EntityId
+    # 모델이 만드는 임시 상관 키다. 최종 positionId는 서버가 pos-N으로
+    # 생성하므로 표시용 한글/괄호가 포함되어도 시스템 EntityId로 신뢰하지 않는다.
+    position_key: NonBlank
     source_title: NonBlank
     role: RoleDraft
     experience: ExperienceRequirement
@@ -56,14 +58,14 @@ class PositionDraft(ContractModel):
 
 
 class PositionDiscoveryDraft(ContractModel):
-    position_key: EntityId
+    position_key: NonBlank
     source_title: NonBlank
     role: RoleDraft
     experience: ExperienceRequirement
 
 
 class SharedConditionDraft(RequirementDraft):
-    applies_to_position_keys: list[EntityId] = Field(min_length=1)
+    applies_to_position_keys: list[NonBlank] = Field(min_length=1)
 
 
 class PostingInterpretationDraft(ContractModel):
@@ -91,7 +93,11 @@ class PostingDiscoveryDraft(ContractModel):
     company: CompanyDraft | None = None
     posting_title: NonBlank | None = None
     posting_title_evidence_ids: list[EntityId] = Field(default_factory=list)
-    positions: list[PositionDiscoveryDraft] = Field(min_length=1)
+    # A verified source can still be a recruitment index, job interview, or
+    # company job catalogue rather than one actionable opening.  Empty is a
+    # valid discovery outcome and is promoted to ROLE_RESOLUTION_REQUIRED by
+    # the service; final StructuredPosting remains strict and non-empty.
+    positions: list[PositionDiscoveryDraft] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_positions(self) -> "PostingDiscoveryDraft":

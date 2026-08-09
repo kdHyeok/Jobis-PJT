@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import copy
-import asyncio
 import json
 from datetime import UTC, date, datetime
 
 import pytest
-import httpx
 
 from jobis_ai.career_pipeline.capability_graph import closure_content_hash
 from jobis_ai.career_pipeline.contracts.capability_graph import (

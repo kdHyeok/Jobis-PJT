@@ -22,17 +22,24 @@ class Settings:
     source_max_image_bytes: int = 20 * 1024 * 1024
     jina_enabled: bool = False
     jina_api_key: str = ""
+    firecrawl_enabled: bool = False
+    firecrawl_api_key: str = ""
+    tavily_enabled: bool = False
+    tavily_api_key: str = ""
     clova_api_key: str = ""
     clova_vlm_url: str = (
         "https://clovastudio.stream.ntruss.com/v3/chat-completions/HCX-005"
     )
     capability_graph_url: str = ""
+    capability_graph_release_path: str = ""
     capability_graph_shared_secret: str = ""
     capability_graph_timeout_seconds: float = 10.0
 
     @classmethod
     def from_env(cls) -> "Settings":
         shared = get_settings()
+        firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY", "").strip()
+        tavily_api_key = os.getenv("TAVILY_API_KEY", "").strip()
         return cls(
             source_fetch_timeout_seconds=_positive_float(
                 "JOBIS_SOURCE_FETCH_TIMEOUT_SECONDS", 30.0
@@ -45,9 +52,20 @@ class Settings:
             ),
             jina_enabled=_boolean("JOBIS_JINA_ENABLED", False),
             jina_api_key=shared.jina_api_key,
+            firecrawl_enabled=_boolean(
+                "JOBIS_FIRECRAWL_ENABLED", bool(firecrawl_api_key)
+            ),
+            firecrawl_api_key=firecrawl_api_key,
+            tavily_enabled=_boolean(
+                "JOBIS_TAVILY_ENABLED", bool(tavily_api_key)
+            ),
+            tavily_api_key=tavily_api_key,
             clova_api_key=shared.clova_api_key,
             clova_vlm_url=shared.clova_vlm_url,
             capability_graph_url=os.getenv("CAPABILITY_GRAPH_URL", "").strip().rstrip("/"),
+            capability_graph_release_path=os.getenv(
+                "JOBIS_GRAPH_RELEASE_PATH", ""
+            ).strip(),
             capability_graph_shared_secret=os.getenv(
                 "CAPABILITY_GRAPH_SHARED_SECRET", ""
             ).strip(),

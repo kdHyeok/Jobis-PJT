@@ -17,7 +17,10 @@ def test_health_reports_graph_version() -> None:
     body = client.get("/health").json()
     assert body["status"] == "ok"
     assert body["service"] == "jobis-capability-graph"
-    assert body["graphVersion"] == "0.1.0-alpha.1"
+    assert body["graphVersion"] == "0.2.0-alpha.1"
+    assert body["capabilityCount"] == 69
+    assert body["projectTaskCount"] == 12
+    assert body["taskRequirementCount"] == 26
 
 
 def test_v1_requires_shared_secret() -> None:
@@ -31,9 +34,10 @@ def test_catalog_is_a_valid_contract() -> None:
     )
     assert {item.canonical_key for item in catalog.capabilities} >= {
         "java.classes-objects",
-        "spring.mvc-controller",
+        "spring.mvc-rest-controller",
         "http.request-response",
     }
+    assert all(not item.canonical_key.startswith("task.") for item in catalog.capabilities)
 
 
 def test_prerequisite_closure_is_valid_and_boundary_stops_traversal() -> None:
@@ -41,7 +45,7 @@ def test_prerequisite_closure_is_valid_and_boundary_stops_traversal() -> None:
         "/v1/graph/prerequisites",
         headers=SECRET,
         json={
-            "targetCapabilityKeys": ["spring.rest-api-implementation"],
+            "targetCapabilityKeys": ["spring.mvc-rest-controller"],
             "boundaryCapabilityKeys": ["java.classes-objects"],
         },
     )
@@ -50,13 +54,13 @@ def test_prerequisite_closure_is_valid_and_boundary_stops_traversal() -> None:
     validate_closure_hash(closure)
 
     keys = {node.canonical_key for node in closure.nodes}
-    assert "spring.mvc-controller" in keys
+    assert "spring.mvc-rest-controller" in keys
     assert "http.request-response" in keys
     assert "java.classes-objects" in keys  # boundary 노드 자체는 포함
     ordered = [key for layer in closure.learning_order for key in layer.capability_keys]
     assert "java.classes-objects" not in ordered  # 이미 검증된 역량은 학습 순서에서 제외
-    assert ordered.index("spring.mvc-controller") < ordered.index(
-        "spring.rest-api-implementation"
+    assert ordered.index("spring.boot-configuration") < ordered.index(
+        "spring.mvc-rest-controller"
     )
 
 

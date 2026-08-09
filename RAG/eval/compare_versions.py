@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
@@ -56,7 +56,7 @@ def main() -> None:
     for name, d in (("v1", v1), ("v2", v2)):
         c = Counter(d.values())
         tot = sum(c.values())
-        parts = " ".join(f"{l}={c[l]} ({c[l]/tot*100:.0f}%)" for l in LABELS)
+        parts = " ".join(f"{label}={c[label]} ({c[label]/tot*100:.0f}%)" for label in LABELS)
         print(f"  {name}: {parts}")
 
     # 앵커와의 일치도 비교 -핵심 질문

@@ -59,7 +59,7 @@ def test_asset_state_separates_runnable_now_from_runnable_with_producer():
     out = "\n".join(asset_state(["resume", "job_posting"]))
     lines = {line.split()[0]: line for line in out.splitlines() if line.startswith("  ")}
     # coverletter_draft 는 analysis 가 없어 지금은 못 돌지만, fit_analysis 를 끼우면 된다.
-    row = next(l for k, l in lines.items() if k == "coverletter_draft")
+    row = next(line for key, line in lines.items() if key == "coverletter_draft")
     assert row.count("불가") == 1 and "가능" in row
 
 

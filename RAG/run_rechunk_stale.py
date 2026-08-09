@@ -19,7 +19,7 @@ import sys
 
 from pgvector.psycopg import register_vector
 
-from jobrag.chunking import chunk_posting, context_prefix
+from jobrag.chunking import chunk_posting
 from jobrag.embedding import embed_texts
 from jobrag.sources import to_posting
 from jobrag.store import connect, unchanged_chunk_ids, upsert_chunks

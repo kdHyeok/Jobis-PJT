@@ -166,6 +166,7 @@ def build_job_context(
     source_text: str | None = None,
     raw_text: str = "",
     answers: Iterable[object] = (),
+    resolution: role_catalog.RoleResolution | None = None,
 ) -> JobContext:
     """normalizedJobPosting → JobContext. 파싱 결과만 옮기고 없는 필드는 None.
 
@@ -173,7 +174,8 @@ def build_job_context(
     `raw_text` 를 이걸로 되메운다.
     """
 
-    resolution = role_catalog.resolve(posting, raw_text=raw_text, answers=answers)
+    if resolution is None:
+        resolution = role_catalog.resolve(posting, raw_text=raw_text, answers=answers)
     parsed_data = dict(posting)
     parsed_data["roleResolution"] = resolution.detail()
     return JobContext(

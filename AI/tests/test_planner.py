@@ -113,19 +113,19 @@ def test_agent_feasibility_reports_missing_asset():
 
 
 def test_agent_feasibility_counts_producer_chain():
-    """생산자로 채울 수 있는 전제는 실행 가능으로 센다 — 이력서+공고면 자소서·로드맵까지.
+    """생산자로 채울 수 있는 전제는 실행 가능으로 센다 — 이력서+공고면 자소서까지.
 
-    fit_analysis 가 analysis 와 roadmap 을 함께 만들기 때문이다(선언된 produces).
+    로드맵은 백엔드 UNIFIED 분석의 정본만 조회하므로 세션 판정이 생산자로 끼어들지 않는다.
     """
 
     feasible = agent_feasibility({**RESUME, **POSTING})
     assert feasible["coverletter_draft"] is None
-    assert feasible["roadmap_manager"] is None
+    assert feasible["roadmap_manager"] == "roadmap"
 
     # 자산이 없으면 생산자 체인도 시작할 수 없다. 결측으로 보고되는 것은 **체인의 뿌리**다
-    # (로드맵이 없다가 아니라, 로드맵을 만들려면 필요한 이력서가 없다 — 플래너가 읽을 이유).
+    # 로드맵은 별도 영속 파이프라인이 소유하므로 그대로 roadmap 결측으로 보고한다.
     empty = agent_feasibility({})
-    assert empty["roadmap_manager"] == "resume" and empty["fit_analysis"] == "resume"
+    assert empty["roadmap_manager"] == "roadmap" and empty["fit_analysis"] == "resume"
 
 
 # --- 플래너 출력 스키마 — 환각 에이전트는 구조적으로 불가능 --------------------
@@ -179,7 +179,9 @@ def test_gate_fires_for_a_heavy_step_the_user_did_not_ask_for():
     assert dispatch.agents == (), "실행하지 않는다"
     assert "진행할까요" in dispatch.ask
     assert "자소서 초안" in dispatch.ask, "사용자의 목표를 문구에 담는다"
-    assert dispatch.pending == ("fit_analysis",), "무엇을 물었는지 세션에 적을 수 있게 낸다"
+    assert dispatch.pending == (
+        "fit_analysis", "coverletter_draft",
+    ), "동의가 필요한 선행 단계와 그 뒤의 직접 요청을 함께 보존한다"
 
 
 def test_gate_is_fail_closed_when_the_planner_says_nothing():

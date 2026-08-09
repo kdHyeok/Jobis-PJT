@@ -43,7 +43,8 @@ def kappa_chart(arms: list[dict], threshold: float, ceiling: float) -> str:
     x0, x1 = 250, 660
     row_h, top = 46, 40
     h = top + row_h * len(arms) + 34
-    sx = lambda v: x0 + (x1 - x0) * max(0.0, min(1.0, v))
+    def sx(v):
+        return x0 + (x1 - x0) * max(0.0, min(1.0, v))
 
     p = [f'<svg viewBox="0 0 700 {h}" role="img" class="chart" '
          f'aria-label="판정자별 Cohen 카파와 95% 신뢰구간">']
@@ -85,7 +86,8 @@ def arm_chart(macro_j: dict, macro_h: dict) -> str:
     x0, x1 = 92, 630
     grp, bar, gap, top = 44, 13, 2, 34
     h = top + grp * len(ARMS) + 30
-    sx = lambda v: x0 + (x1 - x0) * max(0.0, min(1.0, v))
+    def sx(v):
+        return x0 + (x1 - x0) * max(0.0, min(1.0, v))
 
     p = [f'<svg viewBox="0 0 700 {h}" role="img" class="chart" '
          f'aria-label="검색 구성별 정규화 nDCG@3">']
@@ -119,7 +121,8 @@ def forest_chart(comps: dict, comps_ref: dict) -> str:
     x0, x1 = 160, 600
     row_h, top = 30, 30
     h = top + row_h * len(items) + 30
-    sx = lambda v: x0 + (x1 - x0) * (v - lo) / (hi - lo)
+    def sx(v):
+        return x0 + (x1 - x0) * (v - lo) / (hi - lo)
 
     p = [f'<svg viewBox="0 0 700 {h}" role="img" class="chart" '
          f'aria-label="구성 간 차이의 95% 신뢰구간">']
@@ -156,7 +159,8 @@ def strip_chart(dists: dict, sat: dict) -> str:
     x0, x1 = 92, 610
     row_h, top = 52, 26
     h = top + row_h * len(order) + 30
-    sx = lambda v: x0 + (x1 - x0) * max(0.0, min(1.0, v))
+    def sx(v):
+        return x0 + (x1 - x0) * max(0.0, min(1.0, v))
     p = [f'<svg viewBox="0 0 700 {h}" role="img" class="chart" '
          f'aria-label="질의별 nDCG@3 분포와 천장 포화">']
     for t in (0, 0.25, 0.5, 0.75, 1.0):
@@ -195,7 +199,8 @@ def k_forest_chart(multi_k: dict, keys: list[str]) -> str:
     x0, x1 = 170, 590
     row_h, top, grp_gap = 26, 34, 16
     h = top + row_h * len(rows) + grp_gap * (len(keys) - 1) + 30
-    sx = lambda v: x0 + (x1 - x0) * (v - lo) / (hi - lo)
+    def sx(v):
+        return x0 + (x1 - x0) * (v - lo) / (hi - lo)
     p = [f'<svg viewBox="0 0 700 {h}" role="img" class="chart" '
          f'aria-label="절단 k별 구성 간 차이의 신뢰구간">']
     for t in (-0.1, 0.0, 0.1, 0.2, 0.3):
@@ -234,7 +239,8 @@ def ragas_chart(summary: dict, coverage: dict) -> str:
     x0, x1 = 210, 600
     row_h, bar, top = 40, 14, 24
     h = top + row_h * len(order) + 30
-    sx = lambda v: x0 + (x1 - x0) * max(0.0, min(1.0, v))
+    def sx(v):
+        return x0 + (x1 - x0) * max(0.0, min(1.0, v))
     p = [f'<svg viewBox="0 0 700 {h}" role="img" class="chart" aria-label="RAGAS 4축 점수">']
     for t in (0, 0.25, 0.5, 0.75, 1.0):
         p.append(f'<line x1="{sx(t):.1f}" y1="{top - 10}" x2="{sx(t):.1f}" y2="{h - 28}" class="grid"/>')
@@ -761,7 +767,7 @@ Recall@3은 {k3['arms']['dense']['recall']:.3f}로 최하위권이지만 Recall@
     raw = g3b.get("binary_agreement_raw")
     # RAGAS는 judge 라벨 기반이므로 recall 천장도 그 트랙 값을 쓴다
     rc_ceil = spec["recall_at_3_ceiling"]["judge_only"]
-    h.append(f"""<section><h2>천장을 100점으로 환산하면 <span class="n">도달률</span></h2>
+    h.append("""<section><h2>천장을 100점으로 환산하면 <span class="n">도달률</span></h2>
 <p class="lede">"측정 가능한 최선"을 100점으로 두고 각 지표가 몇 점인지 본다.
 <strong>다만 천장이 지표마다 다르다</strong> — 이걸 섞으면 안 된다.</p>
 

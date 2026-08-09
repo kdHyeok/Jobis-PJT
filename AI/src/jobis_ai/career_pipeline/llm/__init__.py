@@ -2,6 +2,7 @@
 
 from ..llm_adapter import (
     JsonCompletionProvider,
+    JsonProviderContractError,
     JsonProviderError,
     JsonProviderNotConfigured,
     LlmProgressCallback,
@@ -12,6 +13,7 @@ from ..llm_adapter import (
 
 __all__ = [
     "JsonCompletionProvider",
+    "JsonProviderContractError",
     "JsonProviderError",
     "JsonProviderNotConfigured",
     "LlmProgressCallback",

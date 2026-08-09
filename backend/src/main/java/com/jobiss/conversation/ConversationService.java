@@ -20,11 +20,6 @@ import java.util.UUID;
 @Service
 public class ConversationService {
 
-    private static final String GREETING = """
-            안녕하세요. 지금 어떤 일을 해왔고 앞으로 어디로 가고 싶은지부터 편하게 이야기해 주세요.
-            공고가 있다면 나중에 첨부해도 되고, 아직 없다면 직무 탐색부터 함께 시작할 수 있어요.
-            """;
-
     private final RlsTransactionExecutor rls;
     private final JobPostingService postingService;
     private final ObjectMapper objectMapper;
@@ -50,13 +45,43 @@ public class ConversationService {
                             c.status,
                             c.last_message_at,
                             c.created_at,
+                            exists (
+                                select 1
+                                from chat_reply_jobs pending_reply
+                                where pending_reply.conversation_id = c.id
+                                  and pending_reply.status in ('QUEUED', 'RUNNING')
+                            ) as ai_reply_pending,
+                            coalesce((
+                                select recent_job.status = 'FAILED'
+                                from (
+                                    select reply.status::text as status, reply.updated_at
+                                    from chat_reply_jobs reply
+                                    where reply.conversation_id = c.id
+
+                                    union all
+
+                                    select analysis.status::text, analysis.updated_at
+                                    from analysis_jobs analysis
+                                    join job_postings posting on posting.id = analysis.posting_id
+                                    where posting.conversation_id = c.id
+                                ) recent_job
+                                order by recent_job.updated_at desc
+                                limit 1
+                            ), false) as latest_job_failed,
                             coalesce((
                                 select m.content
                                 from conversation_messages m
                                 where m.conversation_id = c.id
                                 order by m.created_at desc, m.id desc
                                 limit 1
-                            ), '') as last_message
+                            ), '') as last_message,
+                            coalesce((
+                                select m.role::text
+                                from conversation_messages m
+                                where m.conversation_id = c.id
+                                order by m.created_at desc, m.id desc
+                                limit 1
+                            ), '') as latest_message_role
                         from conversations c
                         order by c.last_message_at desc
                         limit 50
@@ -67,7 +92,10 @@ public class ConversationService {
                         rs.getString("status"),
                         rs.getString("last_message"),
                         rs.getObject("last_message_at", OffsetDateTime.class),
-                        rs.getObject("created_at", OffsetDateTime.class)
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getBoolean("ai_reply_pending"),
+                        rs.getBoolean("latest_job_failed"),
+                        rs.getString("latest_message_role")
                 ))
                 .list());
     }
@@ -94,6 +122,29 @@ public class ConversationService {
                         c.status,
                         c.last_message_at,
                         c.created_at,
+                        exists (
+                            select 1
+                            from chat_reply_jobs pending_reply
+                            where pending_reply.conversation_id = c.id
+                              and pending_reply.status in ('QUEUED', 'RUNNING')
+                        ) as ai_reply_pending,
+                        coalesce((
+                            select recent_job.status = 'FAILED'
+                            from (
+                                select reply.status::text as status, reply.updated_at
+                                from chat_reply_jobs reply
+                                where reply.conversation_id = c.id
+
+                                union all
+
+                                select analysis.status::text, analysis.updated_at
+                                from analysis_jobs analysis
+                                join job_postings posting on posting.id = analysis.posting_id
+                                where posting.conversation_id = c.id
+                            ) recent_job
+                            order by recent_job.updated_at desc
+                            limit 1
+                        ), false) as latest_job_failed,
                         coalesce((
                             select m.content
                             from conversation_messages m
@@ -101,6 +152,13 @@ public class ConversationService {
                             order by m.created_at desc, m.id desc
                             limit 1
                         ), '') as last_message,
+                        coalesce((
+                            select m.role::text
+                            from conversation_messages m
+                            where m.conversation_id = c.id
+                            order by m.created_at desc, m.id desc
+                            limit 1
+                        ), '') as latest_message_role,
                         count(*) over() as total_count
                     from conversations c
                     where (
@@ -130,7 +188,10 @@ public class ConversationService {
                                     rs.getString("status"),
                                     rs.getString("last_message"),
                                     rs.getObject("last_message_at", OffsetDateTime.class),
-                                    rs.getObject("created_at", OffsetDateTime.class)
+                                    rs.getObject("created_at", OffsetDateTime.class),
+                                    rs.getBoolean("ai_reply_pending"),
+                                    rs.getBoolean("latest_job_failed"),
+                                    rs.getString("latest_message_role")
                             ),
                             rs.getInt("total_count")
                     ))
@@ -155,18 +216,6 @@ public class ConversationService {
                     .param("userId", userId)
                     .query(UUID.class)
                     .single();
-            insertMessage(
-                    jdbc,
-                    userId,
-                    id,
-                    "ASSISTANT",
-                    "TEXT",
-                    GREETING,
-                    null,
-                    null,
-                    null,
-                    objectMapper.createObjectNode()
-            );
             return load(jdbc, id);
         });
     }
@@ -427,13 +476,43 @@ public class ConversationService {
                             c.status,
                             c.last_message_at,
                             c.created_at,
+                            exists (
+                                select 1
+                                from chat_reply_jobs pending_reply
+                                where pending_reply.conversation_id = c.id
+                                  and pending_reply.status in ('QUEUED', 'RUNNING')
+                            ) as ai_reply_pending,
+                            coalesce((
+                                select recent_job.status = 'FAILED'
+                                from (
+                                    select reply.status::text as status, reply.updated_at
+                                    from chat_reply_jobs reply
+                                    where reply.conversation_id = c.id
+
+                                    union all
+
+                                    select analysis.status::text, analysis.updated_at
+                                    from analysis_jobs analysis
+                                    join job_postings posting on posting.id = analysis.posting_id
+                                    where posting.conversation_id = c.id
+                                ) recent_job
+                                order by recent_job.updated_at desc
+                                limit 1
+                            ), false) as latest_job_failed,
                             coalesce((
                                 select m.content
                                 from conversation_messages m
                                 where m.conversation_id = c.id
                                 order by m.created_at desc, m.id desc
                                 limit 1
-                            ), '') as last_message
+                            ), '') as last_message,
+                            coalesce((
+                                select m.role::text
+                                from conversation_messages m
+                                where m.conversation_id = c.id
+                                order by m.created_at desc, m.id desc
+                                limit 1
+                            ), '') as latest_message_role
                         from conversations c
                         where c.id = :conversationId
                         """)
@@ -444,7 +523,10 @@ public class ConversationService {
                         rs.getString("status"),
                         rs.getString("last_message"),
                         rs.getObject("last_message_at", OffsetDateTime.class),
-                        rs.getObject("created_at", OffsetDateTime.class)
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getBoolean("ai_reply_pending"),
+                        rs.getBoolean("latest_job_failed"),
+                        rs.getString("latest_message_role")
                 ))
                 .optional()
                 .orElseThrow(this::notFound);
@@ -770,7 +852,10 @@ public class ConversationService {
             String status,
             String lastMessage,
             OffsetDateTime lastMessageAt,
-            OffsetDateTime createdAt
+            OffsetDateTime createdAt,
+            boolean aiReplyPending,
+            boolean latestJobFailed,
+            String latestMessageRole
     ) {
     }
 

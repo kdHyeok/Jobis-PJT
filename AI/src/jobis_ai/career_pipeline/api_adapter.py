@@ -15,7 +15,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from .assessment import AtomicCapabilityAssessmentService
-from .capability_graph import HttpCapabilityGraphPort, UnavailableCapabilityGraphPort
+from .capability_graph import (
+    GraphReleaseCapabilityGraphPort,
+    HttpCapabilityGraphPort,
+)
 from .cancellation import bind_analysis_job, cancel_analysis
 from .config import Settings
 from .contracts.assessment import (
@@ -73,12 +76,14 @@ class CareerPipelineRuntime:
                 timeout_seconds=settings.capability_graph_timeout_seconds,
             )
             if settings.capability_graph_url
-            else UnavailableCapabilityGraphPort()
+            else GraphReleaseCapabilityGraphPort.from_active_release(
+                settings.capability_graph_release_path or None
+            )
         )
+        self.graph = graph
         self.pipeline = AnalysisPipelineService(
             posting_service=self.posting,
             resolution_service=self.resolution,
-            fit_service=self.fit,
             normalization_service=self.normalization,
             project_planning_service=self.project_planning,
             graph_port=graph,
@@ -91,7 +96,14 @@ runtime = CareerPipelineRuntime()
 
 @router.get("/v1/capabilities", response_model=CapabilitiesResponse, response_model_by_alias=True)
 def capabilities() -> CapabilitiesResponse:
-    graph_ready = bool(runtime.settings.capability_graph_url)
+    graph_ready = True
+    graph_reason = None
+    if isinstance(runtime.graph, GraphReleaseCapabilityGraphPort):
+        graph_reason = (
+            "Configured graph release was invalid; packaged last-approved snapshot is active"
+            if runtime.graph.fallback_reason
+            else None
+        )
     return CapabilitiesResponse(
         service_version="single-ai-career-pipeline-1.0.0",
         capabilities=[
@@ -104,17 +116,17 @@ def capabilities() -> CapabilitiesResponse:
             CapabilityFlag(
                 name="CAPABILITY_GRAPH",
                 available=graph_ready,
-                reason=None if graph_ready else "CAPABILITY_GRAPH_URL is not configured",
+                reason=graph_reason,
             ),
             CapabilityFlag(
                 name="ROADMAP_PROPOSAL",
                 available=graph_ready,
-                reason=None if graph_ready else "CAPABILITY_GRAPH_URL is not configured",
+                reason=graph_reason,
             ),
             CapabilityFlag(
                 name="ANALYSIS_PIPELINE",
                 available=graph_ready,
-                reason=None if graph_ready else "CAPABILITY_GRAPH_URL is not configured",
+                reason=graph_reason,
             ),
             CapabilityFlag(name="ATOMIC_CAPABILITY_ASSESSMENT", available=True),
         ],
@@ -277,6 +289,17 @@ def _public_error_message(code: ErrorCode, raw_message: str) -> str:
         return "분석 에이전트의 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
     if code is ErrorCode.AI_PROVIDER_UNAVAILABLE:
         return "분석 엔진이 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해 주세요."
+    if code is ErrorCode.CONTRACT_VALIDATION_FAILED:
+        return (
+            "AI가 생성한 분석 결과가 서비스 검증 규칙과 맞지 않았습니다. "
+            "공고는 저장되어 있으며, 오류가 수정된 뒤 다시 분석할 수 있습니다."
+        )
+    if code is ErrorCode.ROLE_RESOLUTION_REQUIRED:
+        return (
+            "이 링크에서는 지원할 특정 모집 직무를 확정할 수 없습니다. "
+            "채용 직무 목록이나 직무 소개 페이지가 아닌 상세 공고 URL 또는 "
+            "회사명·직무명·지원 요건이 포함된 공고 원문을 입력해 주세요."
+        )
     if code is ErrorCode.CAPABILITY_NOT_AVAILABLE:
         return "역량 지식 그래프에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
     if code is ErrorCode.INTERNAL_ERROR:

@@ -234,6 +234,8 @@ def test_sql_join_stays_inside_mysql_scope_after_scope_review(structured_posting
         ("RESPONSIBILITY", RoadmapDisposition.PROJECT_CONTEXT),
         ("EXPERIENCE", RoadmapDisposition.CAREER_GATE),
         ("CREDENTIAL", RoadmapDisposition.CAREER_GATE),
+        ("CERTIFICATION", RoadmapDisposition.CAREER_GATE),
+        ("LANGUAGE", RoadmapDisposition.CAREER_GATE),
         ("EMPLOYMENT_CONDITION", RoadmapDisposition.EMPLOYMENT_INFORMATION),
     ],
 )

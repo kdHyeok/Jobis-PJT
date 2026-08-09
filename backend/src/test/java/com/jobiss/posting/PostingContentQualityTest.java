@@ -42,4 +42,13 @@ class PostingContentQualityTest {
                 .extracting(exception -> ((ApiException) exception).code())
                 .isEqualTo("POSTING_SOURCE_INSUFFICIENT");
     }
+
+    @Test
+    void acceptsSpacedKoreanRequirementAndEmploymentHeadings() {
+        String posting = "백엔드 개발자 채용\n지원 자격\n"
+                + "Java와 Spring을 사용한 API 개발 경험이 필요합니다. ".repeat(10);
+
+        assertThatCode(() -> PostingContentQuality.requireSufficient(posting))
+                .doesNotThrowAnyException();
+    }
 }

@@ -2695,3 +2695,67 @@ codex 가 없는 PC 의 전 LLM 호출이 `WinError 2` 로 죽었고 .env 의 an
 **출처**: `scripts/start-ai-agent.ps1` · `AI/.env.example`
 
 ---
+
+### D141 (08-08) 세션 시딩 가드를 "DB 파생 키는 매 턴 갱신"으로 바꾼다
+
+**결정**: `v2bridge/service.py` 의 채팅 세션 시딩에서 ① `posting_library` 는 매 턴
+백엔드가 실은 DB 공고(분석 결과 `structured_posting` 포함)를 앞에 병합하고, 세션에만
+있던 붙여넣기 공고는 해시로 식별해 뒤에 보존한다 ② `roadmap` 은 백엔드가 매 턴 싣는
+정본(PostgreSQL — models.py ChatRequest.workspace_state 주석의 canonical 계약)으로 덮는다 ③ 확정 커리어 요약(조각·지도 항목·목표)은
+이력서의 **대체**가 아니라 **병렬 사실**로, 이력서 원문과 합쳐 세션에 넣는다.
+
+**왜**: 셋 다 "세션에 없을 때만 시딩" 가드였는데, 워크스페이스 스냅샷이 매 턴 세션을
+되살리므로 첫 턴 이후의 DB 변화(공고 추가·분석 완료·지도 갱신)가 영영 AI 에 닿지 않았다.
+또 `db_resume_text or _career_summary_text(...)` 는 이력서가 있는 사용자일수록 커리어
+조각을 통째로 감췄다. AI 담당 실측 보고(08-08): "AI 가 채용공고·커리어 조각을 보지 않고,
+커리어지도와 공고 분석 내용이 대화에 전달되지 않는다."
+
+**뒤집는 것**: 시딩 가드 전반의 "없을 때만" 원칙을 **AI 산출 키에만** 남긴다
+(analysis·coverletter 등 `_OUTPUT_ASSETS` 계열). DB 파생 입력 키는 백엔드가 정본이다.
+
+**검증**: `tests/test_v2bridge_contract.py` 회귀 3건(공고 병합·지도 갱신·요약 병렬) 추가,
+전체 991건 통과 (2026-08-08).
+
+**출처**: `v2bridge/service.py::chat_events 시딩 블록` · `ChatReplyWorker.loadRequest`
+
+---
+
+### D142 (08-08) StreamBuilder 에 종결 시퀀스 3메서드를 채워 넣는다
+
+**결정**: `stream.py::StreamBuilder` 에 `validating()`(CONTRACT_VALIDATION RUNNING),
+`roadmap()`(RESULT_ASSEMBLY RUNNING — 새 스테이지 선언 대신 조립 서사로),
+`heartbeat()`(마지막 스테이지 재전송, `_stage` 예산 규칙 그대로)를 구현한다.
+
+**왜**: develop 4e44bc5 가 `service.py::analyze_events` 의 종결 시퀀스
+(validating→validated→roadmap→assembled)와 12초 하트비트를 먼저 커밋했는데
+`stream.py` 에 세 메서드가 없어, **모든 스트리밍 분석이 결과 직전
+AttributeError 로 죽었다**(실측 2026-08-08: 백엔드에는
+RESOURCEACCESSEXCEPTION "I/O error on POST /v1/analyses/stream" 으로 보인다).
+
+**검증**: `tests/test_v2bridge_stream.py` 에 종결 시퀀스·하트비트 계약 테스트 2건 추가,
+전체 993건 통과. 실제 도커 스택에서 분석 완주 재검증 (2026-08-08).
+
+**출처**: `v2bridge/stream.py` · `v2bridge/service.py::analyze_events`
+
+---
+
+### D143 (08-09) Capability Graph 기본 경로를 프로세스 내부 승인 릴리스로 전환한다
+
+**결정**: `CAPABILITY_GRAPH_URL`이 없는 정상 실행에서는 별도 HTTP 서비스 대신 패키지의
+`GraphRelease`를 읽는 결정론적 port를 사용한다. 릴리스는 Capability, ProjectTask,
+TaskRequirement를 분리하고 schema version, content hash, 근거 참조, 승인 상태, 역량·과제 DAG를
+한 번에 검증한다. 명시한 외부 릴리스가 무효면 원인을 로그에 남기고 패키지의 마지막 승인
+스냅샷으로 복귀한다. HTTP graph port와 8600 facade는 호환 모드로 남긴다.
+
+**왜**: Capability Graph는 LLM이나 독립 에이전트가 아니라 승인된 지식 데이터다. 네트워크
+서비스를 기본 전제로 두자 compose 접합 누락만으로 모든 UNIFIED 분석이 중단됐고, 재시도로는
+회복할 수 없었다. 현재 데이터 크기에서는 같은 릴리스를 메모리에 읽는 편이 실패 경계와 운영 부담이
+작고 단일 AI 원칙에도 맞다.
+
+**검증**: 릴리스 불변식 테스트와 optional HTTP 계약 테스트를 추가하고,
+`CAPABILITY_GRAPH_URL` 없이 승인 릴리스를 사용한 전체 분석 파이프라인이 COMPLETED가 되는
+회귀 테스트를 추가했다.
+
+**출처**: `career_pipeline/capability_graph/release.py` ·
+`career_pipeline/contracts/capability_graph.py::GraphRelease` ·
+`career_pipeline/api_adapter.py::CareerPipelineRuntime`

@@ -80,6 +80,7 @@ class StreamBuilder:
         self._declared: list[AnalysisStageDefinition] = []
         self._known_ids: set[str] = set()
         self._suppressed = 0
+        self._last_stage: tuple[str, str, str] | None = None
 
     @property
     def suppressed(self) -> int:
@@ -106,8 +107,21 @@ class StreamBuilder:
             # 몇 건을 못 보냈는지 마지막에 세어 로그로 남긴다(§2-6).
             self._suppressed += 1
             return None
+        self._last_stage = (stage_id, status, message)
         return self._event("STAGE_UPDATED", stage=AnalysisStageUpdate(
             id=stage_id, status=status, message=_clip(message, _STAGE_MESSAGE_MAX)))
+
+    def heartbeat(self) -> AnalysisStreamEvent | None:
+        """이벤트가 뜸할 때 마지막 스테이지를 재전송해 NDJSON 연결을 살려 둔다.
+
+        service.analyze_events 가 12초 무소식마다 부른다. 새 판단이 아니라 마지막
+        상태의 반복이므로 화면은 그대로다 — 목적은 백엔드 읽기 타임아웃 방지뿐이다.
+        예산 규칙은 _stage 가 그대로 적용한다(하트비트가 DB 쓰기를 무한정 만들지 않게).
+        """
+
+        if self._last_stage is None:
+            return None
+        return self._stage(*self._last_stage)
 
     # -- 계획 ---------------------------------------------------------------
     def backbone(self) -> AnalysisStreamEvent:
@@ -231,8 +245,19 @@ class StreamBuilder:
         return self._stage(stage_id, "RUNNING", text)
 
     # -- 종결 ---------------------------------------------------------------
+    def validating(self) -> AnalysisStreamEvent | None:
+        # service.analyze_events 의 종결 시퀀스가 validated() 직전에 부른다. 없으면
+        # 모든 스트리밍 분석이 결과 직전 AttributeError 로 죽는다(2026-08-08 실측).
+        return self._stage("CONTRACT_VALIDATION", "RUNNING", "스키마·참조 무결성을 확인하고 있어요.")
+
     def validated(self) -> AnalysisStreamEvent | None:
         return self._stage("CONTRACT_VALIDATION", "COMPLETED", "스키마·참조 무결성을 확인했어요.")
+
+    def roadmap(self) -> AnalysisStreamEvent | None:
+        # COMPLETED 로 끝난 분석만 부른다(service.analyze_events 종결 시퀀스) — 조립
+        # 완료(assembled) 직전의 로드맵 서사. 별도 스테이지를 새로 선언하는 대신
+        # RESULT_ASSEMBLY 의 진행 갱신으로 낸다.
+        return self._stage("RESULT_ASSEMBLY", "RUNNING", "커리어 지도 로드맵을 그리고 있어요.")
 
     def assembled(self) -> AnalysisStreamEvent | None:
         return self._stage("RESULT_ASSEMBLY", "COMPLETED", "지도에 쓸 데이터를 준비했어요.")

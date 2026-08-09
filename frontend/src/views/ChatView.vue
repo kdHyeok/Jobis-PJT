@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  ArrowDown,
   ArrowRight,
   BriefcaseBusiness,
   Archive,
@@ -9,16 +10,15 @@ import {
   ChevronDown,
   CircleAlert,
   CircleHelp,
+  CircleX,
   FilePlus2,
   Globe2,
   LoaderCircle,
   MessageCircleMore,
   Paperclip,
   Pencil,
-  Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Send,
   Sparkles,
   Trash2,
@@ -28,6 +28,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
+import { hasUnreadCompletedReply, markConversationSeen } from "@/conversation-read-state";
 import { productDialog } from "@/product-dialog";
 import AgentExecutionMap from "@/components/AgentExecutionMap.vue";
 import AgentWorkProductCard from "@/components/AgentWorkProductCard.vue";
@@ -247,6 +248,23 @@ const activeChatJobs = computed(() =>
   ),
 );
 
+const activeComposerChatJob = computed<ChatReplyJob | null>(() =>
+  [...activeChatJobs.value]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null,
+);
+
+function isInitialGreeting(item: ConversationMessage, index: number) {
+  if (index !== 0 || item.role !== "ASSISTANT") return false;
+  return item.content.includes("지금 어떤 일을 해왔고 앞으로 어디로 가고 싶은지부터")
+    && item.content.includes("공고가 있다면 나중에 첨부해도 되고");
+}
+
+const visibleConversationMessages = computed(() =>
+  (conversation.value?.messages ?? []).filter(
+    (item, index) => !isInitialGreeting(item, index),
+  ),
+);
+
 const analysisMessageIds = computed(() => {
   const seen = new Set<string>();
   const messageIds = new Set<string>();
@@ -324,7 +342,7 @@ function isClosedAnalysis(item: ConversationMessage) {
   return ["EXPIRED", "CLOSED"].includes(analysisLifecycleStatus(item));
 }
 
-function readinessValue(value: unknown, emptyLabel = "근거 없음") {
+function readinessValue(value: unknown, emptyLabel = "계산 보류") {
   return typeof value === "number" ? value + "%" : emptyLabel;
 }
 
@@ -340,7 +358,8 @@ function readinessUnavailableMessage(assessment: any) {
     return "필수 요건을 계산 대상으로 구성하지 못했습니다. 공고 원문을 다시 확인하거나 재분석해 주세요.";
   }
   if (reason === "REQUIRED_EVIDENCE_UNKNOWN") {
-    return "확정된 커리어 근거가 없어 준비도는 아직 계산하지 않았어요. 로드맵은 공고 조건을 기준으로 먼저 만들었습니다.";
+    const total = assessment?.metrics?.requiredTotal ?? 0;
+    return `커리어 자료는 등록되어 있지만 이번 공고의 필수 ${total}개 요건과 연결된 근거를 아직 확인하지 못해 준비도 계산을 보류했어요.`;
   }
   return "";
 }
@@ -415,27 +434,39 @@ function executedAgentAction(
 }
 
 function agentArtifactForMessage(item: ConversationMessage): AgentArtifact | null {
-  return agentResultForMessage(item).artifact ?? null;
+  const result = agentResultForMessage(item);
+  const artifact = result.artifact ?? null;
+  if (!artifact) return null;
+  const equivalentProductType = {
+    DIAGNOSIS: "DIAGNOSIS",
+    COMPARISON: "COMPARISON",
+    INTERVIEW_SET: "INTERVIEW_SET",
+    COVER_LETTER_DRAFT: "COVER_LETTER_DRAFT",
+    APPLICATION_PLAN: "APPLICATION_PLAN",
+    JOB_DISCOVERY_PLAN: "JOB_RECOMMENDATIONS",
+  }[artifact.artifactType];
+  return result.workProducts?.some(
+    (product) => product.productType === equivalentProductType,
+  )
+    ? null
+    : artifact;
+}
+
+function visibleAgentWarnings(item: ConversationMessage) {
+  // 섹션 헤더가 없는 공고도 전문 LLM 추출로 정상 처리된다. 내부 추출 전략 안내를
+  // 사용자 확인이 필요한 실패처럼 노출하지 않는다.
+  const informationalCodes = new Set([
+    "no_requirement_sections",
+    "unrelated_tail_dropped",
+    "planner_requested_agents_reconciled",
+  ]);
+  return (agentResultForMessage(item).warnings ?? []).filter(
+    (warning) => !informationalCodes.has(warning.code),
+  );
 }
 
 function agentProgressForMessage(item: ConversationMessage): AgentProgressEvent[] {
   return agentResultForMessage(item).progress ?? [];
-}
-
-function latestAgentProgress(job: ChatReplyJob | null): AgentProgressEvent[] {
-  if (!job) return [];
-  const positions = new Map<string, number>();
-  const latest: AgentProgressEvent[] = [];
-  for (const event of job.progressEvents) {
-    const position = positions.get(event.agentId);
-    if (position === undefined) {
-      positions.set(event.agentId, latest.length);
-      latest.push(event);
-    } else {
-      latest[position] = event;
-    }
-  }
-  return latest;
 }
 
 function artifactSectionTitle(section: Record<string, unknown>, index: number) {
@@ -509,19 +540,11 @@ async function loadAgentAssets() {
 }
 
 function applyRouteAgentContext() {
-  const mode = typeof route.query.mode === "string" ? route.query.mode : "";
-  if (agentModes.some((item) => item.value === mode)) {
-    agentMode.value = mode as AgentMode;
-  }
-  const postingId = typeof route.query.posting === "string" ? route.query.posting : null;
-  const sourceId = typeof route.query.source === "string" ? route.query.source : null;
-  if (postingId && !selectedPostingIds.value.includes(postingId)) {
-    selectedPostingIds.value = [...selectedPostingIds.value, postingId].slice(0, 5);
-  }
-  if (sourceId && !selectedCareerSourceIds.value.includes(sourceId)) {
-    selectedCareerSourceIds.value = [...selectedCareerSourceIds.value, sourceId].slice(0, 5);
-  }
-  if (mode || postingId || sourceId) showAgentContext.value = true;
+  // 담당 에이전트는 사용자가 고르지 않고 오케스트레이터가 대화에 맞춰 선택한다.
+  agentMode.value = "AUTO";
+  selectedPostingIds.value = [];
+  selectedCareerSourceIds.value = [];
+  showAgentContext.value = false;
 }
 
 function verdictLabel(verdict?: string) {
@@ -551,7 +574,7 @@ function isNearMessageBottom(threshold = 120) {
 }
 
 function onMessageListScroll() {
-  if (isNearMessageBottom()) showNewMessages.value = false;
+  showNewMessages.value = !isNearMessageBottom();
 }
 
 function messageUpdateSignature() {
@@ -611,11 +634,22 @@ async function loadConversations(preferredId?: string) {
     conversations.value[0]?.id;
   if (selected) {
     await openConversation(selected);
-  } else if (conversationStatus.value === "ACTIVE" && !conversationQuery.value.trim()) {
-    await createConversation();
   } else {
     conversation.value = null;
+    if (
+      conversationStatus.value === "ACTIVE" &&
+      !conversationQuery.value.trim() &&
+      typeof route.query.new !== "string"
+    ) {
+      await router.replace({ name: "home", query: { focus: "chat" } });
+    }
   }
+}
+
+function handleConversationSearch(event: Event) {
+  const detail = (event as CustomEvent<{ query?: string }>).detail;
+  conversationQuery.value = detail?.query ?? "";
+  void loadConversations();
 }
 
 async function loadMoreConversations() {
@@ -639,6 +673,23 @@ async function createConversation() {
   await scrollToBottom("auto");
 }
 
+async function createConversationFromRoute() {
+  await createConversation();
+  const prompt = typeof route.query.prompt === "string" ? route.query.prompt.trim() : "";
+  const requestedAction = route.query.action;
+  if (prompt) {
+    message.value = prompt.slice(0, CHAT_INPUT_MAX_CHARS);
+    await sendText();
+  }
+  if (requestedAction === "posting") startPostingAnalysis();
+  if (conversation.value) {
+    await router.replace({
+      name: "chat",
+      query: { conversationId: conversation.value.id },
+    });
+  }
+}
+
 async function refreshConversationList() {
   const page = await api.searchConversations({
     query: conversationQuery.value.trim(),
@@ -656,6 +707,7 @@ async function openConversation(id: string) {
   const loaded = await api.conversation(id);
   if (requestSequence !== conversationRequestSequence) return;
   conversation.value = loaded;
+  markConversationSeen(loaded.id, loaded.lastMessageAt);
   message.value = window.localStorage.getItem(`${CHAT_COMPOSER_DRAFT_PREFIX}${id}`) ?? "";
   if (previousId !== id) {
     agentMode.value = "AUTO";
@@ -744,7 +796,8 @@ async function deleteConversation(id: string) {
     await api.deleteConversation(id);
     const next = conversations.value.find((item) => item.id !== id)?.id;
     conversation.value = null;
-    await loadConversations(next);
+    if (next) await loadConversations(next);
+    else await router.replace({ name: "home", query: { focus: "chat" } });
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "대화를 삭제하지 못했습니다.";
   }
@@ -869,9 +922,13 @@ async function pollJobs() {
     if (conversation.value) {
       const currentId = conversation.value.id;
       const refreshed = await api.conversation(currentId);
-      if (conversation.value?.id === currentId) conversation.value = refreshed;
+      if (conversation.value?.id === currentId) {
+        conversation.value = refreshed;
+        markConversationSeen(currentId, refreshed.lastMessageAt);
+      }
     }
     await executeAutomaticActions();
+    await refreshConversationList();
     const contentChanged = previousSignature !== messageUpdateSignature();
     if (contentChanged) {
       if (followLatest) await scrollToBottom();
@@ -1583,7 +1640,7 @@ watch(
   async (value, previous) => {
     if (typeof value === "string" && value !== previous && !loading.value) {
       try {
-        await createConversation();
+        await createConversationFromRoute();
       } catch (cause) {
         error.value = cause instanceof Error ? cause.message : "새 대화를 만들지 못했습니다.";
       }
@@ -1607,14 +1664,23 @@ onMounted(async () => {
   }
   applyRouteAgentContext();
   loading.value = false;
+  if (typeof route.query.new === "string") {
+    try {
+      await createConversationFromRoute();
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : "새 대화를 만들지 못했습니다.";
+    }
+  }
   await nextTick();
   resizeComposer();
+  window.addEventListener("jobiss:conversation-search", handleConversationSearch);
   window.addEventListener("focus", refreshChatOnReturn);
   document.addEventListener("visibilitychange", refreshChatOnReturn);
 });
 
 onBeforeUnmount(() => {
   if (pollTimer) window.clearTimeout(pollTimer);
+  window.removeEventListener("jobiss:conversation-search", handleConversationSearch);
   window.removeEventListener("focus", refreshChatOnReturn);
   document.removeEventListener("visibilitychange", refreshChatOnReturn);
 });
@@ -1622,27 +1688,8 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="chat-workspace">
-    <aside class="conversation-sidebar">
-      <div class="conversation-sidebar__top">
-        <div>
-          <p class="eyebrow">CONVERSATIONS</p>
-          <h1>커리어 대화</h1>
-        </div>
-        <button class="icon-button" type="button" aria-label="새 대화" @click="createConversation">
-          <Plus :size="20" />
-        </button>
-      </div>
-      <form class="conversation-search" @submit.prevent="loadConversations()">
-        <input
-          v-model="conversationQuery"
-          type="search"
-          aria-label="대화 검색"
-          placeholder="대화 검색"
-        />
-        <button class="icon-button" type="submit" aria-label="대화 검색">
-          <Search :size="16" />
-        </button>
-      </form>
+    <Teleport defer to="#sidebar-conversations">
+      <aside class="conversation-sidebar" aria-label="대화 목록">
       <div class="conversation-status-tabs" role="tablist" aria-label="대화 상태">
         <button
           type="button"
@@ -1675,7 +1722,26 @@ onBeforeUnmount(() => {
             type="button"
             @click="openConversation(item.id)"
           >
-            <MessageCircleMore :size="18" />
+            <span
+              class="conversation-state-icon"
+              :class="{
+                'is-running': item.aiReplyPending,
+                'is-failed': !item.aiReplyPending && item.latestJobFailed,
+                'is-unread-complete': hasUnreadCompletedReply(item),
+              }"
+              :title="
+                item.aiReplyPending
+                  ? '답변 생성 중'
+                  : item.latestJobFailed
+                    ? '최근 작업 실패'
+                    : undefined
+              "
+            >
+              <MessageCircleMore :size="18" />
+              <LoaderCircle v-if="item.aiReplyPending" class="spin" :size="11" />
+              <CircleX v-else-if="item.latestJobFailed" :size="11" />
+              <i v-else-if="hasUnreadCompletedReply(item)" aria-label="확인하지 않은 완료 응답" />
+            </span>
             <span>
               <strong>{{ item.title }}</strong>
               <small>{{ item.lastMessage || "새 대화" }}</small>
@@ -1723,19 +1789,19 @@ onBeforeUnmount(() => {
           이전 대화 더 보기
         </button>
       </div>
-    </aside>
+      </aside>
+    </Teleport>
 
     <section class="chat-panel">
-      <header class="chat-panel__header">
-        <div>
-          <p class="eyebrow">CAREER COPILOT</p>
-          <h2>{{ conversation?.title ?? "새 커리어 대화" }}</h2>
-        </div>
-        <span class="ai-state">
+      <Teleport defer to="#app-topbar-center">
+        <h1 class="app-page-title">{{ conversation?.title ?? "새 커리어 대화" }}</h1>
+      </Teleport>
+      <Teleport defer to="#app-topbar-actions">
+        <span class="ai-state chat-save-state">
           <i />
           대화와 공고 분석 기록이 자동 저장됩니다
         </span>
-      </header>
+      </Teleport>
 
       <div
         ref="messageList"
@@ -1761,14 +1827,11 @@ onBeforeUnmount(() => {
         </button>
 
         <article
-          v-for="item in conversation?.messages ?? []"
+          v-for="item in visibleConversationMessages"
           :key="item.id"
           class="chat-message"
           :class="`chat-message--${item.role.toLowerCase()}`"
         >
-          <div v-if="item.role === 'ASSISTANT'" class="assistant-avatar">
-            <Sparkles :size="18" />
-          </div>
           <div class="chat-bubble">
             <section
               v-if="answeredQuestionForMessage(item)"
@@ -1802,6 +1865,7 @@ onBeforeUnmount(() => {
 
             <AgentExecutionMap
               v-if="agentResultForMessage(item).plan?.agents?.length"
+              compact
               :plan="agentResultForMessage(item).plan"
               :events="agentProgressForMessage(item)"
             />
@@ -1815,15 +1879,15 @@ onBeforeUnmount(() => {
             </div>
 
             <details
-              v-if="agentResultForMessage(item).warnings?.length"
+              v-if="visibleAgentWarnings(item).length"
               class="agent-warnings"
             >
               <summary>
-                일부 확인이 필요한 항목 {{ agentResultForMessage(item).warnings?.length }}개
+                일부 확인이 필요한 항목 {{ visibleAgentWarnings(item).length }}개
                 <ChevronDown :size="15" />
               </summary>
               <p
-                v-for="warning in agentResultForMessage(item).warnings ?? []"
+                v-for="warning in visibleAgentWarnings(item)"
                 :key="`${warning.agentId}-${warning.code}`"
               >
                 <strong>{{ warning.agentId ?? "에이전트" }}</strong>
@@ -2188,7 +2252,7 @@ onBeforeUnmount(() => {
                   <span>{{ verdictLabel(v3AssessmentFor(item)?.verdictProposal) }}</span>
                   <h3>{{ v3ResultTitle(item) }}</h3>
                   <p>
-                    회사 맞춤 프로젝트와 필요한 원자 역량을 구성하고 새 로드맵 초안을 만들었습니다.
+                    위 판정은 공고 적합도·갭 분석 결과이며, 준비 경로는 별도의 로드맵 초안으로 만들었습니다.
                   </p>
                   <p v-if="isClosedAnalysis(item)" class="analysis-goal-mode-note">
                     모집은 마감되었지만 다음 채용을 대비하는 준비 목표로 등록할 수 있어요.
@@ -2208,7 +2272,7 @@ onBeforeUnmount(() => {
                     </small>
                     <small>
                       검증 준비도
-                      <strong>{{ readinessValue(v3AssessmentFor(item)?.metrics?.verifiedReadinessPercent, '검증 자료 없음') }}</strong>
+                      <strong>{{ readinessValue(v3AssessmentFor(item)?.metrics?.verifiedReadinessPercent) }}</strong>
                     </small>
                   </div>
                   <p
@@ -2223,6 +2287,14 @@ onBeforeUnmount(() => {
                       :key="gap"
                     >
                       {{ gap }}
+                    </li>
+                  </ul>
+                  <ul v-else-if="(v3AssessmentFor(item)?.uncertainties ?? []).length">
+                    <li
+                      v-for="uncertainty in (v3AssessmentFor(item)?.uncertainties ?? []).slice(0, 4)"
+                      :key="uncertainty"
+                    >
+                      {{ uncertainty }} · 연결 근거 확인 필요
                     </li>
                   </ul>
                 </div>
@@ -2440,42 +2512,12 @@ onBeforeUnmount(() => {
               v-if="
                 item.role === 'USER' &&
                 chatJobForMessage(item) &&
-                chatJobForMessage(item)?.status !== 'SUCCEEDED'
+                ['FAILED', 'CANCELLED'].includes(chatJobForMessage(item)?.status ?? '')
               "
               class="inline-ai-status"
               :class="`inline-ai-status--${chatJobForMessage(item)?.status.toLowerCase()}`"
             >
-              <template
-                v-if="['QUEUED', 'RUNNING'].includes(chatJobForMessage(item)?.status ?? '')"
-              >
-                <div class="inline-agent-progress">
-                  <AgentExecutionMap
-                    compact
-                    :status="chatJobForMessage(item)?.status"
-                    :plan="chatJobForMessage(item)?.result.plan"
-                    :events="chatJobForMessage(item)?.progressEvents"
-                  />
-                  <div
-                    v-if="
-                      !chatJobForMessage(item)?.result.plan?.agents?.length &&
-                      !latestAgentProgress(chatJobForMessage(item)).length
-                    "
-                    class="inline-agent-waiting"
-                  >
-                    <LoaderCircle class="spin" :size="17" />
-                    <span>{{ chatJobForMessage(item)?.stageMessage ?? "요청을 이해하고 있어요" }}</span>
-                  </div>
-                  <button
-                    class="text-action"
-                    type="button"
-                    :disabled="actionJobId === chatJobForMessage(item)?.id"
-                    @click="cancelChat(chatJobForMessage(item)!)"
-                  >
-                    <X :size="13" /> 답변 중단
-                  </button>
-                </div>
-              </template>
-              <template v-else-if="chatJobForMessage(item)?.status === 'FAILED'">
+              <template v-if="chatJobForMessage(item)?.status === 'FAILED'">
                 <CircleAlert :size="17" />
                 <span>
                   {{ chatJobForMessage(item)?.errorMessage ?? "AI 답변을 만들지 못했어요." }}
@@ -2508,15 +2550,32 @@ onBeforeUnmount(() => {
         </article>
       </div>
 
-      <button
-        v-if="showNewMessages"
-        class="chat-new-message"
-        type="button"
-        @click="scrollToBottom()"
+      <div
+        v-if="showNewMessages || activeComposerChatJob"
+        class="chat-floating-status"
       >
-        새 메시지
-        <ChevronDown :size="16" :stroke-width="3" />
-      </button>
+        <button
+          v-if="showNewMessages"
+          class="chat-new-message"
+          type="button"
+          aria-label="최신 메시지로 이동"
+          title="최신 메시지로 이동"
+          @click="scrollToBottom()"
+        >
+          <ArrowDown :size="18" :stroke-width="2.8" />
+        </button>
+        <div
+          v-if="activeComposerChatJob"
+          class="chat-generation-dots"
+          role="status"
+          aria-live="polite"
+          aria-label="JOBIS가 답변을 생성하고 있습니다"
+        >
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
 
       <footer v-if="conversation?.status === 'ARCHIVED'" class="chat-composer chat-composer--archived">
         <Archive :size="20" />
@@ -2525,39 +2584,6 @@ onBeforeUnmount(() => {
       </footer>
       <footer v-else class="chat-composer">
         <p v-if="error" class="form-error">{{ error }}</p>
-        <div class="composer-primary-actions">
-          <button
-            class="composer-posting-analysis"
-            type="button"
-            :disabled="sending"
-            @click="startPostingAnalysis"
-          >
-            <span><BriefcaseBusiness :size="17" /></span>
-            <strong>공고 분석</strong>
-            <small>URL 또는 원문으로 확실하게 시작</small>
-            <ArrowRight :size="16" />
-          </button>
-          <button
-            class="agent-context-toggle"
-            :class="{ active: showAgentContext, ready: contextReady }"
-            type="button"
-            @click="showAgentContext = !showAgentContext"
-          >
-            <Sparkles :size="16" />
-            <span>
-              <strong>{{ selectedMode.label }}</strong>
-              <small>
-                {{
-                  agentMode === 'AUTO'
-                    ? '대화에 맞춰 담당 에이전트를 자동으로 선택합니다'
-                    : `공고 ${selectedPostingIds.length} · 커리어 자료 ${selectedCareerSourceIds.length}`
-                }}
-              </small>
-            </span>
-            <ChevronDown :size="16" />
-          </button>
-        </div>
-
         <section v-if="showAgentContext" class="agent-context-panel">
           <header>
             <div>
@@ -2656,6 +2682,16 @@ onBeforeUnmount(() => {
 
         <div class="composer-box">
           <button
+            class="composer-posting-analysis composer-posting-analysis--icon"
+            type="button"
+            :disabled="sending"
+            aria-label="공고 분석 시작"
+            title="공고 분석 시작"
+            @click="startPostingAnalysis"
+          >
+            <BriefcaseBusiness :size="19" />
+          </button>
+          <button
             class="composer-attach"
             type="button"
             :disabled="sending"
@@ -2686,12 +2722,15 @@ onBeforeUnmount(() => {
           />
           <button
             class="composer-send"
+            :class="{ 'composer-send--stop': activeComposerChatJob }"
             type="button"
-            :disabled="!message.trim() || sending"
-            aria-label="메시지 보내기"
-            @click="sendText"
+            :disabled="activeComposerChatJob ? actionJobId === activeComposerChatJob.id : !message.trim() || sending"
+            :aria-label="activeComposerChatJob ? '답변 생성 중단' : '메시지 보내기'"
+            :title="activeComposerChatJob ? '답변 생성 중단' : '메시지 보내기'"
+            @click="activeComposerChatJob ? cancelChat(activeComposerChatJob) : sendText()"
           >
-            <LoaderCircle v-if="sending" class="spin" :size="20" />
+            <X v-if="activeComposerChatJob" :size="19" :stroke-width="3" />
+            <LoaderCircle v-else-if="sending" class="spin" :size="20" />
             <Send v-else :size="20" />
           </button>
         </div>

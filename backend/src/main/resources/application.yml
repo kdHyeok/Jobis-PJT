@@ -2,7 +2,7 @@ spring:
   application:
     name: jobiss-backend
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:58432/jobiss_v3_integration_lab}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/jobiss}
     username: ${DB_APP_USER:jobiss_app}
     password: ${DB_APP_PASSWORD:jobiss_app_dev}
     hikari:
@@ -10,7 +10,7 @@ spring:
       auto-commit: false
   flyway:
     enabled: true
-    url: ${DB_URL:jdbc:postgresql://localhost:58432/jobiss_v3_integration_lab}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/jobiss}
     user: ${DB_MIGRATOR_USER:jobiss_migrator}
     password: ${DB_MIGRATOR_PASSWORD:jobiss_migrator_dev}
     locations: classpath:db/migration
@@ -26,7 +26,7 @@ spring:
       mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
 
 server:
-  port: ${SERVER_PORT:8380}
+  port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
   servlet:
     session:
@@ -46,6 +46,9 @@ jobiss:
     refresh-token-seconds: ${REFRESH_TOKEN_SECONDS:1209600}
     remember-me-refresh-token-seconds: ${REMEMBER_ME_REFRESH_TOKEN_SECONDS:2592000}
     cookie-secure: ${COOKIE_SECURE:false}
+    # 같은 localhost 에 여러 스택을 띄워도 세션 쿠키가 서로를 덮지 않도록 스택마다
+    # 다른 이름을 줄 수 있다(브라우저 쿠키는 포트를 구분하지 않는다).
+    cookie-name: ${AUTH_COOKIE_NAME:jobiss_access}
   ai:
     base-url: ${AI_SERVER_URL:http://localhost:8400}
     shared-secret: ${AI_SHARED_SECRET:local-ai-secret}

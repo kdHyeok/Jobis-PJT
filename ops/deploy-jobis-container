@@ -282,7 +282,8 @@ rollback() {
   if [[ "$rollback_ready" == true ]]; then
     if compose_up "$PREVIOUS_SHA" &&
        wait_for_stack &&
-       "$NGINX_SWITCH_COMMAND" container; then
+       "$NGINX_SWITCH_COMMAND" container &&
+       "$VERIFY_COMMAND" "$PREVIOUS_SHA"; then
       printf '%s\n' "$PREVIOUS_SHA" >"$STATE_FILE"
       echo "Image rollback completed: $PREVIOUS_SHA" >&2
     else

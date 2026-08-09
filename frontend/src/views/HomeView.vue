@@ -1,38 +1,40 @@
 <script setup lang="ts">
 import {
   ArrowRight,
-  Bell,
   BookOpen,
   BriefcaseBusiness,
   CheckCircle2,
   CircleHelp,
-  FileText,
   LoaderCircle,
   Map,
-  MessageCircle,
-  Sparkles,
+  Paperclip,
+  Send,
 } from "@lucide/vue";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
+import JobissGuide from "@/components/JobissGuide.vue";
 import { adaptV3Workspace } from "@/roadmap/v3-adapter";
-import { session } from "@/session";
 import type {
   AnalysisJob,
   CareerSourceSummary,
   GoalProfile,
-  NotificationItem,
   Posting,
   RoadmapNode,
   RoadmapWorkspace,
 } from "@/types";
 
+const route = useRoute();
+const router = useRouter();
 const roadmap = ref<RoadmapWorkspace | null>(null);
 const goals = ref<GoalProfile | null>(null);
 const postings = ref<Posting[]>([]);
 const jobs = ref<AnalysisJob[]>([]);
 const sources = ref<CareerSourceSummary[]>([]);
-const notifications = ref<NotificationItem[]>([]);
+const homeMessage = ref("");
+const homeComposer = ref<HTMLTextAreaElement | null>(null);
+const homeResumeFileInput = ref<HTMLInputElement | null>(null);
 const loading = ref(true);
 const error = ref("");
 let refreshTimer: number | null = null;
@@ -72,9 +74,7 @@ const currentTarget = computed(() =>
 
 const activeWork = computed(() => [
   ...jobs.value
-    .filter((job) =>
-      ["QUEUED", "RUNNING", "WAITING_FOR_INPUT"].includes(job.status),
-    )
+    .filter((job) => ["QUEUED", "RUNNING", "WAITING_FOR_INPUT"].includes(job.status))
     .map((job) => ({
       id: job.id,
       type: "공고 분석",
@@ -89,13 +89,68 @@ const activeWork = computed(() => [
     .filter((source) => ["QUEUED", "RUNNING"].includes(source.status))
     .map((source) => ({
       id: source.id,
-      type: "커리어 파편화",
+      type: "커리어 자료",
       title: source.title,
       message: source.stageMessage,
       needsInput: false,
       to: { name: "career-source-review", params: { sourceId: source.id } },
     })),
 ]);
+
+async function startConversation() {
+  const prompt = homeMessage.value.trim();
+  if (!prompt) {
+    homeComposer.value?.focus();
+    return;
+  }
+  await router.push({
+    name: "chat",
+    query: { new: Date.now().toString(), prompt },
+  });
+}
+
+async function startPostingConversation() {
+  await router.push({
+    name: "chat",
+    query: { new: Date.now().toString(), action: "posting" },
+  });
+}
+
+async function attachResumeFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = "파일은 5MB 이하만 보낼 수 있습니다.";
+    return;
+  }
+  if (!/\.(docx|txt|md)$/i.test(file.name)) {
+    error.value = "TXT, MD, DOCX 파일만 보낼 수 있습니다.";
+    return;
+  }
+  error.value = "";
+  let text = "";
+  try {
+    text = /\.docx$/i.test(file.name)
+      ? ((await api.uploadCareerSource(
+          file,
+          file.name.replace(/\.[^.]+$/, ""),
+        )).rawText || "").trim()
+      : (await file.text()).trim();
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "파일을 읽지 못했습니다.";
+    return;
+  }
+  if (text.length < 20) {
+    error.value = "파일에서 읽은 내용이 너무 짧습니다.";
+    return;
+  }
+  await router.push({
+    name: "chat",
+    query: { new: Date.now().toString(), prompt: text.slice(0, 12_000) },
+  });
+}
 
 async function load(showLoader = true) {
   if (showLoader) loading.value = true;
@@ -107,31 +162,40 @@ async function load(showLoader = true) {
     api.postings(),
     api.analysisJobs("", 20),
     api.careerSources(),
-    api.notifications(false),
   ] as const);
   const v3 = results[0].status === "fulfilled" ? results[0].value : null;
-  const hasV3Journey = Boolean(v3 && (
-    v3.draftProposal
-    || v3.currentRoadmap.nodes.some((node) => node.nodeKind !== "CAPABILITY" || !node.canonicalKey?.startsWith("foundation."))
-  ));
+  const hasV3Journey = Boolean(
+    v3 &&
+      (v3.draftProposal ||
+        v3.currentRoadmap.nodes.some(
+          (node) =>
+            node.nodeKind !== "CAPABILITY" ||
+            !node.canonicalKey?.startsWith("foundation."),
+        )),
+  );
   if (hasV3Journey && v3) roadmap.value = adaptV3Workspace(v3);
   else if (results[1].status === "fulfilled") roadmap.value = results[1].value;
   if (results[2].status === "fulfilled") goals.value = results[2].value;
   if (results[3].status === "fulfilled") postings.value = results[3].value;
   if (results[4].status === "fulfilled") jobs.value = results[4].value;
   if (results[5].status === "fulfilled") sources.value = results[5].value;
-  if (results[6].status === "fulfilled") {
-    notifications.value = results[6].value.items.slice(0, 5);
-  }
+
   const failed = results.filter((result) => result.status === "rejected").length;
-  if (failed) error.value = `일부 홈 정보(${failed}개)를 불러오지 못했습니다. 나머지 정보는 정상적으로 표시합니다.`;
+  if (failed) {
+    error.value = `일부 정보(${failed}개)를 불러오지 못했습니다. 나머지 정보는 정상적으로 표시합니다.`;
+  }
   loading.value = false;
 }
 
-onMounted(() => {
+onMounted(async () => {
   void load();
   refreshTimer = window.setInterval(() => void load(false), 15000);
+  if (route.query.focus === "chat") {
+    await nextTick();
+    homeComposer.value?.focus();
+  }
 });
+
 onBeforeUnmount(() => {
   if (refreshTimer) window.clearInterval(refreshTimer);
 });
@@ -139,27 +203,60 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="workspace home-workspace">
+    <section class="home-chat-start" aria-labelledby="home-chat-title">
+      <JobissGuide
+        class="home-chat-guide"
+        message="지금 상황이나 궁금한 공고부터 편하게 이야기해 주세요."
+      />
+      <div class="home-chat-start__copy">
+        <h1 id="home-chat-title">무엇을 준비하고 있는지 들려주세요</h1>
+        <p>새로운 대화는 여기서 시작하고, 이어진 대화는 왼쪽 목록에서 다시 열 수 있어요.</p>
+      </div>
+      <form class="home-chat-composer" @submit.prevent="startConversation">
+        <button
+          class="home-chat-tool"
+          type="button"
+          aria-label="공고 분석 시작"
+          title="공고 분석 시작"
+          @click="startPostingConversation"
+        >
+          <BriefcaseBusiness :size="19" />
+        </button>
+        <button
+          class="home-chat-tool"
+          type="button"
+          aria-label="이력서 파일 첨부 (TXT·MD·DOCX)"
+          title="이력서 파일 첨부 (TXT·MD·DOCX)"
+          @click="homeResumeFileInput?.click()"
+        >
+          <Paperclip :size="19" />
+        </button>
+        <input
+          ref="homeResumeFileInput"
+          type="file"
+          hidden
+          accept=".docx,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+          @change="attachResumeFile"
+        />
+        <textarea
+          ref="homeComposer"
+          v-model="homeMessage"
+          rows="1"
+          maxlength="12000"
+          aria-label="새 대화 내용"
+          placeholder="현재 상황, 목표, 공고 URL을 입력하세요"
+          @keydown.enter.exact.prevent="startConversation"
+        />
+        <button type="submit" aria-label="새 대화 시작" :disabled="!homeMessage.trim()">
+          <Send :size="20" />
+        </button>
+      </form>
+    </section>
+
     <div v-if="loading" class="state-panel">
       <LoaderCircle class="spin" :size="24" /> 오늘의 경로를 불러오는 중입니다.
     </div>
     <template v-else>
-      <section class="home-hero">
-        <div>
-          <p class="eyebrow">TODAY'S JOURNEY</p>
-          <h1>{{ session.user.value?.displayName }}님, 오늘도 한 칸 이어가 볼까요?</h1>
-          <p v-if="roadmap?.current.nodes.length">
-            지금까지 {{ completedCount }}개 단계를 완료했고
-            현재 지도에는 {{ roadmap.current.targets.length }}개 공고가 연결되어 있습니다.
-          </p>
-          <p v-else>
-            AI와 대화하거나 커리어 자료를 등록해 첫 성장 경로를 만들어 보세요.
-          </p>
-        </div>
-        <div class="home-hero__mark">
-          <Sparkles :size="34" />
-        </div>
-      </section>
-
       <p v-if="error" class="form-error">{{ error }}</p>
       <RouterLink
         v-if="roadmap?.draft"
@@ -169,9 +266,7 @@ onBeforeUnmount(() => {
         <Map :size="18" />
         <span>
           <strong>적용 대기 중인 로드맵 v{{ roadmap.draft.version }}이 있습니다</strong>
-          <small>
-            활성 목표 {{ roadmap.targetCount }}개를 기준으로 만든 변경안을 확인해 주세요.
-          </small>
+          <small>활성 목표 {{ roadmap.targetCount }}개를 기준으로 만든 변경안을 확인해 주세요.</small>
         </span>
         <ArrowRight :size="17" />
       </RouterLink>
@@ -230,7 +325,7 @@ onBeforeUnmount(() => {
         </article>
       </section>
 
-      <section v-if="activeWork.length" class="home-section">
+      <section v-if="activeWork.length" class="home-section home-active-work">
         <header>
           <div>
             <p class="eyebrow">BACKGROUND WORK</p>
@@ -252,59 +347,6 @@ onBeforeUnmount(() => {
             <ArrowRight :size="17" />
           </RouterLink>
         </div>
-      </section>
-
-      <section class="home-section quick-start-section">
-        <header>
-          <div>
-            <p class="eyebrow">QUICK START</p>
-            <h2>무엇부터 할까요?</h2>
-          </div>
-        </header>
-        <div class="quick-start-grid">
-          <RouterLink :to="{ name: 'chat' }">
-            <MessageCircle :size="23" />
-            <strong>AI와 대화</strong>
-            <p>현재 상황과 목표부터 자유롭게 이야기해요.</p>
-          </RouterLink>
-          <RouterLink :to="{ name: 'storage', query: { add: '1' } }">
-            <FileText :size="23" />
-            <strong>이력서 등록</strong>
-            <p>경험을 검토 가능한 커리어 조각으로 나눠요.</p>
-          </RouterLink>
-          <RouterLink :to="{ name: 'posting-new' }">
-            <BriefcaseBusiness :size="23" />
-            <strong>공고 분석</strong>
-            <p>공고와 내 증거를 비교해 경로를 연결해요.</p>
-          </RouterLink>
-          <RouterLink :to="{ name: 'map' }">
-            <Map :size="23" />
-            <strong>지도 보기</strong>
-            <p>공통 역량과 회사별 분기를 확인해요.</p>
-          </RouterLink>
-        </div>
-      </section>
-
-      <section class="home-section activity-preview">
-        <header>
-          <div>
-            <p class="eyebrow">RECENT ACTIVITY</p>
-            <h2>최근 변화</h2>
-          </div>
-          <RouterLink class="text-action" :to="{ name: 'activity' }">
-            전체 보기 <ArrowRight :size="14" />
-          </RouterLink>
-        </header>
-        <div v-if="notifications.length" class="activity-preview__list">
-          <article v-for="item in notifications" :key="item.id">
-            <span><Bell :size="17" /></span>
-            <div>
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.body }}</p>
-            </div>
-          </article>
-        </div>
-        <p v-else class="notification-empty">아직 기록된 활동이 없습니다.</p>
       </section>
     </template>
   </main>

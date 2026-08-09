@@ -14,6 +14,8 @@
   · 503 AI_PROVIDER_NOT_CONFIGURED — LLM 미설정 (가짜 성공을 만들지 않는다)
   · 503 AI_PROVIDER_UNAVAILABLE  — 엔진이 결과에 이르지 못함 (재시도 가능)
   · 502 INVALID_AI_RESPONSE      — 엔진 산출물이 계약 검증을 통과하지 못함
+  · 422 ROLE_RESOLUTION_REQUIRED — 분석 기준 직무를 사용자 확인 없이 확정할 수 없음
+  · 500 INTERNAL_ERROR           — 공급자 장애가 아닌 예상 밖 내부 처리 실패
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ import logging
 import os
 from datetime import UTC, datetime
 from hmac import compare_digest
-from typing import Annotated, Awaitable, Callable, TypeVar
+from typing import Annotated, Callable, TypeVar
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -135,6 +137,11 @@ async def _run(handler: Callable[[], _T]) -> _T:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "ANALYSIS_CONVERGENCE_FAILED", "message": str(exc)},
         ) from exc
+    except service.RoleResolutionRequired as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
     except service.EngineFailed as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -142,11 +149,11 @@ async def _run(handler: Callable[[], _T]) -> _T:
         ) from exc
     except HTTPException:
         raise
-    except Exception as exc:   # noqa: BLE001 — 예상 밖 실패도 재시도 가능한 실패로 알린다
+    except Exception as exc:   # noqa: BLE001 — 내부 오류를 공급자 장애로 위장하지 않는다
         log.exception("[v2bridge] 처리 실패")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "AI_PROVIDER_UNAVAILABLE", "message": str(exc)},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "INTERNAL_ERROR", "message": str(exc)},
         ) from exc
 
 
@@ -300,6 +307,15 @@ async def chat_stream(request: ChatRequest) -> "StreamingResponse":
                 "result": None, "plan": None, "errorCode": "AI_TIMEOUT",
                 "errorMessage": str(exc),
             }, ensure_ascii=False) + "\n"
+        except service.RoleResolutionRequired as exc:
+            yield json_mod.dumps({
+                "type": "ERROR", "sequence": sequence,
+                "occurredAt": datetime.now(UTC).isoformat(),
+                "agentId": "agent_error_boundary", "label": "분석 기준 직무 확인",
+                "status": "FAILED", "message": "분석할 기준 직무를 확인해 주세요.",
+                "result": None, "plan": None, "errorCode": exc.code,
+                "errorMessage": str(exc),
+            }, ensure_ascii=False) + "\n"
         except ValidationError as exc:
             yield json_mod.dumps({
                 "type": "ERROR", "sequence": sequence,
@@ -318,14 +334,14 @@ async def chat_stream(request: ChatRequest) -> "StreamingResponse":
                 "result": None, "plan": None, "errorCode": exc.code,
                 "errorMessage": str(exc),
             }, ensure_ascii=False) + "\n"
-        except Exception as exc:   # noqa: BLE001 — 예상 밖 실패도 재시도 가능한 실패로 알린다
+        except Exception as exc:   # noqa: BLE001 — 내부 오류를 공급자 장애로 위장하지 않는다
             log.exception("[v2bridge] chat 스트림 처리 실패")
             yield json_mod.dumps({
                 "type": "ERROR", "sequence": sequence,
                 "occurredAt": datetime.now(UTC).isoformat(),
                 "agentId": "agent_error_boundary", "label": "AI 실행 오류",
                 "status": "FAILED", "message": "실제 AI 에이전트 실행 중 오류가 발생했습니다.",
-                "result": None, "plan": None, "errorCode": "AI_PROVIDER_UNAVAILABLE",
+                "result": None, "plan": None, "errorCode": "INTERNAL_ERROR",
                 "errorMessage": str(exc),
             }, ensure_ascii=False) + "\n"
 

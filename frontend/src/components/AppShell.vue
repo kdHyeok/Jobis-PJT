@@ -2,126 +2,119 @@
 import {
   Activity,
   Archive,
-  Bell,
   BriefcaseBusiness,
-  Check,
-  House,
+  ClipboardCheck,
+  LoaderCircle,
   LogOut,
   Map,
   MessageCircle,
-  Plus,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
+  Search,
   Settings,
-  ClipboardCheck,
+  X,
 } from "@lucide/vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
-import { notificationDestination } from "@/notification-routing";
+import logoMark from "@/assets/logo-mark.png";
+import logoWordmark from "@/assets/logo-wordmark.png";
+import ConversationShelf from "@/components/ConversationShelf.vue";
+import { productDialog } from "@/product-dialog";
 import { session } from "@/session";
-import type { ActivityJob, NotificationItem } from "@/types";
+import type { ActivityJob } from "@/types";
 
 const router = useRouter();
 const route = useRoute();
 const initial = computed(() => session.user.value?.displayName.slice(0, 1) ?? "J");
-const notifications = ref<NotificationItem[]>([]);
 const activeJobs = ref<ActivityJob[]>([]);
+const activeJobEstimate = computed(() => {
+  const remaining = activeJobs.value
+    .map((job) => job.estimatedRemainingSeconds)
+    .filter((seconds): seconds is number => seconds !== null && Number.isFinite(seconds));
+  if (remaining.length === 0) return "예상 시간 계산 중";
+  const seconds = Math.max(...remaining);
+  if (seconds <= 60) return "1분 이내";
+  return `약 ${Math.ceil(seconds / 60)}분 남음`;
+});
 const unreadCount = ref(0);
-const showNotifications = ref(false);
+const showUserMenu = ref(false);
+const showConversationSearch = ref(false);
+const conversationSearchQuery = ref("");
 const sidebarCollapsed = ref(
   window.localStorage.getItem("jobiss:sidebar-collapsed") === "1",
 );
 const headerError = ref("");
-const notificationError = ref("");
-const notificationWrap = ref<HTMLElement | null>(null);
-let notificationTimer: number | null = null;
+const accountWrap = ref<HTMLElement | null>(null);
+const conversationSearchWrap = ref<HTMLElement | null>(null);
+let refreshTimer: number | null = null;
 
 function sectionActive(section: string) {
   if (section === "/app") return route.path === section;
   return route.path === section || route.path.startsWith(`${section}/`);
 }
 
-function formatTime(value: string) {
-  const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
-  if (seconds < 60) return "방금";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}시간 전`;
-  return `${Math.floor(seconds / 86400)}일 전`;
-}
-
-async function loadNotifications() {
-  try {
-    const result = await api.notifications();
-    notifications.value = result.items;
-    unreadCount.value = result.unreadCount;
-    notificationError.value = "";
-  } catch (cause) {
-    if (showNotifications.value) {
-      notificationError.value = cause instanceof Error ? cause.message : "알림을 불러오지 못했습니다.";
-    }
+async function loadGlobalStatus() {
+  const [notificationResult, activityResult] = await Promise.allSettled([
+    api.notifications(),
+    api.activityJobs(),
+  ]);
+  if (notificationResult.status === "fulfilled") {
+    unreadCount.value = notificationResult.value.unreadCount;
   }
-}
-
-async function loadActiveJobs() {
-  try {
-    activeJobs.value = await api.activityJobs();
-  } catch {
-    // 전역 상태 표시는 보조 정보다. 개별 화면의 오류 처리를 가리지 않는다.
-  }
-}
-
-async function openNotification(item: NotificationItem) {
-  notificationError.value = "";
-  try {
-    if (!item.readAt) {
-      await api.readNotification(item.id);
-      item.readAt = new Date().toISOString();
-      unreadCount.value = Math.max(0, unreadCount.value - 1);
-    }
-    showNotifications.value = false;
-    await router.push(notificationDestination(item));
-  } catch (cause) {
-    notificationError.value = cause instanceof Error ? cause.message : "알림을 열지 못했습니다.";
-  }
-}
-
-async function readAll() {
-  notificationError.value = "";
-  try {
-    await api.readAllNotifications();
-    notifications.value = notifications.value.map((item) => ({
-      ...item,
-      readAt: item.readAt ?? new Date().toISOString(),
-    }));
-    unreadCount.value = 0;
-  } catch (cause) {
-    notificationError.value = cause instanceof Error ? cause.message : "알림을 읽음 처리하지 못했습니다.";
+  if (activityResult.status === "fulfilled") {
+    activeJobs.value = activityResult.value;
   }
 }
 
 function handleDocumentPointer(event: PointerEvent) {
-  if (showNotifications.value && !notificationWrap.value?.contains(event.target as Node)) {
-    showNotifications.value = false;
+  if (showUserMenu.value && !accountWrap.value?.contains(event.target as Node)) {
+    showUserMenu.value = false;
+  }
+  if (
+    showConversationSearch.value &&
+    !conversationSearchWrap.value?.contains(event.target as Node)
+  ) {
+    showConversationSearch.value = false;
   }
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") showNotifications.value = false;
+  if (event.key === "Escape") {
+    showUserMenu.value = false;
+    showConversationSearch.value = false;
+  }
 }
 
-async function newConversation() {
-  showNotifications.value = false;
-  await router.push({ name: "chat", query: { new: Date.now().toString() } });
+function submitConversationSearch() {
+  window.dispatchEvent(new CustomEvent("jobiss:conversation-search", {
+    detail: { query: conversationSearchQuery.value.trim() },
+  }));
+  showConversationSearch.value = false;
+}
+
+function clearConversationSearch() {
+  conversationSearchQuery.value = "";
+  submitConversationSearch();
 }
 
 async function logout() {
+  const confirmed = await productDialog.confirm({
+    title: "로그아웃",
+    message: "정말로 로그아웃하시겠습니까?",
+    confirmLabel: "예, 로그아웃",
+    cancelLabel: "아니요",
+    danger: true,
+  });
+  if (!confirmed) return;
+
   headerError.value = "";
   try {
     await api.logout();
     session.clear();
-    await router.push({ name: "login" });
+    await router.push({ name: "landing" });
   } catch (cause) {
     headerError.value = cause instanceof Error ? cause.message : "로그아웃하지 못했습니다.";
   }
@@ -129,6 +122,8 @@ async function logout() {
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value;
+  showUserMenu.value = false;
+  showConversationSearch.value = false;
   window.localStorage.setItem(
     "jobiss:sidebar-collapsed",
     sidebarCollapsed.value ? "1" : "0",
@@ -145,12 +140,8 @@ onMounted(() => {
   window.addEventListener("jobiss:unauthorized", handleUnauthorized);
   document.addEventListener("pointerdown", handleDocumentPointer);
   document.addEventListener("keydown", handleDocumentKeydown);
-  void loadNotifications();
-  void loadActiveJobs();
-  notificationTimer = window.setInterval(() => {
-    void loadNotifications();
-    void loadActiveJobs();
-  }, 5000);
+  void loadGlobalStatus();
+  refreshTimer = window.setInterval(() => void loadGlobalStatus(), 5000);
 });
 
 onBeforeUnmount(() => {
@@ -158,47 +149,84 @@ onBeforeUnmount(() => {
   window.removeEventListener("jobiss:unauthorized", handleUnauthorized);
   document.removeEventListener("pointerdown", handleDocumentPointer);
   document.removeEventListener("keydown", handleDocumentKeydown);
-  if (notificationTimer) window.clearInterval(notificationTimer);
+  if (refreshTimer) window.clearInterval(refreshTimer);
 });
 </script>
 
 <template>
   <div
     class="app-shell"
-    :class="{ 'app-shell--sidebar-collapsed': sidebarCollapsed }"
+    :class="{
+      'app-shell--sidebar-collapsed': sidebarCollapsed,
+      'app-shell--chat': route.name === 'chat',
+    }"
   >
     <aside class="app-sidebar">
       <div class="app-sidebar__top">
         <RouterLink class="brand app-sidebar__brand" :to="{ name: 'home' }">
-          <span class="brand-mark">J</span>
-          <span class="sidebar-label">JOBIS</span>
+          <img
+            v-if="sidebarCollapsed"
+            class="brand-mark-logo"
+            :src="logoMark"
+            alt="JOBISS"
+            draggable="false"
+          />
+          <img
+            v-else
+            class="brand-logo"
+            :src="logoWordmark"
+            alt="JOBISS"
+            draggable="false"
+          />
         </RouterLink>
-        <button
-          class="sidebar-collapse-button"
-          type="button"
-          :aria-label="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
-          :title="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
-          @click="toggleSidebar"
-        >
-          <PanelLeftOpen v-if="sidebarCollapsed" :size="18" />
-          <PanelLeftClose v-else :size="18" />
-        </button>
+        <div ref="conversationSearchWrap" class="sidebar-conversation-search">
+          <button
+            class="sidebar-conversation-search__trigger"
+            type="button"
+            aria-label="대화 검색"
+            :aria-expanded="showConversationSearch"
+            title="대화 검색"
+            @click="showConversationSearch = !showConversationSearch"
+          >
+            <Search :size="18" />
+          </button>
+          <form
+            v-if="showConversationSearch"
+            class="sidebar-conversation-search__panel"
+            role="search"
+            @submit.prevent="submitConversationSearch"
+          >
+            <label for="global-conversation-search">대화 검색</label>
+            <div>
+              <Search :size="16" />
+              <input
+                id="global-conversation-search"
+                v-model="conversationSearchQuery"
+                autofocus
+                type="search"
+                placeholder="제목이나 대화 내용 검색"
+              />
+              <button
+                v-if="conversationSearchQuery"
+                type="button"
+                aria-label="검색어 지우기"
+                @click="clearConversationSearch"
+              >
+                <X :size="15" />
+              </button>
+            </div>
+            <button class="press-button press-button--primary" type="submit">검색</button>
+          </form>
+        </div>
       </div>
 
       <nav class="main-nav app-sidebar__nav" aria-label="주요 메뉴">
-        <RouterLink
-          :class="{ 'nav-section-active': sectionActive('/app') }"
-          :to="{ name: 'home' }"
-        >
-          <House :size="19" />
-          <span class="sidebar-label">홈</span>
-        </RouterLink>
-        <RouterLink
-          :class="{ 'nav-section-active': sectionActive('/app/chat') }"
-          :to="{ name: 'chat' }"
-        >
-          <MessageCircle :size="19" />
-          <span class="sidebar-label">대화</span>
+        <RouterLink class="new-chat-nav" :to="{ name: 'home', query: { focus: 'chat' } }">
+          <span class="new-chat-nav__icon" aria-hidden="true">
+            <MessageCircle :size="20" />
+            <Plus :size="11" :stroke-width="3" />
+          </span>
+          <span class="sidebar-label">새 대화</span>
         </RouterLink>
         <RouterLink
           :class="{ 'nav-section-active': sectionActive('/app/storage') }"
@@ -222,14 +250,6 @@ onBeforeUnmount(() => {
           <span class="sidebar-label">커리어 지도</span>
         </RouterLink>
         <RouterLink
-          :class="{ 'nav-section-active': sectionActive('/app/activity') }"
-          :to="{ name: 'activity' }"
-        >
-          <Activity :size="19" />
-          <span class="sidebar-label">활동 내역</span>
-          <b v-if="unreadCount" class="nav-count">{{ unreadCount > 99 ? "99+" : unreadCount }}</b>
-        </RouterLink>
-        <RouterLink
           v-if="session.user.value?.accountRole === 'OPERATOR'"
           :class="{ 'nav-section-active': sectionActive('/app/operator') }"
           :to="{ name: 'operator' }"
@@ -239,99 +259,82 @@ onBeforeUnmount(() => {
         </RouterLink>
       </nav>
 
-      <button
-        class="press-button press-button--primary app-sidebar__new"
-        type="button"
-        @click="newConversation"
-      >
-        <Plus :size="18" :stroke-width="3" />
-        <span class="sidebar-label">새 대화</span>
-      </button>
+      <div id="sidebar-conversations" class="app-sidebar__conversations">
+        <ConversationShelf v-if="route.name !== 'chat'" />
+      </div>
 
-      <div class="app-sidebar__account">
-        <RouterLink :to="{ name: 'settings' }" class="sidebar-profile">
-          <span class="profile-button">{{ initial }}</span>
+      <div ref="accountWrap" class="app-sidebar__account">
+        <button
+          class="sidebar-profile"
+          type="button"
+          :aria-expanded="showUserMenu"
+          aria-haspopup="menu"
+          @click="showUserMenu = !showUserMenu"
+        >
+          <span class="profile-button sidebar-profile__avatar">{{ initial }}</span>
+          <b v-if="unreadCount" class="sidebar-profile__badge">
+            {{ unreadCount > 99 ? "99+" : unreadCount }}
+          </b>
           <span class="sidebar-account-copy">
             <strong>{{ session.user.value?.displayName }}</strong>
             <small>{{ session.user.value?.email }}</small>
           </span>
-          <Settings :size="17" />
-        </RouterLink>
-        <button class="icon-button" type="button" aria-label="로그아웃" @click="logout">
-          <LogOut :size="19" />
         </button>
+
+        <section v-if="showUserMenu" class="sidebar-user-menu" role="menu">
+          <header>
+            <span class="profile-button">{{ initial }}</span>
+            <span>
+              <strong>{{ session.user.value?.displayName }}</strong>
+              <small>{{ session.user.value?.email }}</small>
+            </span>
+          </header>
+          <RouterLink role="menuitem" :to="{ name: 'activity' }" @click="showUserMenu = false">
+            <Activity :size="18" />
+            <span>활동 내역</span>
+            <b v-if="unreadCount">{{ unreadCount > 99 ? "99+" : unreadCount }}</b>
+          </RouterLink>
+          <RouterLink role="menuitem" :to="{ name: 'settings' }" @click="showUserMenu = false">
+            <Settings :size="18" />
+            <span>설정</span>
+          </RouterLink>
+          <button role="menuitem" type="button" @click="logout">
+            <LogOut :size="18" />
+            <span>로그아웃</span>
+          </button>
+        </section>
       </div>
     </aside>
 
     <header class="app-header app-topbar">
+      <button
+        class="sidebar-collapse-button sidebar-collapse-button--topbar"
+        type="button"
+        :aria-label="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
+        :title="sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'"
+        @click="toggleSidebar"
+      >
+        <PanelLeftOpen v-if="sidebarCollapsed" :size="18" />
+        <PanelLeftClose v-else :size="18" />
+      </button>
       <RouterLink class="brand app-topbar__brand" :to="{ name: 'home' }">
-        <span class="brand-mark">J</span>
-        <span>JOBIS</span>
+        <img class="brand-logo" :src="logoWordmark" alt="JOBISS" draggable="false" />
       </RouterLink>
-      <RouterLink v-if="activeJobs.length" class="app-topbar__status" :to="{ name: 'activity' }">
-        <i />
-        JOBIS 작업 {{ activeJobs.length }}개 진행 중
-      </RouterLink>
-      <div class="header-actions">
-        <div ref="notificationWrap" class="notification-wrap">
-          <button
-            class="icon-button notification-button"
-            type="button"
-            aria-label="알림"
-            :aria-expanded="showNotifications"
-            @click="showNotifications = !showNotifications"
-          >
-            <Bell :size="19" />
-            <b v-if="unreadCount">{{ unreadCount > 99 ? "99+" : unreadCount }}</b>
-          </button>
-          <section v-if="showNotifications" class="notification-popover" aria-label="알림 목록">
-            <header>
-              <div>
-                <p class="eyebrow">NOTIFICATIONS</p>
-                <h2>알림</h2>
-              </div>
-              <button v-if="unreadCount" class="text-action" type="button" @click="readAll">
-                <Check :size="14" /> 모두 읽음
-              </button>
-            </header>
-            <p v-if="notificationError" class="inline-error" role="alert">{{ notificationError }}</p>
-            <div v-if="notifications.length" class="notification-list">
-              <button
-                v-for="item in notifications"
-                :key="item.id"
-                type="button"
-                :class="{ unread: !item.readAt }"
-                @click="openNotification(item)"
-              >
-                <i />
-                <span>
-                  <strong>{{ item.title }}</strong>
-                  <p>{{ item.body }}</p>
-                  <small>{{ formatTime(item.createdAt) }}</small>
-                </span>
-              </button>
-            </div>
-            <p v-else class="notification-empty">새 알림이 없습니다.</p>
-            <RouterLink
-              class="notification-all"
-              :to="{ name: 'activity' }"
-              @click="showNotifications = false"
-            >
-              전체 활동 내역
-            </RouterLink>
-          </section>
-        </div>
-        <RouterLink class="profile-button app-topbar__profile" :to="{ name: 'settings' }">
-          {{ initial }}
+      <div id="app-topbar-center" class="app-topbar__center" />
+      <div class="app-topbar__right">
+        <RouterLink v-if="activeJobs.length" class="app-topbar__status" :to="{ name: 'activity' }">
+          <LoaderCircle class="spin app-topbar__status-spinner" :size="15" />
+          <span>
+            JOBIS 작업 {{ activeJobs.length }}개 진행 중
+            <small>{{ activeJobEstimate }}</small>
+          </span>
         </RouterLink>
+        <div id="app-topbar-actions" class="app-topbar__actions" />
       </div>
     </header>
     <p v-if="headerError" class="header-error" role="alert">{{ headerError }}</p>
 
-    <div
-      class="app-route"
-      :class="{ 'app-route--chat': route.name === 'chat' }"
-    >
+    <div class="app-route" :class="{ 'app-route--chat': route.name === 'chat' }">
       <RouterView />
     </div>
   </div>

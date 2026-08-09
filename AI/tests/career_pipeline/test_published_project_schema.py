@@ -30,7 +30,6 @@ def test_published_company_project_schema_matches_unified_ai_contract() -> None:
 
 
 def test_published_company_project_example_is_valid() -> None:
-    published = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     examples = json.loads(EXAMPLES_PATH.read_text(encoding="utf-8"))
     payload = examples["company-project-blueprint"]
 

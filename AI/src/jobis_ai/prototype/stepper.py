@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import threading
 import uuid
-from typing import Any
 
 from jobis_ai import trace
 from jobis_ai.agents import get_agent_registry

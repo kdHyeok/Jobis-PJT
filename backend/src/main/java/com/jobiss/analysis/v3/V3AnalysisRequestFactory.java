@@ -10,7 +10,12 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -63,6 +68,7 @@ public class V3AnalysisRequestFactory {
                             job.posting_id,
                             job.question_count,
                             source.id as source_id,
+                            source.entry_point,
                             source.source_document_id,
                             source.document::text as source_document,
                             snapshot.id as snapshot_id,
@@ -135,6 +141,7 @@ public class V3AnalysisRequestFactory {
                         rs.getObject("posting_id", UUID.class),
                         rs.getInt("question_count"),
                         rs.getObject("source_id", UUID.class),
+                        rs.getString("entry_point"),
                         rs.getString("source_document_id"),
                         readJson(rs.getString("source_document")),
                         rs.getObject("snapshot_id", UUID.class),
@@ -174,10 +181,11 @@ public class V3AnalysisRequestFactory {
             );
         }
         request.set("clarificationAnswers", clarificationAnswers(jdbc, analysisJobId));
-        // 대화 흐름에서 공고 내용을 이미 에이전트가 정리·확인하므로 파이프라인의
-        // 별도 원문 확인 게이트(AWAITING_POSTING_CONFIRMATION)는 걸지 않는다.
-        request.put("requirePostingConfirmation", false);
         String confirmedReviewId = confirmedPostingReviewId(jdbc, analysisJobId);
+        request.put(
+                "requirePostingConfirmation",
+                requiresPostingConfirmation(inputs.entryPoint(), confirmedReviewId)
+        );
         if (confirmedReviewId != null) {
             request.put("confirmedPostingReviewId", confirmedReviewId);
         }
@@ -209,7 +217,7 @@ public class V3AnalysisRequestFactory {
         request.put("opportunityId", opportunityId);
         request.put(
                 "skipRemainingEvidenceQuestions",
-                inputs.evidenceQuestionCount() >= 3
+                skipRemainingEvidenceQuestions(inputs.evidenceQuestionCount())
         );
 
         return new AnalysisContext(
@@ -277,6 +285,17 @@ public class V3AnalysisRequestFactory {
                 .query(String.class)
                 .optional()
                 .orElse(null);
+    }
+
+    static boolean requiresPostingConfirmation(String entryPoint, String confirmedReviewId) {
+        if (!Set.of("CHAT", "POSTINGS_PAGE", "INTERNAL").contains(entryPoint)) {
+            throw new IllegalArgumentException("Unsupported V3 source entry point: " + entryPoint);
+        }
+        return confirmedReviewId == null || confirmedReviewId.isBlank();
+    }
+
+    static boolean skipRemainingEvidenceQuestions(int evidenceQuestionCount) {
+        return evidenceQuestionCount >= 3;
     }
 
     private ObjectNode userEvidence(
@@ -407,44 +426,169 @@ public class V3AnalysisRequestFactory {
                 .list()
                 .forEach(competencies::add);
 
-        jdbc.sql("""
-                        select id, kind, title, description
+        List<CareerFragmentEvidence> careerFragments = jdbc.sql("""
+                        select id, kind, title, description, canonical_key
                         from career_fragments
                         where review_status = 'CONFIRMED'
                           and archived_at is null
                         order by updated_at desc
                         limit 500
                         """)
-                .query((rs, rowNum) -> {
-                    ObjectNode item = objectMapper.createObjectNode();
-                    item.put("evidenceId", rs.getObject("id", UUID.class).toString());
-                    item.put(
-                            "sourceType",
-                            "PROJECT".equalsIgnoreCase(rs.getString("kind"))
-                                    ? "PROJECT"
-                                    : "CAREER_FRAGMENT"
-                    );
-                    item.put("sourceRef", rs.getObject("id", UUID.class).toString());
-                    item.put("title", rs.getString("title"));
-                    item.put(
-                            "text",
-                            nonBlank(rs.getString("description"), rs.getString("title"))
-                    );
-                    item.put("verificationState", "NOT_VERIFIED");
-                    item.put("confidence", 0.7);
-                    return item;
-                })
-                .list()
-                .forEach(evidenceItems::add);
+                .query((rs, rowNum) -> new CareerFragmentEvidence(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("kind"),
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getString("canonical_key")
+                ))
+                .list();
+        ArrayNode formalFacts = objectMapper.createArrayNode();
+        applyConfirmedCareerFragments(
+                objectMapper,
+                competencies,
+                evidenceItems,
+                formalFacts,
+                careerFragments
+        );
 
         bundle.set("competencies", competencies);
         bundle.set("evidenceItems", evidenceItems);
-        bundle.set("formalFacts", objectMapper.createArrayNode());
+        bundle.set("formalFacts", formalFacts);
         bundle.set(
                 "requirementSelfReports",
                 requirementSelfReports(jdbc, analysisJobId)
         );
         return bundle;
+    }
+
+    static void applyConfirmedCareerFragments(
+            ObjectMapper objectMapper,
+            ArrayNode competencies,
+            ArrayNode evidenceItems,
+            ArrayNode formalFacts,
+            List<CareerFragmentEvidence> fragments
+    ) {
+        Map<String, ObjectNode> competencyByKey = new LinkedHashMap<>();
+        for (JsonNode item : competencies) {
+            if (item instanceof ObjectNode competency) {
+                competencyByKey.put(
+                        competency.path("competencyId").stringValue(""),
+                        competency
+                );
+            }
+        }
+
+        Map<String, List<CareerFragmentEvidence>> skillEvidenceByKey =
+                new LinkedHashMap<>();
+        for (CareerFragmentEvidence fragment : fragments) {
+            ObjectNode evidence = careerFragmentEvidence(objectMapper, fragment);
+            evidenceItems.add(evidence);
+
+            String factKind = formalFactKind(fragment.kind());
+            if (factKind != null) {
+                ObjectNode fact = objectMapper.createObjectNode();
+                fact.put("factId", "career-fact:" + fragment.id());
+                fact.put("kind", factKind);
+                fact.put("label", formalFactLabel(fragment));
+                fact.put("state", "PRESENT");
+                fact.putArray("evidenceRefs").add(fragment.id().toString());
+                fact.put("verificationState", "NOT_VERIFIED");
+                fact.put("confidence", 0.7);
+                formalFacts.add(fact);
+            }
+
+            if ("SKILL".equalsIgnoreCase(fragment.kind())
+                    && fragment.canonicalKey() != null
+                    && !fragment.canonicalKey().isBlank()) {
+                skillEvidenceByKey
+                        .computeIfAbsent(fragment.canonicalKey(), ignored -> new java.util.ArrayList<>())
+                        .add(fragment);
+            }
+        }
+
+        for (Map.Entry<String, List<CareerFragmentEvidence>> entry
+                : skillEvidenceByKey.entrySet()) {
+            ObjectNode competency = competencyByKey.get(entry.getKey());
+            if (competency == null) {
+                CareerFragmentEvidence first = entry.getValue().get(0);
+                competency = objectMapper.createObjectNode();
+                competency.put("competencyId", entry.getKey());
+                competency.put("displayName", first.title());
+                competency.put(
+                        "scopeDefinition",
+                        nonBlank(first.description(), first.title())
+                );
+                competency.put("verificationState", "NOT_VERIFIED");
+                competency.put("verifiedLevel", 0);
+                competencies.add(competency);
+                competencyByKey.put(entry.getKey(), competency);
+            }
+            competency.put("claimState", "CLAIMED");
+            competency.put("claimedLevel", Math.max(
+                    1,
+                    competency.path("claimedLevel").asInt(1)
+            ));
+            competency.put("evidenceState", "EVIDENCED");
+            ArrayNode refs = competency.path("evidenceRefs") instanceof ArrayNode existingRefs
+                    ? existingRefs
+                    : competency.putArray("evidenceRefs");
+            Set<String> knownRefs = new LinkedHashSet<>();
+            refs.forEach(ref -> knownRefs.add(ref.stringValue("")));
+            entry.getValue().stream()
+                    .map(fragment -> fragment.id().toString())
+                    .filter(knownRefs::add)
+                    .forEach(refs::add);
+            competency.put(
+                    "confidence",
+                    Math.max(0.7, competency.path("confidence").asDouble(0.0))
+            );
+        }
+    }
+
+    private static ObjectNode careerFragmentEvidence(
+            ObjectMapper objectMapper,
+            CareerFragmentEvidence fragment
+    ) {
+        ObjectNode item = objectMapper.createObjectNode();
+        item.put("evidenceId", fragment.id().toString());
+        item.put("sourceType", evidenceSourceType(fragment.kind()));
+        item.put("sourceRef", fragment.id().toString());
+        item.put("title", fragment.title());
+        item.put("text", nonBlank(fragment.description(), fragment.title()));
+        item.put("verificationState", "NOT_VERIFIED");
+        item.put("confidence", 0.7);
+        return item;
+    }
+
+    private static String evidenceSourceType(String kind) {
+        return switch (kind == null ? "" : kind.toUpperCase(Locale.ROOT)) {
+            case "PROJECT" -> "PROJECT";
+            case "EXPERIENCE" -> "EMPLOYMENT";
+            case "EDUCATION" -> "EDUCATION";
+            case "CREDENTIAL" -> "CERTIFICATE";
+            default -> "CAREER_FRAGMENT";
+        };
+    }
+
+    private static String formalFactKind(String kind) {
+        return switch (kind == null ? "" : kind.toUpperCase(Locale.ROOT)) {
+            case "EXPERIENCE" -> "ROLE_EXPERIENCE";
+            case "EDUCATION" -> "EDUCATION";
+            case "CREDENTIAL" -> "CERTIFICATE";
+            case "PROJECT" -> "PORTFOLIO";
+            default -> null;
+        };
+    }
+
+    private static String formalFactLabel(CareerFragmentEvidence fragment) {
+        String title = nonBlank(fragment.title(), fragment.description());
+        if (!"EDUCATION".equalsIgnoreCase(fragment.kind())
+                || fragment.description() == null
+                || fragment.description().isBlank()
+                || title.equals(fragment.description())) {
+            return title;
+        }
+        return title + " · " + fragment.description().trim();
     }
 
     private ArrayNode requirementSelfReports(JdbcClient jdbc, UUID analysisJobId) {
@@ -633,11 +777,21 @@ public class V3AnalysisRequestFactory {
     ) {
     }
 
+    record CareerFragmentEvidence(
+            UUID id,
+            String kind,
+            String title,
+            String description,
+            String canonicalKey
+    ) {
+    }
+
     private record StoredInputs(
             UUID jobId,
             UUID postingId,
             int questionCount,
             UUID sourceId,
+            String entryPoint,
             String sourceDocumentId,
             JsonNode sourceDocument,
             UUID snapshotId,

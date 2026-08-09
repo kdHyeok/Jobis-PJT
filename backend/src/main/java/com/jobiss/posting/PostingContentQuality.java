@@ -14,14 +14,15 @@ final class PostingContentQuality {
             "responsibilities", "what you'll do", "role description"
     );
     private static final List<String> REQUIREMENT_SIGNALS = List.of(
-            "자격요건", "지원자격", "필수 요건", "필수요건", "요구사항",
+            "자격요건", "자격 요건", "지원자격", "지원 자격",
+            "필수 요건", "필수요건", "요구사항",
             "requirements", "qualifications", "what we're looking for"
     );
     private static final List<String> PREFERENCE_SIGNALS = List.of(
             "우대사항", "우대 사항", "preferred", "nice to have", "우대 요건"
     );
     private static final List<String> EMPLOYMENT_SIGNALS = List.of(
-            "채용", "모집", "고용형태", "근무형태", "경력", "신입",
+            "채용", "모집", "고용형태", "고용 형태", "근무형태", "근무 형태", "경력", "신입",
             "employment", "career", "experience"
     );
 

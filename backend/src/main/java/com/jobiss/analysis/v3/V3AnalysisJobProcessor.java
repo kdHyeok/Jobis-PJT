@@ -604,6 +604,10 @@ public class V3AnalysisJobProcessor {
         JsonNode fit = requireObject(result, "fit");
         JsonNode normalization = requireObject(result, "normalization");
         JsonNode proposal = requireObject(result, "roadmapProposal");
+        requireActionableRoadmapProposal(
+                proposal,
+                context.request().path("currentRoadmap")
+        );
         long basedOnVersion = requiredLong(proposal, "basedOnRoadmapVersion");
         if (basedOnVersion != context.basedOnRoadmapVersion()) {
             throw new AiServiceException(
@@ -713,6 +717,12 @@ public class V3AnalysisJobProcessor {
                     .param("postingStatus", structured.path("postingStatus").stringValue("UNKNOWN"))
                     .param("postingId", context.postingId())
                     .update();
+            upsertLegacyPathProfile(
+                    jdbc,
+                    userId,
+                    context,
+                    position
+            );
             int updated = jdbc.sql("""
                             update analysis_jobs
                             set
@@ -755,7 +765,7 @@ public class V3AnalysisJobProcessor {
                             values (
                                 :userId,
                                 'ANALYSIS_COMPLETED',
-                                '준비 로드맵이 완성됐어요',
+                                '새 로드맵 초안이 준비됐어요',
                                 :body,
                                 jsonb_build_object(
                                     'analysisJobId', cast(:jobId as text),
@@ -774,6 +784,173 @@ public class V3AnalysisJobProcessor {
                     .update();
             return null;
         });
+    }
+
+    /**
+     * Keep the existing recommendation/assessment readers connected while UNIFIED is the
+     * authoritative analysis writer. This is a compatibility projection, not a second
+     * interpretation: every value comes from the selected structured position.
+     */
+    private static void upsertLegacyPathProfile(
+            JdbcClient jdbc,
+            UUID userId,
+            V3AnalysisRequestFactory.AnalysisContext context,
+            JsonNode position
+    ) {
+        JsonNode experience = position.path("experience");
+        String kind = experience.path("kind").stringValue("UNKNOWN");
+        int minimumMonths = minimumExperienceMonths(experience);
+        Integer maximumMonths = nullableNonNegativeInt(experience.path("maxMonths"));
+        String sourceText = experienceSourceText(experience, kind);
+
+        jdbc.sql("""
+                        insert into posting_path_profiles (
+                            posting_id,
+                            user_id,
+                            analysis_job_id,
+                            primary_track,
+                            experience_requirement_type,
+                            minimum_experience_months,
+                            maximum_experience_months,
+                            experience_source_text
+                        )
+                        values (
+                            :postingId,
+                            :userId,
+                            :jobId,
+                            :primaryTrack,
+                            :experienceType,
+                            :minimumMonths,
+                            :maximumMonths,
+                            :sourceText
+                        )
+                        on conflict (posting_id)
+                        do update set
+                            analysis_job_id = excluded.analysis_job_id,
+                            primary_track = excluded.primary_track,
+                            experience_requirement_type = excluded.experience_requirement_type,
+                            minimum_experience_months = excluded.minimum_experience_months,
+                            maximum_experience_months = excluded.maximum_experience_months,
+                            experience_source_text = excluded.experience_source_text
+                        """)
+                .param("postingId", context.postingId())
+                .param("userId", userId)
+                .param("jobId", context.jobId())
+                .param("primaryTrack", legacyTrack(position.path("role")))
+                .param("experienceType", legacyExperienceType(kind))
+                .param("minimumMonths", minimumMonths)
+                .param("maximumMonths", maximumMonths)
+                .param("sourceText", sourceText)
+                .update();
+    }
+
+    static String legacyTrack(JsonNode role) {
+        String canonicalRoleId = role.path("canonicalRoleId").stringValue("");
+        String specialization = role.path("specialization").stringValue("");
+        String value = (canonicalRoleId + " " + specialization).toLowerCase(java.util.Locale.ROOT);
+        if (value.contains("frontend")) return "FRONTEND";
+        if (value.contains("full_stack") || value.contains("fullstack")) return "FULLSTACK";
+        if (value.contains("mobile_android") || value.contains("mobile_ios")) return "MOBILE";
+        if (value.contains("game_")) return "GAME";
+        if (value.contains("security")) return "SECURITY";
+        if (value.contains("embedded")) return "EMBEDDED";
+        if (value.contains("test_automation") || value.contains("qa")) return "QA";
+        if (value.contains("cloud")) return "CLOUD";
+        if (value.contains("devops") || value.contains("reliability")) return "DEVOPS";
+        if (value.contains("ml_engineering") || value.contains("machine learning")) return "AI";
+        if (value.contains("data_") || value.contains("data ")) return "DATA";
+        return "BACKEND";
+    }
+
+    static String legacyExperienceType(String kind) {
+        return switch (kind) {
+            case "EXPERIENCE_REQUIRED", "RANGE" -> "REQUIRED";
+            case "NEW_GRADUATE_OR_EXPERIENCED" -> "PREFERRED";
+            default -> "NONE";
+        };
+    }
+
+    static int minimumExperienceMonths(JsonNode experience) {
+        Integer minimum = nullableNonNegativeInt(experience.path("minMonths"));
+        if (minimum != null) return minimum;
+        Integer experienced = nullableNonNegativeInt(experience.path("experiencedMinMonths"));
+        return experienced == null ? 0 : experienced;
+    }
+
+    private static Integer nullableNonNegativeInt(JsonNode value) {
+        return value.isIntegralNumber() && value.intValue() >= 0 ? value.intValue() : null;
+    }
+
+    private static String experienceSourceText(JsonNode experience, String kind) {
+        JsonNode evidenceIds = experience.path("evidenceIds");
+        if (evidenceIds.isArray() && !evidenceIds.isEmpty()) {
+            return kind + " · evidence " + evidenceIds.get(0).stringValue("");
+        }
+        return kind;
+    }
+
+    static void requireActionableRoadmapProposal(JsonNode proposal, JsonNode currentRoadmap) {
+        JsonNode operations = proposal.path("operations");
+        if (!operations.isArray() || operations.size() == 0) {
+            throw invalidRoadmapProposal("로드맵 초안에 변경 작업이 없습니다.");
+        }
+        boolean hasProject = false;
+        boolean hasProjectTasks = false;
+        boolean hasOpportunity = false;
+        for (JsonNode operation : operations) {
+            String nodeKind = operation.path("nodeKind").stringValue("");
+            String action = operation.path("action").stringValue("");
+            if ("TARGET_PROJECT".equals(nodeKind)) {
+                hasProject = true;
+                if ("CREATE_TARGET_PROJECT".equals(action)) {
+                    hasProjectTasks = hasProjectTasks
+                            || hasTasks(operation.path("projectSpec"));
+                } else if ("REUSE_NODE".equals(action)) {
+                    hasProjectTasks = hasProjectTasks || hasTasks(findExistingRoadmapNode(
+                            currentRoadmap,
+                            operation.path("existingNodeId").stringValue("")
+                    ).path("projectSpec"));
+                }
+            }
+            if ("OPPORTUNITY".equals(nodeKind)) {
+                hasOpportunity = hasOpportunity
+                        || ("ADD_OPPORTUNITY".equals(action)
+                        && operation.path("opportunitySpec").isObject())
+                        || ("REUSE_NODE".equals(action)
+                        && findExistingRoadmapNode(
+                                currentRoadmap,
+                                operation.path("existingNodeId").stringValue("")
+                        ).path("opportunitySpec").isObject());
+            }
+        }
+        if (!hasProject || !hasOpportunity) {
+            throw invalidRoadmapProposal("로드맵 초안에 목표 프로젝트와 지원 기회가 모두 필요합니다.");
+        }
+        if (!hasProjectTasks) {
+            throw invalidRoadmapProposal("목표 프로젝트에 실행할 학습 과제가 없습니다.");
+        }
+    }
+
+    private static boolean hasTasks(JsonNode projectSpec) {
+        JsonNode tasks = projectSpec.path("tasks");
+        return tasks.isArray() && tasks.size() > 0;
+    }
+
+    private static JsonNode findExistingRoadmapNode(JsonNode currentRoadmap, String nodeId) {
+        JsonNode nodes = currentRoadmap.path("nodes");
+        if (!nodes.isArray() || nodeId.isBlank()) {
+            return currentRoadmap.path("__missingRoadmapNode");
+        }
+        for (JsonNode node : nodes) {
+            if (nodeId.equals(node.path("nodeId").stringValue(""))) {
+                return node;
+            }
+        }
+        return currentRoadmap.path("__missingRoadmapNode");
+    }
+
+    private static AiServiceException invalidRoadmapProposal(String message) {
+        return new AiServiceException("INVALID_AI_RESPONSE", message);
     }
 
     private void upsertCapabilityReviewCandidates(

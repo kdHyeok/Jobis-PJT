@@ -22,9 +22,16 @@ def test_career_pipeline_is_served_by_the_single_v2bridge_app() -> None:
     assert transitional.status_code == 200
     assert transitional.json()["contractVersion"] == "jobis.ai.v3alpha1"
     assert any(
-        item["name"] == "ANALYSIS_PIPELINE"
+        item["name"] == "ANALYSIS_PIPELINE" and item["available"] is True
         for item in transitional.json()["capabilities"]
     )
+    graph = next(
+        item
+        for item in transitional.json()["capabilities"]
+        if item["name"] == "CAPABILITY_GRAPH"
+    )
+    assert graph["available"] is True
+    assert graph.get("reason") is None
 
 
 def test_career_pipeline_rejects_missing_internal_secret() -> None:
@@ -61,3 +68,19 @@ def test_career_pipeline_hides_graph_environment_name_from_public_error() -> Non
 
     assert "CAPABILITY_GRAPH_URL" not in detail.message
     assert "역량 지식 그래프" in detail.message
+
+
+def test_career_pipeline_explains_non_actionable_recruitment_page() -> None:
+    detail = _error_detail(
+        AnalysisPipelineFailure(
+            code=ErrorCode.ROLE_RESOLUTION_REQUIRED,
+            message="positions=[]",
+            retryable=False,
+        ),
+        None,
+    )
+
+    assert detail.code is ErrorCode.ROLE_RESOLUTION_REQUIRED
+    assert detail.retryable is False
+    assert "상세 공고 URL" in detail.message
+    assert "positions" not in detail.message

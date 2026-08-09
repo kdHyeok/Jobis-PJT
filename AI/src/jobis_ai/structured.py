@@ -27,9 +27,9 @@ import time
 from typing import TypeVar
 
 from langchain_core.runnables import Runnable
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from jobis_ai import llm_usage, trace
+from jobis_ai import cancellation, llm_usage, trace
 from jobis_ai.llm import LLMNotConfiguredError, get_llm
 
 log = logging.getLogger(__name__)
@@ -71,9 +71,51 @@ _MAX_ATTEMPTS = 3
 _RETRY_BACKOFF_SEC = 1.5
 
 
+def _is_contract_validation_failure(exc: Exception) -> bool:
+    """Return true when a provider response reached local schema validation."""
+
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ValidationError):
+            return True
+        name = type(current).__name__.casefold()
+        if "outputparser" in name or "structuredoutputvalidation" in name:
+            return True
+        current = current.__cause__ or current.__context__
+    message = str(exc).casefold()
+    return "validation error for" in message and "pydantic" in message
+
+
+def _is_repairable_json_format_failure(exc: Exception) -> bool:
+    """Return true only when the response failed before a JSON object existed.
+
+    A malformed/non-JSON answer can often be repaired by explicitly asking the
+    model for JSON once more.  A valid JSON object that violates a field or
+    business invariant is different: retrying the same prompt is stable-wrong
+    and must surface as a contract failure instead of consuming three calls.
+    """
+
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ValidationError):
+            errors = current.errors()
+            return bool(errors) and all(
+                str(item.get("type") or "").casefold() == "json_invalid"
+                for item in errors
+            )
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def _retryable(exc: Exception) -> bool:
     """공급자가 영구 실패로 표시한 오류는 같은 입력으로 다시 보내지 않는다."""
 
+    if _is_contract_validation_failure(exc):
+        return _is_repairable_json_format_failure(exc)
     return bool(getattr(exc, "retryable", True))
 
 
@@ -179,7 +221,9 @@ def run_structured(
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         attempts_made = attempt
         try:
+            cancellation.raise_if_cancelled()
             result = structured_llm.invoke(messages, **invoke_kwargs)
+            cancellation.raise_if_cancelled()
             duration_ms = round((time.perf_counter() - started) * 1000)
             input_tokens, output_tokens = usage_cb.tokens()
             trace.emit("llm_call", f"{node}: LLM 호출 성공", {
@@ -195,9 +239,12 @@ def run_structured(
                              duration_ms=duration_ms,
                              input_tokens=input_tokens, output_tokens=output_tokens)
             return result, warnings
+        except cancellation.RequestCancelled:
+            raise
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
             if attempt < _MAX_ATTEMPTS and _retryable(exc):
+                cancellation.raise_if_cancelled()
                 # 형식 위반은 **같은 프롬프트를 다시 보내면 같은 실패가 반복된다.**
                 # 힌트는 매번 base 위에 하나만 붙인다(쌓으면 입력이 불어난다).
                 repair = _repair_message(exc)
@@ -207,8 +254,13 @@ def run_structured(
                 continue
             break
 
+    warning_code = (
+        "llm_contract_validation_failed"
+        if last_exc is not None and _is_contract_validation_failure(last_exc)
+        else "llm_call_failed"
+    )
     warnings.append({
-        "code": "llm_call_failed",
+        "code": warning_code,
         "message": f"{node}: LLM 호출 {attempts_made}회 시도 후 실패 — {last_exc}",
     })
     duration_ms = round((time.perf_counter() - started) * 1000)
@@ -229,7 +281,9 @@ def run_structured(
 
 
 # 토큰 스트리밍 시 이 크기만큼 모아서 trace 로 흘린다 — 이벤트 폭주 방지.
-_STREAM_FLUSH_CHARS = 16
+# 브라우저는 0.8초마다 초안을 읽고 백엔드는 델타마다 DB에 누적한다. 너무 작은 조각은 한
+# 답변에 수백 트랜잭션을 만들므로, 문장이 자라는 느낌을 유지하면서 쓰기 횟수를 제한한다.
+_STREAM_FLUSH_CHARS = 64
 
 
 def _content_text(content: object) -> str:
@@ -298,8 +352,10 @@ def run_streaming_text(
         buffer = ""
         usage: dict | None = None      # 스트리밍은 마지막 청크에 usage 합계가 실린다(stream_usage)
         try:
+            cancellation.raise_if_cancelled()
             if streamable:
                 for chunk in llm.stream(messages):
+                    cancellation.raise_if_cancelled()
                     usage = getattr(chunk, "usage_metadata", None) or usage
                     piece = _content_text(chunk.content)
                     if not piece:
@@ -313,6 +369,7 @@ def run_streaming_text(
                     trace.emit("token", node, {"node": node, "text": buffer})
             else:
                 result = llm.invoke(messages)
+                cancellation.raise_if_cancelled()
                 usage = getattr(result, "usage_metadata", None)
                 whole = _content_text(result.content)
                 parts.append(whole)
@@ -332,6 +389,8 @@ def run_streaming_text(
                              duration_ms=duration_ms,
                              input_tokens=input_tokens, output_tokens=output_tokens)
             return text, warnings
+        except cancellation.RequestCancelled:
+            raise
         except Exception as exc:  # noqa: BLE001 — 어떤 실패든 재시도/폴백 대상
             last_exc = exc
             if attempt < _MAX_ATTEMPTS and _retryable(exc):

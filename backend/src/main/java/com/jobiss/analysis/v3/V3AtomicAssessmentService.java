@@ -40,7 +40,10 @@ public class V3AtomicAssessmentService {
     }
 
     public AssessmentView latest(UUID userId, String canonicalKey) {
-        return rls.read(userId, jdbc -> latest(jdbc, canonicalKey));
+        return rls.read(userId, jdbc -> {
+            capability(jdbc, canonicalKey);
+            return latest(jdbc, canonicalKey);
+        });
     }
 
     public AssessmentView start(

@@ -6,6 +6,7 @@ import pytest
 
 from jobis_ai.career_pipeline.contracts.parsing import StructuredContractError, parse_structured_payload
 from jobis_ai.career_pipeline.contracts.source import VerifiedPostingSnapshot
+from jobis_ai.career_pipeline.llm import JsonProviderContractError, StructuredGenerator
 
 
 VALID = {
@@ -61,3 +62,23 @@ def test_parser_does_not_invent_missing_semantic_fields() -> None:
 def test_parser_rejects_non_object_json() -> None:
     with pytest.raises(StructuredContractError, match="JSON object"):
         parse_structured_payload("[]", VerifiedPostingSnapshot)
+
+
+def test_shared_generator_preserves_contract_failure_category(monkeypatch) -> None:
+    def contract_failure(*_args, **_kwargs):
+        return None, [{
+            "code": "llm_contract_validation_failed",
+            "message": "payload violated the contract",
+        }]
+
+    monkeypatch.setattr(
+        "jobis_ai.career_pipeline.llm_adapter.run_structured",
+        contract_failure,
+    )
+
+    with pytest.raises(JsonProviderContractError, match="violated the contract"):
+        StructuredGenerator().generate(
+            VerifiedPostingSnapshot,
+            system_prompt="system",
+            user_prompt="input",
+        )

@@ -15,6 +15,7 @@ dependencies = [
     "openai>=1.0",              # GMS 경유 임베딩 직접 호출 (embed_impl/gms_openai.py)
     "httpx>=0.28,<1",           # Codex OAuth/Responses SSE adapter
     "pydantic>=2.6",
+    "PyYAML>=6.0",
     "python-dotenv>=1.0",
     "python-docx>=1.1",   # 이력서/공고 .docx 텍스트 추출 (extract.py)
     "pypdf>=4.0",         # 이력서/공고 .pdf 텍스트 추출 (extract.py)
@@ -37,6 +38,9 @@ jobis-codex-oauth = "jobis_ai.codex_oauth_adapter.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"jobis_ai.career_pipeline.capability_graph" = ["releases/*.yaml"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

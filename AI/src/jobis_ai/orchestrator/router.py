@@ -327,7 +327,9 @@ def validate_plan(agents: tuple[str, ...] | list[str], session: dict[str, Any],
             " 분석 결과에 따라 자소서 초안 · 면접 준비 · 로드맵 안내 · 대안 공고 추천까지"
             " 이어서 해드릴 수 있어요."
         )
-        return Dispatch((), pending=tuple(unasked_heavy), ask=(
+        # 동의가 필요한 선행 단계만 기억하면 그 뒤의 직접 요청이 사라진다.
+        # 전체 검증 완료 계획을 보존해 다음 동의 턴이 선행 분석 뒤 최종 작업까지 잇게 한다.
+        return Dispatch((), pending=tuple(plan), ask=(
             f"{opening}{heavy_label}부터 진행할 수 있어요. "
             f"수십 초 정도 걸리는데 바로 진행할까요?{follow}"))
 

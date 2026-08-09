@@ -36,14 +36,14 @@ CI는 **뼈대와 검사 내용을 나눠서** 관리한다. 기능을 만들 �
 | 계층 | 파일 | 소유 | 기능 개발자가 고치나 |
 |---|---|---|---|
 | 뼈대 | `Jenkinsfile` | Infra | ❌ (MR + Infra 리뷰) |
-| 검사 내용 | `<서비스>/ci/test.sh` | 해당 서비스 담당 | ✅ |
+| 검사 내용 | `<서비스>/ci-checks` | 해당 서비스 담당 | ✅ |
 | 테스트·마이그레이션 | 서비스 소스 | 코드를 바꾼 사람 | ✅ |
 | 배포 | `ops/`, `infra/`, `compose.yaml` | Infra | ❌ (MR + Infra 리뷰) |
 
 - **`Jenkinsfile`이 정하는 것**: 스테이지 구성과 순서, 브랜치 게이트(`when`), 실행 컨테이너
   이미지, 서비스 컨테이너(PostgreSQL 등), 자격증명, 이미지 승격, 프로덕션 배포.
-- **`<서비스>/ci/test.sh`가 정하는 것**: 그 서비스에서 무엇을 검사하는가.
-  `backend/ci/test.sh`, `AI/ci/test.sh`, `frontend/ci/test.sh`, `RAG/ci/test.sh`.
+- **`<서비스>/ci-checks`가 정하는 것**: 그 서비스에서 무엇을 검사하는가.
+  `backend/ci-checks`, `AI/ci-checks`, `frontend/ci-checks`, `RAG/ci-checks`.
 
 ### 기본 규칙
 
@@ -137,3 +137,29 @@ Jenkins와 운영이 **같은 호스트**를 쓴다(가용 메모리 약 2GB·�
 3. PostgreSQL 로그에서 같은 시각의 SQL 오류를 확인한다.
 4. 대상 레코드가 생성되지 않았는지, 생성 후 실패했는지 DB 상태를 확인한다.
 5. 원인을 재현하는 테스트를 추가한 뒤 수정하고 전체 관련 테스트를 실행한다.
+
+## CI 를 고치기 전에 — 뼈대와 검사는 소유자가 다르다
+
+파이프라인은 두 층이다. **어느 쪽을 고쳐야 하는지 먼저 판단한다.**
+
+- `Jenkinsfile` = 뼈대. 언제 돌지·무엇이 머지를 막을지·어떻게 배포될지. **Infra 담당 리뷰 필수.**
+- `<영역>/ci-checks` = 그 영역이 무엇을 검사할지. 해당 영역 담당이 고친다.
+
+기능을 추가할 때는 **대부분 CI 파일을 건드리지 않는다.** 테스트를 추가하면 기존
+파이프라인이 그것까지 돌린다. 검사 명령 자체가 늘어날 때만 그 영역의 `ci-checks` 를
+고치고, 새 서비스 컨테이너가 필요하거나 머지 차단 기준을 바꿔야 하면 `Jenkinsfile`
+변경을 MR 로 제안해 Infra 리뷰를 받는다.
+
+자세한 규칙·게이트 구성·advisory 목록은 [ops/CI_OWNERSHIP.md](ops/CI_OWNERSHIP.md).
+
+## 마이그레이션 번호 충돌 (git 이 잡지 못한다)
+
+`backend/src/main/resources/db/migration/` 과 `infra/airflow/migrations/` 에 파일을
+추가할 때는 **먼저 `origin/develop` 의 최신 번호를 확인한다.** 다른 브랜치가 같은
+번호를 쓰고 있어도 파일명이 다르면 git 은 충돌로 보지 않고, Flyway 는 기동을 거부한다
+(`Found more than one migration with version N`).
+
+번호만 밀어서는 끝나지 않는 경우가 있다. 두 마이그레이션이 같은 함수를
+`CREATE OR REPLACE` 하면 **나중에 실행되는 쪽이 앞의 수정을 통째로 덮는다.** 병합할
+때는 두 정의를 손으로 합치고, 빈 DB 에 전체 체인을 적용해 최종 객체가 두 수정을 모두
+갖는지 확인한다.

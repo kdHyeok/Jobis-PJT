@@ -5,8 +5,6 @@ import csv
 import json
 import random
 import sys
-import time
-from collections import Counter
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).parent
@@ -230,10 +228,10 @@ def score(conn=None) -> dict:
         for pair in pairs_data:
             pk = f"{pair['qid']}:{pair['uid']}"
             h = primary.get(pk)
-            l = llm_labels.get(pk)
-            if h and l:
+            label = llm_labels.get(pk)
+            if h and label:
                 stratum_total += 1
-                if (h == "Correct") == (l == "Correct"):
+                if (h == "Correct") == (label == "Correct"):
                     stratum_agree += 1
         if stratum_total > 0:
             weighted_agree += w * (stratum_agree / stratum_total)
@@ -336,8 +334,6 @@ def _check_fatigue(timestamps: dict) -> dict:
         times = sorted(timestamps.values())
         if len(times) < 10:
             return {"measured": False, "note": "too few timestamps"}
-        first_half = times[:len(times) // 2]
-        second_half = times[len(times) // 2:]
         return {
             "measured": True,
             "n_with_timestamps": len(times),

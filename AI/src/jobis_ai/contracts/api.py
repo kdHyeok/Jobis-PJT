@@ -72,6 +72,10 @@ class ChatRequest(BaseModel):
     sessionId: str
     message: str = ""
     attachments: list[ChatAttachment] = Field(default_factory=list)
+    # 서비스 채팅은 공고 확인·직무 선택·적합도·로드맵 영속화를 UNIFIED 파이프라인에
+    # 맡긴다. 분석 파이프라인 내부에서 이 오케스트레이터를 호출할 때는 LEGACY 기본값을
+    # 유지해 기존 판정 엔진을 실제 계산 도구로 쓴다.
+    analysisOwner: Literal["LEGACY", "UNIFIED"] = "LEGACY"
 
 
 class ChatResponse(BaseModel):

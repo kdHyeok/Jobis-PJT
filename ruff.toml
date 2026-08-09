@@ -1,0 +1,18 @@
+# Python 정적분석 설정. CI 의 'Static analysis' 단계가 이 파일을 쓴다.
+#
+# 지금은 advisory(경고)로 돌린다 — 기존 코드에 걸리는 항목이 남아 있어서, 처음부터
+# 머지를 막으면 개발이 멈춘다. 남은 항목을 정리한 뒤 Jenkinsfile 에서 catchError 를
+# 걷어내 required 로 올린다.
+target-version = "py311"
+line-length = 100
+
+extend-exclude = [
+    "**/.venv",
+    "**/site-packages",
+    "RAG/Jobis_*",       # 반입한 데이터 스냅샷
+]
+
+[lint.per-file-ignores]
+# 테스트는 sys.path 를 먼저 손본 뒤 대상 모듈을 import 해야 한다(E402 는 그 대가다).
+"**/tests/**" = ["E402"]
+"**/test_*.py" = ["E402"]

@@ -6,6 +6,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.net.URI;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 final class ChatAgentActionValidator {
@@ -78,6 +79,15 @@ final class ChatAgentActionValidator {
         String sourceUrl = payload.path("sourceUrl").isNull()
                 ? null
                 : payload.path("sourceUrl").stringValue("").trim();
+        UUID postingId = null;
+        JsonNode postingIdNode = payload.path("postingId");
+        if (!postingIdNode.isMissingNode() && !postingIdNode.isNull()) {
+            try {
+                postingId = UUID.fromString(postingIdNode.stringValue("").trim());
+            } catch (IllegalArgumentException exception) {
+                throw invalid("연결할 채용 공고 ID가 올바르지 않습니다.");
+            }
+        }
         if (!("TEXT".equals(sourceType) || "URL".equals(sourceType))) {
             throw invalid("공고 출처 형식이 올바르지 않습니다.");
         }
@@ -95,7 +105,7 @@ final class ChatAgentActionValidator {
         } else {
             sourceUrl = null;
         }
-        return new PostingAnalysisAction(sourceType, sourceUrl, rawText, reviewText);
+        return new PostingAnalysisAction(postingId, sourceType, sourceUrl, rawText, reviewText);
     }
 
     private static void validateHttpUrl(String sourceUrl) {
@@ -119,6 +129,7 @@ final class ChatAgentActionValidator {
     }
 
     record PostingAnalysisAction(
+            UUID postingId,
             String sourceType,
             String sourceUrl,
             String rawText,

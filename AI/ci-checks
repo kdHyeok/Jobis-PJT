@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# AI 영역 CI 검사. **이 파일은 AI 담당자가 고친다.**
+#
+# 파이프라인 뼈대(Jenkinsfile)는 순서와 정책만 정한다. AI 에 검사를 추가할 때는
+# Jenkinsfile 이 아니라 여기에 명령을 더한다.
+#
+#   ./AI/ci-checks test   # 필수 — pytest(LLM 없이) + explain 선언표 생성
+#   ./AI/ci-checks lint   # 권고 — ruff
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+export PYTHONUTF8=1
+export UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/jobis-uv-cache}"
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-/tmp/jobis-ai-venv}"
+
+bootstrap=/tmp/jobis-uv-bootstrap
+if [ ! -x "$bootstrap/bin/uv" ]; then
+  python -m venv "$bootstrap"
+  "$bootstrap/bin/python" -m pip install --disable-pip-version-check --no-cache-dir uv==0.11.32
+fi
+uv="$bootstrap/bin/uv"
+
+case "${1:-test}" in
+  test)
+    # AGENTS.md §4 의 회귀 명령. 실 LLM 을 쓰지 않으므로 비용 0, 1초대다.
+    "$uv" run --frozen --extra dev --extra prototype pytest -q
+    # 선언 표·관문 순서가 깨지지 않았는지 확인한다(문서가 아니라 코드에 묻는다).
+    "$uv" run --frozen --extra prototype python -m jobis_ai.explain > /tmp/jobis-ai-explain.txt
+    ;;
+  lint)
+    "$uv" run --frozen --with ruff==0.14.5 ruff check src tests
+    ;;
+  *) echo "사용법: $0 [test|lint]" >&2; exit 2 ;;
+esac

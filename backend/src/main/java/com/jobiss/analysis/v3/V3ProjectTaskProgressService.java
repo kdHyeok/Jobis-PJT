@@ -51,7 +51,7 @@ public class V3ProjectTaskProgressService {
                 String taskKey = task.path("taskKey").stringValue("");
                 if (taskKey.isBlank()) continue;
                 activeKeys.add(taskKey);
-                String revision = sha256(objectMapper.writeValueAsString(task));
+                String revision = definitionRevision(task);
                 jdbc.sql("""
                                 insert into user_project_task_progress (
                                     user_id, project_node_id, task_key, task_order, necessity,
@@ -247,6 +247,15 @@ public class V3ProjectTaskProgressService {
 
     private static ApiException notFound() {
         return new ApiException(HttpStatus.NOT_FOUND, "PROJECT_TASK_NOT_FOUND", "프로젝트 과제를 찾을 수 없습니다.");
+    }
+
+    String definitionRevision(JsonNode task) {
+        JsonNode definition = task == null ? null : task.deepCopy();
+        if (definition instanceof ObjectNode object) {
+            object.remove("progressState");
+            object.remove("evidenceCount");
+        }
+        return sha256(objectMapper.writeValueAsString(definition));
     }
 
     private static String sha256(String value) {

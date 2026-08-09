@@ -24,13 +24,16 @@ public class CookieAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final AuthTokenVersionService tokenVersions;
+    private final com.jobiss.config.JobissProperties properties;
 
     public CookieAuthenticationFilter(
             JwtService jwtService,
-            AuthTokenVersionService tokenVersions
+            AuthTokenVersionService tokenVersions,
+            com.jobiss.config.JobissProperties properties
     ) {
         this.jwtService = jwtService;
         this.tokenVersions = tokenVersions;
+        this.properties = properties;
     }
 
     @Override
@@ -39,7 +42,7 @@ public class CookieAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String token = findCookie(request, ACCESS_COOKIE);
+        String token = findCookie(request, properties.auth().cookieName());
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 JwtService.TokenPrincipal principal = jwtService.parsePrincipal(token);

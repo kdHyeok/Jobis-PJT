@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# backend 영역 CI 검사. **이 파일은 백엔드 개발자가 고친다.**
+#
+# 파이프라인 뼈대(Jenkinsfile)는 "언제 무엇을 어떤 순서로 돌릴지"만 정하고,
+# "무엇을 검사할지"는 각 영역이 이 스크립트로 정한다. 백엔드에 검사를 추가할 때
+# Jenkinsfile 을 고치지 말고 여기에 명령을 더한다.
+#
+# 사용법:
+#   ./backend/ci-checks test   # 필수(required) — 실패하면 머지 불가
+#   ./backend/ci-checks lint   # 권고(advisory) — 실패해도 머지 가능, 경고로 남는다
+#
+# test 는 DB 가 필요하다. 뼈대가 아래 환경변수를 넣어준다:
+#   DB_URL DB_MIGRATOR_USER DB_MIGRATOR_PASSWORD DB_APP_USER DB_APP_PASSWORD
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+chmod +x gradlew
+
+case "${1:-test}" in
+  test)
+    # 유닛 + 통합(Testcontainers) + Flyway 마이그레이션 전체 적용까지 여기서 걸린다.
+    ./gradlew clean test bootJar --no-daemon
+    jar="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
+    test -n "$jar" || { echo "실행 가능한 JAR 없음" >&2; exit 1; }
+    cp "$jar" backend.jar
+    ;;
+  lint)
+    # SpotBugs. build.gradle 의 ignoreFailures=true 라 리포트만 남는다.
+    ./gradlew spotbugsMain --no-daemon
+    ;;
+  *)
+    echo "사용법: $0 [test|lint]" >&2
+    exit 2
+    ;;
+esac

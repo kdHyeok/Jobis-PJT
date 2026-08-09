@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import random
 import sys
-from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -235,7 +234,8 @@ def measure() -> dict:
     # ── 출력 ──
     print(f"\n질의 {base['n_queries']}종 · 합동 풀 · 판정 {judge.PROMPT_VERSION}\n")
     hdr = f"{'변형':6} {'bm25':>8} {'dense':>8} {'rrf':>8} {'rrf_ce':>8}   설명"
-    print(hdr); print("-" * len(hdr) * 1)
+    print(hdr)
+    print("-" * len(hdr) * 1)
     for v in VARIANTS:
         m = scored[v]["macro_average"]
         print(f"{v:6} {m['bm25']['norm_ndcg3']:>8.4f} {m['dense']['norm_ndcg3']:>8.4f} "

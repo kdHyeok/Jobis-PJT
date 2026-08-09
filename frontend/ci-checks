@@ -1,0 +1,25 @@
+#!/bin/sh
+# frontend 영역 CI 검사. **이 파일은 프론트 개발자가 고친다.**
+#
+# 파이프라인 뼈대(Jenkinsfile)는 순서와 정책만 정한다. 프론트에 검사를 추가할 때는
+# Jenkinsfile 이 아니라 여기에 명령을 더한다.
+#
+#   ./frontend/ci-checks test   # 필수 — 타입체크 + 프로덕션 빌드
+#   ./frontend/ci-checks lint   # 권고 — ESLint
+#
+# CI 에이전트가 node:22-alpine 이라 bash 가 없다. POSIX sh 로만 쓴다.
+set -eu
+
+cd "$(dirname "$0")"
+
+# --ignore-scripts: 빌드에 postinstall 스크립트가 필요하지 않다(공급망 표면 축소).
+npm ci --ignore-scripts
+
+case "${1:-test}" in
+  test)                       # required: build + unit/contract tests
+    npm run build
+    npm test
+    ;;
+  lint) npm run lint ;;       # eslint src
+  *) echo "사용법: $0 [test|lint]" >&2; exit 2 ;;
+esac

@@ -244,7 +244,7 @@ def run(session: dict[str, Any]) -> AgentResult:
                       for r in session.get("resume_library") or []]
             return _needs_input({"unmatchedTarget": resume_targets[0],
                                  "reason": "not_found",
-                                 "candidates": [l for l in labels if l]},
+                                 "candidates": [label for label in labels if label]},
                                 fetch_warnings, axis="resume")
         switched = {**switched, **resume_switched}
 
@@ -321,9 +321,6 @@ def run(session: dict[str, Any]) -> AgentResult:
                 "scoreBasis": gap_state.get("scoreBasis") or {},
             }
         _archive(session, session_updates, source_hash, result)
-        if response.roadmap:
-            # 로드맵도 세션 자산으로 승격 — roadmap_manager 가 대화로 조회한다.
-            session_updates["roadmap"] = result["roadmap"]
 
     # 표현이 알아야 하지만 판정 결과에는 없는 것 — 준비 기간을 사용자가 준 게 아니라
     # 우리가 가정했는지. 세션 자산(analysis)에는 넣지 않는다(판정 산출물을 오염시키지 않는다).
@@ -396,8 +393,6 @@ def _run_multi_resume(session: dict[str, Any], posting_input: dict | None,
                 response.model_dump(), label)
         if entry.get("_sourceHash") == active_hash and response.status == "completed":
             session_updates["analysis"] = response.model_dump()
-            if response.roadmap:
-                session_updates["roadmap"] = response.model_dump()["roadmap"]
 
     return AgentResult(
         reply="",
@@ -458,8 +453,6 @@ def _run_multi(session: dict[str, Any], posting_input: dict | None,
         # analysis 자산은 활성 공고의 판정일 때만 승격 — 근거-대상 불일치 방지.
         if entry.get("_sourceHash") == active_hash and response.status == "completed":
             session_updates["analysis"] = response.model_dump()
-            if response.roadmap:
-                session_updates["roadmap"] = item["roadmap"]
 
     return AgentResult(
         reply="",

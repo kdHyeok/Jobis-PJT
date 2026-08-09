@@ -18,16 +18,20 @@ from jobis_ai.career_pipeline.contracts.project_planning import (
 )
 from jobis_ai.career_pipeline.contracts.common import WarningItem
 from jobis_ai.career_pipeline.llm import (
+    JsonProviderContractError,
     JsonProviderError,
     JsonProviderNotConfigured,
     LlmProgressCallback,
     StructuredGenerator,
 )
+from jobis_ai.career_pipeline.interpretation.service import (
+    _refine_formal_requirement_category,
+)
 
 from .draft import CompanyProjectBlueprintDraft
 
 
-PLANNER_VERSION = "company-project-planner-3.4.0"
+PLANNER_VERSION = "company-project-planner-3.5.1"
 MAX_PROMPT_CHARS = 96_000
 LEARNING_CATEGORIES = {
     RequirementCategory.TECHNOLOGY,
@@ -58,7 +62,7 @@ Rules:
 7. List a learnable requirement in unresolvedRequirementIds whenever any of its required learning scope lacks a safe approved mapping. It may still be referenced by a valid project task.
 8. Only IDs from learnableRequirements may appear in unresolvedRequirementIds.
 9. Items in projectContext shape the project and may be referenced by a task, but they must never appear in unresolvedRequirementIds.
-10. Responsibilities and portfolio requirements shape tasks, but attitudes, employment conditions, years of experience, and certificates are never capabilities.
+10. Responsibilities and portfolio requirements shape tasks, but attitudes, natural-language proficiency, employment conditions, years of experience, degrees, and certificates are never capabilities.
 11. Keep the source requirementId references. Do not attach a task to an unrelated requirement merely to satisfy coverage.
 12. Acceptance criteria must be observable outputs, tests, measurements, or documents. Avoid vague criteria such as 'understands well'.
 13. If the approved graph lacks a suitable atomic capability, keep the task and list the learnable requirementId as unresolved instead of choosing a similar-looking key.
@@ -88,13 +92,41 @@ class ProjectPlanningService:
     ) -> CompanyProjectBlueprint:
         requirements = _requirements(request)
         prompt = _prompt(request, requirements)
+        contract_repair_attempts = 0
+        semantic_repair_attempts = 0
         try:
-            draft, metadata = self._generator.generate(
-                CompanyProjectBlueprintDraft,
-                system_prompt=SYSTEM_PROMPT,
-                user_prompt=prompt,
-                progress_callback=progress_callback,
-            )
+            try:
+                draft, metadata = self._generator.generate(
+                    CompanyProjectBlueprintDraft,
+                    system_prompt=SYSTEM_PROMPT,
+                    user_prompt=prompt,
+                    progress_callback=progress_callback,
+                )
+            except JsonProviderContractError as exc:
+                contract_repair_attempts = 1
+                draft, metadata = self._generator.generate(
+                    CompanyProjectBlueprintDraft,
+                    system_prompt=SYSTEM_PROMPT,
+                    user_prompt=_contract_repair_prompt(prompt, requirements, exc),
+                    progress_callback=progress_callback,
+                )
+            try:
+                tasks, unresolved, ignored_context_ids = _compile_draft(
+                    request, requirements, draft
+                )
+            except ValueError as exc:
+                if not _is_recoverable_semantic_error(exc):
+                    raise
+                semantic_repair_attempts = 1
+                draft, metadata = self._generator.generate(
+                    CompanyProjectBlueprintDraft,
+                    system_prompt=SYSTEM_PROMPT,
+                    user_prompt=_semantic_repair_prompt(prompt, requirements, exc),
+                    progress_callback=progress_callback,
+                )
+                tasks, unresolved, ignored_context_ids = _compile_draft(
+                    request, requirements, draft, allow_missing_unresolved=True
+                )
         except JsonProviderNotConfigured as exc:
             raise ProjectPlanningFailure(
                 code=ErrorCode.AI_PROVIDER_NOT_CONFIGURED,
@@ -109,10 +141,6 @@ class ProjectPlanningService:
                 retryable=True,
             ) from exc
 
-        try:
-            tasks, unresolved, ignored_context_ids = _compile_draft(
-                request, requirements, draft
-            )
         except ValueError as exc:
             raise ProjectPlanningFailure(
                 code=ErrorCode.CONTRACT_VALIDATION_FAILED,
@@ -166,7 +194,11 @@ class ProjectPlanningService:
                 graph_content_hash=request.graph_catalog.content_hash,
                 provider=metadata.provider,
                 model=metadata.model,
-                generation_attempts=metadata.attempts,
+                generation_attempts=(
+                    metadata.attempts
+                    + contract_repair_attempts
+                    + semantic_repair_attempts
+                ),
                 generation_duration_ms=metadata.duration_ms,
                 generation_effort=metadata.final_effort,
                 generation_effort_history=list(metadata.effort_history),
@@ -201,7 +233,10 @@ def _requirements(request: ProjectPlanningRequest) -> dict[str, _PlanningRequire
         item.requirement_id: _PlanningRequirement(
             requirement_id=item.requirement_id,
             text=item.atomic_text,
-            category=item.category,
+            category=_refine_formal_requirement_category(
+                item.category,
+                item.atomic_text,
+            ),
             obligation=item.obligation,
             evidence_ids=item.evidence_ids,
         )
@@ -297,7 +332,72 @@ def _prompt(
     return encoded
 
 
-def _compile_draft(request, requirements, draft):
+def _contract_repair_prompt(
+    original_prompt: str,
+    requirements: dict[str, _PlanningRequirement],
+    error: JsonProviderContractError,
+) -> str:
+    valid_ids = sorted(requirements)
+    return (
+        f"{original_prompt}\n\n"
+        "CONTRACT_REPAIR_REQUEST:\n"
+        "The previous complete draft was rejected by local schema validation. "
+        "Return a fresh complete draft, not a patch.\n"
+        f"Validation failure: {str(error)[:2000]}\n"
+        f"Valid requirement IDs: {json.dumps(valid_ids, ensure_ascii=False)}\n"
+        "Every task.requirementIds must contain at least one related ID from the valid list. "
+        "Never invent an ID and never attach an unrelated ID merely to satisfy validation. "
+        "If a task cannot truthfully reference any supplied requirement, merge it into a related "
+        "task or omit it. Continue to list uncovered learnable requirements in "
+        "unresolvedRequirementIds according to the original rules."
+    )
+
+
+def _semantic_repair_prompt(
+    original_prompt: str,
+    requirements: dict[str, _PlanningRequirement],
+    error: ValueError,
+) -> str:
+    learning_ids = sorted(
+        item.requirement_id
+        for item in requirements.values()
+        if item.category in LEARNING_CATEGORIES
+        and item.obligation in {
+            RequirementObligation.REQUIRED,
+            RequirementObligation.PREFERRED,
+        }
+    )
+    return (
+        f"{original_prompt}\n\n"
+        "SEMANTIC_REPAIR_REQUEST:\n"
+        "The previous draft matched the JSON schema but failed local relationship validation. "
+        "Return one fresh complete draft, not a patch.\n"
+        f"Validation failure: {str(error)[:2000]}\n"
+        f"Valid learnable requirement IDs: {json.dumps(learning_ids, ensure_ascii=False)}\n"
+        "For every omitted learnable requirement, either attach it to a genuinely related task "
+        "whose objective or acceptance criteria demonstrates that requirement, or include it in "
+        "unresolvedRequirementIds. Never attach an unrelated requirement just to pass validation. "
+        "Repair invalid task keys, dependencies, requirement IDs, and capability keys using only "
+        "the values supplied in the original request. Preserve a coherent acyclic project."
+    )
+
+
+def _is_recoverable_semantic_error(error: ValueError) -> bool:
+    message = str(error)
+    recoverable_fragments = (
+        "unresolvedRequirementIds contain unknown requirements",
+        "project task keys must be unique",
+        "project task depends on unknown task keys",
+        "project task proposed unknown capability keys",
+        "project task refers to unknown requirements",
+        "project planner omitted learnable requirements",
+        "project task dependencies must form an acyclic graph",
+        "required project task cannot depend on extension tasks",
+    )
+    return any(fragment in message for fragment in recoverable_fragments)
+
+
+def _compile_draft(request, requirements, draft, *, allow_missing_unresolved=False):
     catalog_keys = {item.canonical_key for item in request.graph_catalog.capabilities}
     requirement_ids = set(requirements)
     learning_ids = {
@@ -383,10 +483,12 @@ def _compile_draft(request, requirements, draft):
 
     missing = learning_ids - covered_learning - set(unresolved)
     if missing:
-        raise ValueError(
-            "project planner omitted learnable requirements without marking them unresolved: "
-            f"{sorted(missing)}"
-        )
+        if not allow_missing_unresolved:
+            raise ValueError(
+                "project planner omitted learnable requirements without marking them unresolved: "
+                f"{sorted(missing)}"
+            )
+        unresolved.extend(sorted(missing))
     _validate_task_dependencies(tasks)
     return tasks, unresolved, ignored_context_ids
 

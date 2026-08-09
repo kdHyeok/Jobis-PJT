@@ -427,6 +427,8 @@ def _disposition(category: RequirementCategory) -> RoadmapDisposition:
         RequirementCategory.RESPONSIBILITY: RoadmapDisposition.PROJECT_CONTEXT,
         RequirementCategory.PORTFOLIO: RoadmapDisposition.PROJECT_CONTEXT,
         RequirementCategory.CREDENTIAL: RoadmapDisposition.CAREER_GATE,
+        RequirementCategory.CERTIFICATION: RoadmapDisposition.CAREER_GATE,
+        RequirementCategory.LANGUAGE: RoadmapDisposition.CAREER_GATE,
         RequirementCategory.EXPERIENCE: RoadmapDisposition.CAREER_GATE,
         RequirementCategory.BEHAVIORAL: RoadmapDisposition.FIT_ONLY,
         RequirementCategory.EMPLOYMENT_CONDITION: RoadmapDisposition.EMPLOYMENT_INFORMATION,

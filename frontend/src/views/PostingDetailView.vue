@@ -24,6 +24,7 @@ import { useRoute, useRouter } from "vue-router";
 import { api } from "@/api";
 import { productDialog } from "@/product-dialog";
 import AnalysisProgressWheel from "@/components/AnalysisProgressWheel.vue";
+import RoadmapProposalGraph from "@/components/RoadmapProposalGraph.vue";
 import V3PostingReviewCard from "@/components/V3PostingReviewCard.vue";
 import type {
   AlternativePosting,
@@ -88,6 +89,10 @@ const v3Preferred = computed(() =>
 const v3RoadmapOperations = computed(() => {
   const operations = (job.value?.proposal as any)?.operations;
   return Array.isArray(operations) ? operations : [];
+});
+const v3RoadmapRelations = computed(() => {
+  const relations = (job.value?.proposal as any)?.relations;
+  return Array.isArray(relations) ? relations : [];
 });
 const reuseMessage = computed(() =>
   route.query.reused === "1"
@@ -173,7 +178,7 @@ function verdictLabel(value?: string) {
   return "분석 결과";
 }
 
-function readinessValue(value: unknown, emptyLabel = "근거 없음") {
+function readinessValue(value: unknown, emptyLabel = "계산 보류") {
   return typeof value === "number" ? value + "%" : emptyLabel;
 }
 
@@ -189,7 +194,8 @@ function readinessUnavailableMessage(assessment: any) {
     return "필수 요건을 계산 대상으로 구성하지 못했습니다. 공고 원문을 다시 확인하거나 재분석해 주세요.";
   }
   if (reason === "REQUIRED_EVIDENCE_UNKNOWN") {
-    return "확정된 커리어 자료가 없어 공고 조건만으로 로드맵을 만들었습니다.";
+    const total = assessment?.metrics?.requiredTotal ?? 0;
+    return `커리어 자료는 등록되어 있지만 이번 공고의 필수 ${total}개 요건과 연결된 근거를 아직 확인하지 못해 준비도 계산을 보류했습니다.`;
   }
   return "";
 }
@@ -310,7 +316,11 @@ async function savePosting() {
   actionLoading.value = true;
   error.value = "";
   try {
-    await api.updatePosting(posting.value.id, editSourceUrl.value.trim() || null, editRawText.value.trim());
+    await api.reanalyzeV3Posting(
+      posting.value.id,
+      editSourceUrl.value.trim() || null,
+      editRawText.value.trim(),
+    );
     editOpen.value = false;
     await load();
   } catch (cause) {
@@ -770,7 +780,7 @@ onBeforeUnmount(() => {
         <template v-if="isV3Analysis">
           <section class="evaluation-banner evaluation-banner--v3">
             <div>
-              <p class="eyebrow">VERIFIED FIT ASSESSMENT</p>
+              <p class="eyebrow">지원 적합도 · 갭 분석</p>
               <span>{{ verdictLabel(v3Assessment?.verdictProposal) }}</span>
               <h2>
                 <template v-if="v3Assessment?.formalEligibility === 'VERIFIED_MET'">
@@ -783,29 +793,33 @@ onBeforeUnmount(() => {
                   필수 조건을 보완한 뒤 지원하는 경로를 권장합니다.
                 </template>
               </h2>
+              <p>공고 요건과 커리어 저장소의 확정 자료를 비교한 결과입니다. 아래 로드맵 초안과는 별도 분석입니다.</p>
             </div>
             <Sparkles :size="30" />
           </section>
 
           <section class="posting-result-grid">
             <article class="proposal-summary-card proposal-summary-card--v3">
-              <header><h2>근거 수준별 준비도</h2></header>
+              <header><h2>필수 요건 근거 준비도</h2></header>
               <div>
                 <span><strong>{{ readinessValue(v3Assessment?.metrics?.claimedReadinessPercent) }}</strong> 주장 준비도</span>
                 <span v-if="v3Assessment?.metrics?.capabilityReadinessPercent != null"><strong>{{ readinessValue(v3Assessment?.metrics?.capabilityReadinessPercent) }}</strong> 필수 역량 준비도</span>
-                <span><strong>{{ readinessValue(v3Assessment?.metrics?.evidencedReadinessPercent, '제출 근거 없음') }}</strong> 증거 준비도</span>
-                <span><strong>{{ readinessValue(v3Assessment?.metrics?.verifiedReadinessPercent, '검증 자료 없음') }}</strong> 검증 준비도</span>
+                <span><strong>{{ readinessValue(v3Assessment?.metrics?.evidencedReadinessPercent) }}</strong> 증거 준비도</span>
+                <span><strong>{{ readinessValue(v3Assessment?.metrics?.verifiedReadinessPercent) }}</strong> 검증 준비도</span>
                 <span><strong>{{ requiredVerificationValue(v3Assessment) }}</strong> 검증된 필수 조건</span>
               </div>
             </article>
             <article class="evaluation-reasons">
-              <header><h2>강점과 보완점</h2></header>
+              <header><h2>확인된 강점과 남은 확인</h2></header>
               <ul>
                 <li v-for="item in v3Assessment?.strengths ?? []" :key="`strength:${item}`">
                   <Check :size="17" /><span>{{ item }}</span>
                 </li>
                 <li v-for="item in v3Assessment?.gaps ?? []" :key="`gap:${item}`" class="is-gap">
                   <CircleAlert :size="17" /><span>{{ item }}</span>
+                </li>
+                <li v-for="item in v3Assessment?.uncertainties ?? []" :key="`unknown:${item}`" class="is-gap">
+                  <CircleAlert :size="17" /><span>{{ item }} · 연결 근거 확인 필요</span>
                 </li>
               </ul>
             </article>
@@ -815,13 +829,13 @@ onBeforeUnmount(() => {
             class="posting-evidence-empty-notice"
           >
             {{ readinessUnavailableMessage(v3Assessment) }}
-            <RouterLink :to="{ name: 'storage' }">커리어 자료를 등록하면 준비도를 다시 계산할 수 있어요.</RouterLink>
+            <RouterLink :to="{ name: 'storage' }">커리어 자료의 기술명·학력·증빙을 확인하거나 보완하면 다시 계산할 수 있어요.</RouterLink>
           </p>
 
           <section class="requirement-matrix requirement-matrix--v3">
             <header>
               <div>
-                <p class="eyebrow">ATOMIC REQUIREMENTS</p>
+                <p class="eyebrow">필수·우대 요건 비교</p>
                 <h2>공고 원문 조건과 내 근거 비교</h2>
                 <p>주장, 제출 근거, 통과한 검증을 서로 구분해 판정했습니다.</p>
               </div>
@@ -867,24 +881,15 @@ onBeforeUnmount(() => {
           <section class="proposal-path-preview proposal-path-preview--v3">
             <header>
               <div>
-                <p class="eyebrow">DRAFT OPERATIONS</p>
-                <h2>로드맵에 제안된 변화</h2>
-                <p>아직 현재 지도에는 반영되지 않았습니다. 미리보기에서 전체 연결을 확인할 수 있어요.</p>
+                <p class="eyebrow">로드맵 초안 · 관계 그래프</p>
+                <h2>공고 준비 경로에 제안된 단계와 연결</h2>
+                <p>갭 분석 결과를 바탕으로 만든 별도 초안입니다. 아직 현재 지도에는 반영되지 않았습니다.</p>
               </div>
             </header>
-            <div class="proposal-node-list">
-              <article v-for="operation in v3RoadmapOperations" :key="operation.operationId">
-                <span class="proposal-action" :class="{ 'proposal-action--create': operation.action !== 'REUSE_NODE' }">
-                  {{ operation.action === 'REUSE_NODE' ? '유지' : '추가' }}
-                </span>
-                <div>
-                  <strong>{{ operation.title ?? operation.canonicalKey ?? operation.targetRef }}</strong>
-                  <p>{{ operation.scopeDefinition ?? operation.reason }}</p>
-                  <small>{{ operation.nodeKind }} · {{ operation.sectionKey }}</small>
-                </div>
-                <ArrowRight :size="17" />
-              </article>
-            </div>
+            <RoadmapProposalGraph
+              :operations="v3RoadmapOperations"
+              :relations="v3RoadmapRelations"
+            />
           </section>
 
           <section v-if="job.changeSetStatus === 'DRAFT'" class="proposal-decision-bar">

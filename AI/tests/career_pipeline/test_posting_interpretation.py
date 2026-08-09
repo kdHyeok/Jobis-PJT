@@ -23,7 +23,11 @@ from jobis_ai.career_pipeline.contracts.source import (
 from jobis_ai.career_pipeline.interpretation import PostingInterpretationFailure, PostingInterpretationService
 from jobis_ai.career_pipeline.interpretation.draft import PostingDiscoveryDraft
 from jobis_ai.career_pipeline.interpretation.service import _build_prompt, _restore_draft_evidence_ids
-from jobis_ai.career_pipeline.llm import JsonProviderError, StructuredGenerator
+from jobis_ai.career_pipeline.llm import (
+    JsonProviderContractError,
+    JsonProviderError,
+    StructuredGenerator,
+)
 from jobis_ai.career_pipeline.source import SourceAcquisitionService
 
 
@@ -67,6 +71,146 @@ def test_provider_limit_is_not_reported_as_invalid_posting_structure() -> None:
         service.discover(verified_request("백엔드 개발자 신입 채용"))
 
     assert raised.value.code is ErrorCode.AI_PROVIDER_UNAVAILABLE
+
+
+def test_contract_error_is_non_retryable_validation_failure() -> None:
+    class ContractProvider:
+        name = "codex_cli"
+        model = "gpt-5.6-luna"
+
+        def complete_json(self, **_kwargs) -> str:
+            raise JsonProviderContractError("structured response violated the contract")
+
+    service = PostingInterpretationService(
+        StructuredGenerator(ContractProvider(), max_attempts=3)
+    )
+
+    with pytest.raises(PostingInterpretationFailure) as raised:
+        service.discover(verified_request("백엔드 개발자 신입 채용"))
+
+    assert raised.value.code is ErrorCode.CONTRACT_VALIDATION_FAILED
+    assert raised.value.retryable is False
+
+
+def test_discovery_requests_a_specific_opening_when_source_has_no_positions() -> None:
+    provider = StaticProvider([{
+        "company": {
+            "displayName": "한화에어로스페이스",
+            "evidenceIds": ["E001"],
+            "confidence": 0.98,
+        },
+        "postingTitle": None,
+        "postingTitleEvidenceIds": [],
+        "positions": [],
+    }])
+    service = PostingInterpretationService(
+        StructuredGenerator(provider, max_attempts=3)
+    )
+
+    with pytest.raises(PostingInterpretationFailure) as raised:
+        service.discover(verified_request(
+            "한화에어로스페이스 채용 직무 한 눈에 보기. 선택하신 직무가 없습니다."
+        ))
+
+    assert provider.calls == 1
+    assert raised.value.code is ErrorCode.ROLE_RESOLUTION_REQUIRED
+    assert raised.value.retryable is False
+    assert "상세 공고 URL" in str(raised.value)
+
+
+def test_discovery_prompt_keeps_concrete_job_list_rows_as_question_candidates() -> None:
+    identity_alias = "E001"
+    first_role_alias = "E002"
+    second_role_alias = "E003"
+    provider = StaticProvider([{
+        "company": {
+            "displayName": "한화에어로스페이스",
+            "evidenceIds": [identity_alias],
+            "confidence": 0.98,
+        },
+        "postingTitle": "2026년 상반기 채용 직무 한눈에 보기",
+        "postingTitleEvidenceIds": [identity_alias],
+        "positions": [
+            {
+                "positionKey": "R&D_전기/전자",
+                "sourceTitle": "R&D_전기/전자",
+                "role": role(
+                    "ENGINEERING",
+                    "ELECTRICAL_ENGINEERING",
+                    first_role_alias,
+                    None,
+                ),
+                "experience": experience("NEW_GRADUATE", first_role_alias),
+            },
+            {
+                "positionKey": "R&D_전기/전자 대전력",
+                "sourceTitle": "R&D_전기/전자 대전력",
+                "role": role(
+                    "ENGINEERING",
+                    "ELECTRICAL_ENGINEERING",
+                    second_role_alias,
+                    None,
+                ),
+                "experience": experience("NEW_GRADUATE", second_role_alias),
+            },
+        ],
+    }])
+    service = PostingInterpretationService(
+        StructuredGenerator(provider, max_attempts=1)
+    )
+
+    posting = service.discover(verified_request(
+        "한화에어로스페이스 2026년 상반기 채용 직무 한눈에 보기\n"
+        "R&D_전기/전자 정규직 신입 창원\n"
+        "R&D_전기/전자 대전력 정규직 신입 창원"
+    ))
+
+    assert [position.source_title for position in posting.positions] == [
+        "R&D_전기/전자",
+        "R&D_전기/전자 대전력",
+    ]
+    assert "서버가 사용자에게 지원할 직무를 질문한다" in (
+        provider.requests[0]["system_prompt"]
+    )
+
+
+def test_discovery_accepts_display_key_and_unquantified_new_or_experienced() -> None:
+    request = verified_request("[신입/경력] SW개발(Linux)\n신입/경력 지원 가능")
+
+    class DisplayKeyProvider:
+        name = "codex_cli"
+        model = "gpt-5.6-luna"
+
+        def complete_json(self, **kwargs) -> str:
+            prompt = json.loads(kwargs["user_prompt"])
+            alias = prompt["evidenceSegments"][0]["segmentId"]
+            return json.dumps({
+                "company": None,
+                "postingTitle": "[신입/경력] SW개발(Linux)",
+                "postingTitleEvidenceIds": [alias],
+                "positions": [{
+                    "positionKey": "[신입/경력] SW개발(Linux)",
+                    "sourceTitle": "[신입/경력] SW개발(Linux)",
+                    "role": role(
+                        "SOFTWARE_ENGINEERING",
+                        "EMBEDDED_SOFTWARE",
+                        alias,
+                        "role.embedded",
+                    ),
+                    "experience": experience(
+                        "NEW_GRADUATE_OR_EXPERIENCED",
+                        alias,
+                    ),
+                }],
+            }, ensure_ascii=False)
+
+    service = PostingInterpretationService(
+        StructuredGenerator(DisplayKeyProvider(), max_attempts=1)
+    )
+    posting = service.discover(request)
+
+    assert posting.positions[0].position_id == "pos-1"
+    assert posting.positions[0].experience.experienced_min_months is None
 
 
 def verified_request(raw_text: str) -> PostingInterpretationRequest:
@@ -748,6 +892,47 @@ def test_mixed_requirement_is_split_without_turning_behavior_into_technology() -
         RequirementCategory.BEHAVIORAL,
     ]
     assert posting.positions[0].requirements[-1].normalization_status.value == "NOT_APPLICABLE"
+
+
+def test_language_and_certification_categories_are_refined_from_legacy_labels() -> None:
+    source = "백엔드 개발자 모집.\n해외 인력과 영어 회화 가능\n정보처리기사 자격증 우대"
+    request = verified_request(source)
+    title = evidence_id(request, "백엔드 개발자")
+    english = evidence_id(request, "영어 회화")
+    certificate = evidence_id(request, "정보처리기사")
+    draft = base_draft(request, title="백엔드 개발자 모집", title_evidence=title)
+    draft["positions"] = [{
+        "positionKey": "backend",
+        "sourceTitle": "백엔드 개발자",
+        "role": role("SOFTWARE_ENGINEERING", "WEB_BACKEND", title, "role.web_backend"),
+        "experience": experience("UNKNOWN", title),
+        "responsibilities": [],
+        "requirements": [
+            {
+                "sourceText": "해외 인력과 영어 회화 가능",
+                "atomicText": "해외 인력과 영어 회화 가능",
+                "obligation": "PREFERRED",
+                "category": "TECHNICAL_CAPABILITY",
+                "evidenceIds": [english],
+                "confidence": 0.92,
+            },
+            {
+                "sourceText": "정보처리기사 자격증 우대",
+                "atomicText": "정보처리기사 자격증 보유",
+                "obligation": "PREFERRED",
+                "category": "CREDENTIAL",
+                "evidenceIds": [certificate],
+                "confidence": 0.94,
+            },
+        ],
+    }]
+
+    posting, _provider = run_draft(request, draft)
+
+    assert [item.category for item in posting.positions[0].requirements] == [
+        RequirementCategory.LANGUAGE,
+        RequirementCategory.CERTIFICATION,
+    ]
 
 
 def test_deadline_status_is_calculated_not_generated_by_model() -> None:

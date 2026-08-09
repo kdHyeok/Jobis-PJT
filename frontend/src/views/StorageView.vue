@@ -33,6 +33,7 @@ import CareerFragmentBody from "@/components/CareerFragmentBody.vue";
 import type {
   CareerFragment,
   CareerFragmentKind,
+  CareerSourceDetail,
   CareerSourceSummary,
 } from "@/types";
 
@@ -52,7 +53,7 @@ const direction = ref("desc");
 const archived = ref(false);
 const selectedIds = ref<string[]>([]);
 const showSourceModal = ref(false);
-const sourceType = ref<"TEXT" | "FILE" | "URL">("TEXT");
+const sourceType = ref<"TEXT" | "FILE" | "URL">("FILE");
 const sourceTitle = ref("");
 const sourceUrl = ref("");
 const sourceText = ref("");
@@ -87,6 +88,24 @@ const selectedFragments = computed(() =>
   fragments.value.filter((fragment) => selectedIds.value.includes(fragment.id)),
 );
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+const groupedFragments = computed(() =>
+  (Object.keys(kindMeta) as CareerFragmentKind[])
+    .map((groupKind) => ({
+      kind: groupKind,
+      meta: kindMeta[groupKind],
+      fragments: fragments.value.filter((fragment) => fragment.kind === groupKind),
+    }))
+    .filter((group) => group.fragments.length > 0),
+);
+const allVisibleSelected = computed(() =>
+  fragments.value.length > 0 && fragments.value.every((fragment) => selectedIds.value.includes(fragment.id)),
+);
+
+function toggleSelectAll() {
+  selectedIds.value = allVisibleSelected.value
+    ? []
+    : fragments.value.map((fragment) => fragment.id);
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -182,25 +201,39 @@ async function createSource() {
     !sourceTitle.value.trim() ||
     (sourceType.value === "FILE"
       ? !selectedFile.value
-      : sourceText.value.trim().length < 20)
+      : sourceType.value === "URL"
+        ? !sourceUrl.value.trim()
+        : sourceText.value.trim().length < 20)
   ) return;
   actionLoading.value = true;
   error.value = "";
   try {
-    const created = sourceType.value === "FILE" && selectedFile.value
-      ? await api.uploadCareerSource(selectedFile.value, sourceTitle.value.trim())
-      : await api.createCareerSource({
-          sourceType: sourceType.value,
-          title: sourceTitle.value.trim(),
-          sourceUrl: sourceType.value === "URL" ? sourceUrl.value.trim() : null,
-          rawText: sourceText.value.trim(),
-        });
+    let created: CareerSourceDetail;
+    if (sourceType.value === "FILE" && selectedFile.value) {
+      created = await api.uploadCareerSource(selectedFile.value, sourceTitle.value.trim());
+    } else if (sourceType.value === "URL") {
+      const imported = await api.importPostingUrl(sourceUrl.value.trim());
+      created = await api.createCareerSource({
+        sourceType: "URL",
+        title: sourceTitle.value.trim(),
+        sourceUrl: imported.finalUrl,
+        rawText: imported.rawText,
+      });
+    } else {
+      created = await api.createCareerSource({
+        sourceType: "TEXT",
+        title: sourceTitle.value.trim(),
+        sourceUrl: null,
+        rawText: sourceText.value.trim(),
+      });
+    }
     showSourceModal.value = false;
     sourceTitle.value = "";
     sourceUrl.value = "";
     sourceText.value = "";
     fileName.value = "";
     selectedFile.value = null;
+    sourceType.value = "FILE";
     await load();
     sources.value = [
       created.source,
@@ -217,6 +250,26 @@ async function retrySource(source: CareerSourceSummary) {
   actionLoading.value = true;
   error.value = "";
   try {
+    if (source.sourceType === "URL" && source.sourceUrl) {
+      const imported = await api.importPostingUrl(source.sourceUrl);
+      await api.createCareerSource({
+        sourceType: "URL",
+        title: source.title,
+        sourceUrl: imported.finalUrl,
+        rawText: imported.rawText,
+      });
+      let cleanupFailed = false;
+      try {
+        await api.deleteCareerSource(source.id);
+      } catch {
+        cleanupFailed = true;
+      }
+      await load();
+      if (cleanupFailed) {
+        error.value = "새 URL 분석은 시작했지만 이전 실패 기록은 삭제하지 못했습니다.";
+      }
+      return;
+    }
     await api.retryCareerSource(source.id);
     await load();
   } catch (cause) {
@@ -365,20 +418,18 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="workspace repository-workspace">
-    <section class="page-heading">
-      <div>
-        <p class="eyebrow">CAREER REPOSITORY</p>
-        <h1>커리어 저장소</h1>
-        <p>이력서와 경험 자료를 검토 가능한 기술·프로젝트·경력 조각으로 정리합니다.</p>
-      </div>
+    <Teleport defer to="#app-topbar-center">
+      <h1 class="app-page-title">커리어 저장소</h1>
+    </Teleport>
+    <Teleport defer to="#app-topbar-actions">
       <button
-        class="press-button press-button--primary"
+        class="press-button press-button--primary app-page-action"
         type="button"
         @click="showSourceModal = true"
       >
         <Plus :size="18" /> 자료 추가
       </button>
-    </section>
+    </Teleport>
 
     <section v-if="lastMergeUndoId" class="inline-notice inline-notice--success" role="status">
       <span>커리어 조각을 병합했습니다. 원본 조각은 안전하게 보관되어 있습니다.</span>
@@ -411,7 +462,7 @@ onBeforeUnmount(() => {
           <div>
             <small>{{ sourceStatus(source) }}</small>
             <strong>{{ source.title }}</strong>
-            <p>{{ source.stageMessage }}</p>
+            <p>{{ source.status === "FAILED" ? (source.errorMessage ?? source.stageMessage) : source.stageMessage }}</p>
           </div>
           <div
             v-if="!['QUEUED', 'RUNNING'].includes(source.status)"
@@ -440,7 +491,7 @@ onBeforeUnmount(() => {
               type="button"
               @click="retrySource(source)"
             >
-              <RefreshCw :size="14" /> 재시도
+              <RefreshCw :size="14" /> {{ source.sourceType === "URL" ? "URL 다시 가져오기" : "재시도" }}
             </button>
             <button
               class="text-action text-action--danger"
@@ -491,8 +542,11 @@ onBeforeUnmount(() => {
       </button>
     </form>
 
-    <div v-if="selectedIds.length" class="selection-bar">
+    <div v-if="!loading && fragments.length" class="selection-bar">
       <strong>{{ selectedIds.length }}개 선택</strong>
+      <button class="text-action" type="button" @click="toggleSelectAll">
+        <Check :size="15" /> {{ allVisibleSelected ? "전체 선택 해제" : "전체 선택" }}
+      </button>
       <button
         class="press-button press-button--secondary"
         type="button"
@@ -500,9 +554,6 @@ onBeforeUnmount(() => {
         @click="beginMerge"
       >
         <Merge :size="16" /> 하나로 병합
-      </button>
-      <button class="text-action" type="button" @click="selectedIds = []">
-        선택 해제
       </button>
     </div>
 
@@ -512,42 +563,59 @@ onBeforeUnmount(() => {
       저장한 커리어 조각을 불러오는 중입니다.
     </div>
     <template v-else-if="fragments.length">
-      <section class="fragment-grid">
-        <article
-          v-for="fragment in fragments"
-          :key="fragment.id"
-          class="fragment-card"
-          :class="{ selected: selectedIds.includes(fragment.id) }"
-        >
-        <label class="fragment-select">
-          <input v-model="selectedIds" type="checkbox" :value="fragment.id" />
-          <span>선택</span>
-        </label>
-        <span class="fragment-kind">
-          <component :is="kindMeta[fragment.kind].icon" :size="17" />
-          {{ kindMeta[fragment.kind].label }}
-        </span>
-        <h2>{{ fragment.title }}</h2>
-        <CareerFragmentBody :description="fragment.description" :detail="fragment.detail" />
-        <small>{{ fragment.sourceTitle }} · {{ formatDate(fragment.updatedAt) }}</small>
-        <footer>
-          <button class="text-action" type="button" @click="beginEdit(fragment)">
-            <Pencil :size="14" /> 수정
-          </button>
-          <button class="text-action" type="button" @click="toggleArchive(fragment)">
-            <ArchiveRestore v-if="fragment.archivedAt" :size="14" />
-            <Archive v-else :size="14" />
-            {{ fragment.archivedAt ? "복원" : "보관" }}
-          </button>
-          <button
-            class="text-action text-action--danger"
-            type="button"
-            @click="removeFragment(fragment)"
+      <section
+        v-for="group in groupedFragments"
+        :key="group.kind"
+        class="fragment-kind-group"
+        :class="`fragment-kind-group--${group.kind.toLowerCase()}`"
+      >
+        <header>
+          <span>
+            <component :is="group.meta.icon" :size="18" />
+            {{ group.meta.label }}
+          </span>
+          <strong>{{ group.fragments.length }}개</strong>
+        </header>
+        <div class="fragment-grid">
+          <article
+            v-for="fragment in group.fragments"
+            :key="fragment.id"
+            class="fragment-card"
+            :class="[
+              `fragment-card--${fragment.kind.toLowerCase()}`,
+              { selected: selectedIds.includes(fragment.id) },
+            ]"
           >
-            <Trash2 :size="14" /> 삭제
-          </button>
-        </footer>
-        </article>
+            <label class="fragment-select">
+              <input v-model="selectedIds" type="checkbox" :value="fragment.id" />
+              <span>선택</span>
+            </label>
+            <span class="fragment-kind" :class="`fragment-kind--${fragment.kind.toLowerCase()}`">
+              <component :is="kindMeta[fragment.kind].icon" :size="17" />
+              {{ kindMeta[fragment.kind].label }}
+            </span>
+            <h2>{{ fragment.title }}</h2>
+            <CareerFragmentBody :description="fragment.description" :detail="fragment.detail" />
+            <small>{{ fragment.sourceTitle }} · {{ formatDate(fragment.updatedAt) }}</small>
+            <footer>
+              <button class="text-action" type="button" @click="beginEdit(fragment)">
+                <Pencil :size="14" /> 수정
+              </button>
+              <button class="text-action" type="button" @click="toggleArchive(fragment)">
+                <ArchiveRestore v-if="fragment.archivedAt" :size="14" />
+                <Archive v-else :size="14" />
+                {{ fragment.archivedAt ? "복원" : "보관" }}
+              </button>
+              <button
+                class="text-action text-action--danger"
+                type="button"
+                @click="removeFragment(fragment)"
+              >
+                <Trash2 :size="14" /> 삭제
+              </button>
+            </footer>
+          </article>
+        </div>
       </section>
       <nav v-if="total > pageSize" class="pagination" aria-label="커리어 조각 페이지">
         <button
@@ -622,13 +690,13 @@ onBeforeUnmount(() => {
           <X :size="20" />
         </button>
       </header>
-      <div class="source-tabs">
+      <div class="source-tabs source-tabs--three">
         <button
           type="button"
           :class="{ active: sourceType === 'TEXT' }"
           @click="sourceType = 'TEXT'"
         >
-          텍스트 붙여넣기
+          텍스트 입력
         </button>
         <button
           type="button"
@@ -656,6 +724,7 @@ onBeforeUnmount(() => {
       <label v-if="sourceType === 'URL'">
         원본 URL
         <input v-model="sourceUrl" type="url" placeholder="https://…" />
+        <small>공개 페이지의 본문을 안전하게 수집해 분석합니다. 로그인이나 접근 권한이 필요한 링크는 파일로 추가해 주세요.</small>
       </label>
       <label v-if="sourceType === 'FILE'" class="file-drop">
         <Upload :size="22" />
@@ -667,8 +736,8 @@ onBeforeUnmount(() => {
           @change="readFile"
         />
       </label>
-      <label v-if="sourceType !== 'FILE'">
-        분석할 원문
+      <label v-if="sourceType === 'TEXT'">
+        분석할 내용
         <textarea
           v-model="sourceText"
           minlength="20"
@@ -687,8 +756,11 @@ onBeforeUnmount(() => {
         :disabled="
           actionLoading ||
           !sourceTitle.trim() ||
-          (sourceType === 'FILE' ? !selectedFile : sourceText.trim().length < 20) ||
-          (sourceType === 'URL' && !sourceUrl.trim())
+          (sourceType === 'FILE'
+            ? !selectedFile
+            : sourceType === 'URL'
+              ? !sourceUrl.trim()
+              : sourceText.trim().length < 20)
         "
         @click="createSource"
       >

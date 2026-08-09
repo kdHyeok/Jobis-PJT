@@ -27,18 +27,24 @@ from .service import (
     _calculate_metrics,
     _compile_assessment,
     _formal_eligibility,
+    next_formal_evidence_question,
     _propose_verdict,
     _requirements_for_request,
     _stable_id,
 )
 
 
-PROJECT_OVERLAY_VERSION = "project-evidence-overlay-3.2.0"
+PROJECT_OVERLAY_VERSION = "project-evidence-overlay-3.3.0"
 _TOKEN = re.compile(r"[A-Za-z0-9가-힣+#.]{2,}")
 _GENERIC_ROLE_TOKENS = {
     "개발", "개발자", "경력", "관련", "직무", "업무", "engineer", "developer",
     "software", "experience", "required",
 }
+_MAJOR_TERM_GROUPS = (
+    {"it", "컴퓨터", "컴퓨터공학", "소프트웨어", "전산", "정보기술", "인공지능", "ai", "데이터"},
+    {"기계", "기계공학", "로봇", "자동화", "메카트로닉스"},
+    {"전자", "전기", "전자공학", "전기공학", "임베디드"},
+)
 
 
 def compile_project_fit(
@@ -117,6 +123,14 @@ def compile_project_fit(
             ),
         )
         assessments.append(_compile_assessment(context, match, request))
+
+    if not request.skip_remaining_evidence_questions:
+        question = next_formal_evidence_question(request, contexts, assessments)
+        if question is not None:
+            return FitAnalysisResult(
+                status=FitAnalysisStatus.AWAITING_USER_EVIDENCE,
+                active_ambiguity=question,
+            )
 
     metrics = _calculate_metrics(contexts, assessments)
     formal_eligibility = _formal_eligibility(contexts, assessments)
@@ -201,9 +215,16 @@ def _formal_fact_matches(context, fact, position) -> bool:
             and _role_fact_matches(fact.label, position)
         )
     if context.category is RequirementCategory.CREDENTIAL:
-        return (
-            fact.kind in {FormalFactKind.CERTIFICATE, FormalFactKind.EDUCATION}
-            and _meaningful_overlap(context.text, fact.label)
+        if fact.kind is FormalFactKind.EDUCATION:
+            return _education_fact_matches(context.text, fact.label)
+        # Backward compatibility for postings analyzed before CERTIFICATION
+        # became a distinct requirement category.
+        return fact.kind is FormalFactKind.CERTIFICATE and _meaningful_overlap(
+            context.text, fact.label
+        )
+    if context.category is RequirementCategory.CERTIFICATION:
+        return fact.kind is FormalFactKind.CERTIFICATE and _meaningful_overlap(
+            context.text, fact.label
         )
     if context.category is RequirementCategory.PORTFOLIO:
         return fact.kind is FormalFactKind.PORTFOLIO
@@ -233,3 +254,45 @@ def _meaningful_overlap(left: str, right: str) -> bool:
         if item.casefold() not in _GENERIC_ROLE_TOKENS
     }
     return bool(left_tokens & right_tokens)
+
+
+def _education_fact_matches(requirement_text: str, fact_label: str) -> bool:
+    """Match observable degree and major facts without treating every education as equal.
+
+    Posting interpretation currently groups degrees, majors, and certificates under
+    CREDENTIAL.  The evidence assembler therefore preserves the education description
+    in the fact label, and this matcher resolves only explicit degree levels or known
+    major families.  If neither can be established, the requirement remains UNKNOWN.
+    """
+    requirement = requirement_text.casefold().replace(" ", "")
+    fact = fact_label.casefold().replace(" ", "")
+    required_level = _degree_level(requirement, requirement=True)
+    if required_level is not None:
+        fact_level = _degree_level(fact, requirement=False)
+        return fact_level is not None and fact_level >= required_level
+
+    if "전공" in requirement or "계열" in requirement or "major" in requirement:
+        if _meaningful_overlap(requirement_text, fact_label):
+            return True
+        return any(
+            any(term in requirement for term in group)
+            and any(term in fact for term in group)
+            for group in _MAJOR_TERM_GROUPS
+        )
+    return _meaningful_overlap(requirement_text, fact_label)
+
+
+def _degree_level(value: str, *, requirement: bool) -> int | None:
+    if "박사" in value or "doctor" in value or "phd" in value:
+        return 4
+    if "석사" in value or "master" in value:
+        return 3
+    if "전문학사" in value or "전문대" in value or "초대졸" in value:
+        return 1
+    if any(term in value for term in ("대졸", "학사", "4년제", "대학교", "bachelor")):
+        return 2
+    if any(term in value for term in ("고졸", "고등학교", "highschool")):
+        return 0
+    if requirement and "학력" in value:
+        return 0
+    return None

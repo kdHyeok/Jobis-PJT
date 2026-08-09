@@ -122,7 +122,9 @@ def get_agent_registry() -> dict[str, AgentSpec]:
             entry=fit_analysis.run,
             kind="tool",
             render=tool_render.render_fit_analysis,
-            produces=("analysis", "roadmap"),
+            # 대화 세션의 임시 로드맵을 만들지 않는다. 로드맵 정본은 백엔드 UNIFIED
+            # 분석이 영속화하고 roadmap_manager는 그 DB 스냅샷만 조회한다.
+            produces=("analysis",),
             heavy=True,
             # 여러 공고를 각각 판정해 달라는 요청(D88) — 정리된 공고 목록([세션 자산 상태])의
             # 회사명으로 지목한다. 도구가 내부에서 대상별로 반복 판정한다.

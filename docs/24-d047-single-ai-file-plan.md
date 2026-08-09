@@ -25,8 +25,9 @@
 아니다. v3의 검증된 모듈은 `jobis_ai.career_pipeline` 아래로 이식하고 최신 AI의 provider와
 오케스트레이터를 사용한다.
 
-Capability Graph는 AI가 아니라 승인된 지식 데이터 서비스다. 8600번 graph 서비스는 별도로
-유지할 수 있지만, 이를 호출하는 AI 서버는 하나다.
+Capability Graph는 생성형 AI가 아니라 승인된 결정론적 지식 계층이다. D049 이후 기본 실행은
+승인 `GraphRelease`를 단일 AI 프로세스에서 읽으며, 8600번 HTTP facade는 명시적인 호환 호출에만
+선택적으로 사용한다.
 
 ## 2. 최종 런타임 구조
 

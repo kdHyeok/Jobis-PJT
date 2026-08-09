@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -49,7 +50,6 @@ def main() -> None:
         "ops/prepare-jobis-v2-release",
         "ops/sync-jobis-release-assets",
         "ops/test-legacy-data-migration",
-        "ops/test-release-migrations",
         "ops/jobis-deploy.sudoers",
         "ops/nginx-jobis-app.location.conf",
         "ops/nginx-jobis-upstream-legacy.conf",
@@ -61,16 +61,10 @@ def main() -> None:
         "ops/jobis-db-restore-drill.timer",
         "ops/DEPLOYMENT.md",
         "ops/SERVER_BASELINE.md",
+        "backend/src/main/resources/db/migration/V27__legacy_import_audit.sql",
         ".gitlab/merge_request_templates/Release.md",
     ):
         require((ROOT / required).is_file(), f"required file missing: {required}")
-
-    # 마이그레이션 번호는 중복 정리·리베이스로 바뀐다(실측: V27 -> V63). 파일명을 고정하면
-    # 번호가 바뀔 때마다 릴리스 검증이 깨지므로, 있어야 하는 것은 "그 마이그레이션"이지
-    # "그 번호"가 아니다.
-    require(
-        any(ROOT.glob("backend/src/main/resources/db/migration/V*__legacy_import_audit.sql")),
-        "required migration missing: V*__legacy_import_audit.sql")
 
     local_compose = text("compose.yaml")
     require("context: ./AI" in local_compose, "local Compose does not build AI/")
@@ -80,17 +74,6 @@ def main() -> None:
             "PostgreSQL health may accept the temporary initialization socket")
 
     production = text("ops/docker-compose.prod.yml")
-    require('SERVER_PORT: "8080"' in production,
-            "production backend must pin SERVER_PORT to 8080 "
-            "(the application default moved to 8380)")
-
-    frontend_nginx = text("frontend/nginx.conf")
-    require("listen ${NGINX_PORT};" in frontend_nginx,
-            "frontend nginx must take its listen port from NGINX_PORT "
-            "(hardcoding clashes with backend on the host network)")
-    require("proxy_pass ${BACKEND_UPSTREAM};" in frontend_nginx,
-            "frontend nginx must proxy through BACKEND_UPSTREAM "
-            "(service-name DNS does not exist under network_mode: host)")
     for service in ("ai", "backend", "frontend"):
         require(re.search(rf"(?m)^  {service}:$", production) is not None,
                 f"production service missing: {service}")
@@ -142,21 +125,40 @@ def main() -> None:
                 f"production environment contract is missing: {variable}")
 
     pipeline = text("Jenkinsfile")
+
+    # 선언형 파이프라인 구조 점검. Groovy 문법 파서는 이런 규칙을 잡지 못해서,
+    # Jenkins 에 올려야 처음 알게 된다(실제로 두 번 그렇게 빌드를 태웠다).
+    require(len(re.findall(r"(?m)^pipeline \{", pipeline)) == 1,
+            "Jenkinsfile must declare exactly one pipeline block")
+    require(len(re.findall(r"(?m)^  post \{", pipeline)) == 1,
+            "declarative pipelines allow only one top-level post section")
+    stage_names = re.findall(r"stage\('([^']+)'\)", pipeline)
+    dupes = sorted({n for n in stage_names if stage_names.count(n) > 1})
+    require(not dupes, f"duplicate Jenkins stage names: {dupes}")
+    require(pipeline.count("{") == pipeline.count("}"),
+            "unbalanced braces in Jenkinsfile")
+    # heredoc 종료자는 0열이어야 닫힌다. 단계 본문을 들여쓰면 조용히 깨진다.
+    for token in re.findall(r"<<'([A-Za-z_]+)'", pipeline):
+        require(re.search(rf"(?m)^{token}$", pipeline) is not None,
+                f"heredoc terminator must sit at column 0: {token}")
     stages = re.findall(r"stage\('([^']+)'\)", pipeline)
     expected = [
+        "Detect changes",
         "Master release: verify",
-        # 서비스별 트리 해시를 직전 통과분과 비교해 재실행을 생략할지 정한다.
-        # Jenkins 와 운영이 같은 호스트라 병렬화 대신 이 방식을 쓴다.
-        "CI plan",
         "Backend: test & package",
         "AI v2bridge: test",
         "Frontend: typecheck & build",
         "RAG: static validation",
         "Infra: static validation",
-        # 운영 스냅샷에 릴리스 마이그레이션을 적용해보는 통합 관문. 서비스 CI 는 빈 DB 에서만
-        # 검증하므로 이 단계가 없으면 이력 불일치가 배포에서야 드러난다. 이미지 빌드 앞에 둔다.
+        # 같은 호스트의 운영 컨테이너를 보호하도록 정적분석도 순차 실행한다.
+        "backend: spotbugs",
+        "frontend: eslint",
+        "AI: ruff",
+        "RAG: ruff",
         "Release migration gate",
         "Docker images: build",
+        "Compose smoke (develop)",
+        "Docker images: publish",
         "Docker images: promote",
         "Deploy production",
         "Verify production",
@@ -164,46 +166,100 @@ def main() -> None:
     require(stages == expected, f"unexpected Jenkins stage order: {stages}")
     for image in ("jobis-ai", "jobis-backend", "jobis-frontend",
                   "jobis-rag-search", "jobis-rag-ingest", "jobis-airflow"):
-        require(f'docker build -t "${{prefix}}{image}:$GIT_COMMIT"' in pipeline,
+        require(f'docker build -t "${{prefix}}{image}:$tag"' in pipeline,
                 f"Jenkins does not build {image}")
-        require(f'docker push "${{JOBIS_IMAGE_PREFIX}}{image}:$GIT_COMMIT"' in pipeline,
-                f"Jenkins does not publish {image}")
-    require("stage('Docker images: build')" in pipeline and
-            "when { branch 'develop' }" in pipeline,
+    require("parallel {" not in pipeline,
+            "Jenkins stages must stay sequential on the shared production host")
+    # 게이트는 이제 allOf 블록이라 한 줄 문자열로 못 본다. 단계 블록을 잘라 확인한다.
+    def stage_block(name):
+        start = pipeline.index(f"stage('{name}')")
+        rest = pipeline[start + 1:]
+        nxt = rest.find("    stage('")
+        return rest if nxt < 0 else rest[:nxt]
+
+    require("branch 'develop'" in stage_block("Docker images: build"),
             "develop image build gate is missing")
-    # 게이트는 형태가 아니라 개수로 본다. 재실행 생략 조건이 붙으면서 일부 스테이지가
-    # `when { allOf { not { branch 'master' } ... } }` 로 바뀌었으므로 한 줄 형태만 세면
-    # 안 된다. master 에서 건너뛰어야 하는 스테이지는 'CI plan' + CI 5개 = 6개다.
-    require(pipeline.count("not { branch 'master' }") == 6,
-            "master must skip the CI plan and the five CI stages already passed by develop")
+    for ci_stage in ("Backend: test & package", "AI v2bridge: test",
+                     "Frontend: typecheck & build", "RAG: static validation",
+                     "Infra: static validation"):
+        require("not { branch 'master' }" in stage_block(ci_stage),
+                f"master must skip the CI stage already passed by develop: {ci_stage}")
+    # 영역별 검사는 각 디렉토리가 소유한다(ops/CI_OWNERSHIP.md). 뼈대는 호출만 한다.
+    for area in ("backend", "frontend", "AI", "RAG"):
+        require((ROOT / area / "ci-checks").is_file(),
+                f"area CI entrypoint is missing: {area}/ci-checks")
+        require(f"./{area}/ci-checks test" in pipeline,
+                f"Jenkins does not call {area}/ci-checks")
+    # 앞 단계가 실패하면 발행·배포로 넘어가지 않는다. advisory만 UNSTABLE로 허용한다.
+    for gated in ("Docker images: build", "Compose smoke (develop)",
+                  "Docker images: publish", "Docker images: promote",
+                  "Deploy production"):
+        require("currentBuild.result" in stage_block(gated),
+                f"stage runs even after an earlier failure: {gated}")
+    for develop_stage in ("Docker images: build", "Compose smoke (develop)",
+                          "Docker images: publish"):
+        require("currentBuild.result == 'UNSTABLE'" in stage_block(develop_stage),
+                f"advisory findings block the develop release: {develop_stage}")
+    build_stage = stage_block("Docker images: build")
+    smoke_stage = stage_block("Compose smoke (develop)")
+    publish_stage = stage_block("Docker images: publish")
+    require('tag="ci-$GIT_COMMIT"' in build_stage and "docker push" not in build_stage,
+            "develop images are published before smoke succeeds")
+    require('SMOKE_IMAGE_TAG="ci-\\$GIT_COMMIT"' in smoke_stage,
+            "compose smoke does not use the temporary CI image tag")
+    require('source="${prefix}${image}:ci-$GIT_COMMIT"' in publish_stage and
+            'target="${prefix}${image}:$GIT_COMMIT"' in publish_stage and
+            'docker push "${JOBIS_IMAGE_PREFIX}${image}:$GIT_COMMIT"' in publish_stage,
+            "smoke-tested images are not published with immutable SHA tags")
     require("stage('Master release: verify')" in pipeline and
             "git diff --quiet \"$GIT_COMMIT\" \"$tested_develop_sha\"" in pipeline and
             "git merge-base --is-ancestor \"$tested_develop_sha\" origin/develop" in pipeline,
             "master does not prove that its tree matches tested develop")
+    promote_stage = stage_block("Docker images: promote")
     require("stage('Docker images: promote')" in pipeline and
             pipeline.count('tested_develop_sha="$(git rev-parse "$GIT_COMMIT^2")"') == 2 and
-            pipeline.count('docker tag "$source" "$target"') == 2 and
-            'docker pull "$source"' in pipeline and
-            'docker push "$target"' in pipeline and
-            'docker image inspect "$source"' in pipeline,
+            promote_stage.count('docker tag "$source" "$target"') == 2 and
+            'docker pull "$source"' in promote_stage and
+            'docker push "$target"' in promote_stage and
+            'docker image inspect "$source"' in promote_stage,
             "master does not promote tested develop images for both registry modes")
-    require(pipeline.count("when { branch 'master' }") >= 3,
-            "master release, promotion, or deploy gate is missing")
-    # 서비스별 "무엇을 검사하는가"는 <서비스>/ci/test.sh 가 소유하고, Jenkinsfile 은 그것을
-    # 호출하는 뼈대만 갖는다. 불변식은 둘로 나뉘므로 양쪽을 함께 본다 — 호출이 사라져도,
-    # 스크립트 안의 게이트가 느슨해져도 릴리스를 막아야 한다.
-    for service in ("backend", "AI", "frontend", "RAG"):
-        require(f"sh {service}/ci/test.sh" in pipeline,
-                f"pipeline does not run the service CI script: {service}/ci/test.sh")
-
-    rag_ci = text("RAG/ci/test.sh")
-    require("rank_bm25==0.2.2" in rag_ci and
-            "psycopg[binary]==3.2.9" in rag_ci and
-            "numpy==2.2.6" in rag_ci and
-            "-m unittest discover -s RAG/tests -v" in rag_ci,
+    for master_stage in ("Master release: verify", "Docker images: promote",
+                         "Deploy production", "Verify production"):
+        require("branch 'master'" in stage_block(master_stage),
+                f"master gate is missing: {master_stage}")
+    # RAG 검사 내용은 뼈대가 아니라 RAG/ci-checks 가 갖는다(ops/CI_OWNERSHIP.md).
+    # 의존성 고정과 테스트 실행은 거기서 확인한다.
+    rag_checks = text("RAG/ci-checks")
+    require("rank_bm25==0.2.2" in rag_checks and
+            "psycopg[binary]==3.2.9" in rag_checks and
+            "numpy==2.2.6" in rag_checks and
+            "unittest discover -s RAG/tests -v" in rag_checks,
             "RAG CI dependency or strict test gate is missing")
     require("docker { image 'node:22-alpine' }" in pipeline,
             "frontend CI Node image does not match the Docker build")
+    require("-p 127.0.0.1::5432" in pipeline and
+            "CI_POSTGRES_PORT" not in pipeline and
+            "docker port ${db.id} 5432/tcp" in pipeline,
+            "backend CI does not use a collision-free PostgreSQL host port")
+    frontend_checks = text("frontend/ci-checks")
+    frontend_package = json.loads(text("frontend/package.json"))
+    require("npm run build" in frontend_checks and "npm test" in frontend_checks,
+            "frontend required CI does not run both build and tests")
+    require(frontend_package.get("scripts", {}).get("lint") == "eslint src" and
+            all(name in frontend_package.get("devDependencies", {}) for name in (
+                "@eslint/js", "eslint", "eslint-plugin-vue", "globals", "typescript-eslint"
+            )), "frontend ESLint script or dependencies are missing")
+    require("if ! git fetch" in pipeline and
+            "모든 영역을 실행합니다" in pipeline and
+            pipeline.count("if ! diff=") == 2,
+            "change detection is not fail-open when Git operations fail")
+    require("PASSED_AI" not in stage_block("AI v2bridge: test") and
+            "TESTED_AI" in stage_block("AI v2bridge: test") and
+            "PASSED_AI" in stage_block("AI: ruff") and
+            "PASSED_RAG" not in stage_block("RAG: static validation") and
+            "TESTED_RAG" in stage_block("RAG: static validation") and
+            "PASSED_RAG" in stage_block("RAG: ruff"),
+            "AI/RAG pass cache is recorded before required Ruff succeeds")
     require('jenkins_container="$(cat /etc/hostname)"' in pipeline and
             pipeline.count('--volumes-from "${jenkins_container}:ro"') >= 2,
             "sibling validation containers do not share the Jenkins workspace volume")
@@ -267,6 +323,9 @@ def main() -> None:
             "deployment may delete preserved legacy images or containers")
     require("trap rollback ERR HUP INT TERM" in deploy,
             "deployment does not roll back on remote-session termination signals")
+    rollback_block = deploy[deploy.index("rollback() {"):deploy.index("# A deploy is not allowed")]
+    require('"$VERIFY_COMMAND" "$PREVIOUS_SHA"' in rollback_block,
+            "rollback does not verify the restored release contract")
 
     backup = text("ops/backup-jobis-db")
     require("JOBIS_BACKUP_REQUIRE_SEPARATE_FILESYSTEM" in backup and

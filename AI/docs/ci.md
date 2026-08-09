@@ -7,7 +7,7 @@
 
 | | 파일 | 소유 |
 |---|---|---|
-| 고친다 | [`../ci/test.sh`](../ci/test.sh) — AI에서 무엇을 검사하는가 | AI 개발자 |
+| 고친다 | [`../ci-checks`](../ci-checks) — AI에서 무엇을 검사하는가 | AI 개발자 |
 | 고치지 않는다 | 루트 `Jenkinsfile` — 실행 이미지, 스테이지 배치 | Infra |
 
 `Jenkinsfile` 변경이 필요하면 MR을 올리고 Infra 리뷰를 받는다(`.gitlab/CODEOWNERS`).
@@ -16,7 +16,7 @@
 
 ## `--frozen`을 떼지 않는다
 
-`ci/test.sh`는 `uv run --frozen`으로 돈다. `uv.lock`이 `pyproject.toml`과 어긋나면 실패하는데,
+`ci-checks`는 `uv run --frozen`으로 돈다. `uv.lock`이 `pyproject.toml`과 어긋나면 실패하는데,
 그건 버그가 아니라 설계다. 의존성을 바꿨으면 락파일을 **같은 커밋에서** 갱신한다.
 CI에서 새로 풀게 만들면 CI가 검증한 의존성과 배포되는 의존성이 갈라진다.
 

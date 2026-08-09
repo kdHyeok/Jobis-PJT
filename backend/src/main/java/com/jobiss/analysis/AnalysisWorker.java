@@ -181,7 +181,7 @@ public class AnalysisWorker {
             }
         } finally {
             if (ownsAnalysisLease && cacheKey != null) {
-                releaseAnalysisLease(cacheKey, job.id());
+                releaseAnalysisLease(job, cacheKey);
             }
         }
     }
@@ -1980,12 +1980,12 @@ public class AnalysisWorker {
         });
     }
 
-    private void releaseAnalysisLease(
-            AnalysisCacheKey key,
-            UUID analysisJobId
-    ) {
+    private void releaseAnalysisLease(ClaimedJob job, AnalysisCacheKey key) {
+        // exists 서브쿼리가 FORCE RLS 인 analysis_jobs 를 본다. RLS 컨텍스트 없는
+        // 커넥션에서는 항상 0건이라 리스가 영영 안 지워지고, 실패한 공고의 재분석이
+        // 리스 만료(15분)까지 WAITING_FOR_SHARED_ANALYSIS 에 갇힌다(2026-08-08 실측).
         try {
-            transactionTemplate.executeWithoutResult(status -> jdbcClient.sql("""
+            rls.write(job.userId(), jdbc -> jdbc.sql("""
                             delete from posting_analysis_leases
                             where content_fingerprint = :contentFingerprint
                               and clarification_fingerprint = :clarificationFingerprint
@@ -2002,13 +2002,13 @@ public class AnalysisWorker {
                             "clarificationFingerprint",
                             key.clarificationFingerprint()
                     )
-                    .param("analysisJobId", analysisJobId)
+                    .param("analysisJobId", job.id())
                     .param("workerId", workerId)
                     .update());
         } catch (RuntimeException exception) {
             log.warn(
                     "Could not release shared analysis lease for job {}: {}",
-                    analysisJobId,
+                    job.id(),
                     exception.getMessage()
             );
         }
@@ -2143,13 +2143,20 @@ public class AnalysisWorker {
 
     private String safeMessage(Exception exception) {
         String code = classify(exception);
-        if ("INVALID_AI_RESPONSE".equals(code)) {
+        if ("INVALID_AI_RESPONSE".equals(code)
+                || "AI_CONTRACT_VALIDATION_FAILED".equals(code)
+                || "CONTRACT_VALIDATION_FAILED".equals(code)) {
             return "AI가 만든 분석 결과 중 일부가 서비스 검증 규칙과 맞지 않았습니다. "
-                    + "저장된 공고에서 다시 분석을 눌러 주세요.";
+                    + "공고는 저장되어 있으며, 오류가 수정된 뒤 다시 분석할 수 있습니다.";
         }
         if ("AI_PROVIDER_UNAVAILABLE".equals(code)) {
             return "AI 서비스 응답이 지연되거나 중단되었습니다. 공고는 저장되어 있으니 "
                     + "잠시 후 다시 분석할 수 있습니다.";
+        }
+        if ("ROLE_RESOLUTION_REQUIRED".equals(code)) {
+            return "이 링크에서는 지원할 특정 모집 직무를 확정할 수 없습니다. "
+                    + "채용 직무 목록이나 직무 소개 페이지가 아닌 상세 공고 URL 또는 "
+                    + "회사명·직무명·지원 요건이 포함된 공고 원문을 입력해 주세요.";
         }
         if ("INTERNAL_ERROR".equals(code)) {
             return "AI 분석 내부 처리 중 오류가 발생했습니다. 저장된 공고에서 다시 시도해 주세요.";

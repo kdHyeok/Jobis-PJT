@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import random
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -13,8 +12,7 @@ from golden.queries import QUERIES
 from jobrag.embedding import embed_texts
 from jobrag.query_parser import parse_query, load_region_vocab, QuerySpec
 from jobrag.search import (
-    hybrid_search, _dense_axis, _bm25_axis, _search_once,
-    _apply_rerank, _fetch_postings, SearchResult, CANDIDATE_K,
+    hybrid_search, _dense_axis, _bm25_axis,
 )
 from jobrag.store import connect
 
@@ -77,13 +75,11 @@ def _select_exhaustive_query() -> dict | None:
 # ── arm별 검색 ─────────────────────────────────────────
 
 def _run_arm_bm25(conn, spec: QuerySpec, top_k: int) -> list[str]:
-    from jobrag.search import _bm25_axis
     results = _bm25_axis(conn, spec, ())
     return [uid for uid, _, _ in results[:top_k]]
 
 
 def _run_arm_dense(conn, vec, spec: QuerySpec, top_k: int) -> list[str]:
-    from jobrag.search import _dense_axis
     results = _dense_axis(conn, vec, spec, ())
     return [uid for uid, _, _ in results[:top_k]]
 
@@ -376,12 +372,12 @@ def _print_summary(report: dict) -> None:
         marker = " <- best" if arm == hl["best_arm"] else ""
         print(f"  {arm:12s}: {score:.4f}{marker}")
 
-    print(f"\narm 비교 (쌍대 부트스트랩 95% CI):")
+    print("\narm 비교 (쌍대 부트스트랩 95% CI):")
     for key, comp in report["comparisons"].items():
         sig = "***" if comp["significant"] else "n.s."
         print(f"  {key:25s}: Δ={comp['mean_delta']:+.4f}  CI={comp['ci_95']}  {sig}")
 
-    print(f"\n축별 정규화 nDCG@3:")
+    print("\n축별 정규화 nDCG@3:")
     for axis, data in report["by_axis"].items():
         n = data.get("n", "?")
         best = max((a for a in data if a != "n"), key=lambda a: data[a])

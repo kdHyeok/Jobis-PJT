@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from jobis_ai.eval.generic_score import run_dataset, score_question
+from jobis_ai.eval.generic_score import score_question
 
 _DATASET = Path(__file__).resolve().parents[1] / "evals" / "generic_dataset.json"
 

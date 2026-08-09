@@ -2,7 +2,7 @@
 
 엔진은 monkeypatch 로 대체한다(LLM 없이 1초대). 여기서 지키는 것:
   · 인증: 헤더 없으면 422, 틀리면 401 (백엔드 RestClient 가 이 코드로 실패를 구분한다)
-  · 오류 코드: AI_PROVIDER_NOT_CONFIGURED / AI_PROVIDER_UNAVAILABLE / INVALID_AI_RESPONSE
+  · 오류 코드: 공급자 장애 / 직무 확인 필요 / 계약 오류 / 내부 오류를 서로 구분한다
   · 응답 직렬화: camelCase(alias) 로 나간다
 """
 
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-import pytest
 from fastapi.testclient import TestClient
 
 from jobis_ai.v2bridge import service
@@ -152,6 +151,26 @@ def test_engine_failure_is_retryable_503(monkeypatch):
     response = client.post("/v1/chat", json=chat_request(), headers=HEADERS)
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "AI_PROVIDER_UNAVAILABLE"
+
+
+def test_role_resolution_failure_is_not_reported_as_provider_outage(monkeypatch):
+    def _raise(request):
+        raise service.RoleResolutionRequired("분석 기준 직무를 선택해 주세요")
+    monkeypatch.setattr(service, "analyze", _raise)
+
+    response = client.post("/v1/analyses", json=analysis_request(), headers=HEADERS)
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "ROLE_RESOLUTION_REQUIRED"
+
+
+def test_unexpected_failure_is_internal_error_not_provider_outage(monkeypatch):
+    def _raise(request):
+        raise RuntimeError("programming defect")
+    monkeypatch.setattr(service, "chat", _raise)
+
+    response = client.post("/v1/chat", json=chat_request(), headers=HEADERS)
+    assert response.status_code == 500
+    assert response.json()["detail"]["code"] == "INTERNAL_ERROR"
 
 
 def test_contract_violation_is_502(monkeypatch):
@@ -358,6 +377,7 @@ def test_chat_events_streams_progress_then_result(monkeypatch):
     monkeypatch.setattr(session_mod, "_STORE", SessionStore())
 
     def fake_handle_chat(req):
+        assert req.analysisOwner == "UNIFIED"
         from jobis_ai import trace
         trace.emit("agent_start", "공고 분석 실행 시작", {"agent": "posting_analysis"})
         trace.emit("agent_end", "공고 분석 실행 종료",
@@ -396,10 +416,159 @@ def test_chat_stream_endpoint_emits_ndjson(monkeypatch):
 
     monkeypatch.setattr(service, "chat_events", fake_events)
     with client.stream("POST", "/v1/chat/stream", json=chat_request(), headers=HEADERS) as res:
-        lines = [json_mod.loads(l) for l in res.iter_lines() if l]
+        lines = [json_mod.loads(line) for line in res.iter_lines() if line]
     assert lines[0]["type"] == "progress" and lines[0]["label"] == "계획 수립"
     assert lines[1]["type"] == "result"
     assert lines[1]["response"]["message"] == "정리했어요."
+
+
+def test_chat_stream_classifies_unexpected_failure_as_internal_error(monkeypatch):
+    import json as json_mod
+
+    def fake_events(request):
+        raise RuntimeError("programming defect")
+        yield  # pragma: no cover - generator shape only
+
+    monkeypatch.setattr(service, "chat_events", fake_events)
+    with client.stream("POST", "/v1/chat/stream", json=chat_request(), headers=HEADERS) as res:
+        lines = [json_mod.loads(line) for line in res.iter_lines() if line]
+
+    assert lines[0]["type"] == "ERROR"
+    assert lines[0]["errorCode"] == "INTERNAL_ERROR"
+
+
+def _run_chat_turn(monkeypatch, request):
+    """엔진을 즉답 목으로 바꾸고 한 턴을 돌린 뒤 세션 상태를 돌려준다."""
+
+    from jobis_ai.contracts.api import ChatResponse as EngineChatResponse
+    from jobis_ai.orchestrator import session as session_mod
+    from jobis_ai.orchestrator.session import SessionStore, get_session_store
+
+    monkeypatch.setattr(session_mod, "_STORE", SessionStore())
+
+    def fake_handle_chat(req):
+        return EngineChatResponse(sessionId=req.sessionId, reply="확인했어요")
+
+    monkeypatch.setattr("jobis_ai.orchestrator.chat.handle_chat", fake_handle_chat)
+    list(service.chat_events(request))
+    return get_session_store().get(f"v2-chat-{request.conversation_id}")
+
+
+def test_posting_library_refreshes_from_db_each_turn(monkeypatch):
+    """공고 라이브러리는 매 턴 DB 분으로 갱신된다 — 워크스페이스 스냅샷이 라이브러리를
+    되살리므로 '없을 때만 시딩'이면 첫 턴 이후 추가·분석된 공고를 AI 가 영영 못 본다."""
+
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.v2bridge.models import CareerSummary, ChatMessage, StoredPosting
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    request = V2ChatRequest(
+        conversation_id=_uuid4(),
+        display_name="신율",
+        messages=[ChatMessage(role="USER", content="저장한 공고 알려줘")],
+        career=CareerSummary(postings=[StoredPosting(
+            raw_text="백엔드 개발자 채용 공고 본문",
+            parsed_data={"companyName": "프레시컴퍼니"},
+        )]),
+        # 지난 턴 스냅샷: 세션에만 있던 공고는 뒤에 보존돼야 한다.
+        workspace_state={"posting_library": [
+            {"companyName": "붙여넣기컴퍼니", "_sourceHash": "paste-only"},
+        ]},
+    )
+    session = _run_chat_turn(monkeypatch, request)
+    library = session.get("posting_library") or []
+    assert library[0]["companyName"] == "프레시컴퍼니"
+    assert any(e.get("_sourceHash") == "paste-only" for e in library)
+
+
+def test_roadmap_refreshes_from_backend_each_turn(monkeypatch):
+    """커리어 지도는 PostgreSQL 이 정본(models.py workspace_state 계약) — 세션의 낡은 사본이 매 턴 실려 오는
+    정본을 가리면 안 된다."""
+
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.v2bridge.models import CareerSummary, ChatMessage
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    request = V2ChatRequest(
+        conversation_id=_uuid4(),
+        display_name="신율",
+        messages=[ChatMessage(role="USER", content="내 지도 상태 알려줘")],
+        career=CareerSummary(roadmap={"nodes": [{"id": "fresh-node"}]}),
+        workspace_state={"roadmap": [{"id": "stale-node"}]},
+    )
+    session = _run_chat_turn(monkeypatch, request)
+    assert session.get("roadmap") == [{"id": "fresh-node"}]
+
+
+def test_empty_backend_roadmap_clears_stale_session_copy(monkeypatch):
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.v2bridge.models import CareerSummary, ChatMessage
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    request = V2ChatRequest(
+        conversation_id=_uuid4(),
+        display_name="신율",
+        messages=[ChatMessage(role="USER", content="내 지도 상태 알려줘")],
+        career=CareerSummary(roadmap={"nodes": []}),
+        workspace_state={"roadmap": [{"id": "stale-node"}]},
+    )
+
+    session = _run_chat_turn(monkeypatch, request)
+    assert session.get("roadmap") == []
+
+
+def test_roadmap_query_gets_open_map_action_from_dispatched_agent(monkeypatch):
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.contracts.api import ChatResponse as EngineChatResponse
+    from jobis_ai.orchestrator import session as session_mod
+    from jobis_ai.orchestrator.session import SessionStore
+    from jobis_ai.v2bridge.models import ChatMessage
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    monkeypatch.setattr(session_mod, "_STORE", SessionStore())
+    monkeypatch.setattr(
+        "jobis_ai.orchestrator.chat.handle_chat",
+        lambda req: EngineChatResponse(
+            sessionId=req.sessionId,
+            reply="현재 지도를 확인해 주세요.",
+            dispatched=["roadmap_manager"],
+        ),
+    )
+    response = service.chat(V2ChatRequest(
+        conversation_id=_uuid4(),
+        display_name="신율",
+        messages=[ChatMessage(role="USER", content="현재 로드맵 보여줘")],
+    ))
+
+    assert [action.action for action in response.suggested_actions] == ["OPEN_MAP"]
+
+
+def test_career_summary_reaches_session_even_with_resume(monkeypatch):
+    """확정 커리어 요약(증빙 조각·지도 항목)은 이력서와 병렬 사실이다 — 이력서가
+    있다는 이유로 조각이 통째로 빠지면 안 된다."""
+
+    from uuid import uuid4 as _uuid4
+
+    from jobis_ai.v2bridge.models import CareerSummary, ChatMessage, StoredResume
+    from jobis_ai.v2bridge.models import ChatRequest as V2ChatRequest
+
+    request = V2ChatRequest(
+        conversation_id=_uuid4(),
+        display_name="신율",
+        messages=[ChatMessage(role="USER", content="내 증빙 뭐 있지?")],
+        career=CareerSummary(
+            resumes=[StoredResume(title="저장소 이력서", raw_text="이력서 원문입니다")],
+            saved_evidence=["프로젝트 · 백엔드 API 서버"],
+        ),
+    )
+    session = _run_chat_turn(monkeypatch, request)
+    resume_asset = session.get("resume") or {}
+    assert "이력서 원문입니다" in resume_asset.get("value", "")
+    assert "백엔드 API 서버" in resume_asset.get("value", "")
 
 
 def test_progress_steps_maps_trace_timeline():
@@ -890,6 +1059,45 @@ def test_chat_produces_the_map_material_from_conversation_assets(monkeypatch):
     # 판정이 없으면 만들지 않는다 — 없는 재료를 지어내지 않는다
     session["analysis"] = {"status": "need_more_info"}
     assert service._competency_proposal_for_chat("v2-chat-map") == (None, None)
+
+
+def test_chat_map_material_preserves_ai_engine_role(monkeypatch):
+    """ml_engineer를 AI로 바꾼 뒤 다시 해석해 실패하던 실제 회귀 경로다."""
+
+    session = {
+        "analysis": {
+            "status": "completed",
+            "fitGrade": "중",
+            "gaps": [{"requirementId": "req-1", "missingSkills": ["Python"]}],
+        },
+        "posting_summary": {
+            "companyName": "인사이트365",
+            "jobTitle": "Agentic Coding 개발자",
+            "roleCategory": "ml_engineer",
+            "requiredRequirements": ["Python 기반 AI 에이전트 개발 경험"],
+            "techStack": ["Python"],
+        },
+        "judgment_summary": {"requirementStatus": [
+            {
+                "requirementId": "req-1",
+                "text": "Python 기반 AI 에이전트 개발 경험",
+                "type": "required",
+                "status": "not_met",
+            }
+        ]},
+    }
+
+    class _Store:
+        def get(self, _sid): return dict(session)
+
+    monkeypatch.setattr("jobis_ai.orchestrator.session.get_session_store", lambda: _Store())
+
+    proposal, job_context = service._competency_proposal_for_chat("v2-chat-ai-map")
+
+    assert proposal is not None
+    assert job_context is not None
+    assert job_context.primary_track == "AI"
+    assert job_context.parsed_data["roleResolution"]["specialization"] == "ML_ENGINEER"
 
 
 def test_map_material_ships_only_when_the_judgment_is_new(monkeypatch):

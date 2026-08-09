@@ -1,10 +1,12 @@
-# ops 작업자 진입점 (Infra 소유)
+# ops 작업자 진입점
 
 @AGENTS.md
 
-루트 [../AGENTS.md](../AGENTS.md)가 상위 규약이고, 배포 절차는 [DEPLOYMENT.md](DEPLOYMENT.md)가 정본이다.
+@CI_OWNERSHIP.md
 
-여기와 루트 `Jenkinsfile`, `infra/`, `compose.yaml`은 CI/CD 뼈대다. 기능 개발자가 자기 기능을
-통과시키려고 단독으로 바꾸지 않는다 — MR + Infra 리뷰(`.gitlab/CODEOWNERS`).
+## Claude Code
 
-깨뜨리면 안 되는 불변식은 `AGENTS.md`의 "바꾸지 말아야 할 불변식"에 있다.
+- 이 디렉토리와 `Jenkinsfile` 은 **배포 정책**이다. 고치기 전에 계획을 먼저 제시하고
+  승인을 받는다(plan mode). 기능 하나 때문에 파이프라인 정책을 바꾸지 않는다.
+- `smoke-compose` 를 손볼 때는 `compose.smoke.yml` 의 볼륨 격리를 반드시 유지한다.
+  없으면 `down -v` 가 로컬·서버의 실제 데이터를 지운다.

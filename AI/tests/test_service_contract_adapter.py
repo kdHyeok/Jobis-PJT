@@ -1,4 +1,3 @@
-from decimal import Decimal
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -220,6 +219,73 @@ def test_posting_action_is_not_proposed_without_real_posting_agent_decision() ->
     )
 
     assert actions == []
+
+
+def test_roadmap_build_request_binds_the_selected_stored_posting() -> None:
+    posting_id = uuid4()
+    raw_text = "채용 공고\n주요 업무: Java Spring 백엔드 API 개발\n자격 요건: Git과 SQL 경험"
+    request = ChatRequest.model_validate({
+        "conversationId": str(uuid4()),
+        "displayName": "tester",
+        "messages": [{"role": "USER", "content": "이 공고 기준 준비 로드맵을 세워줘"}],
+        "career": {},
+        "task": {
+            "mode": "AUTO",
+            "postings": [{"id": str(posting_id), "rawText": raw_text}],
+            "careerSources": [],
+        },
+    })
+    session = {
+        "job_posting": {"sourceType": "text", "value": raw_text},
+        "posting_summary": {
+            "companyName": "테스트 회사",
+            "jobTitle": "백엔드 개발자",
+            "responsibilities": ["Java Spring 백엔드 API 개발"],
+            "requiredRequirements": [{"text": "Git과 SQL 경험"}],
+            "preferredRequirements": [],
+            "techStack": ["Java", "Spring", "SQL"],
+        },
+    }
+
+    actions = service._posting_analysis_actions(
+        request,
+        [],
+        ["roadmap_manager"],
+        "이 공고 기준 준비 로드맵을 세워줘",
+        session=session,
+    )
+
+    assert len(actions) == 1
+    assert actions[0].requires_consent is False
+    assert actions[0].payload["postingId"] == str(posting_id)
+    assert actions[0].payload["userInitiated"] is True
+
+
+def test_roadmap_build_reply_does_not_claim_action_succeeded_before_backend() -> None:
+    reply = service._roadmap_build_public_reply(
+        automatic_action_ready=True,
+        has_posting_review=True,
+    )
+
+    assert "확인하고 있어요" in reply
+    assert "초안 생성을 요청했어요" not in reply
+
+
+def test_roadmap_query_does_not_start_a_new_analysis() -> None:
+    request = ChatRequest.model_validate({
+        "conversationId": str(uuid4()),
+        "displayName": "tester",
+        "messages": [{"role": "USER", "content": "현재 로드맵 보여줘"}],
+        "career": {},
+        "task": {"mode": "AUTO", "postings": [], "careerSources": []},
+    })
+
+    assert service._posting_analysis_actions(
+        request,
+        [],
+        ["roadmap_manager"],
+        "현재 로드맵 보여줘",
+    ) == []
 
 
 def test_posting_review_keeps_hiring_requirements_and_excludes_noise() -> None:

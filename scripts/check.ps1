@@ -5,14 +5,9 @@ $backendRoot = Join-Path $projectRoot "backend"
 $frontendRoot = Join-Path $projectRoot "frontend"
 $aiRoot = Join-Path $projectRoot "AI"
 $aiPython = Join-Path $aiRoot ".venv\Scripts\python.exe"
-$capabilityGraphRoot = "C:\jobiss-capability-graph-lab"
-$capabilityGraphPython = Join-Path $capabilityGraphRoot ".venv\Scripts\python.exe"
 
 if (-not (Test-Path -LiteralPath $aiPython)) {
     throw "Real AI virtual environment is missing: $aiPython"
-}
-if (-not (Test-Path -LiteralPath $capabilityGraphPython)) {
-    throw "Capability Graph virtual environment is missing: $capabilityGraphPython"
 }
 
 $javaHomeForJobiss = $env:JOBISS_JAVA_HOME
@@ -58,17 +53,6 @@ if ($LASTEXITCODE -ne 0) {
     throw "JOBIS regression fixture validation failed."
 }
 
-Push-Location $capabilityGraphRoot
-try {
-    & $capabilityGraphPython -m pytest -q
-    if ($LASTEXITCODE -ne 0) {
-        throw "Capability Graph tests failed."
-    }
-}
-finally {
-    Pop-Location
-}
-
 Push-Location $frontendRoot
 try {
     & npm.cmd run test -- --run
@@ -93,4 +77,4 @@ if ($LASTEXITCODE -ne 0) {
     throw "Isolated local PostgreSQL tests failed."
 }
 
-Write-Host "Backend, unified JOBIS AI, Capability Graph, frontend tests/build/E2E, and isolated PostgreSQL checks passed."
+Write-Host "Backend, unified JOBIS AI (including Capability Graph), frontend tests/build/E2E, and isolated PostgreSQL checks passed."

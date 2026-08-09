@@ -193,7 +193,7 @@ def evaluate(conn, vocab, pools: dict) -> dict:
     grader_confusion = defaultdict(int)   # (golden, grader) 쌍 카운트
     for qid, entry in pools.items():
         labels = {c["posting_uid"]: c["label"] for c in entry["candidates"]}
-        rel = {u for u, l in labels.items() if l == "Correct"}
+        rel = {uid for uid, label in labels.items() if label == "Correct"}
         judged = set(labels)
         spec = parse_query(entry["query"], vocab)
         r = hybrid_search(conn, spec, top_k=30)

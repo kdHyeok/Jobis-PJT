@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# develop 통합 게이트: compose 스택을 실제로 띄워 서비스가 서로 연결되는지 본다.
+#
+# 단위·통합 테스트는 각 모듈 안에서만 돈다. 여기서 보는 것은 그 사이의 접합부다.
+#   - postgres 가 뜨고 백엔드가 Flyway 마이그레이션을 끝까지 적용하는가
+#   - 백엔드가 AI 컨테이너를 찾아 healthy 로 올라오는가
+#   - nginx(프론트)가 /api/ 를 백엔드로 프록시하는가
+#   - 로그인 없이 접근하면 401 로 막히는가(보안 경계가 살아 있는가)
+#
+# 데이터 격리는 ops/compose.smoke.yml 이 맡는다. 그 파일 없이 이 스크립트를 돌리면
+# `down -v` 가 실제 볼륨을 지우게 되므로, 아래에서 존재를 강제한다.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+project="${SMOKE_PROJECT:-jobis-smoke}"
+port="${SMOKE_HTTP_PORT:-18088}"
+override="ops/compose.smoke.yml"
+
+test -f "$override" || { echo "격리 오버라이드가 없다: $override" >&2; exit 1; }
+
+# CI 는 SMOKE_IMAGE_TAG 로 방금 빌드한 이미지를 지정한다 — 배포될 그 이미지를 검증한다
+# (build once, test what you deploy). 로컬에서 태그 없이 돌리면 소스에서 빌드한다.
+image_tag="${SMOKE_IMAGE_TAG:-}"
+if [ -n "$image_tag" ]; then
+  build_args=""
+  echo "[smoke] 빌드된 이미지로 검증: tag=${image_tag}"
+else
+  build_args="--build"
+  image_tag="smoke-local"
+  echo "[smoke] 소스에서 빌드해 검증"
+fi
+
+env_file="$(mktemp)"
+cleanup() {
+  docker compose -p "$project" -f compose.yaml -f "$override" --env-file "$env_file" \
+    down -v --remove-orphans >/dev/null 2>&1 || true
+  rm -f "$env_file"
+}
+trap cleanup EXIT
+
+# 스모크 전용 비밀값. 외부로 나가지 않고 컨테이너와 함께 사라진다.
+cat > "$env_file" <<EOF
+POSTGRES_DB=jobiss
+POSTGRES_MIGRATOR_USER=jobiss_migrator
+POSTGRES_MIGRATOR_PASSWORD=smoke-migrator-password
+POSTGRES_APP_USER=jobiss_app
+POSTGRES_APP_PASSWORD=smoke-app-password
+JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+AI_SHARED_SECRET=smoke-ai-secret
+ALLOWED_ORIGINS=http://localhost:${port}
+COOKIE_SECURE=false
+# prod 프로파일은 ProductionConfigurationValidator 가 localhost origin 과
+# COOKIE_SECURE=false 를 거부한다. 운영 설정 검증은 ops/verify-release-config.py 와
+# ProductionConfigurationValidatorTest 가 따로 하고, 여기서는 접합부만 본다.
+SPRING_PROFILES_ACTIVE=local
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=
+RAG_PROVIDER=null
+SMOKE_HTTP_PORT=${port}
+JOBISS_HTTP_PORT=${port}
+SMOKE_IMAGE_TAG=${image_tag}
+SMOKE_IMAGE_PREFIX=${SMOKE_IMAGE_PREFIX:-}
+EOF
+
+compose() {
+  docker compose -p "$project" -f compose.yaml -f "$override" --env-file "$env_file" "$@"
+}
+
+fail() {
+  echo "[smoke] 실패: $*" >&2
+  compose ps || true
+  # 기동 실패는 로그를 봐야 원인을 안다. cleanup 이 컨테이너를 지우기 전에 남긴다.
+  for service in backend ai postgres frontend; do
+    echo "----- $service -----" >&2
+    compose logs --tail 40 "$service" >&2 2>/dev/null || true
+  done
+  exit 1
+}
+
+echo "[smoke] 스택 기동 (project=$project)"
+# --wait 는 compose.yaml 의 healthcheck 가 통과할 때까지 기다린다. 백엔드 health 는
+# DB 연결까지 확인하므로, 여기서 통과하면 마이그레이션도 끝난 것이다.
+# shellcheck disable=SC2086  # build_args 는 비었거나 --build 하나다.
+compose up -d $build_args --wait --wait-timeout 300 || fail "스택이 healthy 상태로 뜨지 않았다"
+
+# 검사는 프론트 컨테이너 안에서 한다. 호스트 포트 공개 여부나 Jenkins 네트워크 구성에
+# 좌우되지 않으면서 nginx→백엔드 경로는 그대로 지난다.
+# localhost 가 아니라 127.0.0.1 을 쓴다. busybox wget 은 localhost 를 ::1 로 풀고
+# nginx 는 IPv4 로만 듣기 때문에 "Connection refused" 가 난다.
+probe() {
+  compose exec -T frontend wget -q -O - "http://127.0.0.1:8080$1" 2>/dev/null
+}
+
+# busybox wget 에는 GNU 의 -S 가 없다. 2xx 면 성공 종료하고, 4xx/5xx 면
+# "wget: server returned error: HTTP/1.1 401" 을 stderr 로 내며 비정상 종료한다.
+#
+# 본문은 셸 쪽 리다이렉트로 버린다. `-O /dev/null` 을 인자로 주면 Windows Git Bash 가
+# 경로를 nul 로 바꿔 넘겨서 wget 이 실패한다(개발자가 로컬에서도 돌리는 스크립트다).
+probe_code() {
+  local out
+  if out="$(compose exec -T frontend wget -q -O - "http://127.0.0.1:8080$1" 2>&1 >/dev/null)"; then
+    echo 200
+  else
+    printf '%s' "$out" | sed -n 's/.*HTTP\/[0-9.]* *\([0-9][0-9][0-9]\).*/\1/p' | head -1
+  fi
+}
+
+echo "[smoke] 1) 프론트 nginx 응답"
+code="$(probe_code / || true)"
+[ "$code" = "200" ] || fail "프론트가 200 이 아니다: $code"
+
+echo "[smoke] 2) nginx → 백엔드 프록시와 DB 연결"
+health="$(probe /api/health || true)"
+case "$health" in
+  *'"status":"ok"'*) ;;
+  *) fail "백엔드 health 비정상: $health" ;;
+esac
+case "$health" in
+  *'"database":"ok"'*) ;;
+  *) fail "DB 연결 비정상: $health" ;;
+esac
+
+echo "[smoke] 3) 인증 경계 (비로그인 접근은 401)"
+code="$(probe_code /api/auth/me || true)"
+[ "$code" = "401" ] || fail "인증 없이 /api/auth/me 가 401 이 아니다: $code"
+
+echo "[smoke] 4) AI 컨테이너 health"
+ai_state="$(docker inspect --format '{{.State.Health.Status}}' "${project}-ai-1" 2>/dev/null || echo unknown)"
+[ "$ai_state" = "healthy" ] || fail "AI 컨테이너가 healthy 가 아니다: $ai_state"
+
+echo "[smoke] 통과 — 프론트·백엔드·DB·AI 접합부 정상"
