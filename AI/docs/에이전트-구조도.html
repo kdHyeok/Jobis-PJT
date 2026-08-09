@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JOBIS AI — 멀티에이전트 구조도</title>
+<style>
+  :root {
+    --bg:#fff; --ink:#2e2e2e; --muted:#767676; --line:#d4d4d4;
+    --agent:#2fa36b; --agent-bg:#2fa36b14;
+    --tool:#3f7cc4;  --tool-bg:#3f7cc414;
+    --orch:#c47a2f;  --orch-bg:#c47a2f14;
+    --llm:#a44a8f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1b1b1b; --ink:#dcdcdc; --muted:#9a9a9a; --line:#3a3a3a;
+      --agent:#57c48f; --agent-bg:#57c48f1c; --tool:#6ea5e0; --tool-bg:#6ea5e01c;
+      --orch:#dda05e; --orch-bg:#dda05e1c; --llm:#cf86ba; }
+  }
+  * { box-sizing:border-box; min-width:0; }
+  body { margin:0; padding:32px 20px 64px; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic",system-ui,sans-serif; line-height:1.5;
+    word-break:keep-all; overflow-wrap:break-word; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-size:22px; font-weight:650; margin:0 0 6px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 8px; }
+  h2 { font-size:16px; font-weight:650; margin:44px 0 4px; padding-top:20px; border-top:1px solid var(--line); }
+  h2:first-of-type { border-top:none; padding-top:0; }
+  .lede { color:var(--muted); font-size:13px; margin:0 0 18px; }
+  code { font-family:ui-monospace,Consolas,monospace; font-size:.9em; color:var(--muted);
+    overflow-wrap:anywhere; }
+  .key { display:inline-block; padding:0 6px; border-radius:4px; font-size:11px; font-weight:650;
+    border:1px solid currentColor; white-space:nowrap; }
+  .k-llm { color:var(--llm); } .k-code { color:var(--muted); }
+  .k-loop { color:var(--agent); } .k-heavy { color:var(--orch); }
+
+  /* 그림 1 */
+  .pipe { display:grid; grid-template-columns:190px 28px minmax(0,1fr); align-items:start; }
+  .pipe-mid { display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:18px; padding-top:60px; }
+  .card { border:1.5px solid var(--line); border-radius:8px; padding:9px 12px; background:var(--bg); }
+  .card .t { font-size:13.5px; font-weight:600; }
+  .card .d { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .orch { border-color:var(--orch); background:var(--orch-bg); }
+  .orch .t { color:var(--orch); }
+  .col-head { font-size:11.5px; letter-spacing:.04em; color:var(--muted); font-weight:650; margin-bottom:8px; }
+  .stack { display:flex; flex-direction:column; gap:8px; }
+  .lane { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  .agent { border-color:var(--agent); background:var(--agent-bg); }
+  .agent .t { color:var(--agent); }
+  .tool { border-color:var(--tool); background:var(--tool-bg); }
+  .tool .t { color:var(--tool); }
+  .note { font-size:11.5px; color:var(--muted); margin:8px 0 0; }
+  @media (max-width:760px) {
+    .pipe { grid-template-columns:minmax(0,1fr); }
+    .pipe-mid { padding:6px 0; transform:rotate(90deg); }
+    .lane { grid-template-columns:minmax(0,1fr); gap:16px; }
+  }
+
+  /* 그림 2 */
+  .gate { display:grid; grid-template-columns:30px minmax(0,1fr) auto; gap:10px; align-items:start;
+    padding:10px 0; border-bottom:1px solid var(--line); }
+  .gate:last-child { border-bottom:none; }
+  .gate .n { font-size:17px; font-weight:700; color:var(--muted); text-align:center; }
+  .gate .h { font-size:13.5px; font-weight:600; }
+  .gate .b { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .gate.is-llm { background:linear-gradient(90deg,var(--agent-bg),transparent 70%); }
+
+  /* 그림 3 */
+  .wb { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:start; }
+  .wb-board { border:2px dashed var(--agent); border-radius:10px; padding:13px; background:var(--agent-bg); }
+  .assets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:10px; }
+  .asset { border:1px solid var(--line); border-radius:5px; padding:5px 7px; font-size:12px;
+    background:var(--bg); text-align:center; }
+  .side { font-size:12.5px; }
+  .side ul { margin:0; padding-left:16px; }
+  .side li { margin:4px 0; }
+  .rule { font-size:11.5px; color:var(--muted); margin-top:11px; padding-top:9px; border-top:1px solid var(--line); }
+  @media (max-width:820px) { .wb { grid-template-columns:minmax(0,1fr); } }
+
+  .tbl-scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:520px; margin-top:14px; font-size:12.5px; }
+  th, td { border-bottom:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { color:var(--muted); font-weight:650; font-size:11.5px; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:14px; font-size:12px; color:var(--muted); }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .sw { width:14px; height:14px; border-radius:4px; border:1.5px solid var(--line); flex:none; }
+  .sw.a { border-color:var(--agent); background:var(--agent-bg); }
+  .sw.t { border-color:var(--tool); background:var(--tool-bg); }
+  .sw.o { border-color:var(--orch); background:var(--orch-bg); }
+  .callout { border-left:3px solid var(--agent); padding:8px 0 8px 13px; margin:18px 0 0; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>JOBIS AI — 멀티에이전트 구조</h1>
+  <p class="sub">에이전트 <b>7</b> + 도구 <b>4</b> + 오케스트레이터 1층. 가르는 기준 하나 — <b>말을 하는가.</b></p>
+  <p class="sub">
+    <span class="key k-llm">LLM</span> 모델이 낀다 &nbsp;
+    <span class="key k-code">코드</span> 결정론 &nbsp;
+    <span class="key k-loop">🔁</span> 자기 루프 &nbsp;
+    <span class="key k-heavy">heavy</span> 먼저 묻는다
+  </p>
+
+  <!-- 그림 1 -->
+  <h2>그림 1. 툴 콜링이 두 층이다</h2>
+  <p class="lede">팀장이 <b>누구를 부를지</b>, 팀원이 <b>무엇을 쓸지</b> 고른다. 순서를 적어 둔 코드는 없다.</p>
+
+  <div class="pipe">
+    <div class="stack">
+      <div class="card"><div class="t">사용자</div><div class="d">발화 + 첨부</div></div>
+      <div class="card orch">
+        <div class="t">오케스트레이터</div>
+        <div class="d">① 인테이크 <span class="key k-code">코드</span></div>
+        <div class="d">② 플래너 <span class="key k-llm">LLM</span></div>
+        <div class="d">③ 검증기 <span class="key k-code">코드</span></div>
+        <div class="d" style="margin-top:5px">고를 수 있는 이름은 등록된 것뿐 <span class="key k-code">Literal</span></div>
+      </div>
+    </div>
+
+    <div class="pipe-mid">▶</div>
+
+    <div class="lane">
+      <div>
+        <div class="col-head" style="color:var(--agent)">에이전트 7 — 말한다</div>
+        <div class="stack">
+          <div class="card agent"><div class="t">공고 담당 🔁</div><div class="d">툴 3 · 5스텝</div></div>
+          <div class="card agent"><div class="t">이력서 담당 🔁</div><div class="d">툴 1 · 5스텝</div></div>
+          <div class="card agent"><div class="t">선호 파악 🔁</div><div class="d">툴 3 · 5스텝</div></div>
+          <div class="card agent"><div class="t">면접 준비 🔁</div><div class="d">툴 4 · 5스텝</div></div>
+          <div class="card agent"><div class="t">자소서 초안 🔁</div><div class="d">툴 4 · <b>7스텝</b> — 쓰고 · 점검하고 · 다시 쓴다</div></div>
+          <div class="card agent"><div class="t">지원 경로 설계</div><div class="d">루프 없음 · LLM 1회</div></div>
+          <div class="card agent"><div class="t">진로 대화</div><div class="d">루프 없음 · 플래너 폴백</div></div>
+        </div>
+        <p class="note">5명이 자기 루프를 돈다. <b>상한이 곧 "몇 번 고쳐 쓸 수 있나"</b>다.</p>
+      </div>
+
+      <div>
+        <div class="col-head" style="color:var(--tool)">도구 4 — 값만 낸다</div>
+        <div class="stack">
+          <div class="card tool"><div class="t">적합도 분석 <span class="key k-heavy">heavy</span></div><div class="d">판정 엔진(LangGraph) 호출 → 분석 · 로드맵</div></div>
+          <div class="card tool"><div class="t">공고 추천</div><div class="d">RAG 의미 검색. 없으면 빈 결과</div></div>
+          <div class="card tool"><div class="t">공고 수집</div><div class="d">URL → 원문. 플래너에 안 보인다</div></div>
+          <div class="card tool"><div class="t">로드맵 조회</div><div class="d">저장된 로드맵</div></div>
+        </div>
+        <p class="note">문장은 표현 계층이 만든다. 그 반환은 <b>(문장, 경고)</b> —
+          데이터가 없어 등급·점수에 손댈 수 없다. <b>타입이 막는다.</b></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw o"></i> 오케스트레이터 — 쓰기 독점</span>
+    <span><i class="sw a"></i> 에이전트 — 문장을 만든다</span>
+    <span><i class="sw t"></i> 도구 — 계산만</span>
+  </div>
+
+  <!-- 그림 2 -->
+  <h2>그림 2. 한 턴의 관문</h2>
+  <p class="lede">색이 깔린 줄만 LLM이 관여한다. <b>나머지는 결정론</b>이라 층마다 따로 잰다.</p>
+
+  <div>
+    <div class="gate">
+      <div class="n">①</div>
+      <div><div class="h">인테이크</div>
+        <div class="b">첨부 종류를 <b>내용으로</b> 바로잡는다 · URL을 공고로 승격</div></div>
+      <div><span class="key k-code">코드</span></div>
+    </div>
+    <div class="gate is-llm">
+      <div class="n">②</div>
+      <div><div class="h">플래너 — 유일한 "무엇을 할까" 판단</div>
+        <div class="b">이름·인자를 고른다. 스키마 <code>Literal</code>로 환각 차단.
+          확신 &lt; 0.6이면 실행 대신 확인 버튼</div></div>
+      <div><span class="key k-llm">LLM</span></div>
+    </div>
+    <div class="gate">
+      <div class="n">③</div>
+      <div><div class="h">검증기 — 순서를 계산해 낸다</div>
+        <div class="b">전제가 없으면 제거하거나 <b>생산자를 앞에 끼운다</b></div></div>
+      <div><span class="key k-code">코드</span></div>
+    </div>
+    <div class="gate">
+      <div class="n">④</div>
+      <div><div class="h">게이트 — 멈춰 물을 수 있다</div>
+        <div class="b">이력서 확인 · <b>동의 게이트</b>: heavy는 먼저 묻는다</div></div>
+      <div><span class="key k-code">코드</span></div>
+    </div>
+    <div class="gate is-llm">
+      <div class="n">⑤</div>
+      <div><div class="h">실행 — 5스텝, 독립인 것은 3개 병렬</div>
+        <div class="b">에이전트가 매 스텝 툴을 고른다. 세션은 <b>신고만</b> 한다 ·
+          <span style="color:var(--agent)">48초 → 13~38초</span></div></div>
+      <div><span class="key k-llm">LLM</span></div>
+    </div>
+    <div class="gate">
+      <div class="n">⑥</div>
+      <div><div class="h">관찰 → 재선택 — LLM이 없다</div>
+        <div class="b">등급이 낮으면 자소서·면접을 빼고 지원 경로를 넣는다.
+          <b>원래 LLM이 있었는데 걷어냈다</b> — 26.2초 쓰고 변경 0건</div></div>
+      <div><span class="key k-code">코드</span></div>
+    </div>
+    <div class="gate">
+      <div class="n">⑦</div>
+      <div><div class="h">조립</div>
+        <div class="b">문장별 화자 + 되묻기 카드 + <b>경고</b></div></div>
+      <div><span class="key k-code">코드</span></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>금지는 프롬프트가 아니라 구조로.</b> 낼 수 없는 값은 스키마에서 칸을 빼고,
+    하면 안 되는 행동은 <b>도구를 만들지 않았다.</b>
+  </div>
+
+  <!-- 그림 3 -->
+  <h2>그림 3. 화이트보드 — 에이전트끼리 말을 걸지 않는다</h2>
+  <p class="lede">직접 대화하면 통로가 N(N−1)로 늘고 통로마다 가드가 필요하다.
+    공유 상태 한 곳을 두고, <b>쓰기는 오케스트레이터가 독점</b>한다.</p>
+
+  <div class="wb">
+    <div class="side">
+      <div class="col-head">쓰는 쪽 ▶</div>
+      <ul>
+        <li>공고 수집 → 공고 원문</li>
+        <li>적합도 분석 → 분석 · 로드맵</li>
+        <li>공고 추천 → 추천 목록</li>
+        <li>선호 파악 → 선호</li>
+        <li>자소서 초안 → 초안</li>
+        <li>면접 준비 → 면접 진행</li>
+        <li>지원 경로 설계 → 지원 경로</li>
+        <li>사용자 첨부 → 이력서</li>
+      </ul>
+      <div class="rule">아무도 직접 못 쓴다. <b>신고</b>하고, 오케스트레이터가 턴 끝에 한 번 저장한다 —
+        전이 지점이 하나여야 "왜 바뀌었나"에 답할 수 있다.</div>
+    </div>
+
+    <div class="wb-board">
+      <div style="font-size:14.5px;font-weight:650;text-align:center;color:var(--agent)">화이트보드</div>
+      <div style="font-size:11.5px;color:var(--muted);text-align:center;margin-top:2px">블롭 하나가 진실, 테이블은 투영</div>
+      <div class="assets">
+        <div class="asset">이력서</div><div class="asset">공고 원문</div>
+        <div class="asset">분석 결과</div><div class="asset">로드맵</div>
+        <div class="asset">선호</div><div class="asset">추천 목록</div>
+        <div class="asset">자소서 초안</div><div class="asset">면접 진행</div>
+        <div class="asset">지원 경로</div><div class="asset">지속 사실</div>
+      </div>
+      <div class="rule" style="border-top-color:var(--agent)">
+        <b>키 화이트리스트</b> — 목록 밖은 <code>KeyError</code><br>
+        <b><code>get()</code>은 복사본</b> — 고쳐도 저장 안 된다<br>
+        <b>파생 무효화</b> — 이력서가 바뀌면 분석을 지운다<br>
+        <b>재판정 방지</b> — 같은 입력이면 다시 안 한다
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="col-head">▶ 읽는 쪽 (전제)</div>
+      <ul>
+        <li>적합도 분석 ← 이력서 + 공고</li>
+        <li>공고 추천 ← 이력서 <b>또는</b> 선호</li>
+        <li>자소서 초안 ← 이력서 + 분석</li>
+        <li>면접 준비 ← 분석</li>
+        <li>지원 경로 설계 ← 분석</li>
+        <li>로드맵 조회 ← 로드맵</li>
+        <li>공고 담당 ← 공고 원문</li>
+        <li>이력서 담당 ← 이력서</li>
+      </ul>
+      <div class="rule"><b>전제가 비면 실행되지 않는다.</b> 대신 검증기가 생산자를 앞에 끼운다 —
+        순서가 계산돼 나오는 원리다.</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>직접 대화는 하나만 열려 있다</b> — 자소서 → 이력서 담당 <b>읽기 전용 위임</b>(깊이 1, 세션 사본).
+    넓히지 않은 이유는 실측이다 — 위임이 잦던 시절의 정체는 협업이 아니라 <b>근거 빈곤</b>이었고,
+    재료를 넓히자 <b>4/5 → 0/5</b>, <b>위반 5 → 0, 콜 −27%</b>가 같이 왔다.
+  </div>
+
+  <h2>자산별 — 누가 쓰고 누가 읽나</h2>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>자산</th><th>쓰는 이</th><th>읽는 이</th></tr></thead>
+    <tbody>
+      <tr><td>이력서</td><td>사용자 첨부</td><td>적합도 분석 · 공고 추천 · 자소서 · 이력서 담당</td></tr>
+      <tr><td>공고 원문</td><td>공고 수집</td><td>적합도 분석 · 공고 담당</td></tr>
+      <tr><td>분석 결과</td><td>적합도 분석</td><td>자소서 · 면접 준비 · 지원 경로</td></tr>
+      <tr><td>로드맵</td><td>적합도 분석</td><td>로드맵 조회 · 커리어지도</td></tr>
+      <tr><td>선호</td><td>선호 파악</td><td>공고 추천</td></tr>
+      <tr><td>추천 목록</td><td>공고 추천</td><td>표현 계층 · 지원 경로</td></tr>
+      <tr><td>자소서 초안</td><td>자소서 초안</td><td>사용자 · 이후 턴</td></tr>
+      <tr><td>면접 진행</td><td>면접 준비</td><td>이후 턴</td></tr>
+      <tr><td>지원 경로</td><td>지원 경로 설계</td><td>사용자 · 표현 계층</td></tr>
+      <tr><td>지속 사실</td><td>경량 LLM</td><td>담당 전원</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>이 구조가 지키려는 것</h2>
+  <div class="callout" style="border-color:var(--tool)">
+    <b>1.</b> 판단은 데이터가, 말은 LLM이 한다.<br>
+    <b>2.</b> 금지는 프롬프트가 아니라 구조로.<br>
+    <b>3.</b> 모른다 ≠ 아니다. 폴백은 이유를 삼키지 않는다.
+  </div>
+
+  <p class="sub" style="margin-top:26px">코드에 직접 물어보기 →
+    <code>uv run --extra prototype python -m jobis_ai.explain</code></p>
+</div>
+</body>
+</html>
