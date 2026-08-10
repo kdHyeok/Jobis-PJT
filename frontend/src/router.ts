@@ -11,6 +11,8 @@ import PasswordResetRequestView from "@/views/PasswordResetRequestView.vue";
 import PasswordResetView from "@/views/PasswordResetView.vue";
 import PolicyView from "@/views/PolicyView.vue";
 import LandingView from "@/views/LandingView.vue";
+import LearningPlanView from "@/views/LearningPlanView.vue";
+import LearningWorkspaceView from "@/views/LearningWorkspaceView.vue";
 import NewPostingView from "@/views/NewPostingView.vue";
 import PostingDetailView from "@/views/PostingDetailView.vue";
 import PostingsView from "@/views/PostingsView.vue";
@@ -69,6 +71,8 @@ export const router = createRouter({
         },
         { path: "map", name: "map", component: CareerMapView, meta: { title: "커리어 지도" } },
         { path: "map/v3", name: "map-v3", redirect: { name: "map" } },
+        { path: "learning-plan", name: "learning-plan", component: LearningPlanView, meta: { title: "학습 플랜" } },
+        { path: "learning/:planId", name: "learning", component: LearningWorkspaceView, meta: { title: "학습하기" } },
         { path: "activity", name: "activity", component: ActivityView, meta: { title: "활동 내역" } },
         { path: "settings", name: "settings", component: SettingsView, meta: { title: "설정" } },
         {

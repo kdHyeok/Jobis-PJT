@@ -164,6 +164,24 @@ def test_plan_agents_empty_message_short_circuits():
     assert warnings == []
 
 
+def test_learning_session_bypasses_general_planner(monkeypatch):
+    monkeypatch.setattr(
+        "jobis_ai.orchestrator.planner.run_structured",
+        lambda *_args, **_kwargs: pytest.fail("learning session must not call the LLM router"),
+    )
+
+    plan, warnings = plan_agents(
+        "[JOBIS_LEARNING_SESSION]\n[학습 세션: 프로그래밍 기초]\n요청: 퀴즈를 내줘",
+        {"job_posting": {"value": "old posting"}},
+    )
+
+    assert warnings == []
+    assert plan is not None
+    assert plan.agents == ["career_chat"]
+    assert plan.requestedAgents == ["career_chat"]
+    assert plan.confidence == 1.0
+
+
 # --- 동의 게이트: 통과 조건은 "청했다" 또는 "직전 턴 동의"뿐 (2026-07-29 재설계) --------
 def test_gate_fires_for_a_heavy_step_the_user_did_not_ask_for():
     """**사용자가 청하지 않은 무거운 작업은 막는다.** 플래너가 스스로 골랐어도 마찬가지다.

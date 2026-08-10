@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pytest
 
+from jobis_ai.agents import AgentResult
 from jobis_ai.contracts.api import ChatAttachment, ChatRequest, SourceType
 from jobis_ai.orchestrator import session as session_mod
 from jobis_ai.orchestrator.chat import handle_chat
@@ -63,6 +64,28 @@ def test_chat_without_planner_opens_conversation():
     res = handle_chat(ChatRequest(sessionId="s1", message="안녕하세요"))
     assert res.dispatched == ["career_chat"]
     assert res.reply.strip()
+
+
+def test_learning_session_does_not_replace_active_posting_with_resource_url(
+        fresh_session_store, monkeypatch):
+    """학습 자료 URL은 채용 공고 인테이크로 승격되지 않는다."""
+
+    fresh_session_store.update("learning", {
+        "job_posting": {"sourceType": "url", "value": "https://jobs.example/original"},
+    })
+    monkeypatch.setattr(
+        "jobis_ai.agents.career_chat.run",
+        lambda _session: AgentResult(reply="학습 퀴즈를 시작할게요."),
+    )
+
+    response = handle_chat(ChatRequest(
+        sessionId="learning",
+        message=("[JOBIS_LEARNING_SESSION]\n[자료: 공식 문서 / URL]\n"
+                 "참고 URL: https://developer.mozilla.org/docs/Web/HTTP\n요청: 퀴즈"),
+    ))
+
+    assert response.dispatched == ["career_chat"]
+    assert fresh_session_store.get("learning")["job_posting"]["value"] == "https://jobs.example/original"
 
 
 def test_chat_preference_intake_opens_dialog(monkeypatch):
@@ -1114,6 +1137,32 @@ def test_career_chat_clips_long_pasted_input(monkeypatch):
 
     career_chat.run({"last_message": "취업 준비 순서를 모르겠어요."})
     assert seen["message"] == "취업 준비 순서를 모르겠어요."   # 짧은 발화는 그대로
+
+
+def test_career_chat_uses_learning_tutor_contract_and_keeps_resource_body(monkeypatch):
+    """학습 마커는 일반 상담의 비취업 거절/1k 클립을 거치지 않고 자료 기반 튜터로 답한다."""
+
+    import json as json_mod
+
+    from jobis_ai.agents import career_chat
+
+    seen: dict = {}
+
+    def fake_stream(system, user_content, node):
+        seen["system"] = system
+        seen["payload"] = json_mod.loads(user_content)
+        return "JOBIS-LEARN-7421 자료에서 순수 함수는 같은 입력에 같은 결과를 반환합니다.", []
+
+    monkeypatch.setattr("jobis_ai.agents.career_chat.run_streaming_text", fake_stream)
+    resource_body = "JOBIS-LEARN-7421 " + ("순수 함수 자료 " * 150)
+    result = career_chat.run({
+        "last_message": f"[JOBIS_LEARNING_SESSION]\n[학습 세션: 함수]\n{resource_body}",
+    })
+
+    assert "자료 기반 튜터" in seen["system"]
+    assert seen["payload"]["context"]["learningSession"] is True
+    assert resource_body in seen["payload"]["userMessage"]
+    assert "JOBIS-LEARN-7421" in result.reply
 
 
 def test_router_tier_picks_strongest_model(monkeypatch):

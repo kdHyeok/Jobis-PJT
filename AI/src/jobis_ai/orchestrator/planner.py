@@ -346,6 +346,16 @@ def plan_agents(message: str, session: dict[str, Any]) -> tuple[AgentPlan | None
     if not (message or "").strip():
         return None, []
 
+    # 학습 워크스페이스는 일반 채팅 전송 계약을 재사용한다. 세션에 공고 자산이 남아
+    # 있어도 학습 질문을 공고 분석으로 재분류하지 않도록 내부 표식을 신뢰 경계로 삼는다.
+    if (message or "").lstrip().startswith("[JOBIS_LEARNING_SESSION]"):
+        return AgentPlan(
+            agents=["career_chat"],
+            requestedAgents=["career_chat"],
+            confidence=1.0,
+            ack="선택한 학습 자료와 현재 범위를 바탕으로 함께 살펴볼게요.",
+        ), []
+
     # 시스템 프롬프트는 세션과 무관하게 매 턴 동일하다(정적) — provider 프롬프트 캐싱 대상.
     system = _PLANNER_SYSTEM_TEMPLATE.format(manifest=_build_manifest())
     user_content = (

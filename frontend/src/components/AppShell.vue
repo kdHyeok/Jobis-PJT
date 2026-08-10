@@ -3,6 +3,7 @@ import {
   Activity,
   Archive,
   BriefcaseBusiness,
+  CalendarRange,
   ClipboardCheck,
   LoaderCircle,
   LogOut,
@@ -248,6 +249,13 @@ onBeforeUnmount(() => {
         >
           <Map :size="19" />
           <span class="sidebar-label">커리어 지도</span>
+        </RouterLink>
+        <RouterLink
+          :class="{ 'nav-section-active': sectionActive('/app/learning-plan') || sectionActive('/app/learning') }"
+          :to="{ name: 'learning-plan' }"
+        >
+          <CalendarRange :size="19" />
+          <span class="sidebar-label">학습 플랜</span>
         </RouterLink>
         <RouterLink
           v-if="session.user.value?.accountRole === 'OPERATOR'"

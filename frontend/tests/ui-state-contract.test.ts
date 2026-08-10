@@ -42,14 +42,19 @@ test("빈 대화는 자동 생성하지 않고 홈으로 돌아가며 중복 에
   assert.match(chat, /visibleAgentWarnings/);
 });
 
-test("답변 생성과 스크롤 복귀는 작성창 위의 점·아래 화살표로 노출한다", () => {
+test("답변 생성 상태와 응답 중 스크롤 복귀를 서로 분리해 노출한다", () => {
   const chat = source("../src/views/ChatView.vue");
   const theme = source("../src/styles/jobis-theme.css");
 
-  assert.match(chat, /class="chat-generation-dots"/);
+  assert.match(chat, /class="chat-message chat-message--assistant chat-message--live"/);
+  assert.match(chat, /:events="activeComposerChatJob\.progressEvents"/);
+  assert.match(chat, /v-if="activeComposerChatJob && showNewMessages"[\s\S]*?class="chat-live-follow"/);
   assert.match(chat, /aria-label="최신 메시지로 이동"/);
+  assert.doesNotMatch(chat, /<ArrowDown/);
+  assert.match(chat, /activeChatJobs\.value\.length > 0 \? 700 : 2500/);
   assert.match(chat, /showNewMessages\.value = !isNearMessageBottom\(\)/);
-  assert.match(theme, /@keyframes chat-dot-bounce/);
+  assert.match(theme, /@keyframes chat-dot-descend/);
+  assert.match(theme, /\.chat-message--live/);
 });
 
 test("제품명과 파비콘은 JOBIS와 사이드바 펭귄 마크로 고정한다", () => {
