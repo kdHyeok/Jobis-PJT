@@ -24,24 +24,24 @@ Vue :5473
 Spring과 PostgreSQL이 사용자 대화, 질문·답변, 분석 상태, 취소, 로드맵 초안과 버전의 정본입니다.
 공고 분석은 결과를 즉시 지도에 덮어쓰지 않고 `DRAFT → 미리보기 → 적용 또는 취소`를 거칩니다.
 
-## 처음 설치
+## 실행 (표준: Docker Compose)
 
-Java 17, Python 3.12, Node.js와 Codex CLI 로그인이 필요합니다.
-
-```powershell
-cd C:\JOBIS
-powershell -ExecutionPolicy Bypass -File .\scripts\start-all.ps1 -Install
-```
-
-## 실행
-
-한 줄로 모두 실행:
+Docker Desktop만 있으면 됩니다. 환경 파일은 루트 `.env` 하나입니다.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-all.ps1
+Copy-Item .env.compose-local.example .env
+docker compose up --build -d
 ```
 
-로그가 보이는 별도 창으로 실행하려면 `JOBIS-START.cmd`를 실행합니다. 개별 실행 파일도 있습니다.
+웹앱은 [http://localhost:8088](http://localhost:8088)입니다. 빌드·배포·외부 서비스·시연
+절차의 정본은 [exec/](exec/)에 있습니다.
+
+수집·RAG 파이프라인까지 띄우려면 `infra/airflow/.env`를 만들고 그 디렉터리에서 별도로
+`docker compose up -d`를 실행합니다. 자세한 재현 절차는 [RUN.md](RUN.md)입니다.
+
+### Docker 없이 개별 실행 (보조 경로)
+
+로그가 보이는 별도 창으로 실행합니다. 이 경로는 `.env.example`을 사용합니다.
 
 - `JOBIS-START-CAPABILITY-GRAPH.cmd`: 외부 호출 호환용 Graph HTTP facade(선택)
 - `JOBIS-START-AI.cmd`: 단일 JOBIS AI
@@ -52,13 +52,13 @@ powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-all.ps1
 
 웹앱: [http://localhost:5473](http://localhost:5473)
 
-| 구성 | 주소 |
-|---|---|
-| PostgreSQL | `localhost:58432/jobiss_v3_integration_lab` |
-| JOBIS AI | `http://127.0.0.1:8400` |
-| Capability Graph HTTP facade(선택) | `http://127.0.0.1:8600` |
-| Spring Boot | `http://localhost:8380` |
-| Vue/Vite | `http://localhost:5473` |
+| 구성 | Docker(표준) | 개별 실행 |
+|---|---|---|
+| 웹앱 | `http://localhost:8088` | `http://localhost:5473` |
+| Spring Boot | 내부망 `backend:8080` | `http://localhost:8080` |
+| JOBIS AI | 내부망 `ai:8000` | `http://127.0.0.1:8400` |
+| PostgreSQL | 내부망 `postgres:5432/jobiss` | `localhost:58432/jobiss` |
+| Capability Graph facade(선택) | 미기동 | `http://127.0.0.1:8600` |
 
 ## AI 설정
 

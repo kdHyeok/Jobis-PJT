@@ -1,5 +1,37 @@
 # JOBIS 단일 AI 통합 작업 상태
 
+## 2026-08-10 develop 병합 · 환경 예제 정정 · exec 포팅 매뉴얼
+
+- 상태: `IMPLEMENTED_AND_VERIFIED_STAGED_UNCOMMITTED`
+- develop 병합: `origin/develop`(faf4021) 를 `feat/fe/roadmap-change` 로 병합했다. 트리 차이
+  7개 파일, 충돌 6개는 모두 HEAD 쪽이 빈 훅이라 develop 판을 취했다(`ANALYSIS_CANCELLED`
+  계약, CI 스모크의 `SMOKE_HOST_ROOT` 호스트 경로 치환).
+- 환경 파일 계약 확인: Docker 실행에 필요한 `.env` 는 **루트와 `infra/airflow/` 두 개뿐**이다.
+  두 compose 파일 모두 `env_file` 이 없고 `${VAR}` 보간이라 Compose 가 프로젝트 디렉터리
+  `.env` 를 읽는다. `AI/.env` 는 비-Docker 경로 전용이고 `config.py` 도 루트 `.env` 를 읽는다.
+- 예제 정정: `.env.compose-local.example`(8288→8088, provider→anthropic(D140), compose 가
+  읽는 11개 키 추가), `.env.example`(DB 55432→58432, `AI_SERVER_URL`→8400, provider→anthropic),
+  `infra/airflow/.env.example`(강제 지정 모델 키 주석).
+- `scripts/start-all.ps1` 삭제: 8380 에서 backend 를 기다리는데 2026-08-08 에 기본 포트가
+  compose 계약(8080)으로 복원된 뒤 `SERVER_PORT=8380` 을 설정하는 곳이 없어 항상 타임아웃했다.
+  README 의 실행 절을 Docker 표준으로 고쳤다.
+- `exec/` 포팅 매뉴얼 신규: 빌드·배포 문서, 외부 서비스 문서, DB 덤프, 시연 시나리오.
+- 알려진 제약: 루트 `compose.yaml` 은 `environment:` 허용목록이라 `MAIL_*`,
+  `PASSWORD_RESET_*`, `PUBLIC_APP_URL`, `REPOSITORY_TOKEN_ENCRYPTION_KEY`,
+  `SENSITIVE_DATA_*` 가 로컬 backend 컨테이너에 전달되지 않는다. 운영은 `env_file` 이라
+  전달된다. 로컬에서 해당 기능을 시험하려면 Infra 리뷰 MR 이 필요하다.
+- Verification:
+  - 충돌 마커 0개, 해결된 6개 파일이 `origin/develop` 블롭과 바이트 일치(CRLF 제외).
+  - `docker compose --env-file .env.compose-local.example config --quiet` 통과.
+  - `cd infra/airflow; docker compose --env-file .env.example config --quiet` 통과.
+  - 해석값 확인: `LLM_PROVIDER=anthropic`, published `8088`, `SPRING_PROFILES_ACTIVE=local`.
+  - DB 덤프는 컨테이너 `pg_dump` → `cmd` 리다이렉션으로 생성했다. BOM·CRLF 없음,
+    `PostgreSQL database dump complete` 마커 확인. 값 안의 CR 211바이트가 `*.sql text eol=lf`
+    에 지워지는 것을 확인해 `.gitattributes` 에 `exec/*.sql -text` 를 추가했고, 스테이징된
+    blob 이 작업 트리와 바이트 동일함을 `cmp` 로 확인했다.
+- Git: 스테이징까지 완료했고 커밋·Push 는 하지 못했다(도구 권한 차단). 재개 지점은
+  병합 커밋 → 작업 커밋 → 브랜치 push → MR 생성 → develop 머지다.
+
 ## 2026-08-10 실행 가능한 로드맵·채팅형 학습 세션
 
 - 상태: `IMPLEMENTED_FULLY_TESTED_AND_LIVE_VERIFIED_UNCOMMITTED`
