@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  ArrowDown,
   ArrowRight,
   BriefcaseBusiness,
   Archive,
@@ -29,6 +28,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
 import { hasUnreadCompletedReply, markConversationSeen } from "@/conversation-read-state";
+import { learningChats } from "@/learning-plan";
 import { productDialog } from "@/product-dialog";
 import AgentExecutionMap from "@/components/AgentExecutionMap.vue";
 import AgentWorkProductCard from "@/components/AgentWorkProductCard.vue";
@@ -57,7 +57,7 @@ const route = useRoute();
 const router = useRouter();
 const conversations = ref<ConversationSummary[]>([]);
 const conversationQuery = ref("");
-const conversationStatus = ref<"ACTIVE" | "ARCHIVED">("ACTIVE");
+const conversationStatus = ref<"ACTIVE" | "LEARNING">("ACTIVE");
 const conversationPage = ref(0);
 const conversationTotal = ref(0);
 const loadingOlderMessages = ref(false);
@@ -620,12 +620,18 @@ async function loadConversations(preferredId?: string) {
   conversationPage.value = 0;
   const page = await api.searchConversations({
     query: conversationQuery.value.trim(),
-    status: conversationStatus.value,
+    status: "ACTIVE",
     page: 0,
     size: 30,
   });
-  conversations.value = page.items;
-  conversationTotal.value = page.total;
+  conversations.value = page.items.filter((item) =>
+    conversationStatus.value === "LEARNING" ? learningChats.isLearning(item) : !learningChats.isLearning(item)
+  );
+  conversationTotal.value = conversations.value.length;
+  if (conversationStatus.value === "LEARNING") {
+    conversation.value = null;
+    return;
+  }
   const selected =
     preferredId ??
     (conversation.value?.status === conversationStatus.value
@@ -656,7 +662,7 @@ async function loadMoreConversations() {
   const nextPage = conversationPage.value + 1;
   const page = await api.searchConversations({
     query: conversationQuery.value.trim(),
-    status: conversationStatus.value,
+    status: "ACTIVE",
     page: nextPage,
     size: 30,
   });
@@ -693,12 +699,24 @@ async function createConversationFromRoute() {
 async function refreshConversationList() {
   const page = await api.searchConversations({
     query: conversationQuery.value.trim(),
-    status: conversationStatus.value,
+    status: "ACTIVE",
     page: 0,
     size: Math.max(30, conversations.value.length),
   });
-  conversations.value = page.items;
-  conversationTotal.value = page.total;
+  conversations.value = page.items.filter((item) =>
+    conversationStatus.value === "LEARNING" ? learningChats.isLearning(item) : !learningChats.isLearning(item)
+  );
+  conversationTotal.value = conversations.value.length;
+}
+
+async function openConversationFromList(item: ConversationSummary) {
+  const planId = learningChats.planIdFor(item);
+  if (planId) {
+    markConversationSeen(item.id, item.lastMessageAt);
+    await router.push({ name: "learning", params: { planId } });
+    return;
+  }
+  await openConversation(item.id);
 }
 
 async function openConversation(id: string) {
@@ -882,7 +900,10 @@ async function executeAutomaticActions() {
 function schedulePoll() {
   if (pollTimer) window.clearTimeout(pollTimer);
   if (activeJobs.value.length === 0 && activeChatJobs.value.length === 0) return;
-  pollTimer = window.setTimeout(pollJobs, 2500);
+  pollTimer = window.setTimeout(
+    pollJobs,
+    activeChatJobs.value.length > 0 ? 700 : 2500,
+  );
 }
 
 async function pollJobs() {
@@ -1703,11 +1724,11 @@ onBeforeUnmount(() => {
         <button
           type="button"
           role="tab"
-          :aria-selected="conversationStatus === 'ARCHIVED'"
-          :class="{ active: conversationStatus === 'ARCHIVED' }"
-          @click="conversationStatus = 'ARCHIVED'; loadConversations()"
+          :aria-selected="conversationStatus === 'LEARNING'"
+          :class="{ active: conversationStatus === 'LEARNING' }"
+          @click="conversationStatus = 'LEARNING'; loadConversations()"
         >
-          보관함
+          학습 채팅
         </button>
       </div>
       <div class="conversation-list">
@@ -1720,7 +1741,7 @@ onBeforeUnmount(() => {
             class="conversation-link"
             :class="{ active: conversation?.id === item.id }"
             type="button"
-            @click="openConversation(item.id)"
+            @click="openConversationFromList(item)"
           >
             <span
               class="conversation-state-icon"
@@ -1743,7 +1764,7 @@ onBeforeUnmount(() => {
               <i v-else-if="hasUnreadCompletedReply(item)" aria-label="확인하지 않은 완료 응답" />
             </span>
             <span>
-              <strong>{{ item.title }}</strong>
+              <strong>{{ learningChats.isLearning(item) ? learningChats.titleFor(item) : item.title }}</strong>
               <small>{{ item.lastMessage || "새 대화" }}</small>
             </span>
             <time>{{ formatTime(item.lastMessageAt) }}</time>
@@ -1778,7 +1799,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div v-if="conversations.length === 0 && !loading" class="sidebar-empty">
-          {{ conversationStatus === "ARCHIVED" ? "보관된 대화가 없습니다." : "첫 대화를 시작해 보세요." }}
+          {{ conversationStatus === "LEARNING" ? "아직 시작한 학습 채팅이 없습니다." : "첫 대화를 시작해 보세요." }}
         </div>
         <button
           v-if="conversations.length < conversationTotal"
@@ -2548,33 +2569,52 @@ onBeforeUnmount(() => {
             </section>
           </div>
         </article>
+
+        <article
+          v-if="activeComposerChatJob"
+          class="chat-message chat-message--assistant chat-message--live"
+          aria-live="polite"
+          aria-label="JOBIS 실시간 작업 상태"
+        >
+          <div class="chat-bubble chat-bubble--live">
+            <AgentExecutionMap
+              v-if="
+                activeComposerChatJob.result.plan?.agents?.length ||
+                activeComposerChatJob.progressEvents.length
+              "
+              compact
+              :plan="activeComposerChatJob.result.plan"
+              :events="activeComposerChatJob.progressEvents"
+              :status="activeComposerChatJob.status"
+            />
+            <div v-else class="chat-live-preparing" role="status">
+              <Sparkles :size="18" />
+              <div>
+                <strong>{{ activeComposerChatJob.stageMessage || "요청을 이해하고 있어요" }}</strong>
+                <small>필요한 작업과 자료를 확인하고 있습니다.</small>
+              </div>
+            </div>
+          </div>
+        </article>
       </div>
 
       <div
-        v-if="showNewMessages || activeComposerChatJob"
+        v-if="activeComposerChatJob && showNewMessages"
         class="chat-floating-status"
       >
         <button
-          v-if="showNewMessages"
-          class="chat-new-message"
+          class="chat-live-follow"
           type="button"
           aria-label="최신 메시지로 이동"
           title="최신 메시지로 이동"
           @click="scrollToBottom()"
         >
-          <ArrowDown :size="18" :stroke-width="2.8" />
+          <span class="chat-live-follow__dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
         </button>
-        <div
-          v-if="activeComposerChatJob"
-          class="chat-generation-dots"
-          role="status"
-          aria-live="polite"
-          aria-label="JOBIS가 답변을 생성하고 있습니다"
-        >
-          <span />
-          <span />
-          <span />
-        </div>
       </div>
 
       <footer v-if="conversation?.status === 'ARCHIVED'" class="chat-composer chat-composer--archived">

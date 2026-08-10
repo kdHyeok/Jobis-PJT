@@ -5,13 +5,14 @@ import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
 import { hasUnreadCompletedReply, markConversationSeen } from "@/conversation-read-state";
+import { learningChats } from "@/learning-plan";
 import type { ConversationSummary } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
 const conversations = ref<ConversationSummary[]>([]);
 const query = ref("");
-const status = ref<"ACTIVE" | "ARCHIVED">("ACTIVE");
+const status = ref<"ACTIVE" | "LEARNING">("ACTIVE");
 const loading = ref(false);
 const error = ref("");
 let refreshTimer: number | null = null;
@@ -38,11 +39,13 @@ async function load() {
   try {
     const page = await api.searchConversations({
       query: query.value.trim(),
-      status: status.value,
+      status: "ACTIVE",
       page: 0,
       size: 50,
     });
-    conversations.value = page.items;
+    conversations.value = page.items.filter((item) =>
+      status.value === "LEARNING" ? learningChats.isLearning(item) : !learningChats.isLearning(item)
+    );
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "대화 기록을 불러오지 못했습니다.";
   } finally {
@@ -53,6 +56,11 @@ async function load() {
 async function openConversation(id: string) {
   const selected = conversations.value.find((item) => item.id === id);
   if (selected) markConversationSeen(id, selected.lastMessageAt);
+  const planId = selected ? learningChats.planIdFor(selected) : null;
+  if (planId) {
+    await router.push({ name: "learning", params: { planId } });
+    return;
+  }
   await router.push({ name: "chat", query: { conversationId: id } });
 }
 
@@ -65,12 +73,14 @@ watch(
 
 onMounted(() => {
   window.addEventListener("jobiss:conversation-search", handleConversationSearch);
+  window.addEventListener("jobiss:learning-chats-changed", load);
   void load();
   refreshTimer = window.setInterval(() => void load(), 10_000);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("jobiss:conversation-search", handleConversationSearch);
+  window.removeEventListener("jobiss:learning-chats-changed", load);
   if (refreshTimer) window.clearInterval(refreshTimer);
 });
 </script>
@@ -90,11 +100,11 @@ onBeforeUnmount(() => {
       <button
         type="button"
         role="tab"
-        :aria-selected="status === 'ARCHIVED'"
-        :class="{ active: status === 'ARCHIVED' }"
-        @click="status = 'ARCHIVED'"
+        :aria-selected="status === 'LEARNING'"
+        :class="{ active: status === 'LEARNING' }"
+        @click="status = 'LEARNING'"
       >
-        보관함
+        학습 채팅
       </button>
     </div>
     <div class="conversation-list">
@@ -127,7 +137,7 @@ onBeforeUnmount(() => {
           <i v-else-if="hasUnreadCompletedReply(item)" aria-label="확인하지 않은 완료 응답" />
         </span>
         <span>
-          <strong>{{ item.title }}</strong>
+            <strong>{{ learningChats.isLearning(item) ? learningChats.titleFor(item) : item.title }}</strong>
           <small>{{ item.lastMessage || "대화를 시작해 보세요." }}</small>
         </span>
         <time>{{ formatTime(item.lastMessageAt) }}</time>
@@ -135,7 +145,7 @@ onBeforeUnmount(() => {
       <div v-if="loading && conversations.length === 0" class="sidebar-empty">불러오는 중…</div>
       <div v-else-if="error" class="sidebar-empty">{{ error }}</div>
       <div v-else-if="conversations.length === 0" class="sidebar-empty">
-        {{ status === "ARCHIVED" ? "보관된 대화가 없습니다." : "첫 대화를 시작해 보세요." }}
+        {{ status === "LEARNING" ? "아직 시작한 학습 채팅이 없습니다." : "첫 대화를 시작해 보세요." }}
       </div>
     </div>
   </aside>

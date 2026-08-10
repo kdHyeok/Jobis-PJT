@@ -55,6 +55,15 @@ context 에는 세션 상태(이력서·공고 보유, 수집된 선호)가 있�
 - postingLibrary 에도 없는 공고를 물으면, 없다고만 끝내지 말고 **그 공고 링크(또는 본문)를 다시
   보내주면 바로 정리해 답하겠다**고 복구 경로를 안내한다."""
 
+_LEARNING_SYSTEM = """너는 JOBIS 학습 세션의 자료 기반 튜터다. 사용자에게 그대로 보여줄 답변 본문만 출력한다.
+- userMessage 안의 [JOBIS_LEARNING_SESSION], 학습 세션, 학습 범위, 선택한 학습 자료를 이 요청의 계약으로 따른다.
+- 선택한 자료의 본문을 가장 우선 근거로 사용하고, 자료에 없는 사실은 일반 지식인지 명확히 구분한다.
+- 자료에 식별자·용어·예제가 있으면 답변에 정확히 보존한다. URL만 있고 본문이 없으면 읽었다고 주장하지 않는다.
+- 질문에는 먼저 짧고 직접적으로 답하고, 이해를 확인할 질문이나 작은 실습을 하나 덧붙인다.
+- 개념 설명, 과제 제안, 퀴즈, 코드 피드백을 수행할 수 있다. 공고 분석이나 취업 기능으로 돌려보내지 않는다.
+- 합격 가능성이나 특정 공고 적합도를 판단하지 않는다.
+- 자연스러운 한국어로 답하고, 사용자가 요청하지 않은 긴 목록은 만들지 않는다."""
+
 
 # 대화 입력 상한(M6/D75) — 자산으로 승격되지 못한 긴 원문(문서 붙여넣기)이 **통째로**
 # 대화 근거가 되는 것을 구조로 막는다(§2-5 근거는 도구만: 프롬프트 금지는 실측에서 안
@@ -73,9 +82,14 @@ def _clip_message(message: str) -> str:
 def run(session: dict) -> AgentResult:
     from jobis_ai.orchestrator.session import recent_history
 
-    message = _clip_message(str(session.get("last_message") or ""))
+    raw_message = str(session.get("last_message") or "")
+    learning_session = raw_message.lstrip().startswith("[JOBIS_LEARNING_SESSION]")
+    # 학습 세션은 화면에서 선택한 자료 본문을 의도적으로 전달한다. 일반 채팅의 긴 붙여넣기
+    # 격리는 유지하되, 학습 계약에 한해서만 프론트 상한(12k) 안의 자료를 보존한다.
+    message = raw_message[:14_000] if learning_session else _clip_message(raw_message)
     prefs = session.get("preferences") or {}
     context = {
+        "learningSession": learning_session,
         "hasResume": bool(session.get("resume") or session.get("profile")),
         "hasPosting": bool(session.get("job_posting")),
         "hasAnalysis": bool(session.get("analysis")),
@@ -126,7 +140,7 @@ def run(session: dict) -> AgentResult:
         })
 
     text, warnings = run_streaming_text(
-        _SYSTEM,
+        _LEARNING_SYSTEM if learning_session else _SYSTEM,
         json.dumps(
             {"userMessage": message, "recentHistory": recent_history(session),
              "context": context},

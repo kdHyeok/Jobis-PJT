@@ -296,14 +296,18 @@ function edgeKind(relationType: string): RoadmapSnapshot["edges"][number]["kind"
 }
 
 export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
-  const opportunities = snapshot.nodes.filter((node) => node.nodeKind === "OPPORTUNITY");
+  // Provisional capabilities are analysis findings, not executable learning
+  // nodes. They stay in the V3 proposal for audit/gap analysis and only enter
+  // the user-facing roadmap after catalog approval.
+  const actionableNodes = snapshot.nodes.filter((node) => !node.provisionalCandidateId);
+  const opportunities = actionableNodes.filter((node) => node.nodeKind === "OPPORTUNITY");
   const opportunityIds = new Map(opportunities.map((node) => [node.targetRef, postingIdOf(node)]));
   const opportunityPostingByNodeId = new Map(
     opportunities.map((node) => [node.nodeId, postingIdOf(node)]),
   );
-  const projects = snapshot.nodes.filter((node) => node.nodeKind === "TARGET_PROJECT");
-  const gates = snapshot.nodes.filter((node) => node.nodeKind === "CAREER_GATE");
-  const careerEvidenceNodes = snapshot.nodes.filter(
+  const projects = actionableNodes.filter((node) => node.nodeKind === "TARGET_PROJECT");
+  const gates = actionableNodes.filter((node) => node.nodeKind === "CAREER_GATE");
+  const careerEvidenceNodes = actionableNodes.filter(
     (node) => node.nodeKind === "EMPLOYMENT_EVENT" || node.nodeKind === "EXPERIENCE_INTERVAL",
   );
   const projectPostingIds = new Map<string, string>();
@@ -366,7 +370,7 @@ export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
     if (!values.includes(displayNodeId)) values.push(displayNodeId);
     displayNodesBySourceNode.set(sourceNodeId, values);
   };
-  const foundations = snapshot.nodes
+  const foundations = actionableNodes
     .filter((node) => node.nodeKind === "CAPABILITY" && domainOf(node.sectionKey) === "COMMON")
     .sort((left, right) => left.title.localeCompare(right.title, "ko"));
   foundations.forEach((node) => {
@@ -396,7 +400,7 @@ export function adaptV3Snapshot(snapshot: V3RoadmapSnapshot): RoadmapSnapshot {
     domain: string;
     nodes: V3RoadmapNode[];
   }>();
-  for (const node of snapshot.nodes.filter((item) => item.nodeKind === "CAPABILITY")) {
+  for (const node of actionableNodes.filter((item) => item.nodeKind === "CAPABILITY")) {
     const memberships = membershipsOf(node).map(normalizedMembership);
     const selectedByDomain = new Map<string, CapabilityMembership>();
     for (const membership of memberships) {

@@ -113,7 +113,7 @@ function securitySnapshot(): V3RoadmapSnapshot {
   };
 }
 
-test("임시 필수 역량도 준비도와 회사 경로에 포함한다", () => {
+test("검토 대기 임시 역량은 분석 준비도에는 남기되 사용자 로드맵에서 제외한다", () => {
   const adapted = adaptV3Snapshot(securitySnapshot());
   assert.equal(adapted.targets.length, 1);
   assert.deepEqual(adapted.targets[0], {
@@ -129,16 +129,9 @@ test("임시 필수 역량도 준비도와 회사 경로에 포함한다", () =>
     closesAt: null,
   });
 
-  const pendingGroup = adapted.nodes.find((node) =>
-    node.id === "v3-chapter:SECURITY:chapter.pending-review:section.security");
-  assert.ok(pendingGroup);
-  assert.equal(pendingGroup.competencies.length, 5);
-  assert.ok(pendingGroup.competencies.every((item) => item.catalogStatus === "PENDING_REVIEW"));
-  assert.ok(pendingGroup.competencies.every(
-    (item) => item.assessmentAvailability === "PENDING_REVIEW",
-  ));
-  assert.deepEqual(pendingGroup.postingIds, [postingId]);
-  assert.equal(pendingGroup.requirementKinds?.[postingId], "REQUIRED");
+  assert.equal(adapted.nodes.some((node) => node.id.includes("chapter.pending-review")), false);
+  assert.equal(adapted.nodes.flatMap((node) => node.competencies)
+    .some((item) => item.catalogStatus === "PENDING_REVIEW"), false);
 
   const broadDocker = adapted.nodes
     .flatMap((node) => node.competencies)
@@ -168,10 +161,6 @@ test("사용자 원자 역량으로 등록된 승인 노드만 검증 가능 상
 
 test("V3가 전달한 필수·우대·기회 관계를 화면 관계로 보존한다", () => {
   const adapted = adaptV3Snapshot(securitySnapshot());
-  assert.ok(adapted.edges.some((edge) =>
-    edge.fromId === "v3-chapter:SECURITY:chapter.pending-review:section.security"
-      && edge.toId === "node-project"
-      && edge.kind === "PROJECT_PATH"));
   assert.ok(adapted.edges.some((edge) =>
     edge.fromId === "v3-chapter:SECURITY:chapter.legacy-core:section.security"
       && edge.toId === "node-project"
@@ -326,7 +315,8 @@ test("커리어 그래프 수용 fixture의 경력 범위와 보안 섹션을 �
 
 test("프로젝트 과제 이름은 메인 학습 챕터 제목으로 사용하지 않는다", () => {
   const snapshot = securitySnapshot();
-  snapshot.nodes[0].sectionMemberships = [{
+  const docker = snapshot.nodes.find((node) => node.nodeId === "node-docker")!;
+  docker.sectionMemberships = [{
     sectionKey: "section.security",
     chapterKey: "chapter.task:task.game-purchase",
     chapterTitle: "게임 구매 REST API 개발",

@@ -1,5 +1,31 @@
 # JOBIS 단일 AI 통합 작업 상태
 
+## 2026-08-10 실행 가능한 로드맵·채팅형 학습 세션
+
+- 상태: `IMPLEMENTED_FULLY_TESTED_AND_LIVE_VERIFIED_UNCOMMITTED`
+- 설계 정리:
+  - V3의 임시·검토 대기 역량은 갭 분석 기록에는 보존하되, 사용자가 실행할 수 있는 로드맵
+    투영에서는 제외한다. 제한된 노드를 보여주고 기능을 막던 UX를 제거했다.
+  - `feat/learning-plan`의 학습 소스 방향을 반영해 CS 기초, 생활코딩, 공식 문서 등
+    검증 가능한 URL을 과목별 기본 학습 자료로 제공한다.
+  - 학습 화면을 접을 수 있는 과정 목록 + 큰 채팅 작업공간으로 재구성했다. 기존 채팅 잡 API를
+    사용해 선택 자료와 현재 모듈을 컨텍스트로 전달하고 개념 질문·과제 제안·단계별 퀴즈를 실행한다.
+  - 학습 완료는 같은 브라우저의 커리어 지도 노드와 상세 상태에 즉시 반영되며, 완료 뒤
+    `다시 학습`, `완료한 학습 보기`, `학습 자료 다시 만들기`를 제공한다.
+  - 주간·월간 학습 플랜에서 서로 다른 과목은 안정적인 과목별 색으로 구분한다.
+- 계약 경계:
+  - 일정·학습 시간·자료·완료 상태는 현재 브라우저 localStorage 계약이다. 백엔드에 학습 플랜
+    영속 API가 없으므로 다른 기기와의 동기화까지 완료됐다고 표현하지 않는다.
+- Verification:
+  - `frontend npm run typecheck` 통과.
+  - Node 계약 테스트 20개, Vitest 5개 통과.
+  - 프론트엔드 production build 통과(기존 500 kB chunk 경고만 존재).
+  - Docker frontend 이미지 재빌드·재생성, `http://localhost:8088/app/map` HTTP 200 확인.
+  - 실제 8088에서 검토 대기 문구가 지도에 나타나지 않음, 학습 상세 진입, 채팅형 학습 화면,
+    과제·퀴즈 버튼과 완료/재학습 상태를 확인했다.
+- 도구 경계: 현재 세션에는 Ponytail 호출 기능이 노출되지 않아 계약 추적·회귀 테스트로 대체했다.
+- Git: 커밋·Push하지 않았다. 기존 작업 트리 변경을 보존했다.
+
 ## 2026-08-09 프로젝트 플래너 누락 요건 계약 실패 복구
 
 - 상태: `IMPLEMENTED_FULLY_TESTED_AND_LIVE_VERIFIED`
@@ -1073,3 +1099,37 @@ Jenkins `#3`~`#7`이 연속 실패했다. 스테이지가 순차라 push마다 �
   - 현재 Codex 세션에는 Ponytail 플러그인의 호출 가능한 도구가 노출되지 않아 직접 실행하지 못했고,
     동일 범위를 계약 추적·회귀 테스트로 검증했다.
 - Git: 현재 진행 상황 체크포인트 커밋에 포함하며 Push는 별도 요청 전까지 하지 않는다.
+
+## 2026-08-10 채팅 실시간 작업 상태 UI
+
+- 상태: `IMPLEMENTED_AND_LIVE_VERIFIED_UNCOMMITTED`
+- 기존 백엔드/AI의 채팅 `PLAN`·`PROGRESS` 이벤트 계약을 재사용해, 응답 생성 중인 잡을 임시 assistant 행으로 표시한다.
+- 계획 전에는 요청 해석 상태를, 계획 이후에는 실행 중인 에이전트·단계·입력 자료를 약 0.7초 간격으로 갱신한다.
+- 임시 작업 상태가 생성 진행을 표현한다. 원형 `…` 이동 버튼은 응답 중인 대화에서 사용자가 하단을 벗어나 위로 스크롤했을 때만 보이고, 누르면 최신 메시지로 이동한다.
+- 별도의 SSE 토큰 스트리밍 계약은 추가하지 않았다. 현재 구현 범위는 기존 작업 이벤트의 실시간 표시다.
+- Verification:
+  - frontend `npm run typecheck` 통과.
+  - `node --test tests/ui-state-contract.test.ts`: 8/8 통과.
+  - frontend production Docker build 및 `jobis-app-frontend-1` 재생성 성공.
+  - 실제 8088 브라우저에서 대체 공고 추천 요청으로 대기 상태 -> `공고 내용을 해설하고 있어요`/`대체 공고 탐색` 진행 상태 -> 최종 응답 순서를 확인했다.
+  - 최종 응답 뒤 임시 행, 이동 버튼, 중단 버튼이 모두 사라지는 것을 확인했다. 추가 수정 후 응답 중이더라도 하단에서는 이동 버튼이 숨겨지는 것을 실제 8088에서 확인했다.
+  - `git diff --check` 통과.
+- Git: 커밋·Push하지 않음.
+# 2026-08-10 Career map to learning flow
+
+- Status: `IMPLEMENTED_AND_LIVE_VERIFIED_UNCOMMITTED`
+- Added the map competency schedule flow, weekly/monthly learning plan, day detail drawer, learning workspace, elapsed-time redistribution, optional completion, and editable learning-resource memory.
+- Kept the canonical roadmap snapshot unchanged. New learning-plan state is browser-local until a backend persistence contract is introduced.
+- Verification: frontend typecheck, Node contract tests, Vitest, production build, Docker frontend recreation, and the live 8088 map-to-learning interaction passed. Browser console had no errors or warnings.
+- Design QA: `design-qa.md` has `final result: passed`; reference and implementation captures are in `artifacts/design-qa/`.
+- Git: no commit or push performed.
+
+## 2026-08-10 Learning chat separation
+
+- Status: `IMPLEMENTED_AND_LIVE_VERIFIED_UNCOMMITTED`
+- Replaced the conversation shelf's `보관함` tab with `학습 채팅` on both shared and chat-specific shelves.
+- Learning-session conversations no longer appear in normal `진행 중`; existing marker-based sessions and newly registered sessions are both recognized.
+- New learning sessions retain a local conversation-to-plan reference, reuse the same conversation on reload, and route back to the matching learning workspace.
+- Learning rows use the subject title instead of exposing the internal `[JOBIS_LEARNING_SESSION]` marker.
+- Verification: frontend typecheck, 21 Node contract tests, 5 Vitest tests, production build, frontend Docker rebuild/recreation, and live 8088 tab separation passed.
+- Git: no commit or push performed.

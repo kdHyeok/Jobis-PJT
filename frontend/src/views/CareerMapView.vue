@@ -3,10 +3,12 @@ import {
   BookOpen,
   BriefcaseBusiness,
   BrainCircuit,
+  CalendarDays,
   Check,
   ChevronRight,
   CircleDot,
   Cloud,
+  Clock3,
   Code2,
   Database,
   Flag,
@@ -36,10 +38,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 
 import { api } from "@/api";
+import { learningPlan } from "@/learning-plan";
 import { productDialog } from "@/product-dialog";
 import JourneyMap from "@/components/JourneyMap.vue";
 import JobissGuide from "@/components/JobissGuide.vue";
 import { buildJourneyModel } from "@/roadmap/journey";
+import type { JourneyChapter, JourneyTrack } from "@/roadmap/journey";
 import { adaptV3Workspace } from "@/roadmap/v3-adapter";
 import type {
   CompetencyAssessment,
@@ -140,6 +144,9 @@ const evidence = ref<Evidence[]>([]);
 const evidenceCompetency = ref<RoadmapCompetency | null>(null);
 const assessment = ref<CompetencyAssessment | null>(null);
 const learning = ref<CompetencyLearning | null>(null);
+const scheduleOpen = ref(false);
+const scheduleStart = ref("");
+const scheduleEnd = ref("");
 const assessmentAnswer = ref("");
 const assessmentReviewReason = ref("");
 const v3Assessment = ref<V3AtomicAssessment | null>(null);
@@ -168,6 +175,75 @@ const diffDialog = ref<HTMLElement | null>(null);
 const applyDialog = ref<HTMLElement | null>(null);
 const discardDialog = ref<HTMLElement | null>(null);
 const detailDrawer = ref<HTMLElement | null>(null);
+
+const scheduledLearning = computed(() => {
+  if (!evidenceCompetency.value) return null;
+  return learningPlan.findByCompetency(evidenceCompetency.value.id);
+});
+
+function competencyCompleted(competency: RoadmapCompetency) {
+  return competency.progressStatus === "COMPLETED" ||
+    learningPlan.completedCompetencyIds.value.has(competency.id);
+}
+
+const selectedNodeCompleted = computed(() => {
+  const node = selectedNode.value;
+  if (!node) return false;
+  if (node.status === "COMPLETED") return true;
+  return node.competencies.length > 0 && node.competencies.every(competencyCompleted);
+});
+
+const selectedNodeStatus = computed(() =>
+  selectedNodeCompleted.value ? "COMPLETED" : selectedNode.value?.status ?? "AVAILABLE",
+);
+
+const estimatedLearningMinutes = computed(() => {
+  const moduleCount = Math.max(1, learning.value?.modules.length ?? 1);
+  return Math.max(90, moduleCount * 75);
+});
+
+function todayIso(offset = 0) {
+  const value = new Date();
+  value.setDate(value.getDate() + offset);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
+function openLearningSchedule() {
+  scheduleStart.value = scheduledLearning.value?.startDate ?? todayIso();
+  scheduleEnd.value = scheduledLearning.value?.endDate ?? todayIso(6);
+  scheduleOpen.value = true;
+}
+
+function saveLearningSchedule() {
+  const competency = evidenceCompetency.value;
+  if (!competency || !scheduleStart.value || !scheduleEnd.value) return;
+  learningPlan.upsert({
+    competencyId: competency.id,
+    canonicalKey: competency.canonicalKey,
+    title: competency.title,
+    description: competency.scopeDefinition,
+    startDate: scheduleStart.value,
+    endDate: scheduleEnd.value < scheduleStart.value ? scheduleStart.value : scheduleEnd.value,
+    estimatedMinutes: estimatedLearningMinutes.value,
+    modules: (learning.value?.modules ?? []).map((module) => ({
+      title: module.title,
+      objective: module.objective,
+      practice: module.practice,
+    })),
+  });
+  scheduleOpen.value = false;
+}
+
+function openLearningWorkspace() {
+  if (!scheduledLearning.value) return;
+  void router.push({ name: "learning", params: { planId: scheduledLearning.value.id } });
+}
+
+function restartLearning() {
+  if (!scheduledLearning.value) return;
+  learningPlan.restart(scheduledLearning.value.id);
+  openLearningWorkspace();
+}
 const zoom = ref(1);
 const canvasScrollLeft = ref(0);
 const canvasScrollTop = ref(0);
@@ -1251,6 +1327,35 @@ async function selectNode(node: RoadmapNode) {
   }
 }
 
+async function addNodeToLearningPlan(node: RoadmapNode) {
+  await selectNode(node);
+  const competency = node.competencies[0];
+  if (!competency) return;
+  await chooseCompetency(competency);
+  openLearningSchedule();
+}
+
+function customizeJourneyBranch(payload: {
+  track: JourneyTrack;
+  chapter: JourneyChapter;
+  mode: "EDIT" | "REGENERATE";
+}) {
+  const verb = payload.mode === "REGENERATE" ? "다시 생성" : "수정";
+  const prompt = [
+    `현재 커리어 지도의 '${payload.track.label} > ${payload.chapter.title}' 가지를 ${verb}하고 싶어.`,
+    "이 경로에서 관심 없는 항목, 이미 할 줄 아는 항목, 새로 배우고 싶은 기술을 먼저 물어본 뒤",
+    "현재 지도를 바로 덮어쓰지 말고 변경 초안을 만들어 미리보기로 보여줘.",
+  ].join(" ");
+  void router.push({
+    path: "/app/chat",
+    query: {
+      new: String(Date.now()),
+      prompt,
+      action: "application_plan",
+    },
+  });
+}
+
 async function chooseCompetency(competency: RoadmapCompetency) {
   evidenceCompetency.value = competency;
   assessment.value = null;
@@ -1845,6 +1950,8 @@ onBeforeUnmount(() => {
           :selected-node-id="selectedNode?.id ?? null"
           :next-node="nextJourneyNode"
           @select="selectNode"
+          @learn="addNodeToLearningPlan"
+          @customize="customizeJourneyBranch"
         />
 
         <div
@@ -2016,7 +2123,7 @@ onBeforeUnmount(() => {
       <div class="drawer-top">
         <span
           class="drawer-icon"
-          :class="`drawer-icon--${selectedNode.status.toLowerCase()}`"
+          :class="`drawer-icon--${selectedNodeStatus.toLowerCase()}`"
         >
           <component :is="nodeIcon(selectedNode)" :size="24" />
         </span>
@@ -2035,13 +2142,13 @@ onBeforeUnmount(() => {
       <section class="quest-status-card">
         <div>
           <small>현재 상태</small>
-          <strong>{{ statusLabel(selectedNode.status) }}</strong>
+          <strong>{{ statusLabel(selectedNodeStatus) }}</strong>
         </div>
-        <span :class="`status-chip status-chip--${selectedNode.status.toLowerCase()}`">
-          <Check v-if="selectedNode.status === 'COMPLETED'" :size="14" />
-          <LockKeyhole v-else-if="selectedNode.status === 'LOCKED'" :size="14" />
+        <span :class="`status-chip status-chip--${selectedNodeStatus.toLowerCase()}`">
+          <Check v-if="selectedNodeStatus === 'COMPLETED'" :size="14" />
+          <LockKeyhole v-else-if="selectedNodeStatus === 'LOCKED'" :size="14" />
           <CircleDot v-else :size="14" />
-          {{ statusLabel(selectedNode.status) }}
+          {{ statusLabel(selectedNodeStatus) }}
         </span>
       </section>
 
@@ -2058,13 +2165,12 @@ onBeforeUnmount(() => {
             <span
               :class="[
                 'competency-state',
-                { done: competency.progressStatus === 'COMPLETED' },
+                { done: competencyCompleted(competency) },
               ]"
             >
               <Check
                 v-if="
-                  competency.progressStatus === 'COMPLETED' &&
-                  competency.verifiedLevel >= competency.requiredLevel
+                  competencyCompleted(competency)
                 "
                 :size="14"
               />
@@ -2076,12 +2182,6 @@ onBeforeUnmount(() => {
                 요구 {{ competency.requiredLevel }} · 검증
                 {{ competency.verifiedLevel }}
               </small>
-              <small
-                v-if="competency.catalogStatus === 'PENDING_REVIEW'"
-                class="catalog-review-badge"
-              >
-                공용 역량 사전 검토 대기
-              </small>
             </span>
             <ChevronRight :size="16" />
           </button>
@@ -2090,6 +2190,51 @@ onBeforeUnmount(() => {
         <section v-if="evidenceCompetency" class="roadmap-drawer-section">
           <h3>{{ evidenceCompetency.title }}</h3>
           <p>{{ evidenceCompetency.scopeDefinition }}</p>
+          <div class="roadmap-learning-registration">
+            <div>
+              <small>예상 필요 시간</small>
+              <strong>{{ Math.floor(estimatedLearningMinutes / 60) }}시간 {{ estimatedLearningMinutes % 60 }}분</strong>
+            </div>
+            <div v-if="scheduledLearning" class="roadmap-learning-registration__dates">
+              <small>등록된 학습 기간</small>
+              <strong>{{ scheduledLearning.startDate }} → {{ scheduledLearning.endDate }}</strong>
+            </div>
+            <button
+              class="press-button press-button--primary"
+              type="button"
+              :disabled="previewDraft"
+              @click="openLearningSchedule"
+            >
+              <CalendarDays :size="16" />
+              {{ scheduledLearning ? "일정 수정" : "학습 플랜에 등록" }}
+            </button>
+            <button
+              v-if="scheduledLearning"
+              class="press-button press-button--ghost"
+              type="button"
+              @click="openLearningWorkspace"
+            >
+              {{ scheduledLearning.completed ? "완료한 학습 보기" : "학습 시작" }}
+            </button>
+            <button
+              v-if="scheduledLearning?.completed"
+              class="press-button press-button--ghost"
+              type="button"
+              @click="restartLearning"
+            >
+              <RotateCcw :size="16" /> 다시 학습
+            </button>
+            <button
+              v-if="scheduledLearning && learning"
+              class="press-button press-button--ghost"
+              type="button"
+              :disabled="actionLoading"
+              @click="generateLearning(true)"
+            >
+              <RefreshCw :size="16" /> 학습 자료 다시 만들기
+            </button>
+            <small v-if="previewDraft">새 지도를 적용한 뒤 학습 일정을 등록할 수 있습니다.</small>
+          </div>
           <p v-if="assessmentLoadError" class="inline-error">{{ assessmentLoadError }}</p>
           <p v-if="learningLoadError" class="inline-error">{{ learningLoadError }}</p>
           <div
@@ -2105,18 +2250,10 @@ onBeforeUnmount(() => {
               미리보기 역량입니다. 새 지도를 적용하면 검증을 시작할 수 있습니다.
             </p>
             <p
-              v-if="evidenceCompetency.catalogStatus === 'PENDING_REVIEW'"
-              class="v3-atomic-assessment__notice v3-atomic-assessment__notice--pending"
-            >
-              이 공고에서 새로 발견된 임시 역량입니다. 로드맵에는 포함되지만 공용 역량 사전 검토가
-              끝난 뒤 학습·검증을 시작할 수 있습니다.
-            </p>
-            <p
-              v-else-if="evidenceCompetency.assessmentAvailability === 'NOT_ATOMIC'"
+              v-if="!previewDraft && evidenceCompetency.assessmentAvailability === 'NOT_ATOMIC'"
               class="v3-atomic-assessment__notice"
             >
-              기존 로드맵의 넓은 범위 역량입니다. 공용 역량 사전에서 검증 범위가 승인된 원자 역량으로
-              연결된 뒤 검증을 시작할 수 있습니다.
+              학습 플랜에서 이 역량을 완료하면 커리어 지도에도 완료 상태가 반영됩니다.
             </p>
             <div v-else-if="v3AssessmentLoading" class="v3-atomic-assessment__loading">
               <LoaderCircle class="spin" :size="18" /> 검증 상태를 확인하고 있습니다.
@@ -2804,6 +2941,49 @@ onBeforeUnmount(() => {
           초안 취소
         </button>
       </div>
+    </section>
+
+    <button
+      v-if="scheduleOpen"
+      class="learning-schedule-backdrop"
+      type="button"
+      aria-label="학습 일정 닫기"
+      @click="scheduleOpen = false"
+    />
+    <section
+      v-if="scheduleOpen && evidenceCompetency"
+      class="learning-schedule-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="learning-schedule-title"
+    >
+      <header>
+        <span><CalendarDays :size="22" /></span>
+        <div>
+          <small>SCHEDULE LEARNING</small>
+          <h2 id="learning-schedule-title">{{ evidenceCompetency.title }} 일정 등록</h2>
+          <p>시작일과 종료일을 선택하면 남은 학습 시간이 날짜별로 나뉩니다.</p>
+        </div>
+        <button type="button" aria-label="닫기" @click="scheduleOpen = false"><X :size="19" /></button>
+      </header>
+      <div class="learning-schedule-fields">
+        <label>시작일<input v-model="scheduleStart" type="date" /></label>
+        <span>→</span>
+        <label>종료일<input v-model="scheduleEnd" :min="scheduleStart" type="date" /></label>
+      </div>
+      <div class="learning-schedule-summary">
+        <Clock3 :size="18" />
+        <div><small>예상 학습 시간</small><strong>{{ estimatedLearningMinutes }}분</strong></div>
+        <p>{{ scheduleStart }}부터 {{ scheduleEnd }}까지 학습 플랜에 표시됩니다.</p>
+      </div>
+      <button
+        class="press-button press-button--primary"
+        type="button"
+        :disabled="!scheduleStart || !scheduleEnd"
+        @click="saveLearningSchedule"
+      >
+        <Check :size="17" /> 선택 완료
+      </button>
     </section>
 
     <button

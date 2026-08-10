@@ -610,7 +610,9 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # 원문 수집(feat_url)은 여기서 하지 않는다 — 첫 소비자 도구(posting_analysis·
     # fit_analysis)가 ensure_posting_text 로 수집해 원문을 자산으로 승격한다. 플래너 전에
     # 수십 초 fetch 를 하면 계획도 없이 사용자를 기다리게 한다.
-    if "job_posting" not in stored_kinds:
+    learning_session = (request.message or "").lstrip().startswith("[JOBIS_LEARNING_SESSION]")
+
+    if "job_posting" not in stored_kinds and not learning_session:
         posting_urls = detect_posting_urls(request.message, session)
         # **저장된 분석이 있을 때만** 채용사이트로 알아볼 수 있는 주소로 제한한다. 등록하면
         # 바로 아래 `_stage` 가 활성 공고를 바꾸고 `analysis` 를 무효화하는데, 대화 중에 붙인
@@ -656,7 +658,7 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
 
     # 발화에 섞여 붙여넣어진 이력서 원문 — URL 인테이크와 대칭(결정론). 메시지는 그대로 둔다
     # (요청 문장은 플래너의 입력이다). 같은 규약: 새 이력서가 오면 이전 파생 자산은 무효다.
-    if "resume" not in stored_kinds:
+    if "resume" not in stored_kinds and not learning_session:
         resume_text = detect_pasted_resume(request.message, session)
         if resume_text:
             from jobis_ai.agents._common import preserve_active_resume
@@ -951,7 +953,8 @@ def _handle_chat_turn(request: ChatRequest) -> ChatResponse:
     # 판단이 아니다 — 자산 상태에서 따라 나오는 필연적 단계라서, manifest 에 없는
     # internal 도구를 오케스트레이터가 직접 배치한다(플래너 어휘 불변 → 재측정 불필요).
     # 성공하면 원문이 자산으로 굳고, 실패하면 관찰 규칙이 공고 소비 단계를 걷어낸다.
-    if ((session.get("job_posting") or {}).get("sourceType") == "url"
+    if (not learning_session
+            and (session.get("job_posting") or {}).get("sourceType") == "url"
             and "posting_fetch" not in queue):
         queue.insert(0, "posting_fetch")
         trace.emit("dispatch", "URL 공고 미수집 — 수집 도구를 큐 맨 앞에 삽입", {
