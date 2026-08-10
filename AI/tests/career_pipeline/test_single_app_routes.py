@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from jobis_ai.career_pipeline.api_adapter import _error_detail
+from jobis_ai.career_pipeline.cancellation import AnalysisCancelled
 from jobis_ai.career_pipeline.contracts.errors import ErrorCode
 from jobis_ai.career_pipeline.service import AnalysisPipelineFailure
 from jobis_ai.v2bridge.app import app
@@ -84,3 +85,12 @@ def test_career_pipeline_explains_non_actionable_recruitment_page() -> None:
     assert detail.retryable is False
     assert "상세 공고 URL" in detail.message
     assert "positions" not in detail.message
+
+
+def test_career_pipeline_preserves_expected_cancellation_contract() -> None:
+    detail = _error_detail(AnalysisCancelled("analysis was cancelled by the user"), None)
+
+    assert detail.code is ErrorCode.ANALYSIS_CANCELLED
+    assert detail.retryable is False
+    assert detail.message == "사용자가 커리어 분석을 취소했습니다."
+    assert "cancelled" not in detail.message

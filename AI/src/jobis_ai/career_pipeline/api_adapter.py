@@ -15,11 +15,11 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from .assessment import AtomicCapabilityAssessmentService
+from .cancellation import AnalysisCancelled, bind_analysis_job, cancel_analysis
 from .capability_graph import (
     GraphReleaseCapabilityGraphPort,
     HttpCapabilityGraphPort,
 )
-from .cancellation import bind_analysis_job, cancel_analysis
 from .config import Settings
 from .contracts.assessment import (
     CapabilityAssessmentGrade,
@@ -50,7 +50,6 @@ from .resolution import PostingResolutionService
 from .roadmap import RoadmapDraftService
 from .service import AnalysisPipelineService
 from .source import SourceAcquisitionService
-
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
@@ -211,6 +210,14 @@ def stream_pipeline(
                 sequence=last_sequence,
                 result=result,
             ))
+        except AnalysisCancelled as exc:  # expected terminal stream event
+            LOGGER.info("career pipeline cancelled (job_id=%s)", pipeline_request.job_id)
+            last_sequence += 1
+            queue.put(PipelineStreamEvent(
+                type=PipelineStreamType.ERROR,
+                sequence=last_sequence,
+                error=_error_detail(exc, http_request),
+            ))
         except Exception as exc:  # stream headers have already been sent
             LOGGER.exception("career pipeline failed (job_id=%s)", pipeline_request.job_id)
             last_sequence += 1
@@ -294,6 +301,8 @@ def _public_error_message(code: ErrorCode, raw_message: str) -> str:
             "AI가 생성한 분석 결과가 서비스 검증 규칙과 맞지 않았습니다. "
             "공고는 저장되어 있으며, 오류가 수정된 뒤 다시 분석할 수 있습니다."
         )
+    if code is ErrorCode.ANALYSIS_CANCELLED:
+        return "사용자가 커리어 분석을 취소했습니다."
     if code is ErrorCode.ROLE_RESOLUTION_REQUIRED:
         return (
             "이 링크에서는 지원할 특정 모집 직무를 확정할 수 없습니다. "

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import subprocess
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-import subprocess
 from threading import RLock
-from typing import Iterator
-
 
 _current_job_id: ContextVar[str | None] = ContextVar("jobis_ai_job_id", default=None)
 _lock = RLock()
@@ -14,7 +13,10 @@ _cancelled: set[str] = set()
 
 
 class AnalysisCancelled(RuntimeError):
-    pass
+    """Expected termination requested through the analysis cancellation API."""
+
+    code = "ANALYSIS_CANCELLED"
+    retryable = False
 
 
 @contextmanager
