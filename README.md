@@ -43,12 +43,13 @@ docker compose up --build -d
 
 로그가 보이는 별도 창으로 실행합니다. 이 경로는 `.env.example`을 사용합니다.
 
-- `JOBIS-START-CAPABILITY-GRAPH.cmd`: 외부 호출 호환용 Graph HTTP facade(선택)
-- `JOBIS-START-AI.cmd`: 단일 JOBIS AI
-- `JOBIS-START-BACKEND.cmd`: PostgreSQL 준비 후 Spring Boot
-- `JOBIS-START-FRONTEND.cmd`: Vue/Vite
-- `JOBIS-STOP.cmd`: 이 작업공간의 서비스와 PostgreSQL 종료
-- `JOBIS-RESET-DATA.cmd`: 서버를 시작하지 않고 이 작업공간 DB만 초기화
+더블클릭 실행 바로가기는 `scripts/`에 있다.
+
+- `scripts\JOBIS-START.cmd`: AI·백엔드·프론트를 로그 창 3개로 한꺼번에
+- `scripts\JOBIS-START-AI.cmd` / `JOBIS-START-BACKEND.cmd` / `JOBIS-START-FRONTEND.cmd`: 개별 실행
+- `scripts\JOBIS-START-CAPABILITY-GRAPH.cmd`: 외부 호출 호환용 Graph HTTP facade(선택)
+- `scripts\JOBIS-STOP.cmd`: 이 작업공간의 서비스와 PostgreSQL 종료
+- `scripts\JOBIS-RESET-DATA.cmd`: 서버를 시작하지 않고 이 작업공간 DB만 초기화
 
 웹앱: [http://localhost:5473](http://localhost:5473)
 

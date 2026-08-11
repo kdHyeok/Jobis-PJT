@@ -31,3 +31,10 @@ infra/data/
 .local/
 .local-copied-do-not-use/
 *.log
+
+# 세션·실행 산출물 — 커밋 대상이 아니다
+.claude/worktrees/
+.tmp/
+.ruff_cache/
+artifacts/
+frontend/test-results/
