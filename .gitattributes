@@ -8,7 +8,11 @@ Dockerfile text eol=lf
 *.ts text eol=lf
 *.css text eol=lf
 *.sql text eol=lf
-# DB 덤프는 값 안에 CR 이 들어 있을 수 있다. 줄바꿈 정규화가 데이터를 바꾸므로 그대로 둔다.
-exec/*.sql -text
+# DB 덤프는 값 안에 CR 이 들어 있을 수 있다(저장 함수 본문이 CRLF 로 적재된 흔적).
+#   -text : 줄바꿈 정규화가 그 CR 을 지워 덤프를 변조하므로 끈다.
+#   -diff : 그 CR 을 Jenkinsfile 의 `git diff --check` 가 trailing whitespace 로 잡아
+#           파이프라인이 실패한다(실측 2026-08-10 #174255, 212건). 덤프는 사람이 읽는
+#           diff 대상이 아니므로 바이너리로 취급한다.
+exec/*.sql -text -diff
 *.ps1 text eol=crlf
 *.bat text eol=crlf
