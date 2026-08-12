@@ -109,41 +109,55 @@ AI는 허용된 도구만 호출하며, 결과는 필수·우대 구분과 근�
 
 ### Frontend
 
-| 기술 | 버전 | 용도 |
-|---|---|---|
-| Vue | 3.5 | SPA 프레임워크 |
-| Vite | 7.0 | 빌드·개발 서버 |
-| TypeScript | 5.7 | 정적 타입 |
-| Node.js | 22-alpine | 빌드 런타임 |
-| Nginx | 1.27-alpine (unprivileged) | 정적 파일 서빙 + `/api` 프록시 |
+| 기술         | 버전                         | 용도                    |
+| ---------- | -------------------------- | --------------------- |
+| Vue        | 3.5                        | SPA 프레임워크             |
+| Vite       | 7.0                        | 빌드·개발 서버              |
+| TypeScript | 5.7                        | 정적 타입                 |
+| Node.js    | 22-alpine                  | 빌드 런타임                |
+| Nginx      | 1.27-alpine (unprivileged) | 정적 파일 서빙 + `/api` 프록시 |
 
 ### Backend
 
-| 기술 | 버전 | 용도 |
-|---|---|---|
-| Spring Boot | 4.1.0 | API 서버 (내장 Tomcat) |
-| Java | 17 (Eclipse Temurin) | 런타임 |
-| Gradle | 9.5.1 (wrapper) | 빌드 |
-| Spring Security | — | 인증·인가, CSRF |
-| Flyway | — | 스키마 마이그레이션 (V1~V76) |
+| 기술                          | 버전                   | 용도                  |
+| --------------------------- | -------------------- | ------------------- |
+| Spring Boot                 | 4.1.0                | API 서버 (내장 Tomcat)  |
+| Java                        | 17 (Eclipse Temurin) | 런타임                 |
+| Gradle                      | 9.5.1 (wrapper)      | 빌드                  |
+| Spring Web MVC · Validation | —                    | REST API            |
+| Spring JDBC (`JdbcClient`)  | —                    | DB 접근. JPA 미사용      |
+| Spring Security · JJWT      | 0.12.6               | 인증·인가, CSRF, JWT    |
+| Flyway                      | —                    | 스키마 마이그레이션 (V1~V76) |
+
 
 ### AI
 
-| 기술 | 버전 | 용도 |
-|---|---|---|
-| Python | 3.11 | 런타임 |
-| FastAPI · uvicorn | — | AI 서버 (`jobis_ai.v2bridge.app`) |
-| uv | — | 의존성 잠금 (`--frozen` 강제) |
+| 기술                   | 버전   | 용도                                    |
+| -------------------- | ---- | ------------------------------------- |
+| Python               | 3.11 | 런타임                                   |
+| LangGraph            | 0.2+ | 에이전트 오케스트레이션 그래프 (`graph/builder.py`) |
+| LangChain            | 0.3+ | LLM 클라이언트 추상화 (anthropic · openai)    |
+| Pydantic             | 2.6+ | 계약 스키마 검증                             |
+| FastAPI · uvicorn    | —    | AI 서버 (`jobis_ai.v2bridge.app`)       |
+| python-docx · pillow | —    | 이력서·공고 파일 텍스트·이미지 추출                  |
+
 
 ### Data & ETL
 
+DB 구성이 로컬과 운영에서 다릅니다. 로컬은 컨테이너 2개로 분리하고, 운영은 호스트
+PostgreSQL 한 인스턴스에 DB를 나눠 둡니다(loopback 계약을 넓히지 않기 위해).
+
 | 기술 | 버전 | 용도 |
 |---|---|---|
-| PostgreSQL | 17-alpine | 서비스 DB |
-| pgvector | pg16 | 벡터 DB |
-| Apache Airflow | — | 수집·OCR·적재·색인 DAG 5개 |
-| BGE-M3 | `BAAI/bge-m3` | 임베딩 (1024차원) |
-| BGE-reranker-v2-m3 | `BAAI/bge-reranker-v2-m3` | 검색 리랭킹 |
+| PostgreSQL (운영) | 16.14 · 호스트 설치 | 서비스·벡터·Airflow DB 전부 |
+| PostgreSQL (로컬) | 17-alpine 컨테이너 | 서비스 DB |
+| pgvector | pg16 (로컬은 별도 컨테이너) | 벡터 색인 |
+| Apache Airflow                    | LocalExecutor             | 수집·OCR·적재·색인 DAG 5개     |
+| Flyway                            | 13.0.0                    | jobrag 스키마 체인 (백엔드와 별개) |
+| PaddleOCR                         | —                         | 이미지 공고 텍스트 인식           |
+| sentence-transformers · rank_bm25 | —                         | 벡터 + BM25 하이브리드 검색      |
+| BGE-M3                            | `BAAI/bge-m3`             | 임베딩 (1024차원, GMS 전환 가능) |
+| BGE-reranker-v2-m3                | `BAAI/bge-reranker-v2-m3` | 검색 리랭킹                  |
 
 ### Infrastructure
 
@@ -152,30 +166,28 @@ AI는 허용된 도구만 호출하며, 결과는 필수·우대 구분과 근�
 | Docker · Docker Compose v2 | 컨테이너 실행 (묶음 2개) |
 | AWS EC2 | 단일 인스턴스 호스팅 |
 | Nginx (호스트) | TLS 종료, 경로별 서비스 분배 |
-| Jenkins | CI/CD 3단 게이트 + 이미지 승격 배포 |
+| Jenkins | 3단 게이트, 이미지 승격, SSH 배포 |
 
 ### External Services
 
-| 서비스 | 용도 | 필수 |
-|---|---|---|
-| Anthropic API | LLM (팀 표준) | 셋 중 하나 |
-| SSAFY GMS (OpenAI 호환) | LLM | 셋 중 하나 |
-| OpenAI Codex (OAuth) | LLM | 셋 중 하나 |
-| Jina Reader · Firecrawl · Tavily | JS 렌더 공고 원문 추출 폴백 | 선택 |
-| NAVER CLOVA Studio | 이미지 공고 OCR/VLM | 선택 |
-
-수집 대상 채용 사이트: 사람인 · 인크루트 · 잡코리아 · 원티드 · 고용24
+| 서비스                              | 용도                | 필수     |
+| -------------------------------- | ----------------- | ------ |
+| Anthropic API                    | LLM (팀 표준)        | 셋 중 하나 |
+| SSAFY GMS (OpenAI 호환)            | LLM               | 셋 중 하나 |
+| OpenAI Codex (OAuth)             | LLM               | 셋 중 하나 |
+| Jina Reader · Firecrawl · Tavily | JS 렌더 공고 원문 추출 폴백 | 선택     |
+| NAVER CLOVA Studio               | 이미지 공고 OCR/VLM    | 선택     |
+- **수집 대상 채용 사이트:** *사람인 · 인크루트 · 잡코리아 · 원티드 · 고용24*
 
 ### Development Tools
 
 | 도구 | 용도 |
 |---|---|
 | GitLab | 소스·MR·protected branch |
-| Jenkins | 파이프라인 |
-| JUnit · Testcontainers | 백엔드 테스트 |
+| JUnit 5 · Testcontainers 2.0.5 | 백엔드 단위·실 PostgreSQL 통합 테스트 |
 | pytest | AI 테스트 (LLM 호출 없는 결정론 회귀) |
-| Vitest · Playwright | 프론트 단위·E2E |
-| ruff · ESLint · SpotBugs | 정적 분석 |
+| Vitest · Playwright · Node `--test` | 프론트 단위·계약·E2E |
+| ruff (required) · ESLint · SpotBugs | 정적 분석 |
 
 ---
 
