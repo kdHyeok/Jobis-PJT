@@ -1,0 +1,7 @@
+경기 지역에서 신입 React 프론트엔드 개발자에게 적합한 공고들입니다.
+
+1. (주)뉴제스트 - 프론트엔드 개발자 (경력무관, 경기 구리시, 기술: React)
+
+2. (주)클릭인포 - 프론트엔드 개발자 (경력무관, 경기 남양주시, 기술: React Native, Spring Boot, JavaScript, TypeScript, PostgreSQL, Next.js, MyBatis, Flutter)
+
+모두 경력무관으로 신입부터 가능하며 React 기술을 다룹니다. (주)뉴제스트는 React에 특화되어 있고, (주)클릭인포는 React Native 및 다양한 스택을 함께 요구하고 있습니다.

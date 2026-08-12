@@ -1,0 +1,9 @@
+부산 지역의 iOS 개발자 채용 공고가 있습니다만, Swift 기술을 명시한 공고는 없습니다. 가장 가까운 대안들을 제시합니다.
+
+1. 픽쓰 - [부산 서면] 뷰티 플랫폼 앱 개발자 (iOS / Android) (1년+ / 부산 부산진구 / iOS, Android, Flutter, React, JavaScript, HTML, Git, CSS)
+   → iOS 경험자이지만 Swift 대신 다양한 기술 스택을 사용합니다.
+
+2. 웨이븐(WAVEN) - 플러터(Flutter) 네이티브 앱 개발자 모집 (3년+ / 부산 남구 / Flutter, iOS, JavaScript, MySQL, HTML, PHP, CSS)
+   → iOS 개발 경험이 있으며 부산 남구에 위치합니다.
+
+Swift를 명시적으로 요구하는 공고는 현재 없으므로, iOS 앱 개발 경험이 있다면 두 공고 모두 고려할 만합니다.

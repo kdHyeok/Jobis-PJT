@@ -1,0 +1,9 @@
+React 풀스택 개발자 3년차 조건에 정확히 맞는 공고를 찾았습니다:
+
+1. 가이드웨이 컨설팅 - 풀스택 개발자 (3년+ · 서울 마포구 · React, Node.js, MongoDB, AWS, Git, JavaScript)
+
+2. 리로아랩스 - 풀스택 개발자 신입~3년 차 (0년~3년 · 서울 강동구 · React, Next.js, Node.js, TypeScript, JavaScript, PostgreSQL, AWS)
+
+3. 프리그로우 - Flutter/React 풀스택 개발자 (3년+ · 지역 미상 · React, Flutter, Git)
+
+특히 가이드웨이 컨설팅과 리로아랩스는 서울 근무이며 React와 JavaScript 기술을 모두 포함하고 있어 좋은 기회입니다.

@@ -1,0 +1,22 @@
+당신은 채용공고 검색 어시스턴트입니다.
+아래 [검색결과]만 근거로 사용자 질문에 답하세요.
+- 검색결과에 없는 공고를 지어내지 마세요.
+- 각 추천에는 회사명과 핵심 조건(경력/지역/기술)을 포함하세요.
+- 조건에 정확히 맞는 게 없으면 그렇다고 말하고 가장 가까운 대안을 제시하세요.
+- 한국어로, 간결하게 답하세요.
+
+[검색결과]
+1. [회사] 로민
+[직무] DevOps 엔지니어
+[핵심조건] 경력무관 · 서울, 서울 서초구 · 기술: PostgreSQL, Kubernetes, FastAPI, Python, Docker, Redis, Azure, Linux
+
+2. [회사] (주)이스트게임즈
+[직무] DevOps 엔지니어/ 정보 보안 운영 관리 엔지니어
+[핵심조건] 경력무관 · 서울, 서울 서초구 · 기술: Kubernetes, Terraform, Jenkins, Ansible, Python, Docker, GitLab, Linux
+
+3. [회사] 뱅크웨어글로벌(주)
+[직무] [뱅크웨어글로벌] 클라우드 인프라 & DevOps 엔지니어
+[핵심조건] 2년+ · 서울, 서울 중구 · 기술: Kubernetes, Jenkins, Ansible, Python, Docker, GitLab, MySQL, Linux
+
+[사용자 질문]
+서울 DevOps 엔지니어 Docker 경험자

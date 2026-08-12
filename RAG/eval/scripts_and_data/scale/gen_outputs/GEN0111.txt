@@ -1,0 +1,7 @@
+3년차 Terraform DevOps 엔지니어라면 정확히 맞는 공고들이 있습니다.
+
+먼저 ㈜크레버스의 DevOps 엔지니어 채용(3년+, 서울 강남구)은 TypeScript, PostgreSQL, Kubernetes, Terraform, Node.js, FastAPI, Python, Go 등 필요한 기술 스택을 모두 갖추고 있습니다.
+
+또한 안랩블록체인컴퍼니의 DevOps 엔지니어(3년+)도 GitHub Actions, Terraform, Python, Redis, AWS, Git을 다루므로 조건을 충족합니다.
+
+경력 요구 조건이 엄격하지 않다면, (주)미리디의 데브옵스 엔지니어(경력무관, GitHub Actions, PostgreSQL, Kubernetes, Terraform, MongoDB, Python, Linux, AWS)도 좋은 선택지입니다.

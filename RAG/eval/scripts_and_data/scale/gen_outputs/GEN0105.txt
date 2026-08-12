@@ -1,0 +1,11 @@
+PyTorch 다루는 머신러닝 엔지니어 조건에 정확히 맞는 공고를 찾았습니다:
+
+인트플로우(주)의 AI 개발자 채용 공고들 (광주 동구):
+
+1. AI 개발자 채용 (신입 가능) (경력무관 · 광주 동구 · PyTorch, Python, Docker, Linux, Git, LLM, C++)
+
+2. AI 개발자 채용 (경력 2년 이상) (2년+ · 광주 동구 · PyTorch, Python, Docker, Linux, Git, LLM, C++)
+
+3. AI개발자 채용 (2년 이상) (2년+ · 광주 동구 · PyTorch, Python, Docker, Linux, Git, LLM, C++)
+
+인트플로우의 모든 AI 개발자 공고가 PyTorch와 Python을 필수 기술로 포함하고 있으며, 동일 회사의 광주 동구 위치로 편리합니다.

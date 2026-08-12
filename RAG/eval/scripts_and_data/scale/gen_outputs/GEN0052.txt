@@ -1,0 +1,9 @@
+Next.js 기술을 다루는 서울 지역 프론트엔드 개발자 채용 공고들이 여러 개 있습니다.
+
+1. 블루솔루션 - NextJS, React 프론트엔드 개발자 (4년+ / 서울 송파구 / Next.js, React, TypeScript, Node.js, React Native, Docker, Git, JavaScript)
+
+2. (주)아인잡 - 프론트엔드 개발자 (3년+ / 서울 강남구 / Next.js, React, TypeScript, HTML, Git, LLM, CSS, JavaScript)
+
+3. ㈜링캠 - 프론트엔드 개발자 채용 (3년+ / 서울 구로구 / Next.js, React, CSS, JavaScript)
+
+세 공고 모두 Next.js 기술 요구사항을 만족하며 서울에 위치합니다.

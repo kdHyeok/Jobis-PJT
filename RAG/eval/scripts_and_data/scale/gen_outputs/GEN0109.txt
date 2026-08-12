@@ -1,0 +1,7 @@
+7년차 백엔드 개발자 PHP 조건에 정확히 맞는 공고를 찾았습니다:
+
+(주)애드포러스 - 백엔드 개발자 (7년 이상) (7년+ · 서울 강남구 · Elasticsearch, PostgreSQL, MariaDB, Python, Docker, Kafka, Java, PHP)
+
+7년 이상의 경력과 PHP 기술을 명시한 공고로, 다양한 백엔드 기술 스택(PostgreSQL, MariaDB, Docker, Kafka 등)도 포함하고 있습니다. 서울 강남구에 위치합니다.
+
+다른 검색된 공고들(큐엠아이티, 헥토)은 7년 이상 경력 조건은 맞지만 PHP 기술이 명시되지 않았습니다.

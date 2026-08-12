@@ -1,0 +1,7 @@
+찾는 조건과 가장 가까운 공고는:
+
+앤트랩스케이알: 수석급 시스템 엔지니어/DevOps (15년+, 인천 연수구) - 기술: Jenkins, Docker, Kubernetes, PostgreSQL
+
+다만 경력 조건이 높습니다. 추가로 다음도 고려할 수 있습니다:
+
+㈜디비엔텍: JAVA 전자정부 표준 프레임워크/Spring 웹 개발자 (3년+, 인천 서구) - 기술: Jenkins, Spring Boot, Docker

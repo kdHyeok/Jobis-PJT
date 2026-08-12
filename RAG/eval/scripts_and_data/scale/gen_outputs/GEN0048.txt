@@ -1,0 +1,9 @@
+검색 결과에는 C++를 다루는 대전의 임베디드 개발자 공고들이 있습니다.
+
+1. (주)디하이브 - 임베디드 소프트웨어 시니어 개발자 · 신입 가능 · 대전 유성구 · PostgreSQL, Kubernetes, Terraform, MongoDB, Jenkins, Ansible, Python, Docker
+
+2. 덕산넵코어스(주) - Embedded Linux S/W 개발자 · 신입 가능 · 대전 · Linux, C++
+
+3. (주)린솔 - 임베디드 HW/FW 개발자 · 5년+ · 대전 유성구 · C++
+
+검색 결과는 C가 아닌 C++입니다. 덕산넵코어스의 Embedded Linux 직무는 신입도 가능하고 C++를 요구하므로, C 경험자라면 고려할 만합니다. 정확히 C를 원하신다면 추가 검색이 필요합니다.

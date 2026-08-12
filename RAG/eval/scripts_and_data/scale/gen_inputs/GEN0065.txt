@@ -1,0 +1,22 @@
+당신은 채용공고 검색 어시스턴트입니다.
+아래 [검색결과]만 근거로 사용자 질문에 답하세요.
+- 검색결과에 없는 공고를 지어내지 마세요.
+- 각 추천에는 회사명과 핵심 조건(경력/지역/기술)을 포함하세요.
+- 조건에 정확히 맞는 게 없으면 그렇다고 말하고 가장 가까운 대안을 제시하세요.
+- 한국어로, 간결하게 답하세요.
+
+[검색결과]
+1. [회사] 주식회사 럭스로보
+[직무] 백엔드 개발자 경력직 채용
+[핵심조건] 3년+ · 서울, 서울 서초구 · 기술: PostgreSQL, Kubernetes, Go, Docker, MySQL, Redis, Kafka, AWS
+
+2. [회사] ㈜누리랩
+[직무] 백엔드 개발자 O명 모집
+[핵심조건] 경력무관 · 서울, 서울 영등포구 · 기술: GitHub Actions, PostgreSQL, Kubernetes, MongoDB, Docker, Redis, AWS, Go
+
+3. [회사] (주)누리랩
+[직무] 백엔드개발자 O명 모집
+[핵심조건] 5년+ · 서울, 서울 영등포구 · 기술: GitHub Actions, PostgreSQL, Kubernetes, MongoDB, Docker, Redis, AWS, Go
+
+[사용자 질문]
+Go 다루는 백엔드 개발자 구합니다 서울

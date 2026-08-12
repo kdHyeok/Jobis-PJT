@@ -1,0 +1,9 @@
+역삼(서울 강남구) 지역의 경력무관 React 개발자 공고 3개가 모두 있습니다.
+
+㈜에너지어스는 서울 강남구에서 개발팀 개발자를 경력무관으로 모집하고 있으며, GitHub Actions, Spring Boot, PostgreSQL, Kubernetes, Node.js, Vue, Jenkins, Python 기술을 다룹니다.
+
+㈜티웍스아이앤씨는 서울 강남구 삼성역에서 React 개발자 중급 3명을 경력무관으로 모집하고 있으며, 2026년 8월 3일부터 5.5개월 계약입니다. Spring, Oracle, React, Java를 활용합니다.
+
+㈜플레이투게더는 서울 강남구 삼성역에서 React/API 개발자를 경력무관으로 모집하고 있으며, Next.js, Spring, Oracle, React, Java, JavaScript를 다룹니다.
+
+세 공고 모두 귀사의 요구사항에 정확히 부합합니다.

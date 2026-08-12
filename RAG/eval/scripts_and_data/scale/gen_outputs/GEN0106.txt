@@ -1,0 +1,9 @@
+서울 신입 TypeScript 프론트엔드 개발자 조건에 정확히 맞는 공고를 찾았습니다:
+
+1. 브레인즈컴퍼니(주) - 프론트엔드 개발자 신입/경력 (0년+ · 서울 성동구 · JavaScript, TypeScript, Vue, Kubernetes, Git)
+
+2. (주)에리어72 - 프론트엔드 개발자 (0년+ · 서울 중구 · TypeScript, React, Git, LLM)
+
+3. 서울이동통신(주) - 프론트엔드/백엔드/앱 개발자 모집 (경력무관 · 서울 강남구 · React Native, JavaScript, TypeScript, React, Linux, HTML, CSS)
+
+모든 공고가 신입 채용을 포함하며 TypeScript와 서울 지역 조건을 만족합니다. 특히 에리어72는 React까지 포함하여 추천합니다.

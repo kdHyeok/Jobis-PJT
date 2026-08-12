@@ -1,0 +1,9 @@
+경기의 PHP 백엔드 개발자 공고가 정확히 있습니다.
+
+1. 애니시큐어㈜ - 웹/백엔드 PHP 개발자(신입·초급) · 신입 가능 · 경기 성남시 · JavaScript, Python, MySQL, Linux, HTML, PHP, Git, CSS
+
+2. 주식회사 삼마 - PHP 백엔드 개발자 모집 · 신입 가능 · 경기 · MariaDB, jQuery, MySQL, Linux, PHP
+
+3. (주)에스씨솔루션글로벌 - 클라우드 및 백엔드(PHP) 개발자 · 신입 가능 · 경기 용인시 · Vue, MySQL, Linux, PHP, AWS, NCP, JavaScript
+
+세 공고 모두 경기 지역에 위치하며 PHP 백엔드 개발을 핵심으로 합니다. 신입도 지원 가능한 공고들입니다.

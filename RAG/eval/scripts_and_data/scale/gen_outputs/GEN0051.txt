@@ -1,0 +1,9 @@
+당신의 3년 경력과 Terraform 기술에 정확히 맞는 채용 공고가 여러 개 있습니다.
+
+1. ㈜크레버스 - DevOps 엔지니어 정규직 채용 (3년+ / 서울 강남구 / Terraform, Kubernetes, PostgreSQL, TypeScript, Node.js, FastAPI, Python, Go)
+
+2. 안랩블록체인컴퍼니 - DevOps 엔지니어 (3년+ / 지역 미상 / Terraform, GitHub Actions, Python, Redis, AWS, Git)
+
+3. (주)플래티어 - AI CX사업부문 데브옵스 엔지니어 (3년+ / 서울 송파구 / Terraform, Kubernetes, Azure, AWS, GCP, LLM, Node.js)
+
+세 공고 모두 귀사의 경력과 기술 조건을 만족합니다. 강남/송파 지역에 주로 분포하고 있습니다.

@@ -1,0 +1,9 @@
+검색 결과에 명시적인 핀테크 직무는 없으나, 서울의 3년+ Java 개발자 공고들이 있습니다.
+
+1. 레몬아이티 - Java 개발자/팀장 모집 · 3년+ · 서울 구로구 · Spring, Java, JavaScript
+
+2. 모드니사회적협동조합 - 개발자 모집 · 3년+ · 서울 · PostgreSQL, FastAPI, Jenkins, Python, Spring, Oracle, Docker, Java
+
+3. 윤디스크㈜ - Java/JSP 개발자(과장급) · 3년+ · 서울 · Android, Docker, Java, JSP, iOS, Git, Spring
+
+세 회사 모두 3년 이상의 경력을 요구하며 Java 기술을 핵심으로 합니다. 핀테크 분야에 특화된 공고는 없지만 금융 관련 경험을 활용할 수 있는 Java 개발 포지션들입니다.

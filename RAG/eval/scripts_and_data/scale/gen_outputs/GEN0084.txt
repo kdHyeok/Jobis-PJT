@@ -1,0 +1,9 @@
+인천 7년차 C++ 임베디드 개발자라면 다음 공고들을 추천합니다.
+
+1. ㈜넷유 - 경력무관 · 인천 영종구 · C++, Linux
+
+2. 주식회사 레디츠 - 경력무관 · 인천 서해구 · JavaScript, TypeScript, Python, C++
+
+3. 인아텍앤코포㈜ - 경력무관 · 인천 남동구 · JavaScript, Python, Java, Git, C++, C#, Linux
+
+세 공고 모두 지역과 C++ 기술 요건에 정확히 부합합니다.

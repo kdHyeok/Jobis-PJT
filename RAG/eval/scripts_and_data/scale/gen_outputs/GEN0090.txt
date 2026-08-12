@@ -1,0 +1,9 @@
+Python 머신러닝 엔지니어 2년차라면 다음 공고들을 추천합니다.
+
+1. 코딧(CODITCorp.) - 2년+ · 서울 영등포구 · Elasticsearch, TensorFlow, FastAPI, MongoDB, PyTorch, Docker, LLM
+
+2. 지신 - 2년+ · 서울 강남구 · PyTorch, Python, LLM, RAG
+
+3. (주)스트라티오코리아 - 2년+ · 경기 성남시 · PyTorch, Python, Docker, AWS
+
+세 공고 모두 경력 요구사항과 Python, PyTorch 기술에 정확히 부합합니다.

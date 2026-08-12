@@ -1,0 +1,7 @@
+판교에서 신입 React 프론트엔드 개발자로 지원할 수 있는 공고들이 있습니다:
+
+1. ㈜아이스크림미디어 - R&D 센터 프론트엔드 개발자 채용 (경력무관, 경기 성남시, Vue, React, JavaScript)
+2. ㈜브리스9 - React JAVA 분석/설계/개발 고급 프리랜서 채용 (경력무관, 경기 성남시, React, Java)
+3. 주식회사 인프랩 - 프론트엔드 개발자 채용 (경력무관, 경기 성남시, React Native, TypeScript, Next.js, Android, React, HTML, iOS, Git)
+
+세 공고 모두 판교(경기 성남시) 지역에 위치하며 신입(경력무관)을 환영합니다. React 기술을 모두 요구하므로 지원하기에 적합합니다.

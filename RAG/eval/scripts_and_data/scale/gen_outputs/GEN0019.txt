@@ -1,0 +1,8 @@
+3년차 SRE 엔지니어(AWS 경험)로 지원할 수 있는 공고들이 있습니다:
+
+1. ㈜블리츠다이나믹스 - AI 에이전트 SRE/시스템 안정성 엔지니어 채용 (3년+, 서울 관악구, TypeScript, Kubernetes, Node.js, Docker, MySQL, Linux, AWS, LLM)
+2. (주)아티드 - AWS 클라우드 운영 경력직 엔지니어 채용 (3년+, 인천 연수구, Terraform, Linux, AWS, Kubernetes)
+
+두 공고 모두 3년 경력을 정확히 요구하며 AWS 기술을 필수 조건으로 합니다. ㈜블리츠다이나믹스는 서울 지역, (주)아티드는 인천 송도입니다.
+
+참고로 위프로커넥티드서비시즈인크의 Cloud DevOps/SRE Engineer는 경력무관이지만 Azure를 중심으로 합니다.
