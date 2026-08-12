@@ -11,7 +11,6 @@
 - [✨ 주요 화면](#-주요-화면)
 - [🛠 기술 스택](#-기술-스택)
 - [🏗 시스템 아키텍처](#-시스템-아키텍처)
-- [📚 API 문서](#-api-문서)
 - [📁 프로젝트 구조](#-프로젝트-구조)
 - [⚡ 실행 방법](#-실행-방법)
 - [🚢 배포](#-배포)
@@ -127,18 +126,16 @@ AI는 허용된 도구만 호출하며, 결과는 필수·우대 구분과 근�
 | Spring Security · JJWT      | 0.12.6               | 인증·인가, CSRF, JWT    |
 | Flyway                      | —                    | 스키마 마이그레이션 (V1~V76) |
 
-
 ### AI
 
 | 기술                   | 버전   | 용도                                    |
 | -------------------- | ---- | ------------------------------------- |
 | Python               | 3.11 | 런타임                                   |
 | LangGraph            | 0.2+ | 에이전트 오케스트레이션 그래프 (`graph/builder.py`) |
-| LangChain            | 0.3+ | LLM 클라이언트 추상화 (anthropic · openai)    |
+| LangChain            | core·anthropic 0.3+ · openai 0.2+ | LLM 클라이언트 추상화    |
 | Pydantic             | 2.6+ | 계약 스키마 검증                             |
 | FastAPI · uvicorn    | —    | AI 서버 (`jobis_ai.v2bridge.app`)       |
 | python-docx · pillow | —    | 이력서·공고 파일 텍스트·이미지 추출                  |
-
 
 ### Data & ETL
 
@@ -150,7 +147,7 @@ PostgreSQL 한 인스턴스에 DB를 나눠 둡니다(loopback 계약을 넓히�
 | PostgreSQL (운영) | 16.14 · 호스트 설치 | 서비스·벡터·Airflow DB 전부 |
 | PostgreSQL (로컬) | 17-alpine 컨테이너 | 서비스 DB |
 | pgvector | pg16 (로컬은 별도 컨테이너) | 벡터 색인 |
-| Apache Airflow                    | LocalExecutor             | 수집·OCR·적재·색인 DAG 5개     |
+| Apache Airflow                    | 2.11.0 (LocalExecutor)    | 수집·OCR·적재·색인 DAG 5개     |
 | Flyway                            | 13.0.0                    | jobrag 스키마 체인 (백엔드와 별개) |
 | PaddleOCR                         | —                         | 이미지 공고 텍스트 인식           |
 | sentence-transformers · rank_bm25 | —                         | 벡터 + BM25 하이브리드 검색      |
@@ -198,25 +195,18 @@ PostgreSQL 한 인스턴스에 DB를 나눠 둡니다(loopback 계약을 넓히�
 ### 런타임 구성 : EC2 서버 기준
 
 ![런타임 구성](docs/images/런타임-구성.svg)
-- EC2 서버의 경우, 레포지토리의 운영 방식과 다르게 애플리케이션과 데이터 파이프라인으로 구분하지 않고 하나의 컴포즈로 운영되며, DB 또한 컨테이너화 된 DB가 아닌 호스트 DB를 사용합니다.
 
 ### 로컬 실행 구성 : 저장소 클론 기준
 
-저장소를 클론해 `docker compose up`으로 띄우면 **Compose 프로젝트 두 개**가 됩니다.
-
 ![로컬 구성](docs/images/로컬-구성.svg)
 
-| 구분 | 운영 (EC2) | 로컬 |
-|---|---|---|
-| Compose 프로젝트 | `jobis-v2` 하나 | `jobis-app` + `jobis-data-pipeline` 두 개 |
-| 이미지 | CI가 빌드한 커밋 SHA 태그 6종 | 소스에서 직접 빌드 |
-| 네트워크 | `network_mode: host` — localhost 통신 | 프로젝트별 bridge (`jobiss-internal` / `jobis-net`) |
-| PostgreSQL | 호스트 설치 16.14 · loopback 전용 | 컨테이너 2개 — `postgres:17-alpine`(서비스) · `pgvector:pg16`(벡터·Airflow) |
-| 진입점 | 호스트 Nginx `:443` TLS → 경로 분배 | `http://localhost:8088` 직접 |
-| 시작 방법 | Jenkins가 SSH로 배포 스크립트 실행 | `docker compose up -d` (묶음별) |
+| 구분           | 운영 (EC2)                     | 로컬                                                                |
+| ------------ | ---------------------------- | ----------------------------------------------------------------- |
+| Compose 프로젝트 | `jobis-v2` 하나                | `jobis-app` + `jobis-data-pipeline` 두 개                           |
+| PostgreSQL   | 호스트 설치 16.14 · loopback 전용   | 컨테이너 2개 — `postgres:17-alpine`(서비스) · `pgvector:pg16`(벡터·Airflow) |
+| 진입점          | 호스트 Nginx `:443` TLS → 경로 분배 | `http://localhost:8088` 직접                                        |
 
 ### 데이터 파이프라인
-
 
 ```mermaid
 flowchart TD
@@ -227,17 +217,22 @@ flowchart TD
     RAG["jobis_rag<br/>신규·변경 청크 임베딩 → pgvector"]
     READY(["색인 완료"])
     FALLBACK(["⏱ 30분 폴백"]) -.-> OCR
+    MANUAL["jobis_legacy_import<br/>schedule=None · 수동 전용<br/>레거시 SQLite 일회성 이관"]
 
     COLLECT -- "jobis://raw-site-postings" --> LOAD
     LOAD -- "jobis://job-postings-loaded" --> OCR
-    OCR -- "jobis://postings-ready-for-rag" --> RAG
+    LOAD -- "jobis://postings-ready-for-rag" --> RAG
+    OCR -- "OCR로 채운 행이 있을 때만" --> RAG
     RAG -- "jobis://rag-index-ready" --> READY
-
-    MANUAL["jobis_legacy_import<br/>schedule=None · 수동 전용<br/>레거시 SQLite 일회성 이관"]
+    MANUAL -- "두 데이터셋 모두 발행" --> OCR
+    MANUAL --> RAG
 ```
 
-- *실선은 Dataset 이벤트, 점선은 시각 기반 트리거입니다. 시각에 매달린 지점은 **최초 수집*
-*하나**와 `jobis_ocr`의 폴백뿐입니다*.
+실선은 Dataset 이벤트, 점선은 시각 기반 트리거입니다. 시각에 매달린 지점은 **최초 수집
+하나**와 `jobis_ocr`의 폴백뿐입니다.
+
+`jobis_load_postgres`는 데이터셋 **두 개를 함께 발행**하므로 색인은 OCR을 기다리지 않습니다.
+OCR은 채운 행이 없으면 스스로 스킵하는데, 그런 날에도 적재분은 그대로 색인됩니다.
 
 #### 설계 판단
 
@@ -295,7 +290,6 @@ jobis-Integration/
 └─ docs/                  문서 (정본 + 작업기록 + archive)
 ```
 
-
 ---
 
 ## ⚡ 실행 방법
@@ -329,14 +323,16 @@ Docker 실행에 필요한 `.env`는 **두 개뿐**입니다. Compose 파일에 
 Copy-Item .env.compose-local.example .env
 ```
 
-`.env`에서 최소한 다음 값을 채웁니다. 비어 있으면 Compose가 기동을 거부합니다.
+`.env`에서 최소한 다음 값을 채웁니다. 앞의 네 항목은 **비어 있으면 Compose가 기동을 거부**하고,
+`ANTHROPIC_API_KEY`는 기동은 되지만 첫 LLM 호출에서 실패합니다.
 
 | 변수 | 설명 |
 |---|---|
 | `POSTGRES_MIGRATOR_PASSWORD` · `POSTGRES_APP_PASSWORD` | 서로 다른 난수 |
 | `JWT_SECRET` | 32바이트 이상 |
 | `AI_SHARED_SECRET` | 백엔드 ↔ AI 내부 인증 (두 컨테이너에 같은 값) |
-| `ANTHROPIC_API_KEY` | `LLM_PROVIDER=anthropic` 기본값에 필요 |
+| `ALLOWED_ORIGINS` | 브라우저 접근 origin. 예제 파일에 기본값이 있습니다 |
+| `ANTHROPIC_API_KEY` | `LLM_PROVIDER=anthropic` 기본값에 필요 (기동은 막지 않음) |
 
 난수 생성 함수는 [RUN.md](RUN.md) 3장에 있습니다. `.env`는 커밋하지 않습니다.
 
@@ -395,7 +391,7 @@ AWS EC2 **단일 인스턴스**에서 애플리케이션·데이터 파이프라
 
 | 항목 | 값 |
 |---|---|
-| OS | Ubuntu 24.04.3 LTS (kernel `7.0.0-aws`) |
+| OS | Ubuntu 24.04.3 LTS (kernel `7.0.0-1010-aws`) |
 | 자원 | 4 vCPU · 15 GiB RAM · swap 16 GiB |
 | 디스크 | 309 GB 단일 root 파일시스템 |
 | 도메인 | `i15c202.p.ssafy.io` (Certbot TLS) |
@@ -460,8 +456,8 @@ Jenkins 재시작이나 워크스페이스 교체에도 살아남습니다. 판�
 | ---------- | ------------------------------------------------------------- | -------- |
 | Backend    | Gradle 단위 + Testcontainers 통합 테스트, Flyway 전체 체인 적용, 실행 JAR 산출 | SpotBugs |
 | Frontend   | `vue-tsc` 타입체크, 프로덕션 빌드, 단위·계약 테스트                            | ESLint   |
-| AI         | pytest (실 LLM 없이 — 비용 0), 관문 선언표 생성 검증                        | —        |
-| RAG · DATA | 전체 컴파일, 무거운 의존성 없는 단위 테스트                                     | —        |
+| AI         | pytest (실 LLM 없이 — 비용 0), 관문 선언표 생성 검증, **ruff**              | —        |
+| RAG · DATA | 전체 컴파일, 무거운 의존성 없는 단위 테스트, **ruff**                           | —        |
 | Infra      | `ops/` 스크립트 문법·실행권한, 릴리스 설정 검증, 공백 diff, 폐기 경로 재유입 차단         | —        |
 
 프론트엔드 의존성 설치는 `npm ci --ignore-scripts`로 `postinstall`을 차단해 공급망
@@ -505,7 +501,6 @@ Nginx가 **두 대**입니다. 호스트 Nginx는 TLS를 종료하고 *어느 �
 `docker compose up` 만으로 `localhost:8088` 이 열리는 이유입니다.
 
 ---
-
 
 ## 📚 참고 자료
 
