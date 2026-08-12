@@ -1,0 +1,9 @@
+인천의 React 프론트엔드 개발자 공고가 정확히 3개 있습니다.
+
+1. (주)루다시스 - React 프론트엔드 개발자(신입/경력) · 인천 연수구 · JavaScript, TypeScript, React, Git
+
+2. 위플로우 - React · Next.js 프론트엔드 개발자(신입 가능) · 인천 서구 · TypeScript, Next.js, React, Git, JavaScript
+
+3. ㈜제이투이 - React/Vue SI 공항 관리시스템 개발 · 인천 중구 · JavaScript, React, Vue, AWS
+
+세 공고 모두 인천 지역에 위치하며 React를 핵심 기술로 요구합니다. 신입도 가능한 공고가 있으니 경력에 맞춰 선택하면 됩니다.

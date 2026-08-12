@@ -1,0 +1,9 @@
+서울의 Django 경험 백엔드 개발자 공고 3개가 모두 있습니다.
+
+케이티밀리의서재는 서울 마포구에서 백엔드 개발자(결제 및 제휴연동 개발)를 5년 이상 경력으로 모집하고 있으며, Kotlin, Python, Spring, Django를 다룹니다.
+
+㈜디지털헤럴드는 서울 중구에서 DeepLoL B2C 게임 서비스 백엔드 개발자를 신입부터(0년+) 모집하고 있으며, FastAPI, Python, Django, MySQL, AWS 기술이 필요합니다.
+
+버즈빌은 서울 송파구에서 Ad Spark 백엔드 개발자를 3년 이상 경력으로 모집하고 있으며, Kubernetes, Python, Django, MySQL, Redis, HTML, Go를 활용합니다.
+
+경력 수준에 따라 적합한 공고를 선택하시기 바랍니다.

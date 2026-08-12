@@ -1,0 +1,12 @@
+서울의 3년차 스프링부트 백엔드 개발자 공고들이 있습니다.
+
+**(주)인트브릿지** - 백엔드 개발자 채용 (3년+, 서울 영등포구)
+기술: Spring Boot, JavaScript, PostgreSQL, JPA, MyBatis, Docker, MySQL, Linux
+
+**(주)드림어스컴퍼니** - 음악 서비스 백엔드 서버 개발자 채용 (3년+, 서울 강남구)
+기술: Spring Boot, Kotlin, Kafka, Java, AWS, SQL
+
+**(주)아인잡** - 백엔드 개발자 (경력) (3년+, 서울 강남구)
+기술: Spring Boot, MongoDB, Docker, MySQL, Redis, Java, AWS, Git
+
+세 회사 모두 서울에서 3년 이상의 경력을 요구하며 Spring Boot 개발자를 채용하고 있습니다.

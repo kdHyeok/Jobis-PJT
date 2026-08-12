@@ -1,0 +1,7 @@
+충북에서 신입 Java 백엔드 개발자로 지원할 수 있는 공고들이 있습니다:
+
+1. ㈜서울소프트 - 풀스택 개발자 채용 (경력무관, 충북 충주시, Node.js, Python, React, MySQL, Java, Vue, AWS, Git)
+2. (주)서울소프트 - 풀스택 개발자 채용 (경력무관, 충북 충주시, Node.js, Python, React, MySQL, Java, Vue, AWS, Git)
+3. ㈜쓰리에치솔루션 - React/Java 개발자 채용 (경력무관, 충북 청주시, Spring Boot, JavaScript, TypeScript, React, MariaDB, Oracle, Azure, Java)
+
+세 공고 모두 경력무관(신입)을 환영하며 Java 기술을 요구합니다. 특히 ㈜쓰리에치솔루션은 Spring Boot를 명시하고 있어 백엔드 개발에 더 적합할 수 있습니다. ㈜서울소프트 공고는 충주시, ㈜쓰리에치솔루션은 청주시에 위치합니다.

@@ -1,0 +1,9 @@
+서울의 신입 리액트 개발자에게 적합한 공고 3개가 모두 있습니다.
+
+㈜싸인텔레콤은 서울 영등포구에서 React Spring Boot 풀스택 웹 개발자를 0년 이상(신입 가능)으로 모집하고 있으며, Spring Boot, JavaScript, React, Java, LLM, RAG, SQL 기술을 다룹니다.
+
+㈜티웍스아이앤씨는 서울 강남구 삼성역에서 경력무관 React 개발자 중급 3명을 모집하고 있으며, Spring, Oracle, React, Java를 활용합니다.
+
+㈜아이티브릿지는 서울 금천구에서 경력무관 React/React Native 앱 개발자를 모집하고 있으며, React Native, Android, React, Java, iOS 기술이 필요합니다.
+
+세 공고 모두 신입 수준의 경력으로 지원 가능합니다.

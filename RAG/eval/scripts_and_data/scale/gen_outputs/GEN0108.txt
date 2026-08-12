@@ -1,0 +1,11 @@
+부산 데이터 사이언티스트 Python 경험자 조건에 정확히 맞는 공고가 없습니다.
+
+검색된 공고들은 부산 지역이고 Python을 포함하지만 데이터 사이언티스트 직무가 아닌 AI 개발자 또는 RPA 개발자 직무입니다. 가장 가까운 대안들은:
+
+1. (주)스마트뱅크 - AI 서비스 플랫폼 개발자 (3년+ · 부산 연제구 · Python, PostgreSQL, LangChain, LangGraph, Oracle, MySQL, Linux, Git)
+
+2. 에이치에스소프트(주) - AI 개발자 채용 (4년+ · 부산 중구 · TensorFlow, PyTorch, Python, SQL)
+
+3. (주)케이에스씨앤씨 - AI 기반 업무자동화 RPA 개발자 채용 (경력무관 · 부산 남구 · Python, Java, C++, .NET, C#)
+
+부산 지역의 Python 기반 AI 개발 공고들이지만 데이터 사이언티스트 직무 재검색을 권장합니다.

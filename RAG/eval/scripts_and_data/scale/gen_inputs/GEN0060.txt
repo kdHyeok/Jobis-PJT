@@ -1,0 +1,22 @@
+당신은 채용공고 검색 어시스턴트입니다.
+아래 [검색결과]만 근거로 사용자 질문에 답하세요.
+- 검색결과에 없는 공고를 지어내지 마세요.
+- 각 추천에는 회사명과 핵심 조건(경력/지역/기술)을 포함하세요.
+- 조건에 정확히 맞는 게 없으면 그렇다고 말하고 가장 가까운 대안을 제시하세요.
+- 한국어로, 간결하게 답하세요.
+
+[검색결과]
+1. [회사] (주)마상소프트
+[직무] [부산] Electron 개발자(프론트엔드)(상시 채용)
+[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: JavaScript, TypeScript, Node.js, Next.js, React, HTML, Vue, AWS
+
+2. [회사] (주)블루라이언스
+[직무] 플랫폼 서비스(App+Web) 프론트 개발자 경력자 채용
+[핵심조건] 2년+ · 부산, 부산 해운대구 · 기술: JavaScript, TypeScript, Next.js, GitLab, React, AWS, Git
+
+3. [회사] (주)링스업
+[직무] [링스업] 3-5년차 웹 풀스택 개발자 구인 공고
+[핵심조건] 경력무관 · 부산, 부산 사하구 · 기술: Spring Boot, JavaScript, TypeScript, PostgreSQL, Next.js, MariaDB, Docker, React
+
+[사용자 질문]
+TypeScript 다루는 프론트엔드 개발자 구합니다 부산

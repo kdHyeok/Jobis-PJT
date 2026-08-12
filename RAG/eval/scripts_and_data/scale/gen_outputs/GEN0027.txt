@@ -1,0 +1,9 @@
+TensorFlow를 다루는 데이터 사이언티스트 공고가 모두 서울에 있습니다.
+
+1. ㈜에이젠글로벌 - Data Scientist (5년+, 서울 영등포구, 기술: TensorFlow, PyTorch, Python, LLM, RAG, SQL)
+
+2. (주)프라이데이즈랩 - 데이터 사이언티스트 (5년+, 서울, 기술: TensorFlow, PyTorch, Python, AWS, SQL)
+
+3. (주)커리어케어 - 데이터 사이언티스트 (3년+, 서울 동작구, 기술: TensorFlow, PyTorch, Python)
+
+모두 TensorFlow 기술을 필수로 요구합니다. ㈜에이젠글로벌과 (주)프라이데이즈랩은 5년 이상 경력을 찾고 있으며, (주)커리어케어는 3년 이상 경력을 원하고 있습니다.

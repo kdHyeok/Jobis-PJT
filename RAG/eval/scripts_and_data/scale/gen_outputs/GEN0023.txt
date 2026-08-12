@@ -1,0 +1,9 @@
+서울 지역 3년차 Java Spring 백엔드 개발자에게 적합한 공고들입니다.
+
+1. ㈜위즈커뮤니케이션 - Java 백엔드 정규직 개발자 (3년+, 서울 강남구, 기술: Spring Boot, Oracle, Azure, Java)
+
+2. 엣지크로스 - AIoT 서비스 백앤드 개발자 (3년+, 서울 금천구, 기술: Spring, MyBatis, Docker, Kafka, Java, JPA, AWS)
+
+3. (주)딥파인 - 백엔드 개발자 (3년+, 서울 용산구, 기술: Node.js, Spring, Linux, Java, SQL, JavaScript)
+
+모두 경력 요건과 지역이 정확히 부합하며, Spring Boot 및 Java 기술을 중심으로 합니다. 특히 ㈜위즈커뮤니케이션과 엣지크로스는 Java Spring 스택과 경력 조건이 완벽하게 일치합니다.

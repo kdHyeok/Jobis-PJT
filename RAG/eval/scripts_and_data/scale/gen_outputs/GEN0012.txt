@@ -1,0 +1,7 @@
+Python 머신러닝 엔지니어 신입으로 지원 가능한 공고들이 있습니다:
+
+1. 큐픽스 - 머신러닝 엔지니어(ML&LLM) 채용 (0년+, 경기 성남시, LangChain, LangGraph, Python, Git, LLM, RAG)
+2. 주식회사 로민 - ML 엔지니어 채용 (0년+, 서울 서초구, TensorFlow, FastAPI, PyTorch, Python, LLM)
+3. ㈜모다플 - 머신러닝 엔지니어 채용 (경력무관, 서울 강남구, Python, LLM)
+
+이 세 공고 모두 신입(0년+ 또는 경력무관)을 환영하며 Python과 머신러닝 기술을 요구합니다.

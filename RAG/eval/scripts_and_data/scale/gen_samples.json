@@ -1,0 +1,1922 @@
+[
+ {
+  "qid": "GEN0001",
+  "text": "서울 DevOps 엔지니어 Docker 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 로민\n[직무] DevOps 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 서초구 · 기술: PostgreSQL, Kubernetes, FastAPI, Python, Docker, Redis, Azure, Linux",
+   "[회사] (주)이스트게임즈\n[직무] DevOps 엔지니어/ 정보 보안 운영 관리 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 서초구 · 기술: Kubernetes, Terraform, Jenkins, Ansible, Python, Docker, GitLab, Linux",
+   "[회사] 뱅크웨어글로벌(주)\n[직무] [뱅크웨어글로벌] 클라우드 인프라 & DevOps 엔지니어\n[핵심조건] 2년+ · 서울, 서울 중구 · 기술: Kubernetes, Jenkins, Ansible, Python, Docker, GitLab, MySQL, Linux"
+  ],
+  "companies": [
+   "로민",
+   "(주)이스트게임즈",
+   "뱅크웨어글로벌(주)"
+  ]
+ },
+ {
+  "qid": "GEN0002",
+  "text": "LLM 다루는 머신러닝 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사 로민\n[직무] ML(머신러닝) 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: TensorFlow, FastAPI, PyTorch, Python, LLM",
+   "[회사] ㈜모다플\n[직무] [모다플]머신러닝 엔지니어(3년이상)\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Python, LLM",
+   "[회사] 지신\n[직무] [ML Application - LLM] LLM 머신러닝 엔지니어\n[핵심조건] 2년+ · 서울, 서울 강남구 · 기술: PyTorch, Python, LLM, RAG"
+  ],
+  "companies": [
+   "주식회사 로민",
+   "㈜모다플",
+   "지신"
+  ]
+ },
+ {
+  "qid": "GEN0003",
+  "text": "대전 클라우드 엔지니어 Azure 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜진인프라\n[직무] [중견IT기업] 공공기관 상주 클라우드 엔지니어 채용 (대전)\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: Linux",
+   "[회사] ㈜필상\n[직무] [대전/IT] 서버 · 클라우드 엔지니어 채용(신입/경력 무관)\n[핵심조건] 0년+ · 대전, 대전 유성구 · 기술: GitHub Actions, Kubernetes, Terraform, Jenkins, Ansible, Docker, GitLab, Azure",
+   "[회사] (주)트루인테크놀로지스\n[직무] IT 엔지니어 미들웨어 WAS 채용 (2명, Engineer/Lead Engineer)\n[핵심조건] 0년+ · 대전, 대전 서구 · 기술: Oracle, Azure, Linux, AWS, GCP"
+  ],
+  "companies": [
+   "㈜진인프라",
+   "㈜필상",
+   "(주)트루인테크놀로지스"
+  ]
+ },
+ {
+  "qid": "GEN0004",
+  "text": "C# 다루는 게임 클라이언트 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)이글이비전\n[직무] [주식회사 이글이비전] 개발자 채용(신입)\n[핵심조건] 경력무관 · 광주, 광주 북구 · 기술: Python, Java, C#",
+   "[회사] 유한회사앤제이언더그라운드\n[직무] 유한회사앤제이언더그라운드에서 프로그램 개발자를 찾고 있어요\n[핵심조건] 경력무관 · 광주, 광주 광산구 · 기술: Git",
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(전남광주)\n[핵심조건] 경력무관 · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++"
+  ],
+  "companies": [
+   "(주)이글이비전",
+   "유한회사앤제이언더그라운드",
+   "인트플로우㈜"
+  ]
+ },
+ {
+  "qid": "GEN0005",
+  "text": "서울 3년차 스프링부트 하는 회사",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)인트브릿지\n[직무] [기업부설연구소] 백엔드 개발자 채용(Spring Boot · 보안 SW)\n[핵심조건] 3년+ · 서울, 서울 영등포구 · 기술: Spring Boot, JavaScript, PostgreSQL, JPA, MyBatis, Docker, MySQL, Linux",
+   "[회사] (주)드림어스컴퍼니\n[직무] 음악 서비스 백엔드 서버 개발자 채용\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Spring Boot, Kotlin, Kafka, Java, AWS, SQL",
+   "[회사] (주)아인잡\n[직무] 백엔드 개발자 (경력)\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Spring Boot, MongoDB, Docker, MySQL, Redis, Java, AWS, Git"
+  ],
+  "companies": [
+   "(주)인트브릿지",
+   "(주)드림어스컴퍼니",
+   "(주)아인잡"
+  ]
+ },
+ {
+  "qid": "GEN0006",
+  "text": "경기 5년차 Docker 데브옵스",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주) 케이와이씨지(KYCG)\n[직무] Devops 개발자 / 헬스케어 기업\n[핵심조건] 경력무관 · 경기 · 기술: Docker, Linux, Kubernetes, AWS, NCP",
+   "[회사] (주)비비파트너스\n[직무] [DevOps 개발자] / AI 기반의 헬스케어 바이오 혁신기업\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: Docker, Linux, Kubernetes, AWS, NCP",
+   "[회사] 크림페이\n[직무] DevOps 엔지니어\n[핵심조건] 5년+ · 경기, 경기 성남시 · 기술: Kubernetes, Python, GitLab, Linux, Java, Go"
+  ],
+  "companies": [
+   "(주) 케이와이씨지(KYCG)",
+   "(주)비비파트너스",
+   "크림페이"
+  ]
+ },
+ {
+  "qid": "GEN0007",
+  "text": "네트워크 보안 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 에스넷아이씨티(주)\n[직무] 공공기관 네트워크 보안 엔지니어 모집 (경력 5년 이상)\n[핵심조건] 5년+ · 서울, 서울 중구 · 기술: 명시 없음",
+   "[회사] ㈜한맥정보기술\n[직무] 네트워크 보안 엔지니어 채용(경력)\n[핵심조건] 경력무관 · 서울, 서울 송파구 · 기술: 명시 없음",
+   "[회사] (주)알린스\n[직무] 네트워크 보안 기술지원 엔지니어 경력직 채용 공고\n[핵심조건] 1년+ · 서울, 서울 성동구 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "에스넷아이씨티(주)",
+   "㈜한맥정보기술",
+   "(주)알린스"
+  ]
+ },
+ {
+  "qid": "GEN0008",
+  "text": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까",
+  "category": "freeform",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 매도왕\n[직무] Python 개발자\n[핵심조건] 2년+ · 서울, 서울 서초구 · 기술: JavaScript, FastAPI, Python, Django, Flask, HTML, CSS",
+   "[회사] (주)노크랩\n[직무] Python 기반 개발자 구인\n[핵심조건] 경력무관 · 서울, 서울 성북구 · 기술: Kubernetes, Python, Docker, LLM",
+   "[회사] ㈜아이라이브\n[직무] [AI/LLM] Python 개발자 모집 공고\n[핵심조건] 경력무관 · 서울, 서울 송파구 · 기술: Python, LLM, RAG"
+  ],
+  "companies": [
+   "매도왕",
+   "(주)노크랩",
+   "㈜아이라이브"
+  ]
+ },
+ {
+  "qid": "GEN0009",
+  "text": "1년차 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)스마트엠투엠\n[직무] 임베디드 시스템 개발자 (1명)\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: C++",
+   "[회사] (주)헤디\n[직무] [벤처/부설연구소] 임베디드 소프트웨어 개발 신입/경력 채용\n[핵심조건] 경력무관 · 지역 미상 · 기술: Linux, C++",
+   "[회사] (주)디하이브\n[직무] 임베디드 소프트웨어 시니어 개발자 채용\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: PostgreSQL, Kubernetes, Terraform, MongoDB, Jenkins, Ansible, Python, Docker"
+  ],
+  "companies": [
+   "(주)스마트엠투엠",
+   "(주)헤디",
+   "(주)디하이브"
+  ]
+ },
+ {
+  "qid": "GEN0010",
+  "text": "LLM 머신러닝 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사 로민\n[직무] ML(머신러닝) 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: TensorFlow, FastAPI, PyTorch, Python, LLM",
+   "[회사] 코데이터솔루션\n[직무] [계약직] 머신러닝 엔지니어\n[핵심조건] 5년+ · 서울, 서울 영등포구 · 기술: Python",
+   "[회사] ㈜비인텔리전스글로벌\n[직무] 시니어 AI 엔지니어 (LLM Application) (영어 필수)\n[핵심조건] 3년+ · 인천, 인천 미추홀구 · 기술: Kubernetes, LangChain, LangGraph, FastAPI, PyTorch, Python, Docker, Azure"
+  ],
+  "companies": [
+   "주식회사 로민",
+   "코데이터솔루션",
+   "㈜비인텔리전스글로벌"
+  ]
+ },
+ {
+  "qid": "GEN0011",
+  "text": "서울 경력무관 파이썬 데이터 분석가",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜엑셈\n[직무] Data Scientist (3년 이상, 계약직)\n[핵심조건] 경력무관 · 서울, 서울 강서구 · 기술: Python, LLM, RAG, SQL",
+   "[회사] 에쓰오씨소프트㈜\n[직무] 대용량 데이터 분석 처리 파이썬 개발자 모집\n[핵심조건] 5년+ · 서울, 서울 구로구 · 기술: PostgreSQL, Python, Kafka",
+   "[회사] ㈜프라이데이즈랩\n[직무] [리텐틱스] 데이터 사이언티스트 (Data Scientist) 경력 채용 (5년 이상)\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Python, SQL"
+  ],
+  "companies": [
+   "㈜엑셈",
+   "에쓰오씨소프트㈜",
+   "㈜프라이데이즈랩"
+  ]
+ },
+ {
+  "qid": "GEN0012",
+  "text": "Python 머신러닝 엔지니어 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜모다플\n[직무] [모다플]머신러닝 엔지니어(3년이상)\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Python, LLM",
+   "[회사] 큐픽스\n[직무] 머신러닝 엔지니어(ML&LLM)\n[핵심조건] 0년+ · 경기, 경기 성남시 · 기술: LangChain, LangGraph, Python, Git, LLM, RAG",
+   "[회사] 주식회사 로민\n[직무] ML(머신러닝) 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: TensorFlow, FastAPI, PyTorch, Python, LLM"
+  ],
+  "companies": [
+   "㈜모다플",
+   "큐픽스",
+   "주식회사 로민"
+  ]
+ },
+ {
+  "qid": "GEN0013",
+  "text": "대구 프론트엔드 개발자 React 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)이씨오\n[직무] 웹 개발자 모집 (Front-end 또는 Back-end/신입·경력 3년이하\n[핵심조건] 3년+ · 대구, 대구 동구 · 기술: JavaScript, Vue, Spring, Oracle, React",
+   "[회사] 에이투텍\n[직무] (주)에이투텍 Web Application 개발 부문(상시 채용)\n[핵심조건] 경력무관 · 대구, 대구 동구 · 기술: Spring Boot, React, Azure, Java, Vue, AWS, GCP, JavaScript",
+   "[회사] (주)와이에이치데이타베이스\n[직무] 웹 개발자 채용 (Spring/Java)\n[핵심조건] 3년+ · 대구, 대구 수성구 · 기술: Spring Boot, JavaScript, PostgreSQL, MyBatis, jQuery, Oracle, React, MySQL"
+  ],
+  "companies": [
+   "(주)이씨오",
+   "에이투텍",
+   "(주)와이에이치데이타베이스"
+  ]
+ },
+ {
+  "qid": "GEN0014",
+  "text": "판교 신입 React 프론트엔드 개발자",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜아이스크림미디어\n[직무] [아이스크림미디어] R&D 센터 프론트엔드 개발자 채용\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Vue, React, JavaScript",
+   "[회사] ㈜브리스9\n[직무] 판교 정자 하이닉스 [React JAVA 분석/설계/개발] 고급 프리랜서\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: React, Java",
+   "[회사] 주식회사 인프랩\n[직무] [인프런] 프론트엔드 개발자\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: React Native, TypeScript, Next.js, Android, React, HTML, iOS, Git"
+  ],
+  "companies": [
+   "㈜아이스크림미디어",
+   "㈜브리스9",
+   "주식회사 인프랩"
+  ]
+ },
+ {
+  "qid": "GEN0015",
+  "text": "제주에서 신입 React 프론트엔드 개발자",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜잇뉴\n[직무] (DX사업팀) 비즈니스와 기술을 연결하는 (경력직) 개발자[제주근무]\n[핵심조건] 경력무관 · 제주, 제주 제주시 · 기술: Spring Boot, TypeScript, PostgreSQL, Next.js, Android, Kotlin, Docker, React",
+   "[회사] 퓨처밸류21\n[직무] 소프트웨어 개발 경력자 모집 원격 근무 프리랜서\n[핵심조건] 경력무관 · 제주, 제주 서귀포시 · 기술: PostgreSQL, Python, Redis, Kafka, C++",
+   "[회사] ㈜하이컨시\n[직무] [시대인재] 국어인력개발연구소 (제주시 인근)\n[핵심조건] 경력무관 · 제주, 제주 제주시 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "㈜잇뉴",
+   "퓨처밸류21",
+   "㈜하이컨시"
+  ]
+ },
+ {
+  "qid": "GEN0016",
+  "text": "서울 백엔드 개발자 Go 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜알티넷솔루션\n[직무] [FAP팀] 백엔드 개발자 채용\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Ansible, Python, Spring, Docker, Java, Go",
+   "[회사] (주)알티넷솔루션\n[직무] [FAP팀] 백엔드 개발자 채용(상시 채용)\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Ansible, Python, Spring, Docker, Java, Go",
+   "[회사] (주)누리랩\n[직무] 백엔드개발자 O명 모집\n[핵심조건] 5년+ · 서울, 서울 영등포구 · 기술: GitHub Actions, PostgreSQL, Kubernetes, MongoDB, Docker, Redis, AWS, Go"
+  ],
+  "companies": [
+   "㈜알티넷솔루션",
+   "(주)알티넷솔루션",
+   "(주)누리랩"
+  ]
+ },
+ {
+  "qid": "GEN0017",
+  "text": "부산 경력무관 Tableau 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)아이앤텍\n[직무] (주)아이앤텍 (부산) 증명발급 플랫폼 경력개발자 모집(상시 채용)\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: JPA, MS-SQL, MariaDB, Spring, Oracle, Java, Git",
+   "[회사] 에이치에스소프트(주)\n[직무] [부산지사] AI 개발자 채용\n[핵심조건] 4년+ · 부산, 부산 중구 · 기술: TensorFlow, PyTorch, Python, SQL",
+   "[회사] 프보이㈜\n[직무] 2D/3D 데이터 기반 AI 개발 팀장급 모집\n[핵심조건] 경력무관 · 부산, 부산 남구 · 기술: TensorFlow, PyTorch"
+  ],
+  "companies": [
+   "(주)아이앤텍",
+   "에이치에스소프트(주)",
+   "프보이㈜"
+  ]
+ },
+ {
+  "qid": "GEN0018",
+  "text": "서울 경력무관 LLM 엔지니어",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사 로민\n[직무] ML(머신러닝) 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: TensorFlow, FastAPI, PyTorch, Python, LLM",
+   "[회사] HR컨설팅(주)\n[직무] AI 엔지니어 경력(그룹사)\n[핵심조건] 5년+ · 서울 · 기술: LLM, RAG",
+   "[회사] 에너자이\n[직무] (병역특례 가능) Runtime 소프트웨어 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Android, Linux, iOS, AWS, LLM, C++"
+  ],
+  "companies": [
+   "주식회사 로민",
+   "HR컨설팅(주)",
+   "에너자이"
+  ]
+ },
+ {
+  "qid": "GEN0019",
+  "text": "3년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜블리츠다이나믹스\n[직무] AI 에이전트 SRE/시스템 안정성 엔지니어\n[핵심조건] 3년+ · 서울, 서울 관악구 · 기술: TypeScript, Kubernetes, Node.js, Docker, MySQL, Linux, AWS, LLM",
+   "[회사] 위프로커넥티드서비시즈인크\n[직무] Cloud DevOps/SRE Engineer (경력, 0명)\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Kubernetes, Terraform, Jenkins, Spring, Azure, Linux, Java, AWS",
+   "[회사] (주)아티드\n[직무] AWS 클라우드 운영 경력직 엔지니어 (상주 : 인천 송도)\n[핵심조건] 3년+ · 인천, 인천 연수구 · 기술: Terraform, Linux, AWS, Kubernetes"
+  ],
+  "companies": [
+   "㈜블리츠다이나믹스",
+   "위프로커넥티드서비시즈인크",
+   "(주)아티드"
+  ]
+ },
+ {
+  "qid": "GEN0020",
+  "text": "충북 신입 Java 백엔드 개발자",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜서울소프트\n[직무] [서울소프트(충주)] 풀스택 개발자 (신입/경력)\n[핵심조건] 경력무관 · 충북, 충북 충주시 · 기술: Node.js, Python, React, MySQL, Java, Vue, AWS, Git",
+   "[회사] (주)서울소프트\n[직무] [충주] 서울소프트 풀스택 개발자 (신입/경력)\n[핵심조건] 경력무관 · 충북, 충북 충주시 · 기술: Node.js, Python, React, MySQL, Java, Vue, AWS, Git",
+   "[회사] ㈜쓰리에치솔루션\n[직무] SK하이닉스(SK Hynix) React/Java 개발자(정규직/계약직/프리랜서) 채용\n[핵심조건] 경력무관 · 충북, 충북 청주시 · 기술: Spring Boot, JavaScript, TypeScript, React, MariaDB, Oracle, Azure, Java"
+  ],
+  "companies": [
+   "㈜서울소프트",
+   "(주)서울소프트",
+   "㈜쓰리에치솔루션"
+  ]
+ },
+ {
+  "qid": "GEN0021",
+  "text": "대구 QA 엔지니어 Selenium 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)다온정보\n[직무] 시스템/네트워크/보안 신입 엔지니어 채용\n[핵심조건] 경력무관 · 대구, 대구 달성군 · 기술: 명시 없음",
+   "[회사] 주식회사인사이트노바\n[직무] [개발] 벡엔드 및 API 개발자 (세종, 대구)\n[핵심조건] 7년+ · 대구, 대구 동구 · 기술: Kubernetes, Docker, Redis, Java, NCP",
+   "[회사] (주)데이타뱅크\n[직무] (대구) DB 엔지니어 모집\n[핵심조건] 1년+ · 대구, 대구 수성구 · 기술: Linux"
+  ],
+  "companies": [
+   "(주)다온정보",
+   "주식회사인사이트노바",
+   "(주)데이타뱅크"
+  ]
+ },
+ {
+  "qid": "GEN0022",
+  "text": "인천 2년차 Python 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)제이에너지로직\n[직무] (주)제이에너지로직에서 EMS·BEMS 백엔드 개발자를 찾고 있어요\n[핵심조건] 2년+ · 인천 · 기술: JavaScript, FastAPI, MariaDB, Python, Flask, MySQL, Linux, HTML",
+   "[회사] (주)제이에너지로직\n[직무] (주)제이에너지로직에서 EMS·BEMS 백엔드 개발자 모집\n[핵심조건] 2년+ · 인천 · 기술: JavaScript, FastAPI, MariaDB, Python, Flask, MySQL, Linux, HTML",
+   "[회사] (주)애나\n[직무] [송도] Python 기반 백엔드 개발자 구인\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: Python, Linux"
+  ],
+  "companies": [
+   "(주)제이에너지로직",
+   "(주)제이에너지로직",
+   "(주)애나"
+  ]
+ },
+ {
+  "qid": "GEN0023",
+  "text": "서울에서 3년차 Java Spring 백엔드",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜위즈커뮤니케이션\n[직무] Java 백엔드 정규직 개발자 구인\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Spring Boot, Oracle, Azure, Java",
+   "[회사] 엣지크로스\n[직무] AIoT 서비스 백앤드 개발자 (3년 이상)\n[핵심조건] 3년+ · 서울, 서울 금천구 · 기술: Spring, MyBatis, Docker, Kafka, Java, JPA, AWS",
+   "[회사] (주)딥파인\n[직무] [딥파인] 백엔드 개발자 (물류)\n[핵심조건] 3년+ · 서울, 서울 용산구 · 기술: Node.js, Spring, Linux, Java, SQL, JavaScript"
+  ],
+  "companies": [
+   "㈜위즈커뮤니케이션",
+   "엣지크로스",
+   "(주)딥파인"
+  ]
+ },
+ {
+  "qid": "GEN0024",
+  "text": "5년차 보안 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 리디(RIDI)\n[직무] 정보보안 엔지니어(Security Engineer)\n[핵심조건] 5년+ · 서울, 서울 강남구 · 기술: AWS",
+   "[회사] (주)브레인풀\n[직무] [ㅇㅇ그룹 IT계열사] 클라우드 보안 엔지니어\n[핵심조건] 5년+ · 서울 · 기술: AWS",
+   "[회사] 피아스페이스\n[직무] 기술 보안 엔지니어 (5년 이상)\n[핵심조건] 5년+ · 서울, 서울 서초구 · 기술: Kubernetes, Terraform, Ansible, Python, Docker, Linux, Elasticsearch, AWS"
+  ],
+  "companies": [
+   "리디(RIDI)",
+   "(주)브레인풀",
+   "피아스페이스"
+  ]
+ },
+ {
+  "qid": "GEN0025",
+  "text": "서울 3년차 AWS SRE 엔지니어 채용",
+  "category": "low_resource_role",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜블리츠다이나믹스\n[직무] AI 에이전트 SRE/시스템 안정성 엔지니어\n[핵심조건] 3년+ · 서울, 서울 관악구 · 기술: TypeScript, Kubernetes, Node.js, Docker, MySQL, Linux, AWS, LLM",
+   "[회사] (주)웨어포인트\n[직무] 클라우드(AWS) 서버 시스템 엔지니어 모집\n[핵심조건] 0년+ · 서울, 서울 중구 · 기술: Kubernetes, Python, Linux, AWS",
+   "[회사] ㈜에이아이스페라\n[직무] AI Spera [시스템플랫폼팀] 엔지니어 채용 공고\n[핵심조건] 경력무관 · 서울, 서울 성동구 · 기술: Elasticsearch, PostgreSQL, Kubernetes, Terraform, Jenkins, Ansible, Python, Docker"
+  ],
+  "companies": [
+   "㈜블리츠다이나믹스",
+   "(주)웨어포인트",
+   "㈜에이아이스페라"
+  ]
+ },
+ {
+  "qid": "GEN0026",
+  "text": "Vue 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)리즌디자인\n[직무] 퍼블리셔 / 프론트엔드 개발자 경력 채용 (Vue.js)\n[핵심조건] 경력무관 · 지역 미상 · 기술: JavaScript, Vue",
+   "[회사] 마켓스테이지\n[직무] 프론트엔드(Vue, React) 개발자\n[핵심조건] 2년+ · 서울, 서울 금천구 · 기술: Vue, React, AWS, Git, CSS, JavaScript",
+   "[회사] 브레인즈컴퍼니(주)\n[직무] [상장사/성수역/대졸초임 4천] 프론트엔드 개발자 (신입/경력)\n[핵심조건] 1년+ · 서울, 서울 성동구 · 기술: JavaScript, TypeScript, Vue, Kubernetes, Git"
+  ],
+  "companies": [
+   "(주)리즌디자인",
+   "마켓스테이지",
+   "브레인즈컴퍼니(주)"
+  ]
+ },
+ {
+  "qid": "GEN0027",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜에이젠글로벌\n[직무] [에이젠글로벌]Data Scientist\n[핵심조건] 5년+ · 서울, 서울 영등포구 · 기술: TensorFlow, PyTorch, Python, LLM, RAG, SQL",
+   "[회사] (주)프라이데이즈랩\n[직무] 데이터 사이언티스트 (Data Scientist) 5년 이상 채용\n[핵심조건] 5년+ · 서울 · 기술: TensorFlow, PyTorch, Python, AWS, SQL",
+   "[회사] (주)커리어케어\n[직무] [AI솔루션기업] 데이터 사이언티스트\n[핵심조건] 3년+ · 서울, 서울 동작구 · 기술: TensorFlow, PyTorch, Python"
+  ],
+  "companies": [
+   "㈜에이젠글로벌",
+   "(주)프라이데이즈랩",
+   "(주)커리어케어"
+  ]
+ },
+ {
+  "qid": "GEN0028",
+  "text": "Node.js 다루는 백엔드 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜스튜디오질풍\n[직무] 백엔드 개발자 경력직 채용\n[핵심조건] 경력무관 · 광주, 광주 광산구 · 기술: TypeScript, PostgreSQL, Node.js, FastAPI, Python, Django, MySQL, Redis",
+   "[회사] 트래시스(주)\n[직무] (경력자)프론트엔드 개발자 모집\n[핵심조건] 2년+ · 광주, 광주 북구 · 기술: JavaScript, TypeScript, Node.js, MongoDB, React, HTML, CSS, Linux",
+   "[회사] ㈜위치스\n[직무] (주)위치스 / 경력직(과장, 차장급) 웹개발자 채용공고(광주)\n[핵심조건] 경력무관 · 광주, 광주 남구 · 기술: Spring Boot, PostgreSQL, Node.js, Oracle, MySQL, Redis, Kafka, Java"
+  ],
+  "companies": [
+   "㈜스튜디오질풍",
+   "트래시스(주)",
+   "㈜위치스"
+  ]
+ },
+ {
+  "qid": "GEN0029",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 위플로우\n[직무] React · Next.js 프론트엔드 개발자 (신입 가능)\n[핵심조건] 0년+ · 인천, 인천 서구 · 기술: TypeScript, Next.js, React, Git, JavaScript",
+   "[회사] (주)루다시스\n[직무] React 프론트엔드 개발자 채용(신입/경력)\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: JavaScript, TypeScript, React, Git",
+   "[회사] ㈜공새로\n[직무] IT 개발자\n[핵심조건] 3년+ · 인천, 인천 연수구 · 기술: Spring Boot, JavaScript, TypeScript, React, MySQL, Linux, Java, JPA"
+  ],
+  "companies": [
+   "위플로우",
+   "(주)루다시스",
+   "㈜공새로"
+  ]
+ },
+ {
+  "qid": "GEN0030",
+  "text": "경기 신입 React 프론트엔드",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)뉴제스트\n[직무] [신입 가능]열정가득한 프론트엔드 개발자 채용(채용시 마감)(채용시 마감)\n[핵심조건] 경력무관 · 경기, 경기 구리시 · 기술: React",
+   "[회사] (주)클릭인포\n[직무] 프론트엔드 개발자 신입 / 경력사원 채용\n[핵심조건] 경력무관 · 경기, 경기 남양주시 · 기술: React Native, Spring Boot, JavaScript, TypeScript, PostgreSQL, Next.js, MyBatis, Flutter",
+   "[회사] (주)뉴제스트\n[직무] [신입 가능]열정가득한 프론트엔드 개발자 채용(채용시 마감)\n[핵심조건] 경력무관 · 서울, 경기 · 기술: React"
+  ],
+  "companies": [
+   "(주)뉴제스트",
+   "(주)클릭인포",
+   "(주)뉴제스트"
+  ]
+ },
+ {
+  "qid": "GEN0031",
+  "text": "인천 5년차 Android 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜지니트\n[직무] 소프트웨어 개발자 정규직 채용\n[핵심조건] 경력무관 · 인천, 인천 부평구 · 기술: Android, .NET",
+   "[회사] (주)디스페이스\n[직무] (주)디스페이스 드론 관제 플랫폼(Web GCS) 풀스택 개발자 경력 채용 공고\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: TypeScript, PostgreSQL, LangChain, FastAPI, Android, Kotlin, Python, Django",
+   "[회사] ㈜디스페이스\n[직무] (주)디스페이스 드론 관제 플랫폼 (Web GCS) 풀스택 개발자 채용 공고\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: TypeScript, PostgreSQL, LangChain, FastAPI, Android, Kotlin, Python, Django"
+  ],
+  "companies": [
+   "㈜지니트",
+   "(주)디스페이스",
+   "㈜디스페이스"
+  ]
+ },
+ {
+  "qid": "GEN0032",
+  "text": "JavaScript 프론트엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 아파트아이\n[직무] Front-end 개발자 (7년 이상)\n[핵심조건] 7년+ · 서울, 서울 금천구 · 기술: Next.js, React, JavaScript",
+   "[회사] 패스트레인(여신티켓)\n[직무] 프론트엔드 개발자\n[핵심조건] 7년+ · 서울, 서울 강남구 · 기술: JavaScript, TypeScript, Next.js, Python, React, HTML, Git, CSS",
+   "[회사] (주)블루개러지\n[직무] 프론트엔드 개발자(5~7년)\n[핵심조건] 경력무관 · 서울, 서울 강동구 · 기술: React Native, JavaScript, TypeScript, Python, React"
+  ],
+  "companies": [
+   "아파트아이",
+   "패스트레인(여신티켓)",
+   "(주)블루개러지"
+  ]
+ },
+ {
+  "qid": "GEN0033",
+  "text": "부산 7년차 SQL 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜다미누리아이티\n[직무] SI. 부산 00기관 운영개발 업무\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: Java",
+   "[회사] 에이치에스소프트(주)\n[직무] [부산지사] AI 개발자 채용\n[핵심조건] 4년+ · 부산, 부산 중구 · 기술: TensorFlow, PyTorch, Python, SQL",
+   "[회사] (주)아이앤텍\n[직무] (주)아이앤텍 (부산) 증명발급 플랫폼 경력개발자 모집(상시 채용)\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: JPA, MS-SQL, MariaDB, Spring, Oracle, Java, Git"
+  ],
+  "companies": [
+   "㈜다미누리아이티",
+   "에이치에스소프트(주)",
+   "(주)아이앤텍"
+  ]
+ },
+ {
+  "qid": "GEN0034",
+  "text": "서울 신입 리액트 개발자",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜티웍스아이앤씨\n[직무] (삼성역) React 개발 (중급3명) (2026.08.03 부터 5.5개월)\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Spring, Oracle, React, Java",
+   "[회사] ㈜아이티브릿지\n[직무] React / React Native 앱 개발자(경력) 채용\n[핵심조건] 경력무관 · 서울, 서울 금천구 · 기술: React Native, Android, React, Java, iOS",
+   "[회사] ㈜싸인텔레콤\n[직무] React Spring Boot 풀스택 웹 개발자 채용\n[핵심조건] 0년+ · 서울, 서울 영등포구 · 기술: Spring Boot, JavaScript, React, Java, LLM, RAG, SQL"
+  ],
+  "companies": [
+   "㈜티웍스아이앤씨",
+   "㈜아이티브릿지",
+   "㈜싸인텔레콤"
+  ]
+ },
+ {
+  "qid": "GEN0035",
+  "text": "PyTorch 다루는 머신러닝 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜인애이블퓨전\n[직무] (주)인애이블퓨전 AI 엔지니어 채용\n[핵심조건] 0년+ · 경기, 경기 성남시 · 기술: PyTorch, Python, LLM",
+   "[회사] (주)스트라티오코리아\n[직무] 머신러닝 개발자 모집\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: PyTorch, Python, Docker, AWS",
+   "[회사] 숲(SOOP)\n[직무] AI 기반 개인화 추천 시스템 엔지니어\n[핵심조건] 5년+ · 경기, 경기 성남시 · 기술: TensorFlow, PyTorch"
+  ],
+  "companies": [
+   "㈜인애이블퓨전",
+   "(주)스트라티오코리아",
+   "숲(SOOP)"
+  ]
+ },
+ {
+  "qid": "GEN0036",
+  "text": "역삼 경력무관 React 스타트업 채용",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜에너지어스\n[직무] [에너지어스] 개발팀 개발자 채용\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: GitHub Actions, Spring Boot, PostgreSQL, Kubernetes, Node.js, Vue, Jenkins, Python",
+   "[회사] ㈜티웍스아이앤씨\n[직무] (삼성역) React 개발 (중급3명) (2026.08.03 부터 5.5개월)\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Spring, Oracle, React, Java",
+   "[회사] ㈜플레이투게더\n[직무] 삼성역 - React / API 개발자 모집\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Next.js, Spring, Oracle, React, Java, JavaScript"
+  ],
+  "companies": [
+   "㈜에너지어스",
+   "㈜티웍스아이앤씨",
+   "㈜플레이투게더"
+  ]
+ },
+ {
+  "qid": "GEN0037",
+  "text": "광주 QA 엔지니어 Selenium 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 대신정보통신㈜\n[직무] 국가정보자원관리원(광주센터) 시스템 엔지니어(공개OS) 모집\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Linux",
+   "[회사] (주)성산씨엔에스\n[직무] (주)성산씨엔에스에서 클라우드·시스템 엔지니어를 모집합니다.\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Kubernetes, Docker, Azure, AWS, GCP, Linux",
+   "[회사] (주) 지에프티\n[직무] 국가정보자원관리원(광주센터) 네트워크 엔지니어 모집\n[핵심조건] 경력무관 · 광주 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "대신정보통신㈜",
+   "(주)성산씨엔에스",
+   "(주) 지에프티"
+  ]
+ },
+ {
+  "qid": "GEN0038",
+  "text": "부산 1년차 Kubernetes 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 더블미디어\n[직무] 클라우드 엔지니어 (신입~20년 이하/부산)\n[핵심조건] 0년+ · 부산, 부산 해운대구 · 기술: Kubernetes, Docker",
+   "[회사] (주)솔루윈스\n[직무] [하드웨어 개발] 기술연구소 하드웨어 개발 엔지니어 채용 공고\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: 명시 없음",
+   "[회사] 에이비스\n[직무] 머신비전 어플리케이션 엔지니어(FA 공장자동화)\n[핵심조건] 0년+ · 부산, 부산 남구 · 기술: Python, C++, C#"
+  ],
+  "companies": [
+   "더블미디어",
+   "(주)솔루윈스",
+   "에이비스"
+  ]
+ },
+ {
+  "qid": "GEN0039",
+  "text": "서울 백엔드 개발자 Django 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 케이티밀리의서재\n[직무] 백엔드 개발자 (결제 및 제휴연동 개발)\n[핵심조건] 5년+ · 서울, 서울 마포구 · 기술: Kotlin, Python, Spring, Django",
+   "[회사] ㈜디지털헤럴드\n[직무] DeepLoL B2C 게임 서비스 백엔드 개발자\n[핵심조건] 0년+ · 서울, 서울 중구 · 기술: FastAPI, Python, Django, MySQL, AWS",
+   "[회사] 버즈빌(buzzvil)\n[직무] [Ad Spark] 백엔드 개발자(3년 이상 or 전문연구요원 편입/전직 희망)\n[핵심조건] 3년+ · 서울, 서울 송파구 · 기술: Kubernetes, Python, Django, MySQL, Redis, HTML, Go"
+  ],
+  "companies": [
+   "케이티밀리의서재",
+   "㈜디지털헤럴드",
+   "버즈빌(buzzvil)"
+  ]
+ },
+ {
+  "qid": "GEN0040",
+  "text": "5년차 백엔드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)씨앤유글로벌\n[직무] 백엔드 개발자 (5년 이상)\n[핵심조건] 5년+ · 경기, 경기 성남시 · 기술: MariaDB, Spring, Oracle, Redis, Java",
+   "[회사] 인투씨엔에스\n[직무] 백엔드 개발자 (Java/Spring Boot, 3-5년)\n[핵심조건] 3년+ · 경기, 경기 용인시 · 기술: Spring Boot, MariaDB, Docker, MySQL, Linux, Java, Git",
+   "[회사] ㈜인투씨엔에스\n[직무] [경력] 백엔드 개발자 채용(Java/Spring Boot, 3년-5년)\n[핵심조건] 3년+ · 경기, 경기 용인시 · 기술: Spring Boot, MariaDB, Docker, MySQL, Linux, Java, Git"
+  ],
+  "companies": [
+   "(주)씨앤유글로벌",
+   "인투씨엔에스",
+   "㈜인투씨엔에스"
+  ]
+ },
+ {
+  "qid": "GEN0041",
+  "text": "SQL 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 아티스트컴퍼니\n[직무] 데이터 엔지니어\n[핵심조건] 5년+ · 서울, 서울 성동구 · 기술: Python, Kafka, Linux, GCP, SQL",
+   "[회사] 코니바이에린\n[직무] [재택근무] 데이터 엔지니어\n[핵심조건] 5년+ · 지역 미상 · 기술: Python, AWS, SQL",
+   "[회사] (주)한국데이터뱅크\n[직무] 데이터 엔지니어 개발자 경력직 모집\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: Python, Java, LLM, SQL"
+  ],
+  "companies": [
+   "아티스트컴퍼니",
+   "코니바이에린",
+   "(주)한국데이터뱅크"
+  ]
+ },
+ {
+  "qid": "GEN0042",
+  "text": "React 다루는 프론트엔드 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)루다시스\n[직무] React 프론트엔드 개발자 채용(신입/경력)\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: JavaScript, TypeScript, React, Git",
+   "[회사] 위플로우\n[직무] React · Next.js 프론트엔드 개발자 (신입 가능)\n[핵심조건] 0년+ · 인천, 인천 서구 · 기술: TypeScript, Next.js, React, Git, JavaScript",
+   "[회사] ㈜제이투이\n[직무] [React/Vue SI 인천] 공항 관리시스템 개발-8월 (7)\n[핵심조건] 경력무관 · 인천, 인천 중구 · 기술: JavaScript, React, Vue, AWS"
+  ],
+  "companies": [
+   "(주)루다시스",
+   "위플로우",
+   "㈜제이투이"
+  ]
+ },
+ {
+  "qid": "GEN0043",
+  "text": "서울 3년차 핀테크 쪽 Java 개발자 자리 괜찮은 데 있을까",
+  "category": "negative_signal",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 레몬아이티\n[직무] [Java] 개발자 / 팀장 모집\n[핵심조건] 3년+ · 서울, 서울 구로구 · 기술: Spring, Java, JavaScript",
+   "[회사] 모드니사회적협동조합\n[직무] 긴급) 증미역 엔솔 공정 품질 FDC 개발자 모집/ 초급 3년차 이상\n[핵심조건] 3년+ · 서울 · 기술: PostgreSQL, FastAPI, Jenkins, Python, Spring, Oracle, Docker, Java",
+   "[회사] 윤디스크㈜\n[직무] [JAVA/JSP] 개발자 모집 - 과장급\n[핵심조건] 3년+ · 서울 · 기술: Android, Docker, Java, JSP, iOS, Git, Spring"
+  ],
+  "companies": [
+   "레몬아이티",
+   "모드니사회적협동조합",
+   "윤디스크㈜"
+  ]
+ },
+ {
+  "qid": "GEN0044",
+  "text": "대구 신입 Kubernetes 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)다온정보\n[직무] 시스템/네트워크/보안 신입 엔지니어 채용\n[핵심조건] 경력무관 · 대구, 대구 달성군 · 기술: 명시 없음",
+   "[회사] ㈜에이아이로보틱스\n[직무] [에이아이로보틱스] 소프트웨어 개발 채용 공고\n[핵심조건] 경력무관 · 대구, 대구 북구 · 기술: GitHub Actions, React Native, Kubernetes, TensorFlow, LangChain, Node.js, Next.js, FastAPI",
+   "[회사] 정보와기술서비스㈜\n[직무] POS 엔지니어 신입직원 모집 (대구)\n[핵심조건] 0년+ · 대구, 대구 북구 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "(주)다온정보",
+   "㈜에이아이로보틱스",
+   "정보와기술서비스㈜"
+  ]
+ },
+ {
+  "qid": "GEN0045",
+  "text": "임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜파더스랩\n[직무] [강남구] 임베디드 C++ 개발자 경력 채용 / 정규직 / IT SW\n[핵심조건] 2년+ · 서울, 서울 강남구 · 기술: Android, Linux, C++",
+   "[회사] (주)스마트엠투엠\n[직무] 임베디드 시스템 개발자 (1명)\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: C++",
+   "[회사] (주)파더스랩\n[직무] [강남구] 임베디드 C++ 개발자 경력 채용 / 정규직 / IT SW\n[핵심조건] 2년+ · 서울, 서울 강남구 · 기술: Android, C++"
+  ],
+  "companies": [
+   "㈜파더스랩",
+   "(주)스마트엠투엠",
+   "(주)파더스랩"
+  ]
+ },
+ {
+  "qid": "GEN0046",
+  "text": "인천 신입 Selenium QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)한솔루션\n[직무] 인천 비젼 소프트웨어 엔지니어 C# WPF 경력자 모집\n[핵심조건] 경력무관 · 인천, 인천 미추홀구 · 기술: C#",
+   "[회사] ㈜위드컴\n[직무] 전산기기 유지보수 엔지니어 채용(인천 청라) 신입,경력\n[핵심조건] 경력무관 · 인천, 인천 서구 · 기술: 명시 없음",
+   "[회사] ㈜한솔루션\n[직무] 인천 비전 CS 엔지니어 C# 신입 경력 모집\n[핵심조건] 경력무관 · 인천, 인천 미추홀구 · 기술: C#"
+  ],
+  "companies": [
+   "(주)한솔루션",
+   "㈜위드컴",
+   "㈜한솔루션"
+  ]
+ },
+ {
+  "qid": "GEN0047",
+  "text": "3년차 풀스택 개발자 (Node.js)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 가이드웨이 컨설팅\n[직무] 풀스택 개발자\n[핵심조건] 3년+ · 서울, 서울 마포구 · 기술: Node.js, MongoDB, React, AWS, Git, JavaScript",
+   "[회사] 씨브이쓰리\n[직무] 풀스택 개발자 (3년 ~ 8년 이하)\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Node.js, AWS, JavaScript",
+   "[회사] (주)나도기브\n[직무] 풀스택 개발자\n[핵심조건] 3년+ · 서울, 서울 송파구 · 기술: PostgreSQL, Node.js, Next.js, React, MySQL, Java, AWS, JavaScript"
+  ],
+  "companies": [
+   "가이드웨이 컨설팅",
+   "씨브이쓰리",
+   "(주)나도기브"
+  ]
+ },
+ {
+  "qid": "GEN0048",
+  "text": "대전 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)디하이브\n[직무] 임베디드 소프트웨어 시니어 개발자 채용\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: PostgreSQL, Kubernetes, Terraform, MongoDB, Jenkins, Ansible, Python, Docker",
+   "[회사] 덕산넵코어스(주)\n[직무] [일자리매칭플랫폼] 덕산넵코어스(주) 첨단기술그룹 Embedded Linux S/W 개발자 모집\n[핵심조건] 0년+ · 대전 · 기술: Linux, C++",
+   "[회사] (주)린솔\n[직무] [린솔] 임베디드 HW/FW 개발자 경력 채용/대리~과장급\n[핵심조건] 5년+ · 대전, 대전 유성구 · 기술: C++"
+  ],
+  "companies": [
+   "(주)디하이브",
+   "덕산넵코어스(주)",
+   "(주)린솔"
+  ]
+ },
+ {
+  "qid": "GEN0049",
+  "text": "서울 golang 10년차 서버 개발자",
+  "category": "parser_trap",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜엔시스템\n[직무] Go Lang 개발자 [SKT 프로젝트 - 서울 청담동]\n[핵심조건] 1년+ · 서울, 서울 강남구 · 기술: Kubernetes, Jenkins, Docker, GitLab, Linux, Git, Go, C++",
+   "[회사] (주)트루엔\n[직무] 서버 개발자 (경력 8년↑)\n[핵심조건] 8년+ · 서울, 서울 구로구 · 기술: Go, Linux, AWS",
+   "[회사] ㈜엑셈\n[직무] [개발] Java, Golang\n[핵심조건] 경력무관 · 서울, 서울 강서구 · 기술: Spring Boot, PostgreSQL, MyBatis, Go, Redis, Kafka, Java, JPA"
+  ],
+  "companies": [
+   "㈜엔시스템",
+   "(주)트루엔",
+   "㈜엑셈"
+  ]
+ },
+ {
+  "qid": "GEN0050",
+  "text": "경기 PHP 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 애니시큐어㈜\n[직무] [닷홈] 웹/백엔드 PHP 개발자 (신입·초급) 채용\n[핵심조건] 0년+ · 경기, 경기 성남시 · 기술: JavaScript, Python, MySQL, Linux, HTML, PHP, Git, CSS",
+   "[회사] 주식회사 삼마\n[직무] [강소기업] (주)삼마 PHP 백엔드 개발자 모집\n[핵심조건] 경력무관 · 경기 · 기술: MariaDB, jQuery, MySQL, Linux, PHP",
+   "[회사] (주)에스씨솔루션글로벌\n[직무] 클라우드 및 백엔드(PHP) 개발자 채용\n[핵심조건] 경력무관 · 경기, 경기 용인시 · 기술: Vue, MySQL, Linux, PHP, AWS, NCP, JavaScript"
+  ],
+  "companies": [
+   "애니시큐어㈜",
+   "주식회사 삼마",
+   "(주)에스씨솔루션글로벌"
+  ]
+ },
+ {
+  "qid": "GEN0051",
+  "text": "Terraform DevOps 엔지니어 3년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜크레버스\n[직무] [크레버스] DevOps 엔지니어 정규직 채용\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: TypeScript, PostgreSQL, Kubernetes, Terraform, Node.js, FastAPI, Python, Go",
+   "[회사] 안랩블록체인컴퍼니\n[직무] DevOps 엔지니어\n[핵심조건] 3년+ · 지역 미상 · 기술: GitHub Actions, Terraform, Python, Redis, AWS, Git",
+   "[회사] (주)플래티어\n[직무] [AI CX사업부문] 데브옵스 엔지니어\n[핵심조건] 3년+ · 서울, 서울 송파구 · 기술: Kubernetes, Terraform, Azure, AWS, GCP, LLM, Node.js"
+  ],
+  "companies": [
+   "㈜크레버스",
+   "안랩블록체인컴퍼니",
+   "(주)플래티어"
+  ]
+ },
+ {
+  "qid": "GEN0052",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 블루솔루션\n[직무] NextJS, React 프론트엔드 개발자 (4~6년)\n[핵심조건] 4년+ · 서울, 서울 송파구 · 기술: React Native, TypeScript, Node.js, Next.js, Docker, React, Git, JavaScript",
+   "[회사] (주)아인잡\n[직무] 프론트엔드 개발자 (경력)\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: TypeScript, Next.js, React, HTML, Git, LLM, CSS, JavaScript",
+   "[회사] ㈜링캠\n[직무] 프론트엔드 개발자 채용\n[핵심조건] 3년+ · 서울, 서울 구로구 · 기술: Next.js, React, CSS, JavaScript"
+  ],
+  "companies": [
+   "블루솔루션",
+   "(주)아인잡",
+   "㈜링캠"
+  ]
+ },
+ {
+  "qid": "GEN0053",
+  "text": "7년차 PyTorch 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 프리베노틱스\n[직무] 머신러닝 엔지니어 (Computer Vision)\n[핵심조건] 3년+ · 서울, 서울 서초구 · 기술: PyTorch, Git",
+   "[회사] 주식회사 로민\n[직무] ML(머신러닝) 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: TensorFlow, FastAPI, PyTorch, Python, LLM",
+   "[회사] 쿠팡\n[직무] [쿠팡이츠] 머신러닝 엔지니어\n[핵심조건] 7년+ · 서울, 서울 송파구 · 기술: Python, Java, LLM"
+  ],
+  "companies": [
+   "프리베노틱스",
+   "주식회사 로민",
+   "쿠팡"
+  ]
+ },
+ {
+  "qid": "GEN0054",
+  "text": "부산 Swift 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 픽쓰\n[직무] [부산 서면] 뷰티 플랫폼 앱 개발자 (iOS / Android)(채용시 마감)\n[핵심조건] 1년+ · 부산, 부산 부산진구 · 기술: JavaScript, Android, Flutter, React, HTML, iOS, Git, CSS",
+   "[회사] 픽쓰\n[직무] [부산 서면] 뷰티 플랫폼 앱 개발자 (iOS / Android)\n[핵심조건] 1년+ · 부산, 부산 부산진구 · 기술: JavaScript, Android, Flutter, React, HTML, iOS, Git, CSS",
+   "[회사] 웨이븐(WAVEN)\n[직무] 플러터(Flutter) 네이티브 앱 개발자 모집(경력 필수)\n[핵심조건] 3년+ · 부산, 부산 남구 · 기술: JavaScript, Flutter, MySQL, HTML, PHP, iOS, CSS"
+  ],
+  "companies": [
+   "픽쓰",
+   "픽쓰",
+   "웨이븐(WAVEN)"
+  ]
+ },
+ {
+  "qid": "GEN0055",
+  "text": "서울 3년차 재택 가능한 Java 백엔드 개발자 자리 찾아요",
+  "category": "freeform",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜위즈커뮤니케이션\n[직무] Java 백엔드 정규직 개발자 구인\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Spring Boot, Oracle, Azure, Java",
+   "[회사] ㈜위즈커뮤니케이션\n[직무] Java 백엔드 정규직 개발자 구인\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Spring Boot, Oracle, Azure, Java",
+   "[회사] 지티원(주)\n[직무] 백엔드 개발자 채용(채용시 마감)\n[핵심조건] 3년+ · 서울, 서울 영등포구 · 기술: PostgreSQL, JPA, MyBatis, MariaDB, Spring, Oracle, Redis, Java"
+  ],
+  "companies": [
+   "㈜위즈커뮤니케이션",
+   "㈜위즈커뮤니케이션",
+   "지티원(주)"
+  ]
+ },
+ {
+  "qid": "GEN0056",
+  "text": "광주 머신러닝 엔지니어 TensorFlow 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(전남광주)\n[핵심조건] 경력무관 · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++",
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(경력 2년 이상/전남광주)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++",
+   "[회사] 인트플로우(주)\n[직무] 인트플로우에서 AI개발자를 찾습니다(2년 이상/광주, 전남)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++"
+  ],
+  "companies": [
+   "인트플로우㈜",
+   "인트플로우㈜",
+   "인트플로우(주)"
+  ]
+ },
+ {
+  "qid": "GEN0057",
+  "text": "서울 3년차 Python 개발자",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)메이븐앤컴퍼니\n[직무] Python Developer\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Python",
+   "[회사] (주)백그라운드\n[직무] #[코스닥 상장 특수합금 공급 기업] Python Developer 채용\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Python",
+   "[회사] (주)백그라운드\n[직무] #[코스닥 상장 특수합금 공급 기업] Python Developer\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Python"
+  ],
+  "companies": [
+   "(주)메이븐앤컴퍼니",
+   "(주)백그라운드",
+   "(주)백그라운드"
+  ]
+ },
+ {
+  "qid": "GEN0058",
+  "text": "광주 신입 GCP 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)성산씨엔에스\n[직무] (주)성산씨엔에스에서 클라우드·시스템 엔지니어를 모집합니다.\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Kubernetes, Docker, Azure, AWS, GCP, Linux",
+   "[회사] 스페이스플래닝㈜\n[직무] AI 기반 서비스 개발을 꿈꾸는 풀스택 엔지니어를 찾습니다.\n[핵심조건] 경력무관 · 광주, 광주 동구 · 기술: React, Flutter, Python, Spring, Next.js, Java, AWS, GCP",
+   "[회사] ㈜성산씨엔에스\n[직무] 소프트웨어 클라우드,시스템 엔지니어를 모집해요\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Kubernetes, Docker, Java, HTML, AWS, CSS"
+  ],
+  "companies": [
+   "(주)성산씨엔에스",
+   "스페이스플래닝㈜",
+   "㈜성산씨엔에스"
+  ]
+ },
+ {
+  "qid": "GEN0059",
+  "text": "Jenkins 다루는 DevOps 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사인사이트노바\n[직무] [개발] 벡엔드 및 API 개발자 (세종, 대구)\n[핵심조건] 7년+ · 대구, 대구 동구 · 기술: Kubernetes, Docker, Redis, Java, NCP",
+   "[회사] (주)데이타뱅크\n[직무] (대구) DB 엔지니어 모집\n[핵심조건] 1년+ · 대구, 대구 수성구 · 기술: Linux",
+   "[회사] (주)다온정보\n[직무] 시스템/네트워크/보안 신입 엔지니어 채용\n[핵심조건] 경력무관 · 대구, 대구 달성군 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "주식회사인사이트노바",
+   "(주)데이타뱅크",
+   "(주)다온정보"
+  ]
+ },
+ {
+  "qid": "GEN0060",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 부산",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)마상소프트\n[직무] [부산] Electron 개발자(프론트엔드)(상시 채용)\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: JavaScript, TypeScript, Node.js, Next.js, React, HTML, Vue, AWS",
+   "[회사] (주)블루라이언스\n[직무] 플랫폼 서비스(App+Web) 프론트 개발자 경력자 채용\n[핵심조건] 2년+ · 부산, 부산 해운대구 · 기술: JavaScript, TypeScript, Next.js, GitLab, React, AWS, Git",
+   "[회사] (주)링스업\n[직무] [링스업] 3-5년차 웹 풀스택 개발자 구인 공고\n[핵심조건] 경력무관 · 부산, 부산 사하구 · 기술: Spring Boot, JavaScript, TypeScript, PostgreSQL, Next.js, MariaDB, Docker, React"
+  ],
+  "companies": [
+   "(주)마상소프트",
+   "(주)블루라이언스",
+   "(주)링스업"
+  ]
+ },
+ {
+  "qid": "GEN0061",
+  "text": "대구 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사인사이트노바\n[직무] [개발] 벡엔드 및 API 개발자 (세종, 대구)\n[핵심조건] 7년+ · 대구, 대구 동구 · 기술: Kubernetes, Docker, Redis, Java, NCP",
+   "[회사] (주)데이타뱅크\n[직무] (대구) DB 엔지니어 모집\n[핵심조건] 1년+ · 대구, 대구 수성구 · 기술: Linux",
+   "[회사] ㈜데이타뱅크\n[직무] (대구)DB 엔지니어 모집\n[핵심조건] 1년+ · 대구, 대구 수성구 · 기술: PostgreSQL, MariaDB, Oracle, MySQL, MS-SQL, Linux"
+  ],
+  "companies": [
+   "주식회사인사이트노바",
+   "(주)데이타뱅크",
+   "㈜데이타뱅크"
+  ]
+ },
+ {
+  "qid": "GEN0062",
+  "text": "Next.js 프론트엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 아파트아이\n[직무] Front-end 개발자 (7년 이상)\n[핵심조건] 7년+ · 서울, 서울 금천구 · 기술: Next.js, React, JavaScript",
+   "[회사] 패스트레인(여신티켓)\n[직무] 프론트엔드 개발자\n[핵심조건] 7년+ · 서울, 서울 강남구 · 기술: JavaScript, TypeScript, Next.js, Python, React, HTML, Git, CSS",
+   "[회사] 인터웍스미디어\n[직무] 프론트엔드 개발자 (6년 ~ 10년)\n[핵심조건] 6년+ · 서울 · 기술: TypeScript, Next.js, React, Git, JavaScript"
+  ],
+  "companies": [
+   "아파트아이",
+   "패스트레인(여신티켓)",
+   "인터웍스미디어"
+  ]
+ },
+ {
+  "qid": "GEN0063",
+  "text": "GCP 클라우드 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 아타드(ATAD)\n[직무] 클라우드 엔지니어\n[핵심조건] 1년+ · 서울, 서울 서초구 · 기술: Azure, AWS, GCP",
+   "[회사] (주)성산씨엔에스\n[직무] (주)성산씨엔에스에서 클라우드·시스템 엔지니어를 모집합니다.\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Kubernetes, Docker, Azure, AWS, GCP, Linux",
+   "[회사] 디스펙터\n[직무] Devops 개발자\n[핵심조건] 1년+ · 경기, 경기 성남시 · 기술: GitHub Actions, Kubernetes, Jenkins, Python, Docker, GitLab, GCP, Git"
+  ],
+  "companies": [
+   "아타드(ATAD)",
+   "(주)성산씨엔에스",
+   "디스펙터"
+  ]
+ },
+ {
+  "qid": "GEN0064",
+  "text": "대전 임베디드 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)린솔\n[직무] [린솔] 임베디드 HW/FW 개발자 경력 채용/대리~과장급\n[핵심조건] 5년+ · 대전, 대전 유성구 · 기술: C++",
+   "[회사] (주)디하이브\n[직무] 임베디드 소프트웨어 시니어 개발자 채용\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: PostgreSQL, Kubernetes, Terraform, MongoDB, Jenkins, Ansible, Python, Docker",
+   "[회사] 덕산넵코어스(주)\n[직무] [일자리매칭플랫폼] 덕산넵코어스(주) 첨단기술그룹 Embedded Linux S/W 개발자 모집\n[핵심조건] 0년+ · 대전 · 기술: Linux, C++"
+  ],
+  "companies": [
+   "(주)린솔",
+   "(주)디하이브",
+   "덕산넵코어스(주)"
+  ]
+ },
+ {
+  "qid": "GEN0065",
+  "text": "Go 다루는 백엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사 럭스로보\n[직무] 백엔드 개발자 경력직 채용\n[핵심조건] 3년+ · 서울, 서울 서초구 · 기술: PostgreSQL, Kubernetes, Go, Docker, MySQL, Redis, Kafka, AWS",
+   "[회사] ㈜누리랩\n[직무] 백엔드 개발자 O명 모집\n[핵심조건] 경력무관 · 서울, 서울 영등포구 · 기술: GitHub Actions, PostgreSQL, Kubernetes, MongoDB, Docker, Redis, AWS, Go",
+   "[회사] (주)누리랩\n[직무] 백엔드개발자 O명 모집\n[핵심조건] 5년+ · 서울, 서울 영등포구 · 기술: GitHub Actions, PostgreSQL, Kubernetes, MongoDB, Docker, Redis, AWS, Go"
+  ],
+  "companies": [
+   "주식회사 럭스로보",
+   "㈜누리랩",
+   "(주)누리랩"
+  ]
+ },
+ {
+  "qid": "GEN0066",
+  "text": "부산 7년차 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 더블미디어\n[직무] 클라우드 엔지니어 (신입~20년 이하/부산)\n[핵심조건] 0년+ · 부산, 부산 해운대구 · 기술: Kubernetes, Docker",
+   "[회사] ㈜다미누리아이티\n[직무] SI. 부산 00기관 운영개발 업무\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: Java",
+   "[회사] (주)동연에스엔티\n[직무] 차세대 제조시스템 구축 프로젝트 PM 및 개발자\n[핵심조건] 경력무관 · 부산, 부산 동래구 · 기술: JavaScript, TypeScript, PostgreSQL, MS-SQL, Jenkins, Spring, Oracle, Docker"
+  ],
+  "companies": [
+   "더블미디어",
+   "㈜다미누리아이티",
+   "(주)동연에스엔티"
+  ]
+ },
+ {
+  "qid": "GEN0067",
+  "text": "Linux SRE 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 한스컨설팅\n[직무] 삼성동 위치 리눅스기반 IT서비스기업 PASS엔지니어 3-7년차\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: MySQL, Kubernetes, Linux",
+   "[회사] ㈜리안시스템\n[직무] 서버 하드웨어 엔지니어 모십니다.\n[핵심조건] 4년+ · 서울, 서울 영등포구 · 기술: Linux",
+   "[회사] ㈜블리츠다이나믹스\n[직무] AI 에이전트 SRE/시스템 안정성 엔지니어\n[핵심조건] 3년+ · 서울, 서울 관악구 · 기술: TypeScript, Kubernetes, Node.js, Docker, MySQL, Linux, AWS, LLM"
+  ],
+  "companies": [
+   "한스컨설팅",
+   "㈜리안시스템",
+   "㈜블리츠다이나믹스"
+  ]
+ },
+ {
+  "qid": "GEN0068",
+  "text": "광주 머신러닝 엔지니어 PyTorch 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(전남광주)\n[핵심조건] 경력무관 · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++",
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(경력 2년 이상/전남광주)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++",
+   "[회사] 인트플로우(주)\n[직무] 인트플로우(주) AI 개발자 채용 (경력 2년 이상 / 광주, 전남)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++"
+  ],
+  "companies": [
+   "인트플로우㈜",
+   "인트플로우㈜",
+   "인트플로우(주)"
+  ]
+ },
+ {
+  "qid": "GEN0069",
+  "text": "경기 데이터 분석가 Tableau 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜숲(SOOP CO., LTD.)\n[직무] [SOOP] 데이터 분석가 (시멘틱 레이어/온톨로지 엔지니어)\n[핵심조건] 6년+ · 경기, 경기 성남시 · 기술: LLM, SQL",
+   "[회사] 메가존클라우드㈜\n[직무] Datadog / Snowflake 엔지니어\n[핵심조건] 3년+ · 경기, 경기 과천시 · 기술: Python, Azure, Java, AWS, GCP",
+   "[회사] 토모도모㈜\n[직무] 삼성반도체 Informatica DQ기반 개발 채용 (화성, 7개월)\n[핵심조건] 경력무관 · 경기, 경기 화성시 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "㈜숲(SOOP CO., LTD.)",
+   "메가존클라우드㈜",
+   "토모도모㈜"
+  ]
+ },
+ {
+  "qid": "GEN0070",
+  "text": "AWS 다루는 클라우드 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜레이어에잇\n[직무] [레이어에잇] 대형게임사 AWS 클라우드 운영 프로젝트 엔지니어 채용(SA)\n[핵심조건] 3년+ · 경기, 경기 성남시 · 기술: GitLab, Redis, Azure, AWS, GCP",
+   "[회사] (주)아이에이클라우드\n[직무] [엔지니어] AI·Cloud 기술지원 엔지니어 (3년 이상)\n[핵심조건] 3년+ · 경기, 경기 성남시 · 기술: Linux, AWS",
+   "[회사] 드림나우㈜\n[직무] AWS 엔지니어 모집- 팀장급 모집 (중급 이상) Python or GoLang 경력자\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: TensorFlow, PyTorch, Python, Go, AWS, C++"
+  ],
+  "companies": [
+   "㈜레이어에잇",
+   "(주)아이에이클라우드",
+   "드림나우㈜"
+  ]
+ },
+ {
+  "qid": "GEN0071",
+  "text": "인천 게임 클라이언트 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 인아텍앤코포㈜\n[직무] 스마트팩토리 [ACS S/W], [로봇제어 S/W] 개발자 경력직 채용\n[핵심조건] 경력무관 · 인천, 인천 남동구 · 기술: JavaScript, Python, Java, Git, C++, C#, Linux",
+   "[회사] ㈜펜타게이트\n[직무] (주)펜타게이트 연구소 AI 개발 및 활용 프로그램 개발\n[핵심조건] 0년+ · 인천, 인천 연수구 · 기술: Python, C++, C#",
+   "[회사] ㈜넷유\n[직무] (Netis Systmes Co., Ltd) 펌웨어 개발자(임베디드 펌웨어 개발)\n[핵심조건] 경력무관 · 인천, 인천 영종구 · 기술: C++, Linux"
+  ],
+  "companies": [
+   "인아텍앤코포㈜",
+   "㈜펜타게이트",
+   "㈜넷유"
+  ]
+ },
+ {
+  "qid": "GEN0072",
+  "text": "Go 다루는 백엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 트루밸류\n[직무] 백엔드 개발자 (육아휴직대체)\n[핵심조건] 0년+ · 대전, 대전 서구 · 기술: React Native, Spring Boot, JavaScript, TypeScript, Next.js, Docker, React, Java",
+   "[회사] 코드마인드(주)\n[직무] [경력] SW 개발자(백엔드) 채용 공고 (대전)\n[핵심조건] 2년+ · 대전, 대전 대덕구 · 기술: Jenkins, Spring, Linux, Java, JPA, Git, SQL",
+   "[회사] (주)신테카바이오\n[직무] [코스닥상장사] 신테카바이오 시스템 백엔드 개발자\n[핵심조건] 5년+ · 대전, 대전 유성구 · 기술: Python, Spring, Next.js, Redis, Java"
+  ],
+  "companies": [
+   "트루밸류",
+   "코드마인드(주)",
+   "(주)신테카바이오"
+  ]
+ },
+ {
+  "qid": "GEN0073",
+  "text": "iOS 다루는 iOS 개발자 구합니다",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 캔버스랩\n[직무] 글로벌 앱서비스 Taska에서 iOS 개발자를 찾습니다\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Android, Kotlin, iOS",
+   "[회사] 보이저엑스(VoyagerX)\n[직무] [Vrew/vFlat] iOS 개발자\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: iOS, Git",
+   "[회사] 주식회사 스마트코어\n[직무] iOS 개발자 경력(5년이상) 채용 공고\n[핵심조건] 5년+ · 서울, 서울 금천구 · 기술: iOS, Git"
+  ],
+  "companies": [
+   "캔버스랩",
+   "보이저엑스(VoyagerX)",
+   "주식회사 스마트코어"
+  ]
+ },
+ {
+  "qid": "GEN0074",
+  "text": "대전 경력무관 Python 데이터 엔지니어",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)스마트뱅크\n[직무] 신입 AI엔지니어 및 개발자 모집(채용시 마감)\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: Python, Oracle",
+   "[회사] (주)덕인\n[직무] (주)덕인 AI 솔루션개발 엔지니어 신입/경력 채용 공고\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: PyTorch, Python",
+   "[회사] 세림티에스지㈜\n[직무] [데이터센터사업부/대전] 정보시스템 운영/시스템 엔지니어\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "(주)스마트뱅크",
+   "(주)덕인",
+   "세림티에스지㈜"
+  ]
+ },
+ {
+  "qid": "GEN0075",
+  "text": "신입 게임 클라이언트 개발자 (C++)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 러쉬에잇(RushEight)\n[직무] [MapeOrigin/게임 개발] 클래식 메이플스토리 게임 개발자 (신입/경력)\n[핵심조건] 0년+ · 서울, 서울 구로구 · 기술: Git, C++, C#",
+   "[회사] (주)기어세컨드\n[직무] 게임 클라이언트 개발자\n[핵심조건] 경력무관 · 서울, 서울 성동구 · 기술: Unity, C#",
+   "[회사] 플레이링스\n[직무] 게임 클라이언트 신입 개발자 (산업기능요원 보충역)\n[핵심조건] 0년+ · 경기, 경기 성남시 · 기술: JavaScript"
+  ],
+  "companies": [
+   "러쉬에잇(RushEight)",
+   "(주)기어세컨드",
+   "플레이링스"
+  ]
+ },
+ {
+  "qid": "GEN0076",
+  "text": "LLM 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사 로민\n[직무] ML(머신러닝) 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: TensorFlow, FastAPI, PyTorch, Python, LLM",
+   "[회사] ㈜모다플\n[직무] [모다플]머신러닝 엔지니어(3년이상)\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Python, LLM",
+   "[회사] 지신\n[직무] [ML Application - LLM] LLM 머신러닝 엔지니어\n[핵심조건] 2년+ · 서울, 서울 강남구 · 기술: PyTorch, Python, LLM, RAG"
+  ],
+  "companies": [
+   "주식회사 로민",
+   "㈜모다플",
+   "지신"
+  ]
+ },
+ {
+  "qid": "GEN0077",
+  "text": "Unity 게임 클라이언트 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 에셋게임즈㈜\n[직무] Unity 게임 개발자(클라이언트/서버) 정규직 채용\n[핵심조건] 경력무관 · 경기, 경기 부천시 · 기술: MySQL, Unity, AWS, Git, C#",
+   "[회사] (주)기어세컨드\n[직무] 게임 클라이언트 개발자\n[핵심조건] 경력무관 · 서울, 서울 성동구 · 기술: Unity, C#",
+   "[회사] (주)기어세컨드\n[직무] [슬레이어 키우기] 클라이언트 개발자\n[핵심조건] 경력무관 · 서울, 서울 성동구 · 기술: Unity, C#"
+  ],
+  "companies": [
+   "에셋게임즈㈜",
+   "(주)기어세컨드",
+   "(주)기어세컨드"
+  ]
+ },
+ {
+  "qid": "GEN0078",
+  "text": "Jenkins 다루는 DevOps 엔지니어 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 앤트랩스케이알\n[직무] 수석급 시스템 엔지니어/DevOps\n[핵심조건] 15년+ · 인천, 인천 연수구 · 기술: PostgreSQL, Kubernetes, MariaDB, Jenkins, Docker, GitLab, MySQL, Azure",
+   "[회사] ㈜디비엔텍\n[직무] [경력 3년이상]JAVA 전자정부 표준 프레임워크/Spring 웹 개발자 모집\n[핵심조건] 3년+ · 인천, 인천 서구 · 기술: Spring Boot, MyBatis, MS-SQL, Jenkins, Python, Oracle, Docker, React",
+   "[회사] 톤즈의원\n[직무] 풀스택 특급 개발자 채용 Spring · React.js · AI 자동화\n[핵심조건] 경력무관 · 인천, 인천 부평구 · 기술: GitHub Actions, Elasticsearch, Spring Boot, TypeScript, PostgreSQL, Kubernetes, TensorFlow, React"
+  ],
+  "companies": [
+   "앤트랩스케이알",
+   "㈜디비엔텍",
+   "톤즈의원"
+  ]
+ },
+ {
+  "qid": "GEN0079",
+  "text": "부산 경력무관 TensorFlow 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)코어로보틱스\n[직무] AI 로보틱스 시뮬레이션 및 제어 알고리즘 개발자\n[핵심조건] 경력무관 · 부산, 부산 기장군 · 기술: TensorFlow, PyTorch, Python, Docker, Linux, Git, C++",
+   "[회사] (주)코어로보틱스\n[직무] 로봇 비전기술 개발자 채용\n[핵심조건] 경력무관 · 부산, 부산 기장군 · 기술: TensorFlow, PyTorch, Python, Docker, Linux, Git, C++, Node.js",
+   "[회사] 프보이㈜\n[직무] 2D/3D 데이터 기반 AI 개발 팀장급 모집\n[핵심조건] 경력무관 · 부산, 부산 남구 · 기술: TensorFlow, PyTorch"
+  ],
+  "companies": [
+   "(주)코어로보틱스",
+   "(주)코어로보틱스",
+   "프보이㈜"
+  ]
+ },
+ {
+  "qid": "GEN0080",
+  "text": "경기 2년차 Go 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 도도랩스\n[직무] 백엔드 개발자\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: Node.js, AWS, Git, JavaScript",
+   "[회사] 이그나이트\n[직무] Back-end 개발자\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: Spring, Kotlin, Python, Java",
+   "[회사] 원진 IT\n[직무] 서초 Backend 개발자 모집\n[핵심조건] 경력무관 · 경기, 경기 화성시 · 기술: Spring Boot, Python, Go, MySQL, Kafka, Java"
+  ],
+  "companies": [
+   "도도랩스",
+   "이그나이트",
+   "원진 IT"
+  ]
+ },
+ {
+  "qid": "GEN0081",
+  "text": "Spring Boot 백엔드 개발자 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 에이치엔에스\n[직무] [공공 프로젝트] Java Spring Boot · Kubernetes 백엔드 개발자 (주니어)\n[핵심조건] 2년+ · 서울, 서울 종로구 · 기술: Spring Boot, PostgreSQL, Kubernetes, Jenkins, Docker, GitLab, Redis, Kafka",
+   "[회사] ㈜코드쿡\n[직무] [용산] AI서비스/백엔드/프론트엔드 프리랜서 개발자 모집합니다.\n[핵심조건] 2년+ · 서울, 서울 용산구 · 기술: GitHub Actions, Spring Boot, TypeScript, PostgreSQL, LangChain, Kotlin, Python, Docker",
+   "[회사] ㈜삼천리네트웍스\n[직무] 백엔드 개발자 (Java/Spring Boot · Node.js)\n[핵심조건] 0년+ · 서울, 서울 강서구 · 기술: GitHub Actions, Spring Boot, Node.js, MariaDB, Jenkins, Docker, MySQL, Redis"
+  ],
+  "companies": [
+   "에이치엔에스",
+   "㈜코드쿡",
+   "㈜삼천리네트웍스"
+  ]
+ },
+ {
+  "qid": "GEN0082",
+  "text": "3년차 클라우드 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)아티드\n[직무] AWS 클라우드 운영 경력직 엔지니어 (상주 : 인천 송도)\n[핵심조건] 3년+ · 인천, 인천 연수구 · 기술: Terraform, Linux, AWS, Kubernetes",
+   "[회사] ㈜레이어에잇\n[직무] [레이어에잇] 대형게임사 AWS 클라우드 운영 프로젝트 엔지니어 채용(SA)\n[핵심조건] 3년+ · 경기, 경기 성남시 · 기술: GitLab, Redis, Azure, AWS, GCP",
+   "[회사] ㈜뉴인\n[직무] Cloud Infrastructure Engineer (클라우드 인프라 엔지니어) 경력직\n[핵심조건] 3년+ · 서울, 서울 마포구 · 기술: Docker, Linux, AWS"
+  ],
+  "companies": [
+   "(주)아티드",
+   "㈜레이어에잇",
+   "㈜뉴인"
+  ]
+ },
+ {
+  "qid": "GEN0083",
+  "text": "대구 신입 JavaScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)테이큰소프트\n[직무] (주)테이큰소프트 웹 개발자 채용 공고\n[핵심조건] 경력무관 · 대구, 대구 동구 · 기술: JavaScript, TypeScript, Spring Boot, PostgreSQL, Vue, Java",
+   "[회사] (주)소프트아이텍\n[직무] SW 개발자 모집 (대구)\n[핵심조건] 경력무관 · 대구, 대구 동구 · 기술: JavaScript, Oracle, Java, HTML, JSP, CSS",
+   "[회사] ㈜네트로\n[직무] (주) 네트로 응용소프트웨어 개발 채용\n[핵심조건] 경력무관 · 대구, 대구 수성구 · 기술: JavaScript, Android, Flutter, Spring, React, Linux, iOS, Git"
+  ],
+  "companies": [
+   "(주)테이큰소프트",
+   "(주)소프트아이텍",
+   "㈜네트로"
+  ]
+ },
+ {
+  "qid": "GEN0084",
+  "text": "인천 7년차 C++ 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜넷유\n[직무] (Netis Systmes Co., Ltd) 펌웨어 개발자(임베디드 펌웨어 개발)\n[핵심조건] 경력무관 · 인천, 인천 영종구 · 기술: C++, Linux",
+   "[회사] 주식회사 레디츠\n[직무] IoT / AI / 임베디드 / 웹,앱 개발자 채용공고\n[핵심조건] 경력무관 · 인천, 인천 서해구 · 기술: JavaScript, TypeScript, Python, C++",
+   "[회사] 인아텍앤코포㈜\n[직무] 스마트팩토리 [ACS S/W], [로봇제어 S/W] 개발자 경력직 채용\n[핵심조건] 경력무관 · 인천, 인천 남동구 · 기술: JavaScript, Python, Java, Git, C++, C#, Linux"
+  ],
+  "companies": [
+   "㈜넷유",
+   "주식회사 레디츠",
+   "인아텍앤코포㈜"
+  ]
+ },
+ {
+  "qid": "GEN0085",
+  "text": "대구 5년차 C 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)누리기술\n[직무] R&D 펌웨어 임베디드 소프트웨어 개발자 정규직 채용함\n[핵심조건] 0년+ · 대구, 대구 동구 · 기술: 명시 없음",
+   "[회사] (주)누리기술\n[직무] R&D 펌웨어 임베디드 소프트웨어 개발자 정규직 채용\n[핵심조건] 0년+ · 대구, 대구 동구 · 기술: 명시 없음",
+   "[회사] ㈜토탈소프트뱅크\n[직무] [대구센터] 신입/경력 소프트웨어 개발자 모집\n[핵심조건] 3년+ · 대구, 대구 동구 · 기술: C++, C#, Unity, Unreal"
+  ],
+  "companies": [
+   "(주)누리기술",
+   "(주)누리기술",
+   "㈜토탈소프트뱅크"
+  ]
+ },
+ {
+  "qid": "GEN0086",
+  "text": "광주 2년차 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)성산씨엔에스\n[직무] (주)성산씨엔에스에서 클라우드·시스템 엔지니어를 모집합니다.\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Kubernetes, Docker, Azure, AWS, GCP, Linux",
+   "[회사] ㈜성산씨엔에스\n[직무] 소프트웨어 클라우드,시스템 엔지니어를 모집해요\n[핵심조건] 경력무관 · 광주, 광주 서구 · 기술: Kubernetes, Docker, Java, HTML, AWS, CSS",
+   "[회사] 인트플로우(주)\n[직무] 인트플로우(주) AI 개발자 채용 (경력 2년 이상 / 광주, 전남)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++"
+  ],
+  "companies": [
+   "(주)성산씨엔에스",
+   "㈜성산씨엔에스",
+   "인트플로우(주)"
+  ]
+ },
+ {
+  "qid": "GEN0087",
+  "text": "대구 1년차 JavaScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)테이큰소프트\n[직무] (주)테이큰소프트 웹 개발자 채용 공고\n[핵심조건] 경력무관 · 대구, 대구 동구 · 기술: JavaScript, TypeScript, Spring Boot, PostgreSQL, Vue, Java",
+   "[회사] ㈜네트로\n[직무] (주) 네트로 응용소프트웨어 개발 채용\n[핵심조건] 경력무관 · 대구, 대구 수성구 · 기술: JavaScript, Android, Flutter, Spring, React, Linux, iOS, Git",
+   "[회사] (주)소프트아이텍\n[직무] SW 개발자 모집 (대구)\n[핵심조건] 경력무관 · 대구, 대구 동구 · 기술: JavaScript, Oracle, Java, HTML, JSP, CSS"
+  ],
+  "companies": [
+   "(주)테이큰소프트",
+   "㈜네트로",
+   "(주)소프트아이텍"
+  ]
+ },
+ {
+  "qid": "GEN0088",
+  "text": "1년차 클라우드 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)오픈소스컨설팅\n[직무] 쿠버네티스(Kubernetes) 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Kubernetes, Ansible, Python",
+   "[회사] 백패커\n[직무] [백패커] 클라우드 엔지니어\n[핵심조건] 0년+ · 서울, 서울 서초구 · 기술: Kubernetes, Terraform, Docker, Linux, AWS, Git, LLM",
+   "[회사] ㈜에이프리카\n[직무] [AI/클라우드] 시스템 엔지니어 (신입/경력)\n[핵심조건] 0년+ · 서울, 서울 성동구 · 기술: Kubernetes, Terraform, Ansible, LLM, RAG"
+  ],
+  "companies": [
+   "(주)오픈소스컨설팅",
+   "백패커",
+   "㈜에이프리카"
+  ]
+ },
+ {
+  "qid": "GEN0089",
+  "text": "부산 신입 Java 안드로이드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)컴나래소프트\n[직무] Java, php, Vue.js 개발자 모십니다.\n[핵심조건] 0년+ · 부산, 부산 사상구 · 기술: MyBatis, Vue, Spring, Docker, Redis, Linux, Java, PHP",
+   "[회사] (주)아이앤텍\n[직무] (주)아이앤텍 (부산) 증명발급 플랫폼 신입개발자 모집(상시 채용)\n[핵심조건] 경력무관 · 부산, 부산 해운대구 · 기술: JPA, MS-SQL, MariaDB, Spring, Oracle, Java, Git",
+   "[회사] ㈜아이앤텍\n[직무] (주)아이앤텍 (부산) 증명발급 플랫폼 신입개발자 모집\n[핵심조건] 0년+ · 부산, 부산 해운대구 · 기술: Spring Boot, JPA, MS-SQL, MariaDB, Oracle, Java, Git"
+  ],
+  "companies": [
+   "(주)컴나래소프트",
+   "(주)아이앤텍",
+   "㈜아이앤텍"
+  ]
+ },
+ {
+  "qid": "GEN0090",
+  "text": "Python 머신러닝 엔지니어 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 코딧(CODITCorp.)\n[직무] 머신러닝 엔지니어 (2년이상)\n[핵심조건] 2년+ · 서울, 서울 영등포구 · 기술: Elasticsearch, TensorFlow, FastAPI, MongoDB, PyTorch, Docker, LLM",
+   "[회사] 지신\n[직무] [ML Application - LLM] LLM 머신러닝 엔지니어\n[핵심조건] 2년+ · 서울, 서울 강남구 · 기술: PyTorch, Python, LLM, RAG",
+   "[회사] (주)스트라티오코리아\n[직무] 머신러닝 개발자 모집\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: PyTorch, Python, Docker, AWS"
+  ],
+  "companies": [
+   "코딧(CODITCorp.)",
+   "지신",
+   "(주)스트라티오코리아"
+  ]
+ },
+ {
+  "qid": "GEN0091",
+  "text": "경기 보안 엔지니어 네트워크 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)에어키\n[직무] 네트워크 보안 엔지니어 채용(경기 이천 상주)\n[핵심조건] 경력무관 · 경기, 경기 이천시 · 기술: 명시 없음",
+   "[회사] 시큐어트리(주)\n[직무] IT인프라 네트워크 보안 엔지니어\n[핵심조건] 경력무관 · 경기 · 기술: 명시 없음",
+   "[회사] ㈜주피터시스템즈\n[직무] 기술지원 엔지니어 (네트워크 및 정보보안)\n[핵심조건] 3년+ · 경기, 경기 안양시 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "(주)에어키",
+   "시큐어트리(주)",
+   "㈜주피터시스템즈"
+  ]
+ },
+ {
+  "qid": "GEN0092",
+  "text": "분당 경력무관 Python 개발자 채용",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜엔시스템\n[직무] ETL 개발자 (Python 데이터 추출) [SK하이닉스 프로젝트 - 경기 분당]\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Python, SQL",
+   "[회사] 이에이치티엔\n[직무] [분당] 웹 개발(Java, Python 필수 )\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Python, Java, JSP",
+   "[회사] (주)밸리언트데이터\n[직무] (주)밸리언트데이터에서 Python Web Full-Stack 개발자를 찾고 있어요(채용시 마감)\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: JavaScript, FastAPI, Python, Django, Docker, React, Flask, Linux"
+  ],
+  "companies": [
+   "㈜엔시스템",
+   "이에이치티엔",
+   "(주)밸리언트데이터"
+  ]
+ },
+ {
+  "qid": "GEN0093",
+  "text": "경기 판교 신입 프론트엔드 리액트",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜아이스크림미디어\n[직무] [아이스크림미디어] R&D 센터 프론트엔드 개발자 채용\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Vue, React, JavaScript",
+   "[회사] ㈜브리스9\n[직무] 판교 정자 하이닉스 [React JAVA 분석/설계/개발] 고급 프리랜서\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: React, Java",
+   "[회사] ㈜넥슨\n[직무] [AI본부] 웹 프론트엔드 엔지니어 (인턴)\n[핵심조건] 0년+ · 경기, 경기 성남시 · 기술: JavaScript, TypeScript, React"
+  ],
+  "companies": [
+   "㈜아이스크림미디어",
+   "㈜브리스9",
+   "㈜넥슨"
+  ]
+ },
+ {
+  "qid": "GEN0094",
+  "text": "대구 3년차 SQL 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜데이타뱅크\n[직무] (대구)DB 엔지니어 모집\n[핵심조건] 1년+ · 대구, 대구 수성구 · 기술: PostgreSQL, MariaDB, Oracle, MySQL, MS-SQL, Linux",
+   "[회사] (주)와이에이치데이타베이스\n[직무] 웹 개발자 채용 (Spring/Java)\n[핵심조건] 3년+ · 대구, 대구 수성구 · 기술: Spring Boot, JavaScript, PostgreSQL, MyBatis, jQuery, Oracle, React, MySQL",
+   "[회사] (주)아이리젠\n[직무] 유통 ERP 소프트웨어(.NET/C#, Aspx,vue.js,MS-SQL)개발.\n[핵심조건] 3년+ · 대구, 대구 동구 · 기술: Vue, MS-SQL, JavaScript, .NET, C#"
+  ],
+  "companies": [
+   "㈜데이타뱅크",
+   "(주)와이에이치데이타베이스",
+   "(주)아이리젠"
+  ]
+ },
+ {
+  "qid": "GEN0095",
+  "text": "3년차 SRE 엔지니어 (Terraform)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜에이아이스페라\n[직무] AI Spera [시스템플랫폼팀] 엔지니어 채용 공고\n[핵심조건] 경력무관 · 서울, 서울 성동구 · 기술: Elasticsearch, PostgreSQL, Kubernetes, Terraform, Jenkins, Ansible, Python, Docker",
+   "[회사] 위프로커넥티드서비시즈인크\n[직무] Cloud DevOps/SRE Engineer (경력, 0명)\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Kubernetes, Terraform, Jenkins, Spring, Azure, Linux, Java, AWS",
+   "[회사] ㈜크레버스\n[직무] [크레버스] DevOps 엔지니어 정규직 채용\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: TypeScript, PostgreSQL, Kubernetes, Terraform, Node.js, FastAPI, Python, Go"
+  ],
+  "companies": [
+   "㈜에이아이스페라",
+   "위프로커넥티드서비시즈인크",
+   "㈜크레버스"
+  ]
+ },
+ {
+  "qid": "GEN0096",
+  "text": "서울 7년차 Django 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 헥토\n[직무] 백엔드 개발자 7년 이상\n[핵심조건] 7년+ · 서울, 서울 강남구 · 기술: PostgreSQL, LangChain, LangGraph, FastAPI, Python, Django, MySQL, Java",
+   "[회사] 큐엠아이티\n[직무] [PLCO] 백엔드 개발자 / 7년 이상\n[핵심조건] 7년+ · 서울, 서울 송파구 · 기술: GitHub Actions, Spring Boot, TypeScript, PostgreSQL, MongoDB, Kotlin, JPA, Kubernetes",
+   "[회사] 케이티밀리의서재\n[직무] 백엔드 개발자 (결제 및 제휴연동 개발)\n[핵심조건] 5년+ · 서울, 서울 마포구 · 기술: Kotlin, Python, Spring, Django"
+  ],
+  "companies": [
+   "헥토",
+   "큐엠아이티",
+   "케이티밀리의서재"
+  ]
+ },
+ {
+  "qid": "GEN0097",
+  "text": "서울 경력무관 AWS 쓰는 보안 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 위버스브레인\n[직무] [Weavers Group] 시니어 인프라·보안 엔지니어\n[핵심조건] 7년+ · 서울, 서울 구로구 · 기술: Azure, AWS, GCP",
+   "[회사] 용컴에스넷㈜\n[직무] [여의도] 클라우드 운영 관리(TA), 클라우드 보안 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 영등포구 · 기술: AWS",
+   "[회사] 아이비티에스㈜\n[직무] 서버/네트웍/보안 인프라 엔지니어 모집[서울]\n[핵심조건] 1년+ · 서울, 서울 중구 · 기술: PostgreSQL, Node.js, MS-SQL, MariaDB, Jenkins, Oracle, Docker, MySQL"
+  ],
+  "companies": [
+   "위버스브레인",
+   "용컴에스넷㈜",
+   "아이비티에스㈜"
+  ]
+ },
+ {
+  "qid": "GEN0098",
+  "text": "대구 7년차 Kubernetes 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 주식회사인사이트노바\n[직무] [개발] 벡엔드 및 API 개발자 (세종, 대구)\n[핵심조건] 7년+ · 대구, 대구 동구 · 기술: Kubernetes, Docker, Redis, Java, NCP",
+   "[회사] (주)프론텍\n[직무] IT 인프라 구축 서버·스토리지 전문 엔지니어\n[핵심조건] 3년+ · 대구, 대구 북구 · 기술: Azure, Linux, AWS",
+   "[회사] (주)범일정보\n[직무] (주)범일정보와 함께 SI 개발을 해요\n[핵심조건] 2년+ · 대구, 대구 수성구 · 기술: Spring"
+  ],
+  "companies": [
+   "주식회사인사이트노바",
+   "(주)프론텍",
+   "(주)범일정보"
+  ]
+ },
+ {
+  "qid": "GEN0099",
+  "text": "2년차 QA 엔지니어 (Python)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)인피닉\n[직무] [수원/OTA] SW 테스트 엔지니어(QA) 경력 채용\n[핵심조건] 1년+ · 서울, 서울 금천구 · 기술: Python, C++",
+   "[회사] (주)인피닉\n[직무] [수원/OTA] SW 테스트 엔지니어(QA) 신입 채용\n[핵심조건] 경력무관 · 서울, 서울 금천구 · 기술: Python, C++",
+   "[회사] (주)인피닉\n[직무] [수원/AVN] SW 테스트 엔지니어(QA) 경력 채용\n[핵심조건] 1년+ · 서울, 서울 금천구 · 기술: Android, Python, C++"
+  ],
+  "companies": [
+   "(주)인피닉",
+   "(주)인피닉",
+   "(주)인피닉"
+  ]
+ },
+ {
+  "qid": "GEN0100",
+  "text": "Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 다이렉트클라우드랩\n[직무] QA 엔지니어[재택가능]\n[핵심조건] 5년+ · 서울 · 기술: Python, LLM",
+   "[회사] (주)인피닉\n[직무] [수원/OTA] SW 테스트 엔지니어(QA) 신입 채용\n[핵심조건] 경력무관 · 서울, 서울 금천구 · 기술: Python, C++",
+   "[회사] (주)인피닉\n[직무] [수원/OTA] SW 테스트 엔지니어(QA) 경력 채용\n[핵심조건] 1년+ · 서울, 서울 금천구 · 기술: Python, C++"
+  ],
+  "companies": [
+   "다이렉트클라우드랩",
+   "(주)인피닉",
+   "(주)인피닉"
+  ]
+ },
+ {
+  "qid": "GEN0101",
+  "text": "React 풀스택 개발자 3년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 가이드웨이 컨설팅\n[직무] 풀스택 개발자\n[핵심조건] 3년+ · 서울, 서울 마포구 · 기술: Node.js, MongoDB, React, AWS, Git, JavaScript",
+   "[회사] 리로아랩스\n[직무] 풀스택 개발자 (신입~3년 차)\n[핵심조건] 0년+ · 서울, 서울 강동구 · 기술: JavaScript, TypeScript, PostgreSQL, Node.js, Next.js, React, AWS",
+   "[회사] 프리그로우\n[직무] Flutter / React 풀스택 개발자\n[핵심조건] 3년+ · 지역 미상 · 기술: Flutter, React, Git"
+  ],
+  "companies": [
+   "가이드웨이 컨설팅",
+   "리로아랩스",
+   "프리그로우"
+  ]
+ },
+ {
+  "qid": "GEN0102",
+  "text": "2년차 TypeScript 풀스택 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 쿤텍(주)\n[직무] 응용SW 풀스택 개발자(2↑)\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: TypeScript, Node.js, Python, React, Linux, Java, JavaScript",
+   "[회사] 쿤텍\n[직무] 응용SW 풀스택 개발자 2년 이상\n[핵심조건] 2년+ · 경기, 경기 성남시 · 기술: TypeScript, Node.js, Python, React, Linux, Java, JavaScript",
+   "[회사] (주)아이피나우\n[직무] 웹서비스 풀스택 개발자 채용\n[핵심조건] 2년+ · 서울, 서울 서초구 · 기술: JavaScript, TypeScript, PostgreSQL, Node.js, Next.js, Jenkins, Oracle, Docker"
+  ],
+  "companies": [
+   "쿤텍(주)",
+   "쿤텍",
+   "(주)아이피나우"
+  ]
+ },
+ {
+  "qid": "GEN0103",
+  "text": "경남 3년차 Go 시스템 프로그래머",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 지아이시스템 주식회사\n[직무] 소프트웨어 개발자 모집\n[핵심조건] 3년+ · 경남, 경남 창원시 · 기술: 명시 없음",
+   "[회사] 지아이시스템 주식회사\n[직무] 하드웨어 개발자 모집\n[핵심조건] 3년+ · 경남, 경남 창원시 · 기술: 명시 없음",
+   "[회사] (주)이진솔루션\n[직무] SI 시스템 개발자 경력 채용\n[핵심조건] 3년+ · 경남, 경남 창원시 · 기술: Spring, Oracle, Java"
+  ],
+  "companies": [
+   "지아이시스템 주식회사",
+   "지아이시스템 주식회사",
+   "(주)이진솔루션"
+  ]
+ },
+ {
+  "qid": "GEN0104",
+  "text": "광주 5년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 엔아이스퀘어\n[직무] 응용 시스템 개발자 모집\n[핵심조건] 경력무관 · 광주 · 기술: Python",
+   "[회사] (주)이글이비전\n[직무] [주식회사 이글이비전] 개발자 채용(신입)\n[핵심조건] 경력무관 · 광주, 광주 북구 · 기술: Python, Java, C#",
+   "[회사] ㈜위치스\n[직무] AI 개발팀 신입/주니어 개발자 모집\n[핵심조건] 0년+ · 광주, 광주 남구 · 기술: Python, LLM, RAG"
+  ],
+  "companies": [
+   "엔아이스퀘어",
+   "(주)이글이비전",
+   "㈜위치스"
+  ]
+ },
+ {
+  "qid": "GEN0105",
+  "text": "PyTorch 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(전남광주)\n[핵심조건] 경력무관 · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++",
+   "[회사] 인트플로우㈜\n[직무] [인트플로우] AI 개발자 채용(경력 2년 이상/전남광주)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++",
+   "[회사] 인트플로우(주)\n[직무] 인트플로우에서 AI개발자를 찾습니다(2년 이상/광주, 전남)\n[핵심조건] 2년+ · 광주, 광주 동구 · 기술: PyTorch, Python, Docker, Linux, Git, LLM, C++"
+  ],
+  "companies": [
+   "인트플로우㈜",
+   "인트플로우㈜",
+   "인트플로우(주)"
+  ]
+ },
+ {
+  "qid": "GEN0106",
+  "text": "서울 신입 TypeScript 프론트엔드 개발자",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 브레인즈컴퍼니㈜\n[직무] [상장사/성수역/대졸초임 4천] 프론트엔드 개발자 (신입/경력)\n[핵심조건] 0년+ · 서울, 서울 성동구 · 기술: JavaScript, TypeScript, Vue, Kubernetes, Git",
+   "[회사] (주)에리어72\n[직무] 프론트엔드 개발자\n[핵심조건] 0년+ · 서울, 서울 중구 · 기술: TypeScript, React, Git, LLM",
+   "[회사] 서울이동통신㈜\n[직무] 서울이동통신에서 프론트엔드/백엔드/앱 개발자를 모집합니다.\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: React Native, JavaScript, TypeScript, React, Linux, HTML, CSS"
+  ],
+  "companies": [
+   "브레인즈컴퍼니㈜",
+   "(주)에리어72",
+   "서울이동통신㈜"
+  ]
+ },
+ {
+  "qid": "GEN0107",
+  "text": "3년차 백엔드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 인투씨엔에스\n[직무] 백엔드 개발자 (Java/Spring Boot, 3-5년)\n[핵심조건] 3년+ · 경기, 경기 용인시 · 기술: Spring Boot, MariaDB, Docker, MySQL, Linux, Java, Git",
+   "[회사] ㈜인투씨엔에스\n[직무] [경력] 백엔드 개발자 채용(Java/Spring Boot, 3년-5년)\n[핵심조건] 3년+ · 경기, 경기 용인시 · 기술: Spring Boot, MariaDB, Docker, MySQL, Linux, Java, Git",
+   "[회사] (주)인투씨엔에스\n[직무] [경력] 백엔드 개발자 채용(Java/Spring Boot, 3~5년)(채용시 마감)\n[핵심조건] 3년+ · 경기, 경기 용인시 · 기술: Spring Boot, MariaDB, Docker, MySQL, Linux, Java, Git"
+  ],
+  "companies": [
+   "인투씨엔에스",
+   "㈜인투씨엔에스",
+   "(주)인투씨엔에스"
+  ]
+ },
+ {
+  "qid": "GEN0108",
+  "text": "부산 데이터 사이언티스트 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)스마트뱅크\n[직무] AI 서비스 플랫폼 개발자(경력) 모집(PYTHON)\n[핵심조건] 3년+ · 부산, 부산 연제구 · 기술: PostgreSQL, LangChain, LangGraph, Python, Oracle, MySQL, Linux, Git",
+   "[회사] ㈜케이에스씨앤씨(KSC&C Inc.)\n[직무] [경력] AI 기반 업무자동화(RPA) 개발자 채용 (UiPath 우대, 부산 근무)\n[핵심조건] 경력무관 · 부산, 부산 남구 · 기술: Python, Java, C++, .NET, C#",
+   "[회사] 에이치에스소프트(주)\n[직무] [부산지사] AI 개발자 채용\n[핵심조건] 4년+ · 부산, 부산 중구 · 기술: TensorFlow, PyTorch, Python, SQL"
+  ],
+  "companies": [
+   "(주)스마트뱅크",
+   "㈜케이에스씨앤씨(KSC&C Inc.)",
+   "에이치에스소프트(주)"
+  ]
+ },
+ {
+  "qid": "GEN0109",
+  "text": "7년차 백엔드 개발자 (PHP)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)애드포러스\n[직무] 백엔드 개발자 (7년 이상) PHP/ Java / 다양한 언어 환영\n[핵심조건] 7년+ · 서울, 서울 강남구 · 기술: Elasticsearch, PostgreSQL, MariaDB, Python, Docker, Kafka, Java, PHP",
+   "[회사] 큐엠아이티\n[직무] [PLCO] 백엔드 개발자 / 7년 이상\n[핵심조건] 7년+ · 서울, 서울 송파구 · 기술: GitHub Actions, Spring Boot, TypeScript, PostgreSQL, MongoDB, Kotlin, JPA, Kubernetes",
+   "[회사] 헥토\n[직무] 백엔드 개발자 7년 이상\n[핵심조건] 7년+ · 서울, 서울 강남구 · 기술: PostgreSQL, LangChain, LangGraph, FastAPI, Python, Django, MySQL, Java"
+  ],
+  "companies": [
+   "(주)애드포러스",
+   "큐엠아이티",
+   "헥토"
+  ]
+ },
+ {
+  "qid": "GEN0110",
+  "text": "대전 프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 트루밸류\n[직무] 프론트엔드 개발자 (육아휴직대체)\n[핵심조건] 0년+ · 대전, 대전 서구 · 기술: React Native, Spring Boot, JavaScript, TypeScript, Next.js, Docker, React, Java",
+   "[회사] ㈜다하미커뮤니케이션즈\n[직무] 대전연구소 웹서비스 어플리케이션 개발 담당자 채용\n[핵심조건] 3년+ · 대전, 대전 중구 · 기술: Spring Boot, JavaScript, PostgreSQL, Vue, jQuery, Oracle, React, MySQL",
+   "[회사] (주)씨앤테크\n[직무] [대전] (주)씨앤테크 - React 기반 프론트 개발자 채용 공고\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: React, AWS"
+  ],
+  "companies": [
+   "트루밸류",
+   "㈜다하미커뮤니케이션즈",
+   "(주)씨앤테크"
+  ]
+ },
+ {
+  "qid": "GEN0111",
+  "text": "3년차 Terraform DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜크레버스\n[직무] [크레버스] DevOps 엔지니어 정규직 채용\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: TypeScript, PostgreSQL, Kubernetes, Terraform, Node.js, FastAPI, Python, Go",
+   "[회사] 안랩블록체인컴퍼니\n[직무] DevOps 엔지니어\n[핵심조건] 3년+ · 지역 미상 · 기술: GitHub Actions, Terraform, Python, Redis, AWS, Git",
+   "[회사] (주)미리디\n[직무] [미리캔버스] 데브옵스 엔지니어 (DevOps Engineer)\n[핵심조건] 경력무관 · 지역 미상 · 기술: GitHub Actions, PostgreSQL, Kubernetes, Terraform, MongoDB, Python, Linux, AWS"
+  ],
+  "companies": [
+   "㈜크레버스",
+   "안랩블록체인컴퍼니",
+   "(주)미리디"
+  ]
+ },
+ {
+  "qid": "GEN0112",
+  "text": "인천 1년차 Kubernetes 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)인피니에이아이\n[직무] AI 개발자 채용 (OCR·문서분류·데이터셋 검증·이상탐지 모델)\n[핵심조건] 1년+ · 인천, 인천 부평구 · 기술: Kubernetes, TensorFlow, PyTorch, Python, Docker, Linux, Git",
+   "[회사] (주)디스페이스\n[직무] (주)디스페이스 드론 관제 플랫폼(Web GCS) 풀스택 개발자 경력 채용 공고\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: TypeScript, PostgreSQL, LangChain, FastAPI, Android, Kotlin, Python, Django",
+   "[회사] 인아텍앤코포㈜\n[직무] 스마트팩토리 [ACS S/W], [로봇제어 S/W] 개발자 경력직 채용\n[핵심조건] 경력무관 · 인천, 인천 남동구 · 기술: JavaScript, Python, Java, Git, C++, C#, Linux"
+  ],
+  "companies": [
+   "(주)인피니에이아이",
+   "(주)디스페이스",
+   "인아텍앤코포㈜"
+  ]
+ },
+ {
+  "qid": "GEN0113",
+  "text": "인천 경력무관 프론트엔드 React 개발자",
+  "category": "region_focus",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)루다시스\n[직무] React 프론트엔드 개발자 채용(신입/경력)\n[핵심조건] 경력무관 · 인천, 인천 연수구 · 기술: JavaScript, TypeScript, React, Git",
+   "[회사] ㈜제이투이\n[직무] [React/Vue SI 인천] 공항 관리시스템 개발-8월 (7)\n[핵심조건] 경력무관 · 인천, 인천 중구 · 기술: JavaScript, React, Vue, AWS",
+   "[회사] 홍익정보기술(주)\n[직무] 웹 개발자 경력자 모십니다.\n[핵심조건] 5년+ · 인천, 인천 부평구 · 기술: React"
+  ],
+  "companies": [
+   "(주)루다시스",
+   "㈜제이투이",
+   "홍익정보기술(주)"
+  ]
+ },
+ {
+  "qid": "GEN0114",
+  "text": "인천 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜넷유\n[직무] (Netis Systmes Co., Ltd) 펌웨어 개발자(임베디드 펌웨어 개발)\n[핵심조건] 경력무관 · 인천, 인천 영종구 · 기술: C++, Linux",
+   "[회사] 주식회사 레디츠\n[직무] IoT / AI / 임베디드 / 웹,앱 개발자 채용공고\n[핵심조건] 경력무관 · 인천, 인천 서해구 · 기술: JavaScript, TypeScript, Python, C++",
+   "[회사] (주)레디츠\n[직무] 개발 직군 채용 : AI / 임베디드 / 어플리케이션 개발\n[핵심조건] 경력무관 · 인천, 인천 서해구 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "㈜넷유",
+   "주식회사 레디츠",
+   "(주)레디츠"
+  ]
+ },
+ {
+  "qid": "GEN0115",
+  "text": "경기 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜뉴엔에이아이\n[직무] [신입 / 경력] 소셜 빅데이터 분석 컨설턴트(데이터 사이언티스트) 채용\n[핵심조건] 경력무관 · 경기, 경기 고양시 · 기술: Python",
+   "[회사] 메가존클라우드㈜\n[직무] 보안 데이터 분석 엔지니어 채용 (SIEM/SOAR/Senior)\n[핵심조건] 0년+ · 경기, 경기 과천시 · 기술: Python",
+   "[회사] 투네이션\n[직무] 데이터 사이언티스트 (3년 이상)\n[핵심조건] 3년+ · 경기, 경기 성남시 · 기술: TensorFlow, PyTorch, Python, LLM, SQL"
+  ],
+  "companies": [
+   "㈜뉴엔에이아이",
+   "메가존클라우드㈜",
+   "투네이션"
+  ]
+ },
+ {
+  "qid": "GEN0116",
+  "text": "Java 다루는 안드로이드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] ㈜푸투라소프트\n[직무] JAVA 개발자 모집 공고 (경력)\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: JavaScript, Vue, React, Java",
+   "[회사] 시선소프트(주)\n[직무] 공공정보시스템 IT 구축 개발자\n[핵심조건] 5년+ · 대전, 대전 유성구 · 기술: Android, Java, iOS",
+   "[회사] 펜타시스템테크놀러지㈜\n[직무] JAVA 개발자 모집 공고 (계약직 신입)\n[핵심조건] 경력무관 · 대전, 대전 유성구 · 기술: Java"
+  ],
+  "companies": [
+   "㈜푸투라소프트",
+   "시선소프트(주)",
+   "펜타시스템테크놀러지㈜"
+  ]
+ },
+ {
+  "qid": "GEN0117",
+  "text": "서울 3년차 Java 쓰는데 Spring 말고 다른 프레임워크 쓰는 곳",
+  "category": "negative_signal",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)드림위드컴퍼니\n[직무] [경력3년] JAVA 개발자 채용 - PHP 등 복수개발언어 가능자 우대\n[핵심조건] 3년+ · 서울, 서울 강북구 · 기술: Node.js, Next.js, Spring, React, MySQL, Java, PHP, JavaScript",
+   "[회사] ㈜위즈커뮤니케이션\n[직무] Java 백엔드 정규직 개발자 구인\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Spring Boot, Oracle, Azure, Java",
+   "[회사] ㈜아이디알소프트\n[직무] 신입/경력 3년 이하 네트워크·연계 플랫폼 개발 엔지니어\n[핵심조건] 0년+ · 서울, 서울 종로구 · 기술: Spring Boot, JavaScript, PostgreSQL, MariaDB, Oracle, Java"
+  ],
+  "companies": [
+   "(주)드림위드컴퍼니",
+   "㈜위즈커뮤니케이션",
+   "㈜아이디알소프트"
+  ]
+ },
+ {
+  "qid": "GEN0118",
+  "text": "네트워크 보안 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] 아이비티에스㈜\n[직무] 서버/네트웍/보안 인프라 엔지니어 모집[서울]\n[핵심조건] 1년+ · 서울, 서울 중구 · 기술: PostgreSQL, Node.js, MS-SQL, MariaDB, Jenkins, Oracle, Docker, MySQL",
+   "[회사] (주)쿼리시스템즈\n[직무] 네트워크 보안 엔지니어 채용\n[핵심조건] 3년+ · 서울, 서울 강남구 · 기술: Linux",
+   "[회사] 시큐어트리(주)\n[직무] IT인프라 네트워크 보안 엔지니어\n[핵심조건] 경력무관 · 경기 · 기술: 명시 없음"
+  ],
+  "companies": [
+   "아이비티에스㈜",
+   "(주)쿼리시스템즈",
+   "시큐어트리(주)"
+  ]
+ },
+ {
+  "qid": "GEN0119",
+  "text": "경력무관 클라우드 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)오픈소스컨설팅\n[직무] 쿠버네티스(Kubernetes) 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Kubernetes, Ansible, Python",
+   "[회사] ㈜유더블유에스\n[직무] 클라우드 시스템 구축/운영 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Kubernetes, Python, Azure, Linux, Java, AWS, NCP",
+   "[회사] ㈜필상\n[직무] [대전/IT] 서버 · 클라우드 엔지니어 채용(신입/경력 무관)\n[핵심조건] 0년+ · 대전, 대전 유성구 · 기술: GitHub Actions, Kubernetes, Terraform, Jenkins, Ansible, Docker, GitLab, Azure"
+  ],
+  "companies": [
+   "(주)오픈소스컨설팅",
+   "㈜유더블유에스",
+   "㈜필상"
+  ]
+ },
+ {
+  "qid": "GEN0120",
+  "text": "Kubernetes SRE 엔지니어 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "contexts": [
+   "[회사] (주)오픈소스컨설팅\n[직무] 쿠버네티스(Kubernetes) 엔지니어\n[핵심조건] 경력무관 · 서울, 서울 강남구 · 기술: Kubernetes, Ansible, Python",
+   "[회사] 위프로커넥티드서비시즈인크\n[직무] Cloud DevOps/SRE Engineer (경력, 0명)\n[핵심조건] 경력무관 · 경기, 경기 성남시 · 기술: Kubernetes, Terraform, Jenkins, Spring, Azure, Linux, Java, AWS",
+   "[회사] 시프트원㈜\n[직무] DevOps/MLOps 플랫폼 엔지니어 (Kubernetes) - 중,고급\n[핵심조건] 경력무관 · 경기, 경기 이천시 · 기술: Kubernetes, Terraform, Python, Linux, AWS, LLM, RAG, Go"
+  ],
+  "companies": [
+   "(주)오픈소스컨설팅",
+   "위프로커넥티드서비시즈인크",
+   "시프트원㈜"
+  ]
+ }
+]

@@ -1,0 +1,6542 @@
+[
+ {
+  "id": "q01",
+  "text": "서울 3년차 Java 백엔드 개발자",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 25861.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q02",
+  "text": "경기 신입 React 프론트엔드 채용",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 913.1,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q03",
+  "text": "서울 5년차 Python 데이터 엔지니어",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 852.2,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q04",
+  "text": "서울 경력무관 TypeScript 쓰는 회사",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 837.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q05",
+  "text": "서울 5년차 AWS 인프라 엔지니어",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 813.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q06",
+  "text": "경기 3년차 PostgreSQL 다루는 백엔드",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 844.4,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q07",
+  "text": "서울 경력무관 LLM 활용하는 AI 엔지니어",
+  "category": "tech_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 926.4,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q08",
+  "text": "서울 3년차 Python 개발자 채용",
+  "category": "region_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 917.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q09",
+  "text": "경기도 신입 Java 개발자",
+  "category": "region_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 947.0,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q10",
+  "text": "대전 3년차 React 소프트웨어 엔지니어",
+  "category": "region_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 904.6,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q11",
+  "text": "부산 신입 Spring 개발자 채용",
+  "category": "region_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 823.0,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q12",
+  "text": "인천 경력무관 프론트엔드 React 개발자",
+  "category": "region_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 796.5,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q13",
+  "text": "광주 신입 Node.js 백엔드 개발자",
+  "category": "region_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 803.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q14",
+  "text": "서울 신입 Python 개발자 채용",
+  "category": "exp_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 849.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q15",
+  "text": "서울 경력 3년 이상 Java 개발자",
+  "category": "exp_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 895.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q16",
+  "text": "경기 경력 5년차 Spring 백엔드",
+  "category": "exp_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 816.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q17",
+  "text": "서울 경력무관 React 개발자 채용",
+  "category": "exp_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 813.7,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q18",
+  "text": "서울 시니어 Java 개발자",
+  "category": "exp_focus",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 899.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "q19",
+  "text": "강남에서 3년차 Java 백엔드 개발자",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 831.3,
+  "spec_regions": [
+   "서울 강남구"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q20",
+  "text": "판교 신입 React 프론트엔드 개발자",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 839.7,
+  "spec_regions": [
+   "경기 성남시"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q21",
+  "text": "분당 경력무관 Python 개발자 채용",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 796.3,
+  "spec_regions": [
+   "경기 성남시"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q22",
+  "text": "여의도 3년차 금융 IT Java 개발자",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 796.4,
+  "spec_regions": [
+   "서울 영등포구"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q23",
+  "text": "성남 신입 Spring 백엔드",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 812.2,
+  "spec_regions": [
+   "경기 성남시"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q24",
+  "text": "역삼 경력무관 React 스타트업 채용",
+  "category": "colloquial_region",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 803.8,
+  "spec_regions": [
+   "서울 강남구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q25",
+  "text": "서울 3년차 스프링부트 하는 회사",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 855.9,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q26",
+  "text": "서울 신입 리액트 개발자",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 807.2,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q27",
+  "text": "서울 5년차 쿠버네티스 다루는 데브옵스",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 914.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q28",
+  "text": "경기 3년차 도커 쓰는 백엔드",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 842.7,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q29",
+  "text": "서울 신입 노드js 백엔드 개발자",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 813.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q30",
+  "text": "서울 경력무관 파이썬 데이터 분석가",
+  "category": "tech_alias",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 831.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q31",
+  "text": "서울에서 3년차 Java Spring 백엔드",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 914.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q32",
+  "text": "경기 신입 React 프론트엔드",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 846.9,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q33",
+  "text": "서울 3년차 Python 개발자",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 854.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q34",
+  "text": "서울 신입 TypeScript 프론트엔드 개발자",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 858.0,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q35",
+  "text": "서울 5년 이상 AWS 인프라 엔지니어",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 945.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q36",
+  "text": "서울 경력무관 LLM 엔지니어",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 825.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q37",
+  "text": "서울 신입 Spring 백엔드 개발자",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 865.0,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q38",
+  "text": "경기 5년차 Docker 데브옵스",
+  "category": "combo_balanced",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 855.0,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q39",
+  "text": "서울 강남 스프링부트 3년차 백엔드",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 805.6,
+  "spec_regions": [
+   "서울 강남구"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q40",
+  "text": "경기 판교 신입 프론트엔드 리액트",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 800.5,
+  "spec_regions": [
+   "경기 성남시"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q41",
+  "text": "부산 신입 Java 백엔드 개발자",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 816.0,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q42",
+  "text": "대전 경력무관 Python 데이터 엔지니어",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 816.5,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q43",
+  "text": "서울 시니어 쿠버네티스 데브옵스",
+  "category": "combo_dense",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 976.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "q44",
+  "text": "대구에서 5년차 Kubernetes 다루는 시니어 개발자",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 840.4,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q45",
+  "text": "제주에서 신입 React 프론트엔드 개발자",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 355.2,
+  "spec_regions": [
+   "제주"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q46",
+  "text": "울산 3년차 Python 데이터 엔지니어",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 815.2,
+  "spec_regions": [
+   "울산"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q47",
+  "text": "충북 신입 Java 백엔드 개발자",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 795.5,
+  "spec_regions": [
+   "충북"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q48",
+  "text": "경남 3년차 Go 시스템 프로그래머",
+  "category": "sparse_relax",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 820.5,
+  "spec_regions": [
+   "경남"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q49",
+  "text": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까",
+  "category": "freeform",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 890.4,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q50",
+  "text": "서울 3년차 재택 가능한 Java 백엔드 개발자 자리 찾아요",
+  "category": "freeform",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 909.9,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q51",
+  "text": "서울 3년차 설립 10년 이상 된 회사에서 Java 백엔드 개발자",
+  "category": "parser_trap",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 902.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q52",
+  "text": "서울 Vue 3년 경험 프론트엔드",
+  "category": "parser_trap",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 966.7,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "q53",
+  "text": "서울 golang 10년차 서버 개발자",
+  "category": "parser_trap",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 969.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 10,
+  "error": null
+ },
+ {
+  "id": "q54",
+  "text": "서울 3년차 React TypeScript 프론트엔드 개발자",
+  "category": "multi_tech",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 890.2,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q55",
+  "text": "서울 신입 Python FastAPI 백엔드",
+  "category": "multi_tech",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 833.7,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q56",
+  "text": "서울 5년차 Docker Kubernetes 다루는 인프라 엔지니어",
+  "category": "multi_tech",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 975.7,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "q57",
+  "text": "서울 경력 1년차 Spring 백엔드 개발자",
+  "category": "boundary_exp",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 869.7,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "q58",
+  "text": "서울 경력 10년 이상 Java 시니어 아키텍트",
+  "category": "boundary_exp",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 914.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 10,
+  "error": null
+ },
+ {
+  "id": "q59",
+  "text": "서울 2년차 Python 주니어 개발자",
+  "category": "boundary_exp",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 844.4,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "q60",
+  "text": "서울 3년차 Java 쓰는데 Spring 말고 다른 프레임워크 쓰는 곳",
+  "category": "negative_signal",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 936.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q61",
+  "text": "서울 3년차 핀테크 쪽 Java 개발자 자리 괜찮은 데 있을까",
+  "category": "negative_signal",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 928.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q62",
+  "text": "서울 신입 계약직 말고 정규직 Python 백엔드 개발자",
+  "category": "negative_signal",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 840.7,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "q63",
+  "text": "서울 3년차 Python QA 엔지니어 테스트 자동화",
+  "category": "low_resource_role",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 894.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q64",
+  "text": "서울 3년차 AWS SRE 엔지니어 채용",
+  "category": "low_resource_role",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 893.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "q65",
+  "text": "서울 3년차 Python 보안 엔지니어 취약점 분석",
+  "category": "low_resource_role",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 900.8,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0001",
+  "text": "Unity 게임 클라이언트 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 900.3,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0002",
+  "text": "2년차 보안 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 840.8,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0003",
+  "text": "5년차 백엔드 개발자 (Node.js)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 896.6,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0004",
+  "text": "부산 1년차 Kubernetes 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 802.8,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0005",
+  "text": "서울 C++ 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 956.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0006",
+  "text": "GCP 다루는 클라우드 엔지니어 구합니다 부산",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 830.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0007",
+  "text": "Kotlin 다루는 안드로이드 개발자 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 803.5,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0008",
+  "text": "광주 데이터 엔지니어 Airflow 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 812.8,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0009",
+  "text": "SQL 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 960.6,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0010",
+  "text": "인천 데이터 분석가 Tableau 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 824.7,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0011",
+  "text": "경기 Kafka 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 863.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0012",
+  "text": "2년차 Python 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 880.5,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0013",
+  "text": "LLM 다루는 머신러닝 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 963.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0014",
+  "text": "대전 경력무관 Unity 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 850.4,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0015",
+  "text": "경기 신입 Spark 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 833.1,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0016",
+  "text": "광주 7년차 Azure 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 810.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0017",
+  "text": "광주 1년차 Swift iOS 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 822.9,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0018",
+  "text": "인천 1년차 PyTorch 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 847.8,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0019",
+  "text": "대전 1년차 Java 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 858.6,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0020",
+  "text": "대구 1년차 JavaScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 819.0,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0021",
+  "text": "대전 2년차 SQL 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 820.6,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0022",
+  "text": "Java 다루는 안드로이드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 831.7,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0023",
+  "text": "풀스택 개발자 (React)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 921.8,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0024",
+  "text": "Kubernetes SRE 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 956.6,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0025",
+  "text": "PHP 백엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 905.3,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0026",
+  "text": "Terraform SRE 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 936.1,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0027",
+  "text": "대구 7년차 GCP 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 856.7,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0028",
+  "text": "대전 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 827.0,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0029",
+  "text": "서울 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 945.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0030",
+  "text": "7년차 데이터 분석가 (SQL)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 923.1,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0031",
+  "text": "광주 1년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 823.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0032",
+  "text": "7년차 PyTorch 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 894.9,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0033",
+  "text": "서울 신입 PyTorch 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 895.9,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0034",
+  "text": "경기 2년차 PyTorch 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 888.6,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0035",
+  "text": "JavaScript 프론트엔드 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 869.3,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0036",
+  "text": "Spark 다루는 데이터 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1109.3,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0037",
+  "text": "인천 7년차 C 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 953.2,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0038",
+  "text": "5년차 Kubernetes 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 915.7,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0039",
+  "text": "5년차 데이터 분석가 (Python)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 912.0,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0040",
+  "text": "경기 5년차 Tableau 데이터 분석가",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 838.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0041",
+  "text": "대구 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 828.2,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0042",
+  "text": "Python 다루는 데이터 분석가 구합니다",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 968.0,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0043",
+  "text": "7년차 SQL 데이터 분석가",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1081.2,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0044",
+  "text": "부산 PyTorch 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 868.4,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0045",
+  "text": "대구 프론트엔드 개발자 React 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 824.5,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0046",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 834.2,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0047",
+  "text": "Kubernetes SRE 엔지니어 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 884.6,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0048",
+  "text": "Unity 다루는 게임 클라이언트 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 861.8,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0049",
+  "text": "PyTorch 다루는 머신러닝 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 869.4,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0050",
+  "text": "Vue 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 934.8,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0051",
+  "text": "SQL 다루는 데이터 엔지니어 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 861.3,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0052",
+  "text": "SQL 데이터 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 886.1,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0053",
+  "text": "SQL 다루는 데이터 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 840.7,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0054",
+  "text": "3년차 TypeScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 877.2,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0055",
+  "text": "7년차 임베디드 개발자 (C++)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 951.7,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0056",
+  "text": "서울 7년차 AWS 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 1058.0,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0057",
+  "text": "7년차 Terraform 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 982.5,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0058",
+  "text": "프론트엔드 개발자 (React)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 937.8,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0059",
+  "text": "3년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 932.9,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0060",
+  "text": "iOS 다루는 iOS 개발자 구합니다",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 980.4,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0061",
+  "text": "경기 3년차 C# 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 854.2,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0062",
+  "text": "2년차 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 846.9,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0063",
+  "text": "인천 게임 클라이언트 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 845.1,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0064",
+  "text": "대전 머신러닝 엔지니어 TensorFlow 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 824.4,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0065",
+  "text": "대구 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 837.3,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0066",
+  "text": "부산 3년차 Swift 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 834.0,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0067",
+  "text": "AWS 보안 엔지니어 3년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 895.2,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0068",
+  "text": "5년차 DevOps 엔지니어 (Docker)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 949.1,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0069",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 864.8,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0070",
+  "text": "LLM 다루는 머신러닝 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 850.0,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0071",
+  "text": "광주 iOS 개발자 Swift 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 835.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0072",
+  "text": "Kafka 다루는 데이터 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 1029.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0073",
+  "text": "대전 2년차 AWS 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 863.7,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0074",
+  "text": "광주 5년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 828.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0075",
+  "text": "5년차 프론트엔드 개발자 (Next.js)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 948.4,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0076",
+  "text": "Django 다루는 백엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1124.5,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0077",
+  "text": "서울 2년차 iOS 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 887.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0078",
+  "text": "Python 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 840.8,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0079",
+  "text": "대전 AWS 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 855.5,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0080",
+  "text": "Kotlin 안드로이드 개발자 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 899.7,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0081",
+  "text": "대전 프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 823.3,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0082",
+  "text": "광주 7년차 Kubernetes 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 844.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0083",
+  "text": "Spring Boot 백엔드 개발자 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 861.1,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0084",
+  "text": "서울 백엔드 개발자 Django 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 977.1,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0085",
+  "text": "대구 7년차 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 864.0,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0086",
+  "text": "TensorFlow 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 839.5,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0087",
+  "text": "C++ 임베디드 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 898.0,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0088",
+  "text": "프론트엔드 개발자 (Next.js)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 918.6,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0089",
+  "text": "AWS 다루는 클라우드 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 854.3,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0090",
+  "text": "경기 백엔드 개발자 Kotlin 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 854.3,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0091",
+  "text": "Azure 다루는 클라우드 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 836.3,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0092",
+  "text": "2년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 877.7,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0093",
+  "text": "임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 956.3,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0094",
+  "text": "부산 데이터 사이언티스트 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 870.8,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0095",
+  "text": "신입 QA 엔지니어 (Selenium)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 850.1,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0096",
+  "text": "Go 다루는 백엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1006.0,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0097",
+  "text": "7년차 풀스택 개발자 (React)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 954.9,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0098",
+  "text": "부산 2년차 Kubernetes 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 833.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0099",
+  "text": "경력무관 Vue 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 942.7,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0100",
+  "text": "3년차 게임 클라이언트 개발자 (C++)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 890.9,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0101",
+  "text": "서울 DevOps 엔지니어 Docker 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 1009.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0102",
+  "text": "대전 5년차 Docker 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 886.1,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0103",
+  "text": "인천 7년차 SQL 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 829.8,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0104",
+  "text": "경력무관 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 923.3,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0105",
+  "text": "광주 Linux 보안 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 828.0,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0106",
+  "text": "AWS 다루는 SRE 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 859.8,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0107",
+  "text": "서울 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 1023.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0108",
+  "text": "7년차 임베디드 개발자 (Linux)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 925.6,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0109",
+  "text": "인천 백엔드 개발자 PHP 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 848.8,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0110",
+  "text": "서울 경력무관 AWS 쓰는 보안 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 997.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0111",
+  "text": "부산 경력무관 TensorFlow 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 863.4,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0112",
+  "text": "광주 1년차 React 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 829.9,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0113",
+  "text": "인천 1년차 Kubernetes 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 853.6,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0114",
+  "text": "SQL 데이터 분석가 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 874.4,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0115",
+  "text": "대구 7년차 Kubernetes 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 865.6,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0116",
+  "text": "경력무관 데이터 분석가 (Tableau)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 922.1,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0117",
+  "text": "경기 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 859.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0118",
+  "text": "C++ 임베디드 개발자 3년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 924.6,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0119",
+  "text": "3년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 918.0,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0120",
+  "text": "광주 신입 Spring Boot 쓰는 백엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 841.6,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0121",
+  "text": "경기 데이터 분석가 Tableau 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 883.9,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0122",
+  "text": "Node.js 다루는 풀스택 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1088.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0123",
+  "text": "1년차 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1007.6,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0124",
+  "text": "대전 신입 C++ 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 881.8,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0125",
+  "text": "경기 5년차 Next.js 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 897.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0126",
+  "text": "부산 Swift 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 866.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0127",
+  "text": "서울 DevOps 엔지니어 Jenkins 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 1022.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0128",
+  "text": "신입 데이터 분석가 (Python)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 889.9,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0129",
+  "text": "Spring Boot 풀스택 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 852.9,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0130",
+  "text": "Python 데이터 사이언티스트 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 973.7,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0131",
+  "text": "5년차 데이터 엔지니어 (Spark)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 1032.0,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0132",
+  "text": "대구 데이터 분석가 SQL 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 862.2,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0133",
+  "text": "3년차 Terraform DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 888.7,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0134",
+  "text": "C# 게임 클라이언트 개발자 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 851.6,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0135",
+  "text": "Linux 임베디드 개발자 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 884.1,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0136",
+  "text": "2년차 임베디드 개발자 (Linux)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 906.9,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0137",
+  "text": "광주 백엔드 개발자 Go 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 824.4,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0138",
+  "text": "대전 클라우드 엔지니어 Azure 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 849.9,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0139",
+  "text": "부산 7년차 SQL 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 868.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0140",
+  "text": "대전 백엔드 개발자 PHP 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 828.9,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0141",
+  "text": "광주 경력무관 Linux 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 835.4,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0142",
+  "text": "GCP 다루는 클라우드 엔지니어 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 834.5,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0143",
+  "text": "대구 클라우드 엔지니어 AWS 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 843.1,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0144",
+  "text": "3년차 SRE 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 874.9,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0145",
+  "text": "5년차 AWS 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 946.0,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0146",
+  "text": "Tableau 다루는 데이터 분석가 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 866.0,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0147",
+  "text": "대구 신입 Kotlin 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 826.1,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0148",
+  "text": "부산 신입 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 860.1,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0149",
+  "text": "광주 7년차 Node.js 풀스택 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 866.6,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0150",
+  "text": "부산 경력무관 Tableau 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 852.4,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0151",
+  "text": "경기 보안 엔지니어 네트워크 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 871.7,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0152",
+  "text": "경기 3년차 Linux 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 886.6,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0153",
+  "text": "인천 2년차 Python 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 837.9,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0154",
+  "text": "대전 임베디드 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 831.5,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0155",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 860.7,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0156",
+  "text": "대전 신입 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 868.5,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0157",
+  "text": "경력무관 백엔드 개발자 (Spring Boot)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 935.3,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0158",
+  "text": "서울 백엔드 개발자 Go 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1003.8,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0159",
+  "text": "인천 경력무관 Python 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 878.9,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0160",
+  "text": "광주 2년차 Selenium 쓰는 QA 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 832.3,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0161",
+  "text": "신입 QA 엔지니어 (Git)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 878.4,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0162",
+  "text": "Tableau 데이터 분석가 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 888.9,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0163",
+  "text": "대구 GCP 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 839.3,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0164",
+  "text": "7년차 백엔드 개발자 (PHP)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 956.5,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0165",
+  "text": "경기 2년차 Go 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 868.9,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0166",
+  "text": "인천 3년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 883.8,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0167",
+  "text": "Next.js 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 923.4,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0168",
+  "text": "광주 머신러닝 엔지니어 PyTorch 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 834.3,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0169",
+  "text": "React 풀스택 개발자 3년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 877.7,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0170",
+  "text": "서울 7년차 Java 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 982.2,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0171",
+  "text": "부산 7년차 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 853.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0172",
+  "text": "인천 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 857.7,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0173",
+  "text": "1년차 백엔드 개발자 (Kotlin)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 890.9,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0174",
+  "text": "부산 7년차 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 861.5,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0175",
+  "text": "3년차 데이터 분석가 (SQL)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 906.2,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0176",
+  "text": "Swift iOS 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1067.9,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0177",
+  "text": "Unity 게임 클라이언트 개발자 경력무관",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1078.9,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0178",
+  "text": "PyTorch 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 856.3,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0179",
+  "text": "부산 프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 831.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0180",
+  "text": "광주 3년차 LLM 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 870.4,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0181",
+  "text": "5년차 데이터 엔지니어 (SQL)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 949.6,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0182",
+  "text": "2년차 SRE 엔지니어 (Linux)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 900.3,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0183",
+  "text": "5년차 SRE 엔지니어 (Linux)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 905.8,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0184",
+  "text": "대전 신입 Selenium 쓰는 QA 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 843.4,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0185",
+  "text": "부산 2년차 Terraform 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 860.5,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0186",
+  "text": "Python 머신러닝 엔지니어 2년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 888.9,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0187",
+  "text": "C# 다루는 게임 클라이언트 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 825.8,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0188",
+  "text": "네트워크 보안 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 959.7,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0189",
+  "text": "Jenkins 다루는 DevOps 엔지니어 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 868.2,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0190",
+  "text": "Next.js 프론트엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 894.2,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0191",
+  "text": "1년차 QA 엔지니어 (Git)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 859.1,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0192",
+  "text": "부산 5년차 Python 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 826.9,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0193",
+  "text": "Python 머신러닝 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 935.6,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0194",
+  "text": "부산 SRE 엔지니어 Linux 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 899.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0195",
+  "text": "Python 머신러닝 엔지니어 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 857.8,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0196",
+  "text": "인천 보안 엔지니어 네트워크 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 837.3,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0197",
+  "text": "신입 프론트엔드 개발자 (React)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 841.2,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0198",
+  "text": "대구 5년차 C 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 849.5,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0199",
+  "text": "Swift iOS 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 940.1,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0200",
+  "text": "부산 백엔드 개발자 Python 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 877.2,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0201",
+  "text": "경기 3년차 SQL 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 848.2,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0202",
+  "text": "신입 DevOps 엔지니어 (Terraform)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 858.6,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0203",
+  "text": "Django 백엔드 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 864.1,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0204",
+  "text": "Unity 게임 클라이언트 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 868.8,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0205",
+  "text": "2년차 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 882.4,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0206",
+  "text": "대전 경력무관 Azure 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 845.3,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0207",
+  "text": "부산 Selenium 쓰는 QA 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 849.9,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0208",
+  "text": "GCP 클라우드 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 892.2,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0209",
+  "text": "대구 3년차 C 임베디드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 832.8,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0210",
+  "text": "네트워크 보안 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 963.6,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0211",
+  "text": "대구 백엔드 개발자 Django 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 880.8,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0212",
+  "text": "React 다루는 프론트엔드 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 860.1,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0213",
+  "text": "대구 게임 클라이언트 개발자 C# 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 836.1,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0214",
+  "text": "대전 경력무관 Python 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 834.2,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0215",
+  "text": "5년차 C++ 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 934.5,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0216",
+  "text": "광주 머신러닝 엔지니어 TensorFlow 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 861.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0217",
+  "text": "5년차 데이터 사이언티스트 (SQL)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 924.5,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0218",
+  "text": "대구 QA 엔지니어 Selenium 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 835.3,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0219",
+  "text": "경기 2년차 Kafka 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 857.6,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0220",
+  "text": "Azure 클라우드 엔지니어 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 890.6,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0221",
+  "text": "광주 QA 엔지니어 Selenium 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 867.2,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0222",
+  "text": "인천 신입 Selenium QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 850.3,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0223",
+  "text": "Android 다루는 안드로이드 개발자 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 872.1,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0224",
+  "text": "광주 신입 GCP 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 877.3,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0225",
+  "text": "5년차 보안 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 933.8,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0226",
+  "text": "Java 안드로이드 개발자 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 922.1,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0227",
+  "text": "인천 5년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 857.9,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0228",
+  "text": "대구 신입 Kubernetes 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 870.0,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0229",
+  "text": "3년차 SRE 엔지니어 (Terraform)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 871.1,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0230",
+  "text": "신입 게임 클라이언트 개발자 (C++)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 874.7,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0231",
+  "text": "인천 5년차 Android 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 881.1,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0232",
+  "text": "Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 914.6,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0233",
+  "text": "경기 PHP 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 862.6,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0234",
+  "text": "LLM 머신러닝 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 945.8,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0235",
+  "text": "JavaScript 프론트엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 933.3,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0236",
+  "text": "C++ 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 906.8,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0237",
+  "text": "Kubernetes DevOps 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 901.1,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0238",
+  "text": "5년차 데이터 엔지니어 (Airflow)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 933.2,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0239",
+  "text": "Python 다루는 QA 엔지니어 구합니다",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1084.2,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0240",
+  "text": "대전 2년차 Spring Boot 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 859.8,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0241",
+  "text": "5년차 DevOps 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 914.8,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0242",
+  "text": "경기 3년차 PyTorch 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 873.7,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0243",
+  "text": "광주 경력무관 Python 쓰는 백엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 860.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0244",
+  "text": "Java 안드로이드 개발자 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 933.8,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0245",
+  "text": "광주 2년차 PyTorch 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 831.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0246",
+  "text": "데이터 사이언티스트 (SQL)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 958.1,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0247",
+  "text": "3년차 클라우드 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 905.7,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0248",
+  "text": "경기 5년차 Kafka 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 844.4,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0249",
+  "text": "AWS 보안 엔지니어 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 861.7,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0250",
+  "text": "경기 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 858.5,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0251",
+  "text": "인천 7년차 SQL 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 837.9,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0252",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 부산",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 858.3,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0253",
+  "text": "Java 다루는 백엔드 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 880.6,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0254",
+  "text": "TypeScript 프론트엔드 개발자 5년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 905.4,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0255",
+  "text": "Docker 다루는 DevOps 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 991.8,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0256",
+  "text": "인천 1년차 Azure 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 846.2,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0257",
+  "text": "Node.js 다루는 백엔드 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 832.9,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0258",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 994.8,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0259",
+  "text": "신입 백엔드 개발자 (Spring Boot)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 906.5,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0260",
+  "text": "경기 데이터 분석가 SQL 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 858.7,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0261",
+  "text": "Git 다루는 QA 엔지니어 구합니다 부산",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 832.2,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0262",
+  "text": "광주 5년차 TensorFlow 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 829.1,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0263",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 967.8,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0264",
+  "text": "광주 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 869.7,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0265",
+  "text": "Spark 데이터 엔지니어 경력무관",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 928.3,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0266",
+  "text": "LLM 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 976.7,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0267",
+  "text": "서울 1년차 Tableau 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 893.9,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0268",
+  "text": "서울 Linux 쓰는 보안 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 935.6,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0269",
+  "text": "C# 다루는 게임 클라이언트 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 843.2,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0270",
+  "text": "대구 5년차 네트워크 보안 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 820.0,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0271",
+  "text": "서울 7년차 Django 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1004.8,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0272",
+  "text": "5년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1030.0,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0273",
+  "text": "대구 경력무관 C++ 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 873.8,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0274",
+  "text": "2년차 QA 엔지니어 (Python)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 858.2,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0275",
+  "text": "대전 경력무관 Python 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 849.3,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0276",
+  "text": "대전 7년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 835.6,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0277",
+  "text": "경력무관 클라우드 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 969.0,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0278",
+  "text": "부산 7년차 C# 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 882.9,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0279",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 경기",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 853.2,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0280",
+  "text": "광주 5년차 TypeScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 844.5,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0281",
+  "text": "Linux SRE 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 964.3,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0282",
+  "text": "인천 3년차 Next.js 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 883.0,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0283",
+  "text": "게임 클라이언트 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 902.5,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0284",
+  "text": "대전 1년차 C# 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 848.6,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0285",
+  "text": "3년차 풀스택 개발자 (Node.js)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 919.7,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0286",
+  "text": "경기 게임 클라이언트 개발자 Unity 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 880.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0287",
+  "text": "iOS 개발자 iOS 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1029.7,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0288",
+  "text": "Go 다루는 백엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 867.4,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0289",
+  "text": "Kubernetes DevOps 엔지니어 경력무관",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 924.4,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0290",
+  "text": "광주 1년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 864.5,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0291",
+  "text": "C++ 다루는 임베디드 개발자 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 877.9,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0292",
+  "text": "Terraform DevOps 엔지니어 3년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 889.1,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0293",
+  "text": "인천 7년차 C++ 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 843.6,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0294",
+  "text": "프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 963.3,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0295",
+  "text": "경기 5년차 C# 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 936.8,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0296",
+  "text": "광주 2년차 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 820.0,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0297",
+  "text": "광주 경력무관 PyTorch 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 862.6,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0298",
+  "text": "2년차 안드로이드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 901.8,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0299",
+  "text": "대구 3년차 SQL 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 833.5,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0300",
+  "text": "대전 2년차 Linux 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 864.7,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0301",
+  "text": "React 다루는 풀스택 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1003.9,
+  "spec_regions": [
+   "서울"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0302",
+  "text": "Kubernetes 클라우드 엔지니어 신입",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 896.5,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0303",
+  "text": "광주 안드로이드 개발자 Kotlin 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 829.9,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0304",
+  "text": "Linux SRE 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 940.6,
+  "spec_regions": [],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0305",
+  "text": "LLM 머신러닝 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 891.1,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0306",
+  "text": "3년차 백엔드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 878.6,
+  "spec_regions": [],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0307",
+  "text": "Spring Boot 백엔드 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 858.9,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0308",
+  "text": "1년차 클라우드 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 885.6,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0309",
+  "text": "2년차 iOS 개발자 (Swift)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 898.3,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0310",
+  "text": "인천 2년차 LLM 쓰는 머신러닝 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 835.2,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0311",
+  "text": "대구 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 860.4,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0312",
+  "text": "부산 2년차 Python 데이터 분석가",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 871.6,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0313",
+  "text": "Jenkins 다루는 DevOps 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 836.8,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0314",
+  "text": "대전 DevOps 엔지니어 Jenkins 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 834.5,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0315",
+  "text": "부산 데이터 사이언티스트 SQL 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 868.8,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0316",
+  "text": "Terraform 다루는 SRE 엔지니어 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 868.7,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0317",
+  "text": "경기 7년차 Spring Boot 쓰는 풀스택 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 875.9,
+  "spec_regions": [
+   "경기"
+  ],
+  "spec_exp": 7,
+  "error": null
+ },
+ {
+  "id": "pq0318",
+  "text": "2년차 TypeScript 풀스택 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 893.1,
+  "spec_regions": [],
+  "spec_exp": 2,
+  "error": null
+ },
+ {
+  "id": "pq0319",
+  "text": "5년차 백엔드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 1045.8,
+  "spec_regions": [],
+  "spec_exp": 5,
+  "error": null
+ },
+ {
+  "id": "pq0320",
+  "text": "대전 3년차 Next.js 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 954.1,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": 3,
+  "error": null
+ },
+ {
+  "id": "pq0321",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 876.9,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0322",
+  "text": "신입 C 임베디드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 838.6,
+  "spec_regions": [],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0323",
+  "text": "Jenkins DevOps 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 864.4,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0324",
+  "text": "AWS 클라우드 엔지니어 경력무관",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 938.2,
+  "spec_regions": [],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0325",
+  "text": "인천 프론트엔드 개발자 Vue 경험자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 851.4,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0326",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 847.9,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0327",
+  "text": "부산 경력무관 Linux 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 851.5,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0328",
+  "text": "인천 신입 Spring Boot 풀스택 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 841.5,
+  "spec_regions": [
+   "인천"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0329",
+  "text": "부산 신입 TensorFlow 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 833.2,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0330",
+  "text": "대구 신입 JavaScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 847.0,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0331",
+  "text": "대구 1년차 Azure 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 837.1,
+  "spec_regions": [
+   "대구"
+  ],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0332",
+  "text": "React 풀스택 개발자 1년차",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 867.3,
+  "spec_regions": [],
+  "spec_exp": 1,
+  "error": null
+ },
+ {
+  "id": "pq0333",
+  "text": "대전 경력무관 Node.js 백엔드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": true,
+  "elapsed_ms": 841.6,
+  "spec_regions": [
+   "대전"
+  ],
+  "spec_exp": null,
+  "error": null
+ },
+ {
+  "id": "pq0334",
+  "text": "부산 신입 Java 안드로이드 개발자",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 848.1,
+  "spec_regions": [
+   "부산"
+  ],
+  "spec_exp": 0,
+  "error": null
+ },
+ {
+  "id": "pq0335",
+  "text": "SQL 다루는 데이터 분석가 구합니다 광주",
+  "category": "programmatic_combo",
+  "n_hits": 3,
+  "relaxed": [],
+  "dup_uid": false,
+  "region_violation": 0,
+  "exp_violation": 0,
+  "sorted_ok": false,
+  "elapsed_ms": 831.3,
+  "spec_regions": [
+   "광주"
+  ],
+  "spec_exp": null,
+  "error": null
+ }
+]

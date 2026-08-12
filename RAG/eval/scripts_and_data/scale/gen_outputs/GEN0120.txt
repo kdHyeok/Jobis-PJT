@@ -1,0 +1,7 @@
+Kubernetes SRE 엔지니어 2년차라면 정확히 맞는 공고들이 있습니다.
+
+먼저 (주)오픈소스컨설팅의 쿠버네티스(Kubernetes) 엔지니어(경력무관, 서울 강남구)는 Kubernetes, Ansible, Python 기술을 다루며 SRE 역할에 필요한 기초를 제공합니다.
+
+또한 위프로커넥티드서비시즈인크의 Cloud DevOps/SRE Engineer(경력무관, 경기 성남시)는 정확히 SRE 직무이며 Kubernetes, Terraform, Jenkins, Spring, Azure, Linux, Java, AWS를 다룹니다.
+
+더욱 고급 수준을 원한다면 시프트원㈜의 DevOps/MLOps 플랫폼 엔지니어(경력무관, 경기 이천시)는 Kubernetes, Terraform, Python, Linux, AWS, LLM, RAG, Go를 다루므로 성장에 좋은 기회입니다.

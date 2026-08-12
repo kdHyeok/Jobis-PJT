@@ -1,0 +1,9 @@
+경력 5년의 요구사항과 정확하게 일치하는 공고를 찾았습니다:
+
+**(주)무한정보기술** - 인프라 엔지니어(DevOps)
+- 경력: 5년 이상
+- 지역: 서울 영등포구
+- 근무형태: 정규직
+- 기술: Kubernetes, Docker, Jenkins, AWS, Linux, GCP, NCP
+
+본 공고는 경력 5년 이상을 요구하며, 요청하신 Docker, Kubernetes, AWS, Jenkins를 모두 다루고 있어 경력을 정확하게 활용할 수 있는 기회입니다.

@@ -1,0 +1,9 @@
+대구 1년차 JavaScript 프론트엔드 개발자라면 다음 공고들을 추천합니다.
+
+1. (주)테이큰소프트 - 경력무관 · 대구 동구 · JavaScript, TypeScript, Spring Boot, PostgreSQL, Vue, Java
+
+2. (주)소프트아이텍 - 경력무관 · 대구 동구 · JavaScript, Oracle, Java, HTML, JSP, CSS
+
+3. ㈜네트로 - 경력무관 · 대구 수성구 · JavaScript, Android, Flutter, Spring, React, Linux, iOS, Git
+
+세 공고 모두 경력 요구사항과 JavaScript 기술 요건에 정확히 맞습니다.

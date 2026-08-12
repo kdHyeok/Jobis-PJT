@@ -1,0 +1,5 @@
+조건에 맞는 LLM 머신러닝 엔지니어 공고가 있습니다:
+
+1. 주식회사 로민: ML 엔지니어 (0년+, 서울 서초구) - 기술: LLM, TensorFlow, PyTorch, Python
+2. ㈜모다플: 머신러닝 엔지니어 (경력무관, 서울 강남구) - 기술: LLM, Python
+3. 지신: LLM 머신러닝 엔지니어 (2년+, 서울 강남구) - 기술: LLM, RAG, PyTorch, Python

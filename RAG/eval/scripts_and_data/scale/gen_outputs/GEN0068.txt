@@ -1,0 +1,9 @@
+광주 머신러닝 엔지니어 PyTorch 경험자 조건을 만족하는 공고들을 소개합니다.
+
+1. 인트플로우㈜: AI 개발자를 경력무관부터 모집 중입니다. PyTorch, Python, Docker, Linux, Git, LLM, C++ 등의 기술을 필수로 요구하며, 정확히 요청하신 조건과 일치합니다(광주 동구).
+
+2. 인트플로우㈜: 2년+ 경력 AI 개발자를 모집하며, PyTorch, Python, Docker, Linux, Git, LLM, C++을 다룹니다(광주 동구).
+
+3. 인트플로우(주): 2년+ 경력 AI 개발자를 모집하며, 동일하게 PyTorch, Python, Docker, Linux, Git, LLM, C++을 다룹니다(광주, 전남).
+
+모두 같은 회사의 공고로 PyTorch와 AI 개발 조건을 완벽히 충족합니다. 경력에 맞는 공고를 선택하시면 됩니다.

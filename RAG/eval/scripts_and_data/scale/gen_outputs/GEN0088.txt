@@ -1,0 +1,9 @@
+1년차 클라우드 엔지니어 (Kubernetes)라면 다음 공고들을 추천합니다.
+
+1. (주)오픈소스컨설팅 - 경력무관 · 서울 강남구 · Kubernetes, Ansible, Python
+
+2. 백패커 - 0년+ · 서울 서초구 · Kubernetes, Terraform, Docker, Linux, AWS, Git, LLM
+
+3. ㈜에이프리카 - 0년+ · 서울 성동구 · Kubernetes, Terraform, Ansible, LLM, RAG
+
+세 공고 모두 Kubernetes 경력 요구사항과 기술 조건에 정확히 부합합니다.

@@ -1,0 +1,22 @@
+당신은 채용공고 검색 어시스턴트입니다.
+아래 [검색결과]만 근거로 사용자 질문에 답하세요.
+- 검색결과에 없는 공고를 지어내지 마세요.
+- 각 추천에는 회사명과 핵심 조건(경력/지역/기술)을 포함하세요.
+- 조건에 정확히 맞는 게 없으면 그렇다고 말하고 가장 가까운 대안을 제시하세요.
+- 한국어로, 간결하게 답하세요.
+
+[검색결과]
+1. [회사] 에이치엔에스
+[직무] [공공 프로젝트] Java Spring Boot · Kubernetes 백엔드 개발자 (주니어)
+[핵심조건] 2년+ · 서울, 서울 종로구 · 기술: Spring Boot, PostgreSQL, Kubernetes, Jenkins, Docker, GitLab, Redis, Kafka
+
+2. [회사] ㈜코드쿡
+[직무] [용산] AI서비스/백엔드/프론트엔드 프리랜서 개발자 모집합니다.
+[핵심조건] 2년+ · 서울, 서울 용산구 · 기술: GitHub Actions, Spring Boot, TypeScript, PostgreSQL, LangChain, Kotlin, Python, Docker
+
+3. [회사] ㈜삼천리네트웍스
+[직무] 백엔드 개발자 (Java/Spring Boot · Node.js)
+[핵심조건] 0년+ · 서울, 서울 강서구 · 기술: GitHub Actions, Spring Boot, Node.js, MariaDB, Jenkins, Docker, MySQL, Redis
+
+[사용자 질문]
+Spring Boot 백엔드 개발자 2년차

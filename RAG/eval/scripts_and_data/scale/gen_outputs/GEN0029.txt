@@ -1,0 +1,12 @@
+인천 지역에서 TypeScript를 다루는 프론트엔드 개발자에게 적합한 공고들입니다.
+
+1. 위플로우 - React · Next.js 프론트엔드 개발자 (0년+, 인천 서구, 기술: TypeScript, Next.js, React, Git, JavaScript)
+
+2. (주)루다시스 - React 프론트엔드 개발자 (경력무관, 인천 연수구, 기술: JavaScript, TypeScript, React, Git)
+
+모두 경력무관으로 신입부터 가능하며 TypeScript를 요구하고 있습니다. 위플로우는 Next.js 최신 기술까지 다루고 있으며, (주)루다시스는 기본적인 React 개발 환경입니다.
+
+추가 대안:
+3. ㈜공새로 - IT 개발자 (3년+, 인천 연수구, 기술: Spring Boot, JavaScript, TypeScript, React, MySQL, Linux, Java, JPA)
+
+㈜공새로는 경력 요건이 3년 이상으로 더 높습니다.

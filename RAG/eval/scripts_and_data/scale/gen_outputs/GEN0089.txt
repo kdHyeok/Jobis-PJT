@@ -1,0 +1,12 @@
+부산 신입 Java 안드로이드 개발자와 정확히 부합하는 공고는 없습니다. 다음은 가장 가까운 대안입니다.
+
+1. (주)컴나래소프트 - 0년+ · 부산 사상구 · MyBatis, Vue, Spring, Docker, Redis, Linux, Java, PHP
+   (Java 기술 포함하며 신입 대상)
+
+2. (주)아이앤텍 - 경력무관 · 부산 해운대구 · JPA, MS-SQL, MariaDB, Spring, Oracle, Java, Git
+   (신입 대상 Java 백엔드 개발자 공고)
+
+3. ㈜아이앤텍 - 0년+ · 부산 해운대구 · Spring Boot, JPA, MS-SQL, MariaDB, Oracle, Java, Git
+   (신입 대상 Java 백엔드 개발자 공고)
+
+안드로이드를 명시한 공고는 검색결과에 없어 Java 백엔드 개발자 공고들을 추천합니다.

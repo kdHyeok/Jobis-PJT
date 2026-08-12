@@ -1,0 +1,9 @@
+Spring Boot 백엔드 개발자 2년차라면 다음 공고들을 추천합니다.
+
+1. 에이치엔에스 - 2년+ · 서울 종로구 · Spring Boot, PostgreSQL, Kubernetes, Jenkins, Docker, GitLab, Redis, Kafka
+
+2. ㈜코드쿡 - 2년+ · 서울 용산구 · Spring Boot, TypeScript, PostgreSQL, LangChain, Kotlin, Python, Docker
+
+3. ㈜삼천리네트웍스 - 0년+ · 서울 강서구 · Spring Boot, Node.js, MariaDB, Jenkins, Docker, MySQL, Redis
+
+세 공고 모두 경력 요구사항과 기술 조건에 정확히 맞습니다.

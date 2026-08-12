@@ -1,0 +1,7 @@
+경력무관 클라우드 엔지니어(Kubernetes) 채용으로 정확히 맞는 공고들이 있습니다.
+
+먼저 (주)오픈소스컨설팅의 쿠버네티스(Kubernetes) 엔지니어(경력무관, 서울 강남구)는 Kubernetes, Ansible, Python 기술을 다룹니다.
+
+또한 ㈜유더블유에스의 클라우드 시스템 구축/운영 엔지니어(경력무관, 서울 강남구)는 Kubernetes, Python, Azure, Linux, Java, AWS, NCP를 다루며 클라우드 전반을 학습할 수 있습니다.
+
+대전 지역을 선호한다면, ㈜필상의 서버·클라우드 엔지니어(0년+, 대전 유성구)도 GitHub Actions, Kubernetes, Terraform, Jenkins, Ansible, Docker, GitLab, Azure를 다루므로 좋은 선택지입니다.

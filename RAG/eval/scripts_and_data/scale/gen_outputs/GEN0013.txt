@@ -1,0 +1,6 @@
+대구에서 React 경험자 프론트엔드 개발자로 지원 가능한 공고들이 있습니다:
+
+1. 에이투텍 - Web Application 개발 부문 채용 (경력무관, 대구 동구, Spring Boot, React, Azure, Java, Vue, AWS, GCP, JavaScript)
+2. (주)와이에이치데이터베이스 - 웹 개발자 채용 (3년+, 대구 수성구, Spring Boot, JavaScript, PostgreSQL, MyBatis, jQuery, Oracle, React, MySQL)
+
+(주)이씨오도 React 기술을 사용하지만 3년 이상의 경력을 요구하므로 참고하시기 바랍니다. 신입이라면 에이투텍이 가장 적합합니다.

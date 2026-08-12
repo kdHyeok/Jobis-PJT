@@ -1,0 +1,3602 @@
+[
+ {
+  "id": "q01",
+  "text": "서울 3년차 Java 백엔드 개발자",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q02",
+  "text": "경기 신입 React 프론트엔드 채용",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q03",
+  "text": "서울 5년차 Python 데이터 엔지니어",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q04",
+  "text": "서울 경력무관 TypeScript 쓰는 회사",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q05",
+  "text": "서울 5년차 AWS 인프라 엔지니어",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q06",
+  "text": "경기 3년차 PostgreSQL 다루는 백엔드",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q07",
+  "text": "서울 경력무관 LLM 활용하는 AI 엔지니어",
+  "category": "tech_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q08",
+  "text": "서울 3년차 Python 개발자 채용",
+  "category": "region_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q09",
+  "text": "경기도 신입 Java 개발자",
+  "category": "region_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q10",
+  "text": "대전 3년차 React 소프트웨어 엔지니어",
+  "category": "region_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q11",
+  "text": "부산 신입 Spring 개발자 채용",
+  "category": "region_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q12",
+  "text": "인천 경력무관 프론트엔드 React 개발자",
+  "category": "region_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q13",
+  "text": "광주 신입 Node.js 백엔드 개발자",
+  "category": "region_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q14",
+  "text": "서울 신입 Python 개발자 채용",
+  "category": "exp_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q15",
+  "text": "서울 경력 3년 이상 Java 개발자",
+  "category": "exp_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q16",
+  "text": "경기 경력 5년차 Spring 백엔드",
+  "category": "exp_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q17",
+  "text": "서울 경력무관 React 개발자 채용",
+  "category": "exp_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q18",
+  "text": "서울 시니어 Java 개발자",
+  "category": "exp_focus",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q19",
+  "text": "강남에서 3년차 Java 백엔드 개발자",
+  "category": "colloquial_region",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q20",
+  "text": "판교 신입 React 프론트엔드 개발자",
+  "category": "colloquial_region",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q21",
+  "text": "분당 경력무관 Python 개발자 채용",
+  "category": "colloquial_region",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q22",
+  "text": "여의도 3년차 금융 IT Java 개발자",
+  "category": "colloquial_region",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q23",
+  "text": "성남 신입 Spring 백엔드",
+  "category": "colloquial_region",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q24",
+  "text": "역삼 경력무관 React 스타트업 채용",
+  "category": "colloquial_region",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q25",
+  "text": "서울 3년차 스프링부트 하는 회사",
+  "category": "tech_alias",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q26",
+  "text": "서울 신입 리액트 개발자",
+  "category": "tech_alias",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q27",
+  "text": "서울 5년차 쿠버네티스 다루는 데브옵스",
+  "category": "tech_alias",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q28",
+  "text": "경기 3년차 도커 쓰는 백엔드",
+  "category": "tech_alias",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q29",
+  "text": "서울 신입 노드js 백엔드 개발자",
+  "category": "tech_alias",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q30",
+  "text": "서울 경력무관 파이썬 데이터 분석가",
+  "category": "tech_alias",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q31",
+  "text": "서울에서 3년차 Java Spring 백엔드",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q32",
+  "text": "경기 신입 React 프론트엔드",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q33",
+  "text": "서울 3년차 Python 개발자",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q34",
+  "text": "서울 신입 TypeScript 프론트엔드 개발자",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q35",
+  "text": "서울 5년 이상 AWS 인프라 엔지니어",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q36",
+  "text": "서울 경력무관 LLM 엔지니어",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q37",
+  "text": "서울 신입 Spring 백엔드 개발자",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q38",
+  "text": "경기 5년차 Docker 데브옵스",
+  "category": "combo_balanced",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q39",
+  "text": "서울 강남 스프링부트 3년차 백엔드",
+  "category": "combo_dense",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q40",
+  "text": "경기 판교 신입 프론트엔드 리액트",
+  "category": "combo_dense",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q41",
+  "text": "부산 신입 Java 백엔드 개발자",
+  "category": "combo_dense",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q42",
+  "text": "대전 경력무관 Python 데이터 엔지니어",
+  "category": "combo_dense",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q43",
+  "text": "서울 시니어 쿠버네티스 데브옵스",
+  "category": "combo_dense",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q44",
+  "text": "대구에서 5년차 Kubernetes 다루는 시니어 개발자",
+  "category": "sparse_relax",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q45",
+  "text": "제주에서 신입 React 프론트엔드 개발자",
+  "category": "sparse_relax",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q46",
+  "text": "울산 3년차 Python 데이터 엔지니어",
+  "category": "sparse_relax",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q47",
+  "text": "충북 신입 Java 백엔드 개발자",
+  "category": "sparse_relax",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q48",
+  "text": "경남 3년차 Go 시스템 프로그래머",
+  "category": "sparse_relax",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q49",
+  "text": "서울 경력무관 요즘 뜨는 AI 스타트업 Python 개발자 자리 있을까",
+  "category": "freeform",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q50",
+  "text": "서울 3년차 재택 가능한 Java 백엔드 개발자 자리 찾아요",
+  "category": "freeform",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q51",
+  "text": "서울 3년차 설립 10년 이상 된 회사에서 Java 백엔드 개발자",
+  "category": "parser_trap",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q52",
+  "text": "서울 Vue 3년 경험 프론트엔드",
+  "category": "parser_trap",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q53",
+  "text": "서울 golang 10년차 서버 개발자",
+  "category": "parser_trap",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q54",
+  "text": "서울 3년차 React TypeScript 프론트엔드 개발자",
+  "category": "multi_tech",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q55",
+  "text": "서울 신입 Python FastAPI 백엔드",
+  "category": "multi_tech",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q56",
+  "text": "서울 5년차 Docker Kubernetes 다루는 인프라 엔지니어",
+  "category": "multi_tech",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q57",
+  "text": "서울 경력 1년차 Spring 백엔드 개발자",
+  "category": "boundary_exp",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q58",
+  "text": "서울 경력 10년 이상 Java 시니어 아키텍트",
+  "category": "boundary_exp",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q59",
+  "text": "서울 2년차 Python 주니어 개발자",
+  "category": "boundary_exp",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q60",
+  "text": "서울 3년차 Java 쓰는데 Spring 말고 다른 프레임워크 쓰는 곳",
+  "category": "negative_signal",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q61",
+  "text": "서울 3년차 핀테크 쪽 Java 개발자 자리 괜찮은 데 있을까",
+  "category": "negative_signal",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q62",
+  "text": "서울 신입 계약직 말고 정규직 Python 백엔드 개발자",
+  "category": "negative_signal",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q63",
+  "text": "서울 3년차 Python QA 엔지니어 테스트 자동화",
+  "category": "low_resource_role",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q64",
+  "text": "서울 3년차 AWS SRE 엔지니어 채용",
+  "category": "low_resource_role",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "q65",
+  "text": "서울 3년차 Python 보안 엔지니어 취약점 분석",
+  "category": "low_resource_role",
+  "role": null,
+  "tech": null,
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "pq0001",
+  "text": "Unity 게임 클라이언트 개발자 7년차",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "Unity",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0002",
+  "text": "2년차 보안 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "AWS",
+  "region": "대구",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0003",
+  "text": "5년차 백엔드 개발자 (Node.js)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Node.js",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0004",
+  "text": "부산 1년차 Kubernetes 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Kubernetes",
+  "region": "부산",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0005",
+  "text": "서울 C++ 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": "서울",
+  "exp": null
+ },
+ {
+  "id": "pq0006",
+  "text": "GCP 다루는 클라우드 엔지니어 구합니다 부산",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "GCP",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0007",
+  "text": "Kotlin 다루는 안드로이드 개발자 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Kotlin",
+  "region": "대구",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0008",
+  "text": "광주 데이터 엔지니어 Airflow 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Airflow",
+  "region": "광주",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0009",
+  "text": "SQL 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "pq0010",
+  "text": "인천 데이터 분석가 Tableau 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0011",
+  "text": "경기 Kafka 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Kafka",
+  "region": "경기",
+  "exp": null
+ },
+ {
+  "id": "pq0012",
+  "text": "2년차 Python 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "Python",
+  "region": null,
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0013",
+  "text": "LLM 다루는 머신러닝 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": "서울",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0014",
+  "text": "대전 경력무관 Unity 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "Unity",
+  "region": "대전",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0015",
+  "text": "경기 신입 Spark 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Spark",
+  "region": "경기",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0016",
+  "text": "광주 7년차 Azure 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0017",
+  "text": "광주 1년차 Swift iOS 개발자",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0018",
+  "text": "인천 1년차 PyTorch 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "PyTorch",
+  "region": "인천",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0019",
+  "text": "대전 1년차 Java 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": "대전",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0020",
+  "text": "대구 1년차 JavaScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0021",
+  "text": "대전 2년차 SQL 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "SQL",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0022",
+  "text": "Java 다루는 안드로이드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0023",
+  "text": "풀스택 개발자 (React)",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "React",
+  "region": "부산",
+  "exp": null
+ },
+ {
+  "id": "pq0024",
+  "text": "Kubernetes SRE 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Kubernetes",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0025",
+  "text": "PHP 백엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "PHP",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0026",
+  "text": "Terraform SRE 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Terraform",
+  "region": "서울",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0027",
+  "text": "대구 7년차 GCP 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "GCP",
+  "region": "대구",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0028",
+  "text": "대전 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0029",
+  "text": "서울 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "서울",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0030",
+  "text": "7년차 데이터 분석가 (SQL)",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "대구",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0031",
+  "text": "광주 1년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0032",
+  "text": "7년차 PyTorch 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "PyTorch",
+  "region": null,
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0033",
+  "text": "서울 신입 PyTorch 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "PyTorch",
+  "region": "서울",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0034",
+  "text": "경기 2년차 PyTorch 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "PyTorch",
+  "region": "경기",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0035",
+  "text": "JavaScript 프론트엔드 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": "부산",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0036",
+  "text": "Spark 다루는 데이터 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Spark",
+  "region": "서울",
+  "exp": null
+ },
+ {
+  "id": "pq0037",
+  "text": "인천 7년차 C 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0038",
+  "text": "5년차 Kubernetes 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Kubernetes",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0039",
+  "text": "5년차 데이터 분석가 (Python)",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": "인천",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0040",
+  "text": "경기 5년차 Tableau 데이터 분석가",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0041",
+  "text": "대구 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "대구",
+  "exp": null
+ },
+ {
+  "id": "pq0042",
+  "text": "Python 다루는 데이터 분석가 구합니다",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "pq0043",
+  "text": "7년차 SQL 데이터 분석가",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": null,
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0044",
+  "text": "부산 PyTorch 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "PyTorch",
+  "region": "부산",
+  "exp": null
+ },
+ {
+  "id": "pq0045",
+  "text": "대구 프론트엔드 개발자 React 경험자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "React",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0046",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 경기",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0047",
+  "text": "Kubernetes SRE 엔지니어 2년차",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Kubernetes",
+  "region": "서울",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0048",
+  "text": "Unity 다루는 게임 클라이언트 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "Unity",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0049",
+  "text": "PyTorch 다루는 머신러닝 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "PyTorch",
+  "region": "경기",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0050",
+  "text": "Vue 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Vue",
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "pq0051",
+  "text": "SQL 다루는 데이터 엔지니어 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": "대전",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0052",
+  "text": "SQL 데이터 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0053",
+  "text": "SQL 다루는 데이터 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": "대구",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0054",
+  "text": "3년차 TypeScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "TypeScript",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0055",
+  "text": "7년차 임베디드 개발자 (C++)",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0056",
+  "text": "서울 7년차 AWS 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "AWS",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0057",
+  "text": "7년차 Terraform 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Terraform",
+  "region": null,
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0058",
+  "text": "프론트엔드 개발자 (React)",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "React",
+  "region": "대구",
+  "exp": null
+ },
+ {
+  "id": "pq0059",
+  "text": "3년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "AWS",
+  "region": "광주",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0060",
+  "text": "iOS 다루는 iOS 개발자 구합니다",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "iOS",
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "pq0061",
+  "text": "경기 3년차 C# 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0062",
+  "text": "2년차 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": null,
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0063",
+  "text": "인천 게임 클라이언트 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": "인천",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0064",
+  "text": "대전 머신러닝 엔지니어 TensorFlow 경험자",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "TensorFlow",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0065",
+  "text": "대구 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": "대구",
+  "exp": null
+ },
+ {
+  "id": "pq0066",
+  "text": "부산 3년차 Swift 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "부산",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0067",
+  "text": "AWS 보안 엔지니어 3년차",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "AWS",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0068",
+  "text": "5년차 DevOps 엔지니어 (Docker)",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0069",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "TypeScript",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0070",
+  "text": "LLM 다루는 머신러닝 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0071",
+  "text": "광주 iOS 개발자 Swift 경험자",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "광주",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0072",
+  "text": "Kafka 다루는 데이터 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Kafka",
+  "region": "서울",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0073",
+  "text": "대전 2년차 AWS 클라우드 엔지니어",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "AWS",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0074",
+  "text": "광주 5년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Python",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0075",
+  "text": "5년차 프론트엔드 개발자 (Next.js)",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "부산",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0076",
+  "text": "Django 다루는 백엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Django",
+  "region": "서울",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0077",
+  "text": "서울 2년차 iOS 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "iOS",
+  "region": "서울",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0078",
+  "text": "Python 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "Python",
+  "region": "광주",
+  "exp": null
+ },
+ {
+  "id": "pq0079",
+  "text": "대전 AWS 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "AWS",
+  "region": "대전",
+  "exp": null
+ },
+ {
+  "id": "pq0080",
+  "text": "Kotlin 안드로이드 개발자 신입",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Kotlin",
+  "region": "광주",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0081",
+  "text": "대전 프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": "대전",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0082",
+  "text": "광주 7년차 Kubernetes 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Kubernetes",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0083",
+  "text": "Spring Boot 백엔드 개발자 2년차",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Spring Boot",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0084",
+  "text": "서울 백엔드 개발자 Django 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Django",
+  "region": "서울",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0085",
+  "text": "대구 7년차 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "대구",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0086",
+  "text": "TensorFlow 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "TensorFlow",
+  "region": "광주",
+  "exp": null
+ },
+ {
+  "id": "pq0087",
+  "text": "C++ 임베디드 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": null,
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0088",
+  "text": "프론트엔드 개발자 (Next.js)",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "인천",
+  "exp": null
+ },
+ {
+  "id": "pq0089",
+  "text": "AWS 다루는 클라우드 엔지니어 구합니다 경기",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "AWS",
+  "region": "경기",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0090",
+  "text": "경기 백엔드 개발자 Kotlin 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Kotlin",
+  "region": "경기",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0091",
+  "text": "Azure 다루는 클라우드 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0092",
+  "text": "2년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "AWS",
+  "region": "대구",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0093",
+  "text": "임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0094",
+  "text": "부산 데이터 사이언티스트 Python 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "Python",
+  "region": "부산",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0095",
+  "text": "신입 QA 엔지니어 (Selenium)",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "부산",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0096",
+  "text": "Go 다루는 백엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Go",
+  "region": "서울",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0097",
+  "text": "7년차 풀스택 개발자 (React)",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "React",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0098",
+  "text": "부산 2년차 Kubernetes 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Kubernetes",
+  "region": "부산",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0099",
+  "text": "경력무관 Vue 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Vue",
+  "region": null,
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0100",
+  "text": "3년차 게임 클라이언트 개발자 (C++)",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": "서울",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0101",
+  "text": "서울 DevOps 엔지니어 Docker 경험자",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "서울",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0102",
+  "text": "대전 5년차 Docker 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0103",
+  "text": "인천 7년차 SQL 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0104",
+  "text": "경력무관 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "서울",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0105",
+  "text": "광주 Linux 보안 엔지니어",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "Linux",
+  "region": "광주",
+  "exp": null
+ },
+ {
+  "id": "pq0106",
+  "text": "AWS 다루는 SRE 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "AWS",
+  "region": "광주",
+  "exp": null
+ },
+ {
+  "id": "pq0107",
+  "text": "서울 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0108",
+  "text": "7년차 임베디드 개발자 (Linux)",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "Linux",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0109",
+  "text": "인천 백엔드 개발자 PHP 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "PHP",
+  "region": "인천",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0110",
+  "text": "서울 경력무관 AWS 쓰는 보안 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "AWS",
+  "region": "서울",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0111",
+  "text": "부산 경력무관 TensorFlow 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "TensorFlow",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0112",
+  "text": "광주 1년차 React 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "React",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0113",
+  "text": "인천 1년차 Kubernetes 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "인천",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0114",
+  "text": "SQL 데이터 분석가 2년차",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "경기",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0115",
+  "text": "대구 7년차 Kubernetes 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Kubernetes",
+  "region": "대구",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0116",
+  "text": "경력무관 데이터 분석가 (Tableau)",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "광주",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0117",
+  "text": "경기 데이터 분석가 Python 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": "경기",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0118",
+  "text": "C++ 임베디드 개발자 3년차",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": "대전",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0119",
+  "text": "3년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0120",
+  "text": "광주 신입 Spring Boot 쓰는 백엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Spring Boot",
+  "region": "광주",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0121",
+  "text": "경기 데이터 분석가 Tableau 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0122",
+  "text": "Node.js 다루는 풀스택 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "Node.js",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0123",
+  "text": "1년차 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "인천",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0124",
+  "text": "대전 신입 C++ 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0125",
+  "text": "경기 5년차 Next.js 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0126",
+  "text": "부산 Swift 쓰는 iOS 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "부산",
+  "exp": null
+ },
+ {
+  "id": "pq0127",
+  "text": "서울 DevOps 엔지니어 Jenkins 경험자",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Jenkins",
+  "region": "서울",
+  "exp": null
+ },
+ {
+  "id": "pq0128",
+  "text": "신입 데이터 분석가 (Python)",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0129",
+  "text": "Spring Boot 풀스택 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "Spring Boot",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0130",
+  "text": "Python 데이터 사이언티스트 7년차",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "Python",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0131",
+  "text": "5년차 데이터 엔지니어 (Spark)",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Spark",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0132",
+  "text": "대구 데이터 분석가 SQL 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0133",
+  "text": "3년차 Terraform DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Terraform",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0134",
+  "text": "C# 게임 클라이언트 개발자 2년차",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0135",
+  "text": "Linux 임베디드 개발자 신입",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "Linux",
+  "region": "서울",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0136",
+  "text": "2년차 임베디드 개발자 (Linux)",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "Linux",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0137",
+  "text": "광주 백엔드 개발자 Go 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Go",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0138",
+  "text": "대전 클라우드 엔지니어 Azure 경험자",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0139",
+  "text": "부산 7년차 SQL 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "SQL",
+  "region": "부산",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0140",
+  "text": "대전 백엔드 개발자 PHP 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "PHP",
+  "region": "대전",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0141",
+  "text": "광주 경력무관 Linux 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "Linux",
+  "region": "광주",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0142",
+  "text": "GCP 다루는 클라우드 엔지니어 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "GCP",
+  "region": "대전",
+  "exp": null
+ },
+ {
+  "id": "pq0143",
+  "text": "대구 클라우드 엔지니어 AWS 경험자",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "AWS",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0144",
+  "text": "3년차 SRE 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Kubernetes",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0145",
+  "text": "5년차 AWS 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "AWS",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0146",
+  "text": "Tableau 다루는 데이터 분석가 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "대구",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0147",
+  "text": "대구 신입 Kotlin 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Kotlin",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0148",
+  "text": "부산 신입 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "부산",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0149",
+  "text": "광주 7년차 Node.js 풀스택 개발자",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "Node.js",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0150",
+  "text": "부산 경력무관 Tableau 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0151",
+  "text": "경기 보안 엔지니어 네트워크 경험자",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "네트워크",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0152",
+  "text": "경기 3년차 Linux 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "Linux",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0153",
+  "text": "인천 2년차 Python 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Python",
+  "region": "인천",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0154",
+  "text": "대전 임베디드 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0155",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "TensorFlow",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0156",
+  "text": "대전 신입 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0157",
+  "text": "경력무관 백엔드 개발자 (Spring Boot)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Spring Boot",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0158",
+  "text": "서울 백엔드 개발자 Go 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Go",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0159",
+  "text": "인천 경력무관 Python 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "Python",
+  "region": "인천",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0160",
+  "text": "광주 2년차 Selenium 쓰는 QA 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0161",
+  "text": "신입 QA 엔지니어 (Git)",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Git",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0162",
+  "text": "Tableau 데이터 분석가 신입",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0163",
+  "text": "대구 GCP 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "GCP",
+  "region": "대구",
+  "exp": null
+ },
+ {
+  "id": "pq0164",
+  "text": "7년차 백엔드 개발자 (PHP)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "PHP",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0165",
+  "text": "경기 2년차 Go 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Go",
+  "region": "경기",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0166",
+  "text": "인천 3년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0167",
+  "text": "Next.js 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": null,
+  "exp": null
+ },
+ {
+  "id": "pq0168",
+  "text": "광주 머신러닝 엔지니어 PyTorch 경험자",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "PyTorch",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0169",
+  "text": "React 풀스택 개발자 3년차",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "React",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0170",
+  "text": "서울 7년차 Java 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0171",
+  "text": "부산 7년차 Docker DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "부산",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0172",
+  "text": "인천 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "인천",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0173",
+  "text": "1년차 백엔드 개발자 (Kotlin)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Kotlin",
+  "region": null,
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0174",
+  "text": "부산 7년차 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "부산",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0175",
+  "text": "3년차 데이터 분석가 (SQL)",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "광주",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0176",
+  "text": "Swift iOS 개발자",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "서울",
+  "exp": null
+ },
+ {
+  "id": "pq0177",
+  "text": "Unity 게임 클라이언트 개발자 경력무관",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "Unity",
+  "region": "인천",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0178",
+  "text": "PyTorch 다루는 머신러닝 엔지니어 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "PyTorch",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0179",
+  "text": "부산 프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0180",
+  "text": "광주 3년차 LLM 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": "광주",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0181",
+  "text": "5년차 데이터 엔지니어 (SQL)",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0182",
+  "text": "2년차 SRE 엔지니어 (Linux)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Linux",
+  "region": "인천",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0183",
+  "text": "5년차 SRE 엔지니어 (Linux)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Linux",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0184",
+  "text": "대전 신입 Selenium 쓰는 QA 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0185",
+  "text": "부산 2년차 Terraform 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Terraform",
+  "region": "부산",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0186",
+  "text": "Python 머신러닝 엔지니어 2년차",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "Python",
+  "region": "서울",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0187",
+  "text": "C# 다루는 게임 클라이언트 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "인천",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0188",
+  "text": "네트워크 보안 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "네트워크",
+  "region": "경기",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0189",
+  "text": "Jenkins 다루는 DevOps 엔지니어 구합니다 인천",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Jenkins",
+  "region": "인천",
+  "exp": null
+ },
+ {
+  "id": "pq0190",
+  "text": "Next.js 프론트엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "부산",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0191",
+  "text": "1년차 QA 엔지니어 (Git)",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Git",
+  "region": "서울",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0192",
+  "text": "부산 5년차 Python 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Python",
+  "region": "부산",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0193",
+  "text": "Python 머신러닝 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "Python",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0194",
+  "text": "부산 SRE 엔지니어 Linux 경험자",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Linux",
+  "region": "부산",
+  "exp": null
+ },
+ {
+  "id": "pq0195",
+  "text": "Python 머신러닝 엔지니어 신입",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "Python",
+  "region": "광주",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0196",
+  "text": "인천 보안 엔지니어 네트워크 경험자",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "네트워크",
+  "region": "인천",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0197",
+  "text": "신입 프론트엔드 개발자 (React)",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "React",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0198",
+  "text": "대구 5년차 C 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0199",
+  "text": "Swift iOS 개발자 7년차",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0200",
+  "text": "부산 백엔드 개발자 Python 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Python",
+  "region": "부산",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0201",
+  "text": "경기 3년차 SQL 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "SQL",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0202",
+  "text": "신입 DevOps 엔지니어 (Terraform)",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Terraform",
+  "region": "경기",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0203",
+  "text": "Django 백엔드 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Django",
+  "region": "인천",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0204",
+  "text": "Unity 게임 클라이언트 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "Unity",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0205",
+  "text": "2년차 임베디드 개발자 (C)",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0206",
+  "text": "대전 경력무관 Azure 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "대전",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0207",
+  "text": "부산 Selenium 쓰는 QA 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "부산",
+  "exp": null
+ },
+ {
+  "id": "pq0208",
+  "text": "GCP 클라우드 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "GCP",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0209",
+  "text": "대구 3년차 C 임베디드 개발자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "대구",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0210",
+  "text": "네트워크 보안 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "네트워크",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0211",
+  "text": "대구 백엔드 개발자 Django 경험자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Django",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0212",
+  "text": "React 다루는 프론트엔드 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "React",
+  "region": "인천",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0213",
+  "text": "대구 게임 클라이언트 개발자 C# 경험자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0214",
+  "text": "대전 경력무관 Python 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Python",
+  "region": "대전",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0215",
+  "text": "5년차 C++ 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": null,
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0216",
+  "text": "광주 머신러닝 엔지니어 TensorFlow 경험자",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "TensorFlow",
+  "region": "광주",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0217",
+  "text": "5년차 데이터 사이언티스트 (SQL)",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "SQL",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0218",
+  "text": "대구 QA 엔지니어 Selenium 경험자",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0219",
+  "text": "경기 2년차 Kafka 쓰는 데이터 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Kafka",
+  "region": "경기",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0220",
+  "text": "Azure 클라우드 엔지니어 신입",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0221",
+  "text": "광주 QA 엔지니어 Selenium 경험자",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0222",
+  "text": "인천 신입 Selenium QA 엔지니어",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Selenium",
+  "region": "인천",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0223",
+  "text": "Android 다루는 안드로이드 개발자 구합니다 경기",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Android",
+  "region": "경기",
+  "exp": null
+ },
+ {
+  "id": "pq0224",
+  "text": "광주 신입 GCP 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "GCP",
+  "region": "광주",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0225",
+  "text": "5년차 보안 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "AWS",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0226",
+  "text": "Java 안드로이드 개발자 5년차",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0227",
+  "text": "인천 5년차 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "인천",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0228",
+  "text": "대구 신입 Kubernetes 쓰는 DevOps 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0229",
+  "text": "3년차 SRE 엔지니어 (Terraform)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Terraform",
+  "region": "대전",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0230",
+  "text": "신입 게임 클라이언트 개발자 (C++)",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": "경기",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0231",
+  "text": "인천 5년차 Android 쓰는 안드로이드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Android",
+  "region": "인천",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0232",
+  "text": "Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Python",
+  "region": "대전",
+  "exp": null
+ },
+ {
+  "id": "pq0233",
+  "text": "경기 PHP 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "PHP",
+  "region": "경기",
+  "exp": null
+ },
+ {
+  "id": "pq0234",
+  "text": "LLM 머신러닝 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0235",
+  "text": "JavaScript 프론트엔드 개발자 7년차",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": "부산",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0236",
+  "text": "C++ 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": "인천",
+  "exp": null
+ },
+ {
+  "id": "pq0237",
+  "text": "Kubernetes DevOps 엔지니어 5년차",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "부산",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0238",
+  "text": "5년차 데이터 엔지니어 (Airflow)",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Airflow",
+  "region": "대전",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0239",
+  "text": "Python 다루는 QA 엔지니어 구합니다",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Python",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0240",
+  "text": "대전 2년차 Spring Boot 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Spring Boot",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0241",
+  "text": "5년차 DevOps 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "AWS",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0242",
+  "text": "경기 3년차 PyTorch 쓰는 데이터 사이언티스트 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "PyTorch",
+  "region": "경기",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0243",
+  "text": "광주 경력무관 Python 쓰는 백엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Python",
+  "region": "광주",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0244",
+  "text": "Java 안드로이드 개발자 7년차",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": "경기",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0245",
+  "text": "광주 2년차 PyTorch 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "PyTorch",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0246",
+  "text": "데이터 사이언티스트 (SQL)",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "SQL",
+  "region": "인천",
+  "exp": null
+ },
+ {
+  "id": "pq0247",
+  "text": "3년차 클라우드 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "AWS",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0248",
+  "text": "경기 5년차 Kafka 데이터 엔지니어",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Kafka",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0249",
+  "text": "AWS 보안 엔지니어 신입",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "AWS",
+  "region": "광주",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0250",
+  "text": "경기 Java 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "경기",
+  "exp": null
+ },
+ {
+  "id": "pq0251",
+  "text": "인천 7년차 SQL 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "SQL",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0252",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 부산",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "TypeScript",
+  "region": "부산",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0253",
+  "text": "Java 다루는 백엔드 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "광주",
+  "exp": null
+ },
+ {
+  "id": "pq0254",
+  "text": "TypeScript 프론트엔드 개발자 5년차",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "TypeScript",
+  "region": "부산",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0255",
+  "text": "Docker 다루는 DevOps 엔지니어 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Docker",
+  "region": "서울",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0256",
+  "text": "인천 1년차 Azure 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "인천",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0257",
+  "text": "Node.js 다루는 백엔드 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Node.js",
+  "region": "광주",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0258",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "TensorFlow",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0259",
+  "text": "신입 백엔드 개발자 (Spring Boot)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Spring Boot",
+  "region": "부산",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0260",
+  "text": "경기 데이터 분석가 SQL 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "경기",
+  "exp": null
+ },
+ {
+  "id": "pq0261",
+  "text": "Git 다루는 QA 엔지니어 구합니다 부산",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Git",
+  "region": "부산",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0262",
+  "text": "광주 5년차 TensorFlow 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "TensorFlow",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0263",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "서울",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0264",
+  "text": "광주 임베디드 개발자 C 경험자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0265",
+  "text": "Spark 데이터 엔지니어 경력무관",
+  "category": "programmatic_combo",
+  "role": "데이터 엔지니어",
+  "tech": "Spark",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0266",
+  "text": "LLM 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": "부산",
+  "exp": null
+ },
+ {
+  "id": "pq0267",
+  "text": "서울 1년차 Tableau 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Tableau",
+  "region": "서울",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0268",
+  "text": "서울 Linux 쓰는 보안 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "Linux",
+  "region": "서울",
+  "exp": null
+ },
+ {
+  "id": "pq0269",
+  "text": "C# 다루는 게임 클라이언트 개발자 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0270",
+  "text": "대구 5년차 네트워크 보안 엔지니어",
+  "category": "programmatic_combo",
+  "role": "보안 엔지니어",
+  "tech": "네트워크",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0271",
+  "text": "서울 7년차 Django 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Django",
+  "region": "서울",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0272",
+  "text": "5년차 SRE 엔지니어 (AWS)",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "AWS",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0273",
+  "text": "대구 경력무관 C++ 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": "대구",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0274",
+  "text": "2년차 QA 엔지니어 (Python)",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Python",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0275",
+  "text": "대전 경력무관 Python 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "Python",
+  "region": "대전",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0276",
+  "text": "대전 7년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Python",
+  "region": "대전",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0277",
+  "text": "경력무관 클라우드 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Kubernetes",
+  "region": "경기",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0278",
+  "text": "부산 7년차 C# 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "부산",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0279",
+  "text": "TensorFlow 다루는 데이터 사이언티스트 구합니다 경기",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "TensorFlow",
+  "region": "경기",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0280",
+  "text": "광주 5년차 TypeScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "TypeScript",
+  "region": "광주",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0281",
+  "text": "Linux SRE 엔지니어",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Linux",
+  "region": "경기",
+  "exp": null
+ },
+ {
+  "id": "pq0282",
+  "text": "인천 3년차 Next.js 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0283",
+  "text": "게임 클라이언트 개발자 C++ 경험자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C++",
+  "region": null,
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0284",
+  "text": "대전 1년차 C# 게임 클라이언트 개발자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "대전",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0285",
+  "text": "3년차 풀스택 개발자 (Node.js)",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "Node.js",
+  "region": "부산",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0286",
+  "text": "경기 게임 클라이언트 개발자 Unity 경험자",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "Unity",
+  "region": "경기",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0287",
+  "text": "iOS 개발자 iOS 경험자",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "iOS",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0288",
+  "text": "Go 다루는 백엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Go",
+  "region": "대전",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0289",
+  "text": "Kubernetes DevOps 엔지니어 경력무관",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "경기",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0290",
+  "text": "광주 1년차 Python QA 엔지니어",
+  "category": "programmatic_combo",
+  "role": "QA 엔지니어",
+  "tech": "Python",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0291",
+  "text": "C++ 다루는 임베디드 개발자 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": "대구",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0292",
+  "text": "Terraform DevOps 엔지니어 3년차",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Terraform",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0293",
+  "text": "인천 7년차 C++ 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C++",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0294",
+  "text": "프론트엔드 개발자 JavaScript 경험자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": null,
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0295",
+  "text": "경기 5년차 C# 쓰는 게임 클라이언트 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "게임 클라이언트 개발자",
+  "tech": "C#",
+  "region": "경기",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0296",
+  "text": "광주 2년차 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "광주",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0297",
+  "text": "광주 경력무관 PyTorch 데이터 사이언티스트",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "PyTorch",
+  "region": "광주",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0298",
+  "text": "2년차 안드로이드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": null,
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0299",
+  "text": "대구 3년차 SQL 쓰는 데이터 분석가 채용",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "대구",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0300",
+  "text": "대전 2년차 Linux 쓰는 SRE 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Linux",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0301",
+  "text": "React 다루는 풀스택 개발자 구합니다 서울",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "React",
+  "region": "서울",
+  "exp": null
+ },
+ {
+  "id": "pq0302",
+  "text": "Kubernetes 클라우드 엔지니어 신입",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Kubernetes",
+  "region": "경기",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0303",
+  "text": "광주 안드로이드 개발자 Kotlin 경험자",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Kotlin",
+  "region": "광주",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0304",
+  "text": "Linux SRE 엔지니어 7년차",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Linux",
+  "region": "인천",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0305",
+  "text": "LLM 머신러닝 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": null,
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0306",
+  "text": "3년차 백엔드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "대구",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0307",
+  "text": "Spring Boot 백엔드 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Spring Boot",
+  "region": "경기",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0308",
+  "text": "1년차 클라우드 엔지니어 (Kubernetes)",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Kubernetes",
+  "region": "서울",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0309",
+  "text": "2년차 iOS 개발자 (Swift)",
+  "category": "programmatic_combo",
+  "role": "iOS 개발자",
+  "tech": "Swift",
+  "region": "인천",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0310",
+  "text": "인천 2년차 LLM 쓰는 머신러닝 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "LLM",
+  "region": "인천",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0311",
+  "text": "대구 Kubernetes DevOps 엔지니어",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Kubernetes",
+  "region": "대구",
+  "exp": null
+ },
+ {
+  "id": "pq0312",
+  "text": "부산 2년차 Python 데이터 분석가",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "Python",
+  "region": "부산",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0313",
+  "text": "Jenkins 다루는 DevOps 엔지니어 구합니다 대구",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Jenkins",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0314",
+  "text": "대전 DevOps 엔지니어 Jenkins 경험자",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Jenkins",
+  "region": "대전",
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0315",
+  "text": "부산 데이터 사이언티스트 SQL 경험자",
+  "category": "programmatic_combo",
+  "role": "데이터 사이언티스트",
+  "tech": "SQL",
+  "region": "부산",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0316",
+  "text": "Terraform 다루는 SRE 엔지니어 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "SRE 엔지니어",
+  "tech": "Terraform",
+  "region": "대전",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0317",
+  "text": "경기 7년차 Spring Boot 쓰는 풀스택 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "Spring Boot",
+  "region": "경기",
+  "exp": "7년차"
+ },
+ {
+  "id": "pq0318",
+  "text": "2년차 TypeScript 풀스택 개발자",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "TypeScript",
+  "region": null,
+  "exp": "2년차"
+ },
+ {
+  "id": "pq0319",
+  "text": "5년차 백엔드 개발자 (Java)",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Java",
+  "region": "대구",
+  "exp": "5년차"
+ },
+ {
+  "id": "pq0320",
+  "text": "대전 3년차 Next.js 프론트엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "대전",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0321",
+  "text": "Next.js 다루는 프론트엔드 개발자 구합니다 대전",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Next.js",
+  "region": "대전",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0322",
+  "text": "신입 C 임베디드 개발자",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "C",
+  "region": null,
+  "exp": "신입"
+ },
+ {
+  "id": "pq0323",
+  "text": "Jenkins DevOps 엔지니어 1년차",
+  "category": "programmatic_combo",
+  "role": "DevOps 엔지니어",
+  "tech": "Jenkins",
+  "region": "대전",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0324",
+  "text": "AWS 클라우드 엔지니어 경력무관",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "AWS",
+  "region": "서울",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0325",
+  "text": "인천 프론트엔드 개발자 Vue 경험자",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "Vue",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0326",
+  "text": "TypeScript 다루는 프론트엔드 개발자 구합니다 인천",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "TypeScript",
+  "region": "인천",
+  "exp": "3년차"
+ },
+ {
+  "id": "pq0327",
+  "text": "부산 경력무관 Linux 쓰는 임베디드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "임베디드 개발자",
+  "tech": "Linux",
+  "region": "부산",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0328",
+  "text": "인천 신입 Spring Boot 풀스택 개발자",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "Spring Boot",
+  "region": "인천",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0329",
+  "text": "부산 신입 TensorFlow 머신러닝 엔지니어",
+  "category": "programmatic_combo",
+  "role": "머신러닝 엔지니어",
+  "tech": "TensorFlow",
+  "region": "부산",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0330",
+  "text": "대구 신입 JavaScript 쓰는 프론트엔드 개발자 채용",
+  "category": "programmatic_combo",
+  "role": "프론트엔드 개발자",
+  "tech": "JavaScript",
+  "region": "대구",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0331",
+  "text": "대구 1년차 Azure 쓰는 클라우드 엔지니어 채용",
+  "category": "programmatic_combo",
+  "role": "클라우드 엔지니어",
+  "tech": "Azure",
+  "region": "대구",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0332",
+  "text": "React 풀스택 개발자 1년차",
+  "category": "programmatic_combo",
+  "role": "풀스택 개발자",
+  "tech": "React",
+  "region": "인천",
+  "exp": "1년차"
+ },
+ {
+  "id": "pq0333",
+  "text": "대전 경력무관 Node.js 백엔드 개발자",
+  "category": "programmatic_combo",
+  "role": "백엔드 개발자",
+  "tech": "Node.js",
+  "region": "대전",
+  "exp": "경력무관"
+ },
+ {
+  "id": "pq0334",
+  "text": "부산 신입 Java 안드로이드 개발자",
+  "category": "programmatic_combo",
+  "role": "안드로이드 개발자",
+  "tech": "Java",
+  "region": "부산",
+  "exp": "신입"
+ },
+ {
+  "id": "pq0335",
+  "text": "SQL 다루는 데이터 분석가 구합니다 광주",
+  "category": "programmatic_combo",
+  "role": "데이터 분석가",
+  "tech": "SQL",
+  "region": "광주",
+  "exp": "5년차"
+ }
+]

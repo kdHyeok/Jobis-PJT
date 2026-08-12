@@ -1,0 +1,110 @@
+당신은 채용공고 검색 어시스턴트입니다.
+아래 [검색결과]만 근거로 사용자 질문에 답하세요.
+- 검색결과에 없는 공고를 지어내지 마세요.
+- 각 추천에는 회사명과 핵심 조건(경력/지역/기술)을 포함하세요.
+- 조건에 정확히 맞는 게 없으면 그렇다고 말하고 가장 가까운 대안을 제시하세요.
+- 한국어로, 간결하게 답하세요.
+
+[검색결과]
+1. [회사] 위프로커넥티드서비시즈인크
+[직무] Cloud DevOps/SRE Engineer (경력, 0명)
+[핵심조건] 경력 무관/미상 · 경기 성남시 · 정규직 · 기술: Kubernetes(쿠버네티스), Terraform, Jenkins(젠킨스), Spring(스프링), Azure, Linux(리눅스), Java(자바), AWS(아마존웹서비스)
+하만커넥티드서비시즈인크
+Cloud DevOps/SRE Engineer
+Wipro Limited(NYSE: WIT, BSE: 507685, NSE: WIPRO)는 IT 서비스 및 컨설팅 분야를 선도하는 글로벌 기업으로, 컨설팅, 엔지니어링, 운영 전반에 걸친 포괄적인 역량을 바탕으로 고객이 직면한 복잡한 디지털 전환 과제를 해결하는 혁신적인 솔루션을 구축하며, 미래에 대비하는 지속 가능한 비즈니스를 운영합니다.
+전 세계 65개국에서 23만 명 이상의 직원 및 비즈니스 파트너와 함께, 우리는 끊임없이 변화하는 세상 속에서도 고객, 임직원, 지역 사회가 번영할 수 있도록 노력하고 있습니다.
+Wipro는 2025년 Harman Connected Services (DTS)를 인수하여 DTS의 깊이있는 엔지니어링 전문성과 Wipro의 글로벌 컨설팅, AI, 운영 역량을 결합하여 더욱 혁신적이고 확장 가능한 디지털 제품 및 솔루션을 경험할 수 있게 되었습니다. Wipro는 SoC 설계/검증, Front/Back-end 개발, 파운드리 협업, 디자인 서비스 제공 등 반도체 설계/검증 및 소프트웨어 전 분야 사업을 진행 중입니다. 주로 삼성 SoC 관련하여 AP (Exynos), Automotive, Modem, DDI, Image Sensor 프로젝트에서 설계 검증과 PI/PD 등을 하고 있습니다.
+매출액: 약 419억 원(한국 기준)
+직원수: 약 270명 (한국 기준)
+위치: 분당 야탑 (수인분당선 야탑역 1번 출구)
+더 자세한 정보는 www.wipro.com에서 확인하실 수 있습니다.
+포지션 및 자격 요건
+Cloud DevOps/SRE Engineer
+(0명)
+직무 개요
+Our DevOps/SRE engineers bring cloud engineering skills and solid experience to the system operation domain. We can provide technical assistance and work with globally distributed engineering, operations and support peers and also enable DevOps for applications running over various cloud infrastructure throughout multi-region.
+You`ll be part of a global team of DevOps/SREs that work together and support each other to provide the best in quality of services to our company.
+Working location is Harman office at Yatap or sometimes Suwon Samsung Electronics (Near Mangpo Station, 수원 망포역 근처)
+주요 업무
+Providing support to operation mainly AWS-based infrastructure.
+Develop scripts for automation and develop services required for operational resources
+CI/CD pipeline construction/management/enhancement
+
+2. [회사] 크림(주)
+[직무] Infra/DevOps/SRE 개발자 모집
+[핵심조건] 경력 무관/미상 · 경기 성남시 · 정규직 · 기술: Elasticsearch(엘라스틱서치), Kubernetes(쿠버네티스), Terraform, Ansible, Python(파이썬), Django(장고), Flask, MySQL
+크림(주)
+Infra/DevOps/SRE 개발자 모집
+포지션 및 자격요건
+Backend
+담당업무
+ㆍKREAM 서비스 클라우드 인프라(컴퓨팅, 네트워크, 스토리지) 설계·구축·운영
+ㆍKubernetes 기반 컨테이너 오케스트레이션 환경 구축 및 고도화
+ㆍ모니터링·알림·로깅 등 관측성(Observability) 시스템 구축 및 개선
+ㆍ대규모 트래픽(드랍/이벤트 스파이크) 대응을 위한 용량 계획 및 오토스케일링 전략 수립
+ㆍMySQL, Redis, Kafka, Elasticsearch 등 데이터 인프라 운영 및 성능 최적화
+ㆍ주문/결제/정산 등 핵심 트랜잭션 시스템의 안정성·성능 개선을 위한 백엔드 협업
+ㆍ장애 대응(On-call), 사후 분석(Postmortem) 및 재발 방지 체계 수립
+ㆍ서비스 보안 강화 및 비용 최적화(FinOps)
+필요역량
+ㆍ클라우드 환경(AWS, NCP 또는 GCP)에서의 인프라 구축·운영 경험 3년 이상
+ㆍKubernetes 등 컨테이너 기반 운영 환경에 대한 이해와 실무 경험
+ㆍTerraform, Ansible 등 IaC 도구를 활용한 인프라 자동화 경험
+ㆍLinux 시스템 및 네트워크(TCP/IP, DNS, LB)에 대한 깊은 이해
+ㆍPython, Shell 등 스크립트 언어를 활용한 자동화 역량
+ㆍ주도적으로 문제를 찾고 스스로 매니징하는 역량
+ㆍ빠른 일정 속에서도 즐겁게 일할 수 있는 태도
+우대사항
+ㆍ네이버 인프라 환경 경험자 및 네이버 계열사 출신 우대
+ㆍ대용량 트래픽 서비스(커머스, 플랫폼)의 SRE/DevOps 경험
+ㆍPython 기반 백엔드(Flask/Django, Celery) 서비스 운영 환경에 대한 이해
+ㆍPrometheus, Grafana, Datadog 등 모니터링 스택 구축·운영 경험
+ㆍMySQL 이중화/샤딩, Redis Cluster, Kafka 등 데이터 인프라 운영 경험
+ㆍ장애 대응 프로세스(On-call, Postmortem 문화) 구축 경험
+ㆍSLI/SLO 기반 서비스 안정성 관리 경험
+ㆍ인프라 비용 최적화 프로젝트 수행 경험
+기타사항
+ㆍ접수기간 : 상시모집
+ㆍ접수방법 : 당사 채용 홈페이지 지원
+ㆍ자세한 상세요강은 반드시 채용 홈페이지에서 직접 확인해 주시기 바랍니다.
+기업 채용 홈페이지 바로가기 click
+
+3. [회사] (주)오픈소스컨설팅
+[직무] 리눅스 엔지니어
+[핵심조건] 경력 무관/미상 · 서울 강남구 · None · 기술: Kubernetes(쿠버네티스), Linux(리눅스)
+리눅스 엔지니어
+서비스 소개
+"Sharing Technology, Growing Together"
+[우리가 하는 일]
+오픈소스컨설팅은 클라우드 및 워크 매니지먼트 전문 기업으로, 다년간 축적된 컨설팅 노하우와 기술력을 바탕으로 성공적인 클라우드 도입 및 협업 문화 구축을 위한 전문 솔루션과 서비스를 제공합니다.
+또한 클라우드 구축, DevOps, Agile, 컨테이너 아키텍처 등 최신 오픈소스 기술에 대한 전문성을 보유하고 있으며, Atlassian, monday.com 공식 파트너로 효율적인 협업 환경 구축을 위한 솔루션과 컨설팅을 제공하고 있습니다.
+오픈스택 및 쿠버네티스 기반 오픈소스 패키징 ‘Playce Cloud'
+CNCF 실버 회원사로 고객 환경에 최적화된 클라우드 네이티브 환경 구축 지원
+국내 1위의 아틀라시안 플래티넘 파트너
+국내 유일 Atlassian Partner of the Year: Marketing Innovator 2회 수상
+Atlassian Marketplace App 개발 및 공급
+업무 효율성 및 생산성 향상을 돕는 Flexible Apps 개발
+Scaled Agile Silver Transformation Partner
+국내 최대 규모의 애자일 코치진이 기업 맞춤형 애자일 컨설팅 및 코칭 교육 서비스 제공
+[우리의 조직 문화]
+오픈소스컨설팅이 추구하는 조직은 보다 능동적입니다.
+내가 스스로 일에 즐거움을 느끼고 그 즐거움을 다른 팀원들과 나눌 때, 나의 일이 우리의 일이 되고 우리의 일이 바로 오픈소스컨설팅이 해야하는 일이 됩니다.
+각 개인이 하는 일을 실현시켜 주는 곳이 바로 오픈소스컨설팅이고, 우리는 능동적인 개인의 꿈을 실현 시켜주는 것을 추구합니다.
+Cloud 기술 기반의 인프라 환경에서 고객의 성공을 이끄는 전문가를 찾습니다.
+오픈소스컨설팅은 OpenStack, Kubernetes, Ceph Storage 기반으로 자사 솔루션인 Playce Cloud를 설계·운영하며, 한 산업의 디지털 전환을 이끌고 있습니다.
+클라우드 인프라 환경을 함께 만들어갈 인프라 전문가를 기다립니다.
+이
+포지션의 AI 예상 면접 질문이
+궁금하다면 점핏에서 확인해보세요!
+모집부문 / 상세내용
+사용 기술
+Kubernetes
+Linux
+OpenStack
+주요업무
+Linux 기반 서버 구축 및 기술 지원 (RHEL, SUSE 등)
+고객사 인프라 유지보수 및 정기 점검
+OpenStack, Ceph, Kubernetes 환경에 대한 실무 참여 및 기술 습득
+
+[사용자 질문]
+SRE 엔지니어 Kubernetes Linux Terraform (경력 4년)

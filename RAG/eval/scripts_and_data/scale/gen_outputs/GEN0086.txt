@@ -1,0 +1,9 @@
+광주 2년차 Kubernetes DevOps 엔지니어와 정확히 부합하는 공고는 제한적입니다. 다음 공고들을 검토해보세요.
+
+1. (주)성산씨엔에스 - 경력무관 · 광주 서구 · Kubernetes, Docker, Azure, AWS, GCP, Linux
+   (Kubernetes 관련이지만 신입 대상 공고입니다)
+
+2. ㈜성산씨엔에스 - 경력무관 · 광주 서구 · Kubernetes, Docker, Java, HTML, AWS, CSS
+   (클라우드/시스템 엔지니어로 Kubernetes 포함)
+
+DevOps 경력이 있다면 신입 공고지만 기술 스택이 맞아 지원 가능합니다. 정확한 DevOps 직무의 2년차 공고는 검색결과에 없습니다.

@@ -1,0 +1,5 @@
+Kubernetes를 사용하는 대구 신입 공고는 다음과 같습니다.
+
+㈜에이아이로보틱스 - 소프트웨어 개발 채용 · 신입 가능 · 대구 북구 · GitHub Actions, React Native, Kubernetes, TensorFlow, LangChain, Node.js, Next.js, FastAPI
+
+다만 순수 DevOps 엔지니어 직무는 아니며, 소프트웨어 개발 직무에 Kubernetes가 포함되어 있습니다. Kubernetes 경험을 쌓을 수 있는 좋은 기회이며, 신입도 지원 가능합니다. 더 많은 DevOps 관련 공고를 원하신다면 추가 검색을 추천드립니다.

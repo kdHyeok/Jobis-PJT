@@ -1,0 +1,7 @@
+2년차 TypeScript 풀스택 개발자 조건에 정확히 맞는 공고를 찾았습니다:
+
+1. 쿤텍(주) - 응용SW 풀스택 개발자 (2년+ · 경기 성남시 · TypeScript, Node.js, Python, React, Linux, Java, JavaScript)
+
+2. (주)아이피나우 - 웹서비스 풀스택 개발자 (2년+ · 서울 서초구 · JavaScript, TypeScript, PostgreSQL, Node.js, Next.js, Jenkins, Oracle, Docker)
+
+두 공고 모두 TypeScript와 Node.js를 필수 기술로 요구하고 있으며, 2년 이상의 경력 조건을 충족합니다.

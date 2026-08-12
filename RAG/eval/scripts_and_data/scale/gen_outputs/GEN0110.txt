@@ -1,0 +1,7 @@
+대전 프론트엔드 개발자 JavaScript 경험자 조건에 정확히 맞는 공고를 찾았습니다:
+
+1. 트루밸류 - 프론트엔드 개발자 (육아휴직대체) (0년+ · 대전 서구 · React Native, Spring Boot, JavaScript, TypeScript, Next.js, Docker, React, Java)
+
+2. (주)다하미커뮤니케이션즈 - 대전연구소 웹서비스 어플리케이션 개발 담당자 (3년+ · 대전 중구 · Spring Boot, JavaScript, PostgreSQL, Vue, jQuery, Oracle, React, MySQL)
+
+두 공고 모두 JavaScript를 포함하고 있으며 대전 지역에 위치합니다. 트루밸류는 신입도 가능하고, 다하미커뮤니케이션즈는 3년 이상의 경력을 찾고 있습니다.

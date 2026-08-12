@@ -1,0 +1,9 @@
+서울의 Golang 서버 개발자 공고가 여러 개 있습니다.
+
+1. ㈜엔시스템 - Go Lang 개발자[SKT 프로젝트] · 1년+ · 서울 강남구 · Kubernetes, Jenkins, Docker, GitLab, Linux, Git, Go, C++
+
+2. (주)트루엔 - 서버 개발자 · 8년+ · 서울 구로구 · Go, Linux, AWS
+
+3. ㈜엑셈 - Java, Golang 개발자 · 신입 가능 · 서울 강서구 · Spring Boot, PostgreSQL, MyBatis, Go, Redis, Kafka, Java, JPA
+
+정확히 10년차를 요구하는 공고는 없습니다. (주)트루엔의 8년+ 경력 공고가 가장 고경력을 요구하며, Golang으로 서버 개발을 하는 좋은 기회입니다.

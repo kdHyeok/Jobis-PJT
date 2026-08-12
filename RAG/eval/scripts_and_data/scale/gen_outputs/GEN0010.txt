@@ -1,0 +1,15 @@
+LLM 머신러닝 엔지니어 5년차 공고가 있습니다.
+
+**코데이터솔루션** - 머신러닝 엔지니어 (5년+, 서울 영등포구)
+기술: Python
+
+5년 이상의 경력을 요구하는 머신러닝 엔지니어 계약직 공고입니다.
+
+관련 공고:
+**주식회사 로민** - ML(머신러닝) 엔지니어 (경력무관, 서울 서초구)
+기술: TensorFlow, FastAPI, PyTorch, Python, LLM
+
+**㈜비인텔리전스글로벌** - 시니어 AI 엔지니어 (LLM Application) (3년+, 인천 미추홀구)
+기술: Kubernetes, LangChain, LangGraph, FastAPI, PyTorch, Python, Docker, Azure
+
+코데이터솔루션이 5년+ 경력을 직접적으로 요구하는 공고이며, 비인텔리전스글로벌도 3년+ 경력의 LLM 관련 AI 엔지니어를 찾고 있습니다.

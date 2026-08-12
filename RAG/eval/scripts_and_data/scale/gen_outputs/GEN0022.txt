@@ -1,0 +1,7 @@
+인천 지역 2년차 Python 백엔드 개발자에게 적합한 공고가 있습니다.
+
+1. (주)제이에너지로직 - EMS·BEMS 백엔드 개발자 (2년+, 인천, 기술: JavaScript, FastAPI, MariaDB, Python, Flask, MySQL, Linux, HTML)
+
+2. (주)애나 - Python 기반 백엔드 개발자 (경력무관, 인천 연수구, 기술: Python, Linux)
+
+(주)제이에너지로직은 경력 요건이 정확히 부합하며 Python 기반 개발 환경입니다. (주)애나는 신입부터 가능한 조건이므로 2년차 경력자에게 충분히 적합합니다.
