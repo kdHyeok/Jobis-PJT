@@ -209,42 +209,14 @@ PostgreSQL 한 인스턴스에 DB를 나눠 둡니다(loopback 계약을 넓히�
 | DB | 내부 `5432` | 서비스 DB와 벡터 DB |
 | CI/CD | `9090` | 3단 게이트 + 이미지 승격 배포 |
 
-### 데이터 플로우
 
-| 단계 | 하는 일 |
-|---|---|
-| **수집** | 공고 URL·원문·이미지를 받아 구조화합니다. JS 렌더 페이지는 폴백 3종으로 재수집합니다 |
-| **확인** | AI가 읽은 원문을 **사용자가 승인한 뒤에만** 분석합니다 |
-| **분석** | 요구 역량을 원자 단위로 정규화하고 커리어 조각과 대조해 상태와 근거를 만듭니다 |
-| **제안** | 부족한 역량을 프로젝트·학습 단계로 엮어 로드맵 초안(DRAFT)을 만듭니다 |
-| **확정** | 사용자가 미리보기를 확인해 **적용 또는 취소**합니다. 적용은 새 버전으로 발행됩니다 |
-
-### 정본 경계
-
-Spring Boot와 PostgreSQL이 **대화·질문·답변·분석 상태·로드맵 버전의 정본**입니다. AI는
-상태를 직접 변경하지 않고 제안만 반환하며, 상태 전이는 오케스트레이터가 독점합니다.
-
-공고 분석은 `DRAFT → 미리보기 → 적용 또는 취소`를 거치고, 적용 이력은 버전으로 남아
-되돌릴 수 있습니다.
-
-### 주요 테이블 관계
-
-<!-- 작성 예정 -->
-
----
-
-## 📚 API 문서
-
-### 주요 API 엔드포인트
-
-<!-- 작성 예정 -->
 
 ---
 
 ## 📁 프로젝트 구조
 
 ```
-jobis/
+jobis-Integration/
 ├─ frontend/              Vue 3 + Vite + TypeScript SPA
 │   ├─ src/               views · components · api.ts · router.ts
 │   ├─ tests/             단위 · 계약 · Playwright E2E
@@ -252,18 +224,26 @@ jobis/
 │   └─ ci-checks          프론트엔드가 정하는 CI 검사
 │
 ├─ backend/               Spring Boot 4 — 정본 상태 · 인증 · 분석 잡
-│   └─ src/main/resources/db/migration/    Flyway V1~V76
+│   ├─ src/main/resources/db/migration/    Flyway V1~V76
+│   └─ ci-checks          백엔드가 정하는 CI 검사
 │
-├─ AI/                    FastAPI 단일 AI 서버
+├─ AI/                    단일 AI 서버 (LangGraph 오케스트레이션 + FastAPI 진입점)
 │   ├─ src/jobis_ai/
-│   │   ├─ v2bridge/          현행 정본 엔트리포인트 (app.py)
+│   │   ├─ v2bridge/          HTTP 진입점 (FastAPI, app.py)
+│   │   ├─ graph/             LangGraph StateGraph 구성 (builder.py)
+│   │   ├─ orchestrator/      상태 전이 독점 · 관찰 규칙
 │   │   ├─ career_pipeline/   공고 구조화 · 적합도 · 역량 정규화 · 로드맵
-│   │   ├─ agents/            역할별 에이전트와 오케스트레이션 루프
+│   │   ├─ agents/            역할별 에이전트
+│   │   ├─ contracts/         계약 스키마
+│   │   ├─ capability_graph_server/   승인 Capability Graph 릴리스
 │   │   └─ eval/              플래너 정확도 · 궤적 일관성 평가 하네스
 │   ├─ tests/             LLM 호출 없는 결정론 회귀
+│   ├─ ci-checks          AI 담당이 정하는 CI 검사
 │   └─ docs/decisions.md  AI 설계 결정 D1~
 │
-├─ RAG/                   pgvector 하이브리드 검색 (BGE-M3 임베딩 + 리랭킹)
+├─ AI-v3/                 통합 이전 v3 원본 — 기능 비교·회귀 기준으로 보존 (AGENTS.md)
+│
+├─ RAG/                   pgvector 하이브리드 검색 (BGE-M3 임베딩 + 리랭킹) · ci-checks
 ├─ DATA/                  채용 사이트 크롤러 5종 + OCR 보강 + 적재
 │
 ├─ infra/                 배포 뼈대 — Infra 소유
@@ -279,10 +259,6 @@ jobis/
 └─ docs/                  문서 (정본 + 작업기록 + archive)
 ```
 
-**CI 소유권이 구조에 반영되어 있습니다.** `Jenkinsfile`·`ops/`·`infra/`·`compose.yaml`은
-파이프라인 뼈대이므로 Infra 리뷰가 필요하고, `<서비스>/ci-checks`는 각 서비스가 "무엇을
-검사할지" 직접 정합니다. 기능을 추가할 때는 대부분 CI 파일을 수정하지 않습니다. 테스트를
-추가하면 기존 파이프라인이 그것까지 실행합니다.
 
 ---
 
