@@ -977,7 +977,7 @@ async function attachResumeFile(event: Event) {
   }
   error.value = "";
   sending.value = true;
-  let text = "";
+  let text: string;
   try {
     // docx는 서버가 텍스트를 추출한다(커리어 저장소에도 함께 등록됨). txt/md는 브라우저에서 읽는다.
     text = /\.docx$/i.test(file.name)

@@ -130,7 +130,7 @@ async function attachResumeFile(event: Event) {
     return;
   }
   error.value = "";
-  let text = "";
+  let text: string;
   try {
     text = /\.docx$/i.test(file.name)
       ? ((await api.uploadCareerSource(
