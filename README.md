@@ -195,6 +195,8 @@ PostgreSQL 한 인스턴스에 DB를 나눠 둡니다(loopback 계약을 넓히�
 
 ![시스템 아키텍처](docs/images/시스템_아키텍처.png)
 
+### 런타임 구성 — 컨테이너와 호스트의 경계
+
 단일 EC2 인스턴스에서 동작합니다. **Nginx와 PostgreSQL은 컨테이너로 옮기지 않았습니다** —
 DB 접근을 loopback으로 묶어 두기 위해서이고, 애플리케이션이 `network_mode: host`를 쓰는
 것도 같은 이유입니다.
