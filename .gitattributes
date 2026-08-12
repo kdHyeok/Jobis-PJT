@@ -16,3 +16,9 @@ Dockerfile text eol=lf
 exec/*.sql -text -diff
 *.ps1 text eol=crlf
 *.bat text eol=crlf
+# 미디어는 절대 텍스트로 취급하지 않는다(줄바꿈 정규화가 파일을 깨뜨린다).
+*.webm binary
+*.mp4 binary
+*.png binary
+*.jpg binary
+*.webp binary

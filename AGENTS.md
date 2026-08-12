@@ -102,7 +102,7 @@ Jenkins와 운영이 **같은 호스트**를 쓴다(가용 메모리 약 2GB·�
 - 검증하지 않은 작업을 완료로 표시하지 않는다. 실행한 검증 명령과 결과를 `TASK.md`의
   `Verification`에 짧게 남긴다.
 - 현재 작업이 끝나면 `TASK.md`를 다음 작업의 정확한 목표와 재개 지점으로 정리한다. 영구 결정은
-  `docs/07-decision-register.md`로 옮기고 `TASK.md`에서는 해당 결정 번호만 참조한다.
+  `docs/결정-기록.md`로 옮기고 `TASK.md`에서는 해당 결정 번호만 참조한다.
 
 ## Spring JDBC와 PostgreSQL SQL 규칙
 

@@ -32,6 +32,9 @@ infra/data/
 .local-copied-do-not-use/
 *.log
 
+# 에디터 로컬 설정
+.obsidian/
+
 # 세션·실행 산출물 — 커밋 대상이 아니다
 .claude/worktrees/
 .tmp/

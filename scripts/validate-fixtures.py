@@ -10,7 +10,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS_PATH = ROOT / "contract-fixtures" / "regression-corpus.json"
-SCENARIO_DOC = ROOT / "docs" / "05-regression-scenarios.md"
+SCENARIO_DOC = ROOT / "docs" / "회귀-시나리오.md"
 
 CASE_ID = re.compile(r"^[A-Z]+-[0-9]{3}$")
 DOC_CASE_ID = re.compile(r"^###\s+([A-Z]+-[0-9]{3})\s+·", re.MULTILINE)
