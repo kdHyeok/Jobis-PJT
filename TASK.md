@@ -148,7 +148,7 @@
 - 추가 파일:
   - `frontend/tests/e2e/predeploy-ai-live.spec.ts`: 실제 8088 API·브라우저 계약을 이용한 Playwright 스모크.
   - `scripts/run-predeploy-ai-feature-smoke.ps1`: 테스트 실행, 같은 시간대 AI/backend 로그 수집, 치명 패턴 검사.
-  - `docs/16-predeploy-ai-feature-smoke.md`: 수동 채팅 순서, 자동 실행법, 합격 기준.
+  - `docs/배포전-AI-스모크-시나리오.md`: 수동 채팅 순서, 자동 실행법, 합격 기준.
 - 실측 통과:
   - 커리어 자료 17개 조각, `SKILL/CREDENTIAL/PROJECT/EDUCATION` 4종 분해·확정.
   - 일반 JobKorea URL `HTML+IFRAME` 1,650자, 한화에어로스페이스 JS URL `HTML+DIRECT_TEXT` 12,893자 수집.
@@ -536,7 +536,7 @@
 ## 2026-08-09 D049 · Capability Graph 단일 AI 내부 릴리스 전환
 
 - 상태: `IMPLEMENTED_AND_LIVE_VERIFIED`
-- 영구 결정: `docs/07-decision-register.md`의 `D049`, `AI/docs/decisions.md`의 `D143`
+- 영구 결정: `docs/결정-기록.md`의 `D049`, `AI/docs/decisions.md`의 `D143`
 - 결과: `Capability`, `ProjectTask`, `TaskRequirement`를 분리한 승인 `GraphRelease
   0.2.0-alpha.1`을 만들고 단일 AI가 기본적으로 프로세스 내부에서 읽도록 전환했다.
   8600 HTTP graph는 명시적 호환 facade로만 남았으며 기본 `start-all`은 이를 기동하지 않는다.
@@ -595,7 +595,7 @@
 
 - 마지막 갱신: `2026-08-07`
 - 상태: `CI_GREEN_MR_TO_DEVELOP_OPEN`
-- 영구 결정: `docs/07-decision-register.md`의 `D047`, `D048`
+- 영구 결정: `docs/결정-기록.md`의 `D047`, `D048`
 
 ## 지금 어디인가
 
@@ -640,14 +640,14 @@ CI 구조가 바뀌었다 — 뼈대(`Jenkinsfile`, Infra 소유)와 서비스�
 - Codex 압축 후 복구를 위한 `TASK.md`와 프로젝트 로컬 `SessionStart` 훅을 구성했다.
 - 최신 `develop` AI와 현재 JOBIS AI를 실행 산출물·비밀 파일 제외 내용 해시로 비교했다.
   감사 시작 시 최신 전용 36개, JOBIS 전용 18개, 공통 경로 변경 69개를 확인했다.
-- `docs/23-d047-latest-baseline-audit.md`에 실제 브랜치·테스트·계약 차이와 기능별
+- `docs/작업기록/23-D047-기준선-감사.md`에 실제 브랜치·테스트·계약 차이와 기능별
   `PRESERVE | IMPROVE | REPLACE | REMOVE | MISSING | CONFLICT` 분류를 기록했다.
 - 복수 직무를 임의 병합하지 않고 사용자 선택을 기다리는 최신 분석 계약·진행 이벤트와
   AI-v3 `positions[]`/resolution 경계를
   `contract-fixtures/d047/multi-role-analysis-baseline.json`으로 고정했다.
 - 같은 fixture를 현재 AI와 AI-v3 모델로 각각 검증하는 회귀 테스트 3개를 추가했다.
 - 최신 팀 AI를 실행 기준으로 삼고 AI-v3 기능을 `jobis_ai.career_pipeline` 내부 workflow로 이식하는
-  파일 단위 설계를 `docs/24-d047-single-ai-file-plan.md`에 확정했다.
+  파일 단위 설계를 `docs/작업기록/24-D047-단일-AI-구현-설계.md`에 확정했다.
 - 외부 endpoint, DTO 정본, 진행 이벤트, 세션 소유권, Spring 단일 client 전환, DB 마이그레이션,
   프론트 전환, 제거 대상과 단계별 테스트 게이트를 파일별로 지정했다.
 - Phase 0의 경력 2~4년 커리어 게이트와 보안 4년 독립 경로 fixture를 Python·Spring·프론트
@@ -720,14 +720,14 @@ CI 구조가 바뀌었다 — 뼈대(`Jenkinsfile`, Infra 소유)와 서비스�
 
 - `C:\JOBIS\AGENTS.md`
 - `C:\JOBIS\README.md`
-- `C:\JOBIS\docs\07-decision-register.md` (`D047`)
+- `C:\JOBIS\docs\결정-기록.md` (`D047`)
 - `C:\JOBIS\TASK.md`
 - `C:\JOBIS\.codex\config.toml`
 - `C:\JOBIS\.codex\hooks\session-start.ps1`
-- `C:\JOBIS\docs\23-d047-latest-baseline-audit.md`
-- `C:\JOBIS\docs\24-d047-single-ai-file-plan.md`
-- `C:\JOBIS\docs\25-project-centered-career-journey.md`
-- `C:\JOBIS\docs\26-d048-project-centered-career-journey-implementation.md`
+- `C:\JOBIS\docs\작업기록\23-D047-기준선-감사.md`
+- `C:\JOBIS\docs\작업기록\24-D047-단일-AI-구현-설계.md`
+- `C:\JOBIS\docs\작업기록\25-프로젝트-중심-커리어-그래프-설계.md`
+- `C:\JOBIS\docs\작업기록\26-D048-구현-기록.md`
 - `C:\JOBIS\contract-fixtures\README.md`
 - `C:\JOBIS\contract-fixtures\d047\multi-role-analysis-baseline.json`
 - `C:\JOBIS\contract-fixtures\d047\career-journey-acceptance.json`
@@ -824,7 +824,7 @@ Jenkins `#3`~`#7`이 연속 실패했다. 스테이지가 순차라 push마다 �
 
 ## Resume
 
-1. 이 문서와 `D048`, `docs/25-project-centered-career-journey.md`, 구현 기록 `docs/26-...md`를 읽는다.
+1. 이 문서와 `D048`, `docs/작업기록/25-프로젝트-중심-커리어-그래프-설계.md`, 구현 기록 `docs/26-...md`를 읽는다.
 2. `powershell -ExecutionPolicy Bypass -File C:\JOBIS\scripts\start-all.ps1`로 서비스를 시작한다.
 3. 새 계정 또는 사용자가 허용한 테스트 계정에서 이스트게임즈 신입 백엔드 공고를 분석·적용한다.
 4. 네이버웹툰 경력 2~4년 백엔드 공고를 추가해 하나의 지도에 취업·경력 구간 뒤로 연결되는지
@@ -1153,7 +1153,7 @@ Jenkins `#3`~`#7`이 연속 실패했다. 스테이지가 순차라 push마다 �
 - Added the map competency schedule flow, weekly/monthly learning plan, day detail drawer, learning workspace, elapsed-time redistribution, optional completion, and editable learning-resource memory.
 - Kept the canonical roadmap snapshot unchanged. New learning-plan state is browser-local until a backend persistence contract is introduced.
 - Verification: frontend typecheck, Node contract tests, Vitest, production build, Docker frontend recreation, and the live 8088 map-to-learning interaction passed. Browser console had no errors or warnings.
-- Design QA: `design-qa.md` has `final result: passed`; reference and implementation captures are in `artifacts/design-qa/`.
+- Design QA: `docs/작업기록/디자인-QA.md` has `final result: passed`; reference and implementation captures are in `artifacts/design-qa/`.
 - Git: no commit or push performed.
 
 ## 2026-08-10 Learning chat separation

@@ -123,7 +123,7 @@ AI가 붙여넣은 공고의 분석 의도를 실제로 판정하면 `ANALYZE_PO
 `RUN_STARTED → STAGE_UPDATED* → RESULT | ERROR` 순서입니다. AI 서버가 아직
 스트림 경로를 제공하지 않아 404 또는 405를 반환할 때만
 `POST /v1/analyses`로 자동 폴백합니다. 상세 계약과 예시는
-[AI 에이전트 연동 가이드](./ai-agent-integration.md)에 있습니다.
+[AI 에이전트 연동 가이드](./AI-에이전트-연동-계약.md)에 있습니다.
 
 AI의 `competencyProposal`은 다음 자료만 제안합니다.
 
