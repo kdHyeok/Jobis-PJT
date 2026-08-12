@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500" role="img" aria-label="JOBIS 로컬 실행 구성 — Compose 프로젝트 jobis-app 과 jobis-data-pipeline">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; }
+    .t    { fill: #0f172a; }
+    .tdim { fill: #4b5563; }
+    .name { font-size: 14px; font-weight: 600; }
+    .role { font-size: 11.5px; }
+    .glabel { font-size: 11.5px; font-weight: 600; letter-spacing: .2px; }
+    .edge { font-size: 11px; }
+    .ctr   { fill: #e0f2fe; stroke: #0284c7; stroke-width: 1.4; }
+    .once  { fill: none; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .grp   { fill: none; stroke: #0f172a; stroke-width: 1.6; }
+    .flow  { stroke: #0f172a; stroke-width: 1.6; fill: none; }
+    .user  { fill: #f1f5f9; stroke: #0f172a; stroke-width: 1.6; }
+    @media (prefers-color-scheme: dark) {
+      .t    { fill: #e5e9f0; }
+      .tdim { fill: #a8b3c2; }
+      .ctr  { fill: #17364f; stroke: #38bdf8; }
+      .once { stroke: #64748b; }
+      .grp  { stroke: #e5e9f0; }
+      .flow { stroke: #e5e9f0; }
+      .user { fill: #1e293b; stroke: #e5e9f0; }
+      marker path { fill: #e5e9f0; }
+    }
+  </style>
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f172a"/>
+    </marker>
+  </defs>
+
+  <rect class="user" x="20" y="12" width="860" height="38" rx="19"/>
+  <text class="t name" x="450" y="36" text-anchor="middle">브라우저 · localhost</text>
+
+  <line class="flow" x1="220" y1="50" x2="220" y2="104" marker-end="url(#b)"/>
+  <text class="tdim edge" x="228" y="80">:8088</text>
+  <line class="flow" x1="620" y1="50" x2="620" y2="104" marker-end="url(#b)"/>
+  <text class="tdim edge" x="628" y="80">:8081</text>
+  <line class="flow" x1="790" y1="50" x2="790" y2="104" marker-end="url(#b)"/>
+  <text class="tdim edge" x="798" y="80">:8765</text>
+
+  <rect class="grp" x="20" y="108" width="410" height="360" rx="8"/>
+  <text class="t glabel" x="34" y="128">Compose 프로젝트 jobis-app — compose.yaml</text>
+
+  <rect class="ctr" x="40" y="142" width="370" height="52" rx="5"/>
+  <text class="t name" x="52" y="163">frontend · 8088 → 8080</text>
+  <text class="tdim role" x="52" y="182">SPA + /api 프록시 — 이 묶음의 유일한 공개 포트</text>
+
+  <rect class="ctr" x="40" y="204" width="370" height="52" rx="5"/>
+  <text class="t name" x="52" y="225">backend · :8080 (내부)</text>
+  <text class="tdim role" x="52" y="244">Spring Boot — 정본 상태 · 인증 · 분석 잡</text>
+
+  <rect class="ctr" x="40" y="266" width="370" height="52" rx="5"/>
+  <text class="t name" x="52" y="287">ai · :8000 (내부)</text>
+  <text class="tdim role" x="52" y="306">LangGraph + FastAPI — 공고 구조화 · 로드맵</text>
+
+  <rect class="ctr" x="40" y="328" width="370" height="52" rx="5"/>
+  <text class="t name" x="52" y="349">postgres · :5432 (내부)</text>
+  <text class="tdim role" x="52" y="368">postgres:17-alpine — 서비스 DB</text>
+
+  <text class="tdim role" x="225" y="448" text-anchor="middle">bridge 네트워크 jobiss-internal — 컨테이너 이름으로 통신</text>
+
+  <rect class="grp" x="470" y="108" width="410" height="360" rx="8"/>
+  <text class="t glabel" x="484" y="128">Compose 프로젝트 jobis-data-pipeline — infra/airflow/</text>
+
+  <rect class="ctr" x="490" y="142" width="370" height="52" rx="5"/>
+  <text class="t name" x="502" y="163">airflow-webserver · 8081 → 8080 (공개)</text>
+  <text class="tdim role" x="502" y="182">DAG 상태 조회 · 수동 트리거</text>
+
+  <rect class="ctr" x="490" y="204" width="370" height="52" rx="5"/>
+  <text class="t name" x="502" y="225">rag-search · 8765 (공개)</text>
+  <text class="tdim role" x="502" y="244">공고 추천 — 벡터 + BM25 하이브리드 검색</text>
+
+  <rect class="ctr" x="490" y="266" width="370" height="52" rx="5"/>
+  <text class="t name" x="502" y="287">airflow-scheduler (포트 없음)</text>
+  <text class="tdim role" x="502" y="306">수집 · OCR · 적재 · 색인 DAG 실행</text>
+
+  <rect class="ctr" x="490" y="328" width="370" height="52" rx="5"/>
+  <text class="t name" x="502" y="349">postgres · :5432 (내부)</text>
+  <text class="tdim role" x="502" y="368">pgvector:pg16 — jobrag(벡터) + airflow(메타) DB</text>
+
+  <rect class="once" x="490" y="390" width="370" height="36" rx="5"/>
+  <text class="tdim role" x="502" y="412">일회성 컨테이너: jobrag-migrate (Flyway) · airflow-init</text>
+
+  <text class="tdim role" x="675" y="448" text-anchor="middle">bridge 네트워크 jobis-net — 컨테이너 이름으로 통신</text>
+
+  <text class="tdim role" x="450" y="488" text-anchor="middle">두 프로젝트는 네트워크와 볼륨을 공유하지 않습니다 — 파이프라인이 멈춰도 앱 묶음은 그대로 동작합니다</text>
+</svg>

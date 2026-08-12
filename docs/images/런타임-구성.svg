@@ -39,7 +39,7 @@
   <text class="tdim edge" x="462" y="63">HTTPS :443</text>
 
   <rect class="host" x="20" y="74" width="860" height="80" rx="8"/>
-  <text class="tdim glabel" x="34" y="93">호스트 프로세스 — 컨테이너 아님</text>
+  <text class="tdim glabel" x="34" y="93">호스트 프로세스</text>
   <text class="t name" x="450" y="118" text-anchor="middle">Nginx 1.24 (호스트) — TLS 종료</text>
   <text class="tdim role" x="450" y="137" text-anchor="middle">경로별 서비스 분배 · 무중단 전환용 upstream include</text>
 
@@ -93,7 +93,7 @@
   <text class="tdim edge" x="534" y="475">psycopg · pgvector</text>
 
   <rect class="host" x="20" y="484" width="860" height="76" rx="8"/>
-  <text class="tdim glabel" x="34" y="503">호스트 프로세스 — 컨테이너 아님</text>
+  <text class="tdim glabel" x="34" y="503">호스트 프로세스</text>
   <text class="t name" x="450" y="527" text-anchor="middle">PostgreSQL 16.14 — 127.0.0.1:5432 loopback 전용</text>
   <text class="tdim role" x="450" y="546" text-anchor="middle">jobiss_v2 (서비스 정본) · jobrag (벡터 색인) · airflow (메타)</text>
 </svg>

@@ -195,17 +195,25 @@ PostgreSQL 한 인스턴스에 DB를 나눠 둡니다(loopback 계약을 넓히�
 
 ![시스템 아키텍처](docs/images/시스템_아키텍처.png)
 
-### 런타임 구성 — 컨테이너와 호스트의 경계
-
-단일 EC2 인스턴스에서 동작합니다. **Nginx와 PostgreSQL은 컨테이너로 옮기지 않았습니다** —
-DB 접근을 loopback으로 묶어 두기 위해서이고, 애플리케이션이 `network_mode: host`를 쓰는
-것도 같은 이유입니다.
+### 런타임 구성 : EC2 서버 기준
 
 ![런타임 구성](docs/images/런타임-구성.svg)
+- EC2 서버의 경우, 레포지토리의 운영 방식과 다르게 애플리케이션과 데이터 파이프라인으로 구분하지 않고 하나의 컴포즈로 운영되며, DB 또한 컨테이너화 된 DB가 아닌 호스트 DB를 사용합니다.
 
-운영은 Compose 프로젝트 하나(`jobis-v2`)로 이미지 6종을 띄웁니다. 로컬은 같은 서비스를
-`jobis-app`과 `jobis-data-pipeline` 두 묶음으로 나누고 PostgreSQL도 컨테이너로 실행합니다.
+### 로컬 실행 구성 : 저장소 클론 기준
 
+저장소를 클론해 `docker compose up`으로 띄우면 **Compose 프로젝트 두 개**가 됩니다.
+
+![로컬 구성](docs/images/로컬-구성.svg)
+
+| 구분 | 운영 (EC2) | 로컬 |
+|---|---|---|
+| Compose 프로젝트 | `jobis-v2` 하나 | `jobis-app` + `jobis-data-pipeline` 두 개 |
+| 이미지 | CI가 빌드한 커밋 SHA 태그 6종 | 소스에서 직접 빌드 |
+| 네트워크 | `network_mode: host` — localhost 통신 | 프로젝트별 bridge (`jobiss-internal` / `jobis-net`) |
+| PostgreSQL | 호스트 설치 16.14 · loopback 전용 | 컨테이너 2개 — `postgres:17-alpine`(서비스) · `pgvector:pg16`(벡터·Airflow) |
+| 진입점 | 호스트 Nginx `:443` TLS → 경로 분배 | `http://localhost:8088` 직접 |
+| 시작 방법 | Jenkins가 SSH로 배포 스크립트 실행 | `docker compose up -d` (묶음별) |
 
 ### 데이터 파이프라인
 
