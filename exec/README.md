@@ -7,7 +7,6 @@
 |---|---|
 | [1-build-and-deploy.md](1-build-and-deploy.md) | 사용 제품·버전, 환경 변수, 배포 특이사항, 계정·프로퍼티 파일 목록 |
 | [2-external-services.md](2-external-services.md) | 외부 서비스 가입·발급·설정 정보 |
-| [jobis-db-dump.sql](jobis-db-dump.sql) | DB 덤프 최신본 (PostgreSQL 17 plain SQL) |
 | [4-demo-scenario.md](4-demo-scenario.md) | 시연 순서에 따른 화면별·클릭별 상세 설명 |
 
 ## 가장 빠른 재현

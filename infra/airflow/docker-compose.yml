@@ -157,7 +157,7 @@ services:
       - ocr-paddlex-cache:/home/airflow/.paddlex
       - ocr-paddle-cache:/home/airflow/.paddleocr
       # 일회성 jobis_legacy_import DAG 입력. 컨테이너에서는 고정 영문 경로로 읽는다.
-      - "${JOBIS_LEGACY_SQLITE_PATH:-../../RAG/Jobis_통합본_20260728/Jobis_통합본_20260728/all_job_postings.db}:/opt/jobis/imports/all_job_postings.db:ro"
+      - "${JOBIS_LEGACY_SQLITE_PATH:-./imports/all_job_postings.db}:/opt/jobis/imports/all_job_postings.db:ro"
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       airflow-init:
