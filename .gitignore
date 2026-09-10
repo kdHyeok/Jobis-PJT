@@ -41,3 +41,12 @@ infra/data/
 .ruff_cache/
 artifacts/
 frontend/test-results/
+
+# 크롤링 수집물 — 제3자 채용공고 원문은 저장소에 커밋하지 않는다(약관·저작권). 저장소 외부에서 보관.
+RAG/Jobis_통합본_*/
+all_job_postings.*
+infra/airflow/imports/
+
+# DB 덤프 — 실사용 스냅샷은 개인정보·제3자 공고 원문을 담으므로 커밋하지 않는다
+exec/*.sql
+exec/*.dump

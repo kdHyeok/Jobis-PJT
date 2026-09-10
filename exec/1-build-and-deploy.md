@@ -274,17 +274,15 @@ Docker 이미지에는 console script가 설치되지 않으므로 `jobis-codex-
 Airflow·RAG DB는 별도다: Airflow 메타 DB `airflow`(`AIRFLOW_DB_*`), 벡터 DB `jobrag`
 (`JOBRAG_DB_*`, `JOBRAG_PG_DSN`, `JOBRAG_FLYWAY_URL`).
 
-### 5.3 DB 덤프 복원
+### 5.3 DB 초기화
 
-`exec/jobis-db-dump.sql`은 실행 중인 서비스 DB(PostgreSQL 17)의 plain SQL 덤프이며
-`--clean --if-exists`로 생성했다. 빈 DB에 복원한다.
+저장소에는 DB 덤프를 두지 않는다. 실사용 DB 스냅샷에는 회원 이력서 원문·대화 로그·
+크롤링한 제3자 채용공고 원문이 들어가 정화가 불가능하기 때문이다. 스키마는 백엔드 기동 시
+Flyway(V1~)가 빈 DB에 만들고, 시연 데이터는 [4-demo-scenario.md](4-demo-scenario.md)
+순서대로 회원가입 후 직접 입력한다.
 
-```powershell
-docker compose up -d postgres
-Get-Content exec\jobis-db-dump.sql | docker compose exec -T postgres psql -U jobiss_migrator -d jobiss
-```
-
-복원은 운영 DB를 덮지 않고 새 DB 또는 격리 컨테이너에서 먼저 검증한다.
+운영 복구용 논리 덤프는 `infra/airflow/scripts/backup-databases.sh`가 저장소 밖에 남긴다.
+복원할 때는 운영 DB를 덮지 않고 새 DB 또는 격리 컨테이너에서 먼저 검증한다.
 
 ## 6. 실행 확인
 
