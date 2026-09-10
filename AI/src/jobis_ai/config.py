@@ -141,7 +141,7 @@ def get_settings() -> Settings:
         codex_timeout_sec=float(os.getenv("CODEX_TIMEOUT_SEC", "200")),
         codex_effort=os.getenv("CODEX_EFFORT", "low"),
         llm_base_url=os.getenv(
-            "LLM_BASE_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+            "LLM_BASE_URL", "https://api.openai.com/v1"
         ),
         llm_model=os.getenv("LLM_MODEL", "gpt-4.1-mini"),
         llm_model_light=os.getenv("LLM_MODEL_LIGHT", "gpt-4.1-mini"),
@@ -153,7 +153,7 @@ def get_settings() -> Settings:
         embed_provider=os.getenv("EMBED_PROVIDER", "null"),
         gms_key=os.getenv("GMS_KEY", ""),
         embed_base_url=os.getenv(
-            "EMBED_BASE_URL", "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+            "EMBED_BASE_URL", "https://api.openai.com/v1"
         ),
         embed_model=os.getenv("EMBED_MODEL", "text-embedding-3-small"),
         jina_api_key=os.getenv("JINA_API_KEY", ""),

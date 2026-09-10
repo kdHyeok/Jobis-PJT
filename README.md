@@ -514,3 +514,24 @@ Nginx가 **두 대**입니다. 호스트 Nginx는 TLS를 종료하고 *어느 �
 | [exec/](exec/README.md) | 포팅 매뉴얼 — 빌드·배포·외부 서비스·시연 시나리오 |
 | [ops/DEPLOYMENT.md](ops/DEPLOYMENT.md) | 배포·롤백 런북 |
 | [AGENTS.md](AGENTS.md) | 저장소 작업 규칙 |
+
+### 외부 자산·데이터 출처
+
+이 저장소의 소스코드는 팀이 직접 작성했으며 [MIT 라이선스](LICENSE)로 공개합니다.
+SSAFY가 제공한 스켈레톤 코드·이미지·데이터셋은 포함되어 있지 않습니다.
+로고·마스코트·배너·시연 영상은 팀 자체 제작물입니다.
+
+| 구분 | 이름 | 라이선스 | 사용처 |
+|---|---|---|---|
+| 코드 차용 | [Hermes Agent](https://github.com/NousResearch/hermes-agent) 0.18.2 | MIT | Codex OAuth 어댑터 일부 — 범위는 [AI/NOTICE](AI/NOTICE) |
+| 모델 | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) | MIT | RAG 임베딩 |
+| 모델 | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) | Apache-2.0 | 이미지형 공고 OCR |
+| 라이브러리 | Spring Boot · Apache Airflow · sentence-transformers · rank_bm25 | Apache-2.0 | 백엔드 · ETL · 검색 |
+| 라이브러리 | Vue · Vite · LangGraph · LangChain · FastAPI · Pydantic | MIT | 프론트엔드 · AI 서버 |
+| 라이브러리 | PostgreSQL · pgvector | PostgreSQL License | DB · 벡터 색인 |
+| 외부 API | OpenAI API (Chat · Embeddings) | 이용약관 | LLM 호출. 엔드포인트는 `LLM_BASE_URL`로 교체 가능 |
+
+**채용공고 데이터**: 잡코리아·사람인·원티드·인크루트·고용24에서 학습·연구 목적으로 수집했으며
+방법은 [DATA/데이터수집_방법론.md](DATA/데이터수집_방법론.md)에 있습니다. 수집한 공고 원문은
+각 사이트의 저작권·이용약관에 따라 **저장소에 포함하지 않습니다.** 재현하려면 수집 파이프라인
+(`DATA/crawl_*.py`, Airflow DAG)을 직접 실행합니다.

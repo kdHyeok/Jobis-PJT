@@ -71,7 +71,7 @@ def _rag_model_environment() -> dict[str, str]:
         "RAG_INGEST_WINDOW_SIZE": "64",
         "RAG_LOCAL_RERANK_BATCH_SIZE": "4",
         "RAG_GMS_OPENAI_BASE_URL": (
-            "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+            "https://api.openai.com/v1"
         ),
         "RAG_GMS_TIMEOUT_SECONDS": "60",
         "RAG_GMS_MAX_RETRIES": "2",

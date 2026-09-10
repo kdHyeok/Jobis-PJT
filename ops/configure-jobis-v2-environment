@@ -129,7 +129,7 @@ umask 077
   printf 'RAG_EMBED_BATCH_SIZE=8\n'
   printf 'RAG_INGEST_WINDOW_SIZE=64\n'
   printf 'RAG_LOCAL_RERANK_BATCH_SIZE=4\n'
-  printf 'RAG_GMS_OPENAI_BASE_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1\n'
+  printf 'RAG_GMS_OPENAI_BASE_URL=https://api.openai.com/v1\n'
   printf 'RAG_GMS_TIMEOUT_SECONDS=60\n'
   printf 'RAG_GMS_MAX_RETRIES=2\n'
   printf 'RAG_GMS_RERANK_BATCH_SIZE=30\n'

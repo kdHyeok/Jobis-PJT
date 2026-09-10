@@ -115,7 +115,7 @@ PROMPT_VERSION = "v3"
 
 def _api_url() -> str:
     base = os.environ.get("GMS_BASE_URL",
-                          "https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com")
+                          "https://generativelanguage.googleapis.com")
     model = os.environ.get("GMS_MODEL", "gemini-2.5-flash-lite")
     key = os.environ["GMS_KEY"]
     return f"{base}/v1beta/models/{model}:generateContent?key={key}"

@@ -27,12 +27,12 @@ BCrypt 해시 + 회전 refresh 토큰). 소셜 인증(OAuth 로그인) 공급자
 CLI 기동 오버헤드가 없고, codex 실행 파일이 없는 PC에서도 동작한다는 이유로 표준이 되었다
 (codex_cli 강제 시절 codex가 없는 PC의 전 LLM 호출이 `WinError 2`로 죽은 실측이 있다).
 
-### 1.2 SSAFY GMS (OpenAI 호환 프록시)
+### 1.2 OpenAI 호환 API (기본값 OpenAI 공식, 대안 SSAFY GMS)
 
 | 항목 | 값 |
 |---|---|
-| 발급 | SSAFY에서 배포하는 GMS 키 |
-| Base URL | `https://gms.ssafy.io/gmsapi/api.openai.com/v1` |
+| 발급 | OpenAI API 키. SSAFY 교육 기간에는 GMS 키로 대체 가능 |
+| Base URL | `https://api.openai.com/v1` (기본값). GMS 사용 시 `https://gms.ssafy.io/gmsapi/api.openai.com/v1` |
 | 환경 변수 | `LLM_PROVIDER=openai`, `GMS_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_MODEL_LIGHT` |
 | 기본 모델 | `gpt-4.1-mini` |
 | 주의 | RAG 임베딩까지 GMS로 돌리면 키 한도를 빠르게 소진한다. 최초 재현은 로컬 모델로 한다 |

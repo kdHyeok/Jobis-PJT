@@ -1,6 +1,6 @@
 """GMS(SSAFY API 게이트웨이) 경유 OpenAI 임베딩 어댑터.
 
-`https://gms.ssafy.io/gmsapi/api.openai.com/v1` 로 OpenAI 호환 임베딩 API 를 프록시한다.
+`https://api.openai.com/v1` 로 OpenAI 호환 임베딩 API 를 프록시한다.
 인증은 `Authorization: Bearer <GMS_KEY>`.
 
 공식 `openai` SDK(httpx 기반)를 쓴다 — 처음엔 표준 라이브러리 `urllib` 로 직접 호출했는데,

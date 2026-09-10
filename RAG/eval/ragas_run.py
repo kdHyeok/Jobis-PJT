@@ -72,7 +72,7 @@ def _gms_llm():
     from ragas.llms.base import InstructorLLM, InstructorModelArgs
 
     base = os.environ.get("GMS_BASE_URL",
-                          "https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com")
+                          "https://generativelanguage.googleapis.com")
     model = os.environ.get("GMS_MODEL", "gemini-2.5-flash-lite")
     client = genai.Client(api_key=os.environ["GMS_KEY"],
                           http_options={"base_url": base})

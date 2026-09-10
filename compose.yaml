@@ -31,7 +31,7 @@ services:
     environment:
       JOBISS_AI_SHARED_SECRET: ${AI_SHARED_SECRET:?Set AI_SHARED_SECRET}
       LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
       LLM_MODEL_LIGHT: ${LLM_MODEL_LIGHT:-gpt-4.1-mini}
       LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-4096}

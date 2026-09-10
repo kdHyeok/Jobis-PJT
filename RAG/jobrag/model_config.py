@@ -124,7 +124,7 @@ def get_model_settings() -> ModelSettings:
 
     base_url = os.environ.get(
         "RAG_GMS_OPENAI_BASE_URL",
-        "https://gms.ssafy.io/gmsapi/api.openai.com/v1",
+        "https://api.openai.com/v1",
     ).strip().rstrip("/")
     if not base_url:
         raise RuntimeError("RAG_GMS_OPENAI_BASE_URL must not be empty")
